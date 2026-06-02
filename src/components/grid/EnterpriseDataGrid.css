@@ -1,0 +1,361 @@
+/* NormalGrid.css — self-contained styles for the NormalGrid component.
+   Consumes CSS custom-properties from the global App.css :root,
+   but introduces NO new globals of its own.
+   All class names are prefixed `ng-` to avoid collisions.            */
+
+/* ─── Card shell ──────────────────────────────────────────────────── */
+.ng-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;                   /* stretches inside a flex column */
+}
+
+/* ─── Card header ─────────────────────────────────────────────────── */
+.ng-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--header-gradient);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* subtle shimmer line at the very top of the header */
+.ng-card-header::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 100%
+  );
+}
+
+.ng-card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.ng-card-icon {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.9;
+  filter: brightness(0) invert(1);
+}
+
+/* ── Page-size selector (header right) ── */
+.ng-pagesize-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+}
+
+/* ─── Shared select style (header filter + page-size) ────────────── */
+.ng-select {
+  padding: 2px 22px 2px 6px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  appearance: none;
+  background-image: var(--chevron-svg);
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  cursor: pointer;
+  transition: border-color var(--transition);
+  vertical-align: middle;
+}
+
+.ng-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* ─── Card content area ───────────────────────────────────────────── */
+.ng-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  min-height: 0;
+}
+
+/* Fill parent — table flexes, pagination pinned at bottom */
+.ng-card--fill {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ng-card--fill .ng-card-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ng-card--fill .ng-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: auto;
+}
+
+.ng-card--fill .ng-bottom-panel {
+  flex-shrink: 0;
+}
+
+/* ─── Error + empty states ────────────────────────────────────────── */
+.ng-error {
+  padding: 20px;
+  color: #dc2626;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.ng-empty-cell {
+  text-align: center;
+  padding: 28px 20px;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* ─── Scrollable table wrapper ────────────────────────────────────── */
+/*
+  Fixed height = 10 body rows (48 px each) + sticky header row (44 px).
+  Content beyond 10 rows scrolls internally.
+  Override --ng-max-rows via the style prop if you need a different limit.
+*/
+.ng-table-wrapper {
+  overflow: auto;
+  height: calc(var(--ng-max-rows, 10) * 48px + 44px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-dark) transparent;
+}
+
+.ng-table-wrapper::-webkit-scrollbar          { width: 8px; height: 8px; }
+.ng-table-wrapper::-webkit-scrollbar-track    { background: transparent; }
+.ng-table-wrapper::-webkit-scrollbar-thumb    { background: var(--border-dark); border-radius: 4px; }
+
+/* ─── Table ───────────────────────────────────────────────────────── */
+.ng-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.84rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  table-layout: fixed;         /* enables word-wrap in first column */
+}
+
+/* ── Sticky header ── */
+.ng-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 50%, #dbeafe 100%);
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 2px solid #94a3b8;
+  border-right: 1px solid var(--border-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  user-select: none;
+  vertical-align: middle;
+}
+
+.ng-table thead th:last-child { border-right: none; }
+
+.ng-th-label {
+  vertical-align: middle;
+}
+
+/* ── Body cells ── */
+.ng-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.83rem;
+  color: #334155;
+  font-weight: 400;
+  vertical-align: middle;
+  white-space: nowrap;         /* default: single line */
+  line-height: 1.4;
+}
+
+.ng-table tbody td:last-child { border-right: none; }
+
+/* First column: allow wrapping (long names, etc.) */
+.ng-table tbody td:first-child {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Zebra striping */
+.ng-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+/* Row hover */
+.ng-table tbody tr:hover td { background: var(--primary-lighter); }
+
+/* Clickable row cursor */
+.ng-table tbody tr.ng-row--clickable { cursor: pointer; }
+
+/* ─── Link cell (isLink columns) ──────────────────────────────────── */
+.ng-link {
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  word-break: break-word;
+  transition: color var(--transition);
+}
+
+.ng-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* ─── Badge cell (badge columns) ─────────────────────────────────── */
+.ng-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ng-badge--danger  { background: #fee2e2; color: #b91c1c; }
+.ng-badge--warning { background: #fef3c7; color: #92400e; }
+.ng-badge--success { background: #d1fae5; color: #065f46; }
+.ng-badge--neutral { background: #f1f5f9; color: var(--text-muted); }
+
+/* ─── Bottom pagination bar ───────────────────────────────────────── */
+.ng-bottom-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: var(--header-gradient);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ng-pagination-info {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 400;
+}
+
+.ng-pagination-info strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ng-pagination-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.ng-page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  backdrop-filter: blur(4px);
+}
+
+.ng-page-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.ng-page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+
+/* ─── Inline filter icon (replaces button) ──────────────────────── */
+.ng-filter-icon {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  color: #94a3b8;           /* muted by default — blends with header */
+  margin-left: 5px;
+  opacity: 0.55;
+  transition: opacity var(--transition), color var(--transition);
+  vertical-align: middle;
+  line-height: 0;
+  /* no background, no border, no padding — pure icon */
+}
+
+.ng-filter-icon:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.ng-filter-icon--active {
+  opacity: 1;
+  color: var(--primary);
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ng-bottom-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ng-table-wrapper {
+    /* on mobile, let the wrapper grow rather than clip at 10 rows */
+    height: auto;
+    max-height: calc(var(--ng-max-rows, 10) * 48px + 44px);
+  }
+}

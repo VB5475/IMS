@@ -1,0 +1,8 @@
+.txn-page .efq-panel,
+.txn-page .tef-panel,
+.txn-page .filter-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}

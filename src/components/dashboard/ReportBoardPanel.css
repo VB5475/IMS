@@ -1,0 +1,117 @@
+.rbp-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.rbp-panel--fill {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.rbp-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+}
+
+.rbp-panel__header--toolbar-only {
+  justify-content: flex-end;
+}
+
+.rbp-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.rbp-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rbp-page-size label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.rbp-page-size__select {
+  height: 26px;
+  min-width: 56px;
+  padding: 0 24px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: var(--chevron-svg);
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: border-color var(--transition);
+}
+
+.rbp-page-size__select:hover {
+  border-color: var(--border-dark);
+}
+
+.rbp-page-size__select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30, 74, 122, 0.12);
+}
+
+.rbp-panel__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.rbp-panel__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--secondary);
+  cursor: pointer;
+}
+
+.rbp-panel__link:hover {
+  text-decoration: underline;
+}
+
+.rbp-panel .ng-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.rbp-panel .ng-card-header {
+  display: none;
+}

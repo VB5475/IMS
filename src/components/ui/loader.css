@@ -1,0 +1,26 @@
+/* Loader.css */
+
+.loader-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.loader-spin {
+  flex-shrink: 0;
+  color: var(--primary);
+  animation: loader-spin 0.7s linear infinite;
+}
+
+.loader-text {
+  white-space: nowrap;
+}
+
+@keyframes loader-spin {
+  to { transform: rotate(360deg); }
+}

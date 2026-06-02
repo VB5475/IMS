@@ -1,0 +1,296 @@
+/* Enterprise restyle for data grids — flat headers, compact rows, no gradients */
+
+/* ── Enterprise Data Grid (NormalGrid) ── */
+.ng-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.ng-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+  min-height: 36px;
+}
+
+.ng-card-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ng-table thead th {
+  background: var(--bg-tint) !important;
+  color: var(--text-secondary) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 12px !important;
+  height: 28px;
+  border-bottom: 1px solid var(--border) !important;
+  border-right: none !important;
+}
+
+.ng-table tbody td {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  height: 32px;
+  border-right: none !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.ng-table tbody tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
+.ng-table tbody tr:hover td {
+  background: var(--primary-lighter) !important;
+}
+
+.ng-link {
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ng-link:hover {
+  text-decoration: underline;
+  color: var(--primary-hover);
+}
+
+.ng-badge--danger { background: #fee2e2; color: #b91c1c; }
+.ng-badge--warning { background: #fef3c7; color: #92400e; }
+.ng-badge--success { background: #d1fae5; color: #065f46; }
+.ng-badge--neutral { background: #f1f5f9; color: var(--text-muted); }
+
+.ng-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ng-bottom-panel {
+  background: var(--surface) !important;
+  border-top: 1px solid var(--border) !important;
+  padding: 4px 12px !important;
+}
+
+.ng-pagination-info {
+  color: var(--text-secondary) !important;
+  font-size: 12px !important;
+}
+
+.ng-pagination-info strong {
+  color: var(--text) !important;
+}
+
+.ng-page-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  font-size: 12px !important;
+  padding: 4px 12px !important;
+  border-radius: var(--radius) !important;
+}
+
+.ng-page-btn:hover:not(:disabled) {
+  background: var(--primary-lighter) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+.ng-select {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+/* ── Enterprise Grid (GridForm) ── */
+.erp-grid-container {
+  background: var(--surface);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px rgba(30, 74, 122, 0.08);
+  overflow: hidden;
+}
+
+.grid-header {
+  background: #f4f6f9 !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 8px 16px !important;
+  min-height: 36px !important;
+  box-shadow: none !important;
+}
+
+.grid-header::after {
+  display: none !important;
+}
+
+.grid-title {
+  color: var(--primary) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  text-shadow: none !important;
+}
+
+/* Column-type header/body colors live in EnterpriseGrid.css — do not override here */
+
+.grid-bottom-panel {
+  background: var(--surface) !important;
+  border-top: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  padding: 4px 12px !important;
+}
+
+.toolbar-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  font-size: 11px !important;
+  padding: 3px 10px !important;
+  min-height: 24px !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+  gap: 5px !important;
+}
+
+.toolbar-btn:hover {
+  background: var(--primary-lighter) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  transform: none !important;
+}
+
+.toolbar-btn.primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: #fff !important;
+}
+
+.toolbar-btn.primary:hover {
+  background: var(--primary-hover) !important;
+}
+
+/* ── Filter panels ── */
+.filter-panel,
+.tef-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.fp-toolbar {
+  background: #f4f6f9 !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+.fp-toolbar__title {
+  color: var(--primary) !important;
+  font-size: 13px !important;
+  text-shadow: none !important;
+}
+
+.filter-search-btn {
+  background: var(--primary) !important;
+  border: 1px solid var(--primary) !important;
+  color: #fff !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+}
+
+.filter-search-btn.filter-action-btn {
+  background: var(--success) !important;
+  border-color: var(--success) !important;
+}
+
+.filter-control input,
+.filter-control textarea,
+.tef-control input,
+.tef-control textarea {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  font-size: 13px !important;
+  height: 32px;
+}
+
+.filter-control-label,
+.tef-label {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ── Loader ── */
+.loader-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.loader-spin {
+  animation: ent-spin 0.8s linear infinite;
+  color: var(--primary);
+}
+
+@keyframes ent-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Search select ── */
+.ss-trigger {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  font-size: 13px !important;
+  min-height: 32px !important;
+  background: var(--surface) !important;
+}
+
+.ss-trigger:focus,
+.ss-trigger.ss-open {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(30, 74, 122, 0.12) !important;
+}
+
+/* ── Modal ── */
+.modal-overlay {
+  backdrop-filter: blur(4px);
+}
+
+.modal-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  background: #f4f6f9 !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.modal-title {
+  color: var(--primary) !important;
+  font-size: 15px !important;
+  text-shadow: none !important;
+}
