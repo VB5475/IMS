@@ -1,4 +1,4 @@
-/* PIActionBar.css */
+/* PIActionBar.css — enterprise theme variables only */
 
 .pi-action-bar {
   display: flex;
@@ -13,7 +13,6 @@
   flex-wrap: wrap;
 }
 
-/* ── Separator ── */
 .pi-action-bar__sep {
   width: 1px;
   height: 22px;
@@ -22,7 +21,6 @@
   flex-shrink: 0;
 }
 
-/* ── Shared button base ── */
 .pi-action-btn {
   display: inline-flex;
   align-items: center;
@@ -47,74 +45,68 @@
   background: var(--bg-tint);
   border-color: var(--border);
 }
-
 .pi-action-btn--secondary:hover {
   background: var(--bg);
   border-color: var(--border-dark);
   color: var(--text);
 }
 
-/* Save & Print — primary blue */
+/* Save & Print — primary tint */
 .pi-action-btn--print {
   color: var(--primary);
   background: var(--primary-lighter);
   border-color: var(--primary-light);
 }
-
 .pi-action-btn--print:hover:not(:disabled) {
   background: var(--primary-light);
   transform: translateY(-1px);
 }
 
-/* Save — green */
+/* Save — success green */
 .pi-action-btn--save {
-  color: #ffffff;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  border-color: rgba(34, 197, 94, 0.35);
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.25);
+  color: var(--surface);
+  background: var(--success);
+  border-color: var(--success);
+  box-shadow: var(--shadow-sm);
 }
-
 .pi-action-btn--save:hover:not(:disabled) {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+  opacity: 0.88;
   transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
-
 .pi-action-btn--save:active:not(:disabled) { transform: translateY(0); }
 
-/* Cancel — amber */
+/* Cancel — warning orange */
 .pi-action-btn--cancel {
   color: var(--warning);
   background: var(--orange-light);
-  border-color: rgba(227, 116, 0, 0.25);
+  border-color: var(--border);
 }
-
 .pi-action-btn--cancel:hover:not(:disabled) {
-  background: #fde8c7;
+  background: var(--bg);
   transform: translateY(-1px);
 }
 
-/* Close — red */
+/* Close — danger red */
 .pi-action-btn--close {
   color: var(--danger);
-  background: #fef2f2;
-  border-color: rgba(217, 48, 37, 0.25);
+  background: var(--surface);
+  border-color: var(--border);
 }
-
 .pi-action-btn--close:hover {
-  background: #fde8e8;
+  background: var(--bg-tint);
+  border-color: var(--danger);
   transform: translateY(-1px);
 }
 
-/* ── Spinner (Save in progress) ── */
+/* Spinner */
 .pi-action-spinner {
   width: 13px;
   height: 13px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--surface);
   border-radius: 50%;
   animation: pi-act-spin 0.7s linear infinite;
   flex-shrink: 0;
 }
-
 @keyframes pi-act-spin { to { transform: rotate(360deg); } }

@@ -79,24 +79,24 @@
   font-size: 0.78rem;
   font-weight: 700;
   font-family: inherit;
-  color: #ffffff;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--surface);
+  background: var(--danger);
+  border: 1px solid var(--danger);
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition);
-  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.25);
+  box-shadow: var(--shadow-sm);
   white-space: nowrap;
 }
 
 .pi-tab-delete-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(245, 158, 11, 0.35);
 }
 
 .pi-tab-delete-btn:active:not(:disabled) { transform: translateY(0); }
-.pi-tab-delete-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pi-tab-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Tab content area ── */
 .pi-tab-content {

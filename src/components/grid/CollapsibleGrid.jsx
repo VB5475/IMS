@@ -1,16 +1,18 @@
 // CollapsibleGrid.jsx
 // Generic collapsible table grid — shared across any page that needs
-// an expandable/collapsible data section (e.g. Levy Details, Indent Details).
+// an expandable/collapsible data section.
 //
 // Props:
-//   title    {string}  — main heading (e.g. "Levy Details")
-//   subtitle {string}  — italic sub-label (e.g. "(Collapsible Grid Of Item Grid)")
-//   columns  {Array}   — [{ key, label, width? }]
-//   rows     {Array}   — data rows; each row must have a field per column key
-//   defaultExpanded {boolean} — whether to start open (default false)
+//   title             {string}   — main heading
+//   subtitle          {string}   — italic sub-label
+//   columns           {Array}    — [{ key, label, width? }]
+//   rows              {Array}    — data rows; each row needs a unique `id` field
+//   defaultExpanded   {boolean}  — start open (default false)
+//   selectable        {boolean}  — adds a checkbox column for row selection
+//   onDeleteSelected  {Function} — (ids: string[]) => void; shows Delete button when provided
 
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import './CollapsibleGrid.css';
 
 export default function CollapsibleGrid({
@@ -19,8 +21,38 @@ export default function CollapsibleGrid({
   columns = [],
   rows = [],
   defaultExpanded = false,
+  selectable = false,
+  onDeleteSelected = null,
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded,    setExpanded]    = useState(defaultExpanded);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const handleSelect = useCallback((id) => {
+    const sid = String(id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sid)) next.delete(sid); else next.add(sid);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const allIds = rows.map((r) => String(r.id ?? r));
+    if (allIds.length > 0 && allIds.every((id) => selectedIds.has(id))) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allIds));
+    }
+  }, [rows, selectedIds]);
+
+  const handleDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    onDeleteSelected?.(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedIds, onDeleteSelected]);
+
+  const showCheckbox = selectable || !!onDeleteSelected;
+  const allSelected  = rows.length > 0 && rows.every((r) => selectedIds.has(String(r.id ?? r)));
 
   return (
     <div className="cg-panel">
@@ -46,6 +78,16 @@ export default function CollapsibleGrid({
             <table className="cg-table">
               <thead>
                 <tr>
+                  {showCheckbox && (
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={handleSelectAll}
+                        aria-label="Select all"
+                      />
+                    </th>
+                  )}
                   {columns.map((col) => (
                     <th key={col.key} style={col.width ? { minWidth: col.width } : undefined}>
                       {col.label}
@@ -56,22 +98,54 @@ export default function CollapsibleGrid({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={columns.length} className="cg-empty">
+                    <td colSpan={columns.length + (showCheckbox ? 1 : 0)} className="cg-empty">
                       No data available.
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row, idx) => (
-                    <tr key={row.id ?? idx}>
-                      {columns.map((col) => (
-                        <td key={col.key}>{row[col.key] ?? '—'}</td>
-                      ))}
-                    </tr>
-                  ))
+                  rows.map((row, idx) => {
+                    const rowId = String(row.id ?? idx);
+                    return (
+                      <tr
+                        key={rowId}
+                        className={selectedIds.has(rowId) ? 'cg-row--selected' : ''}
+                      >
+                        {showCheckbox && (
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(rowId)}
+                              onChange={() => handleSelect(rowId)}
+                              aria-label={`Select row ${rowId}`}
+                            />
+                          </td>
+                        )}
+                        {columns.map((col) => (
+                          <td key={col.key}>{row[col.key] ?? '—'}</td>
+                        ))}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Delete bar — shown only when onDeleteSelected is provided */}
+          {onDeleteSelected && (
+            <div className="cg-delete-bar">
+              <button
+                type="button"
+                className="cg-delete-btn"
+                onClick={handleDelete}
+                disabled={selectedIds.size === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

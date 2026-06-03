@@ -111,3 +111,38 @@
   font-style: italic;
   font-size: 0.8rem;
 }
+
+.cg-row--selected { background: var(--primary-lighter) !important; }
+
+/* ── Delete bar ── */
+.cg-delete-bar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 10px 2px;
+}
+
+.cg-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--surface);
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.cg-delete-btn:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+  transform: translateY(-1px);
+}
+
+.cg-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }

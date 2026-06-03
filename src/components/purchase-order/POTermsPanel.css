@@ -1,0 +1,157 @@
+/* POTermsPanel.css — enterprise theme variables only */
+
+/* ── Panel shell ── */
+.pot-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ── Section bar (label + action buttons) ── */
+.pot-section__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: var(--bg-tint);
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pot-section__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+
+.pot-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Buttons — enterprise vars only ── */
+.pot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+
+.pot-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.pot-btn--primary {
+  color: var(--surface);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.pot-btn--primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.pot-btn--danger {
+  color: var(--surface);
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.pot-btn--danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+
+/* ── Grid wrapper ── */
+.pot-grid-wrap {
+  overflow-x: auto;
+}
+
+/* ── Table ── */
+.pot-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.pot-table thead tr {
+  background: var(--col-base-header-bg);
+}
+
+.pot-table th {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--col-base-header-text);
+  text-align: left;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pot-table th:last-child { border-right: none; }
+
+.pot-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.pot-table td:last-child { border-right: none; }
+
+.pot-table tbody tr:last-child td { border-bottom: none; }
+
+.pot-table tbody tr:hover { background: var(--bg-tint); }
+
+.pot-row--selected { background: var(--primary-lighter) !important; }
+
+.pot-cell--index {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ── Editable cell inputs ── */
+.pot-cell-input {
+  width: 100%;
+  min-width: 80px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--transition), background var(--transition);
+  box-sizing: border-box;
+}
+
+.pot-cell-input:hover {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.pot-cell-input:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--primary-lighter);
+}
+
+.pot-cell-input--wide { min-width: 160px; }

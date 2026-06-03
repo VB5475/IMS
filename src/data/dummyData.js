@@ -5,6 +5,7 @@ export const controlTypeMap = {
   LABEL: 0,
   TEXTBOX: 1,
   DATE: 2,
+  CHECKBOX: 3,
   DROPDOWN: 4,
   TEXTAREA: 9
 };
