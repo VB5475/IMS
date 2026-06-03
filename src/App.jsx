@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import EnterpriseDashboard from './pages/EnterpriseDashboard';
 import ReportWorkspacePage from './pages/ReportWorkspacePage';
 import TxnEntryPage from './pages/TxnEntryPage';
+import PurchaseInquiryPage from './pages/PurchaseInquiryPage';
 import { PageHeaderProvider } from './context/PageHeaderContext';
 
 function AppLayout() {
@@ -23,6 +24,7 @@ function AppRoutes() {
         <Route index element={<EnterpriseDashboard />} />
         <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
         <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
+        <Route path="purchase-inquiry/:id?" element={<PurchaseInquiryPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

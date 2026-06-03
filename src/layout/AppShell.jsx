@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileSpreadsheet,
+  ClipboardList,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -25,7 +26,8 @@ const NAV_SECTIONS = [
   {
     label: 'Modules',
     items: [
-      { to: '/txn-entry', icon: FileSpreadsheet, label: 'Invoices', end: false },
+      { to: '/txn-entry',          icon: FileSpreadsheet, label: 'Invoices',           end: false },
+      { to: '/purchase-inquiry',   icon: ClipboardList,   label: 'Purchase Inquiry',   end: false },
     ],
   },
 ];
