@@ -17,7 +17,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, ShoppingBag, Plus } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import EnterpriseFilterPanel from '../components/filters/EnterpriseFilterPanel';
 import EntryGrid             from '../components/grid/EntryGrid';
 import POItemDetailPanel     from '../components/purchase-order/POItemDetailPanel';
@@ -100,10 +100,7 @@ export default function PurchaseOrderPage() {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [supplierOptions,   setSupplierOptions]   = useState([]);
 
-  // Item grid
-  const [showItemGrid, setShowItemGrid] = useState(false);
-  const queuedRowsRef = useRef([]);
-  const [isAdding,    setIsAdding]      = useState(false);
+  // Item grid — always visible; rows start empty
 
   // Item-wise detail panel — selectedItem drives POItemDetailPanel
   const [selectedItem,    setSelectedItem]    = useState(null);
@@ -117,7 +114,7 @@ export default function PurchaseOrderPage() {
 
   usePageHeader({
     title:    'Purchase Order',
-    subtitle: 'Fill in the header fields, then click Add New to add item rows.',
+    subtitle: 'Fill in the header fields, then add items using the grid buttons.',
     showBack: true,
     backTo:   '/',
   });
@@ -160,14 +157,6 @@ export default function PurchaseOrderPage() {
     }
   }), [divisionOptions, departmentOptions, supplierOptions]);
 
-  // ── Flush queued rows once grid mounts ───────────────────────────
-  useEffect(() => {
-    if (showItemGrid && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      queuedRowsRef.current.forEach((row) => itemGridRef.current.addRow(row));
-      queuedRowsRef.current = [];
-    }
-  }, [showItemGrid]);
-
   // ── Item selection → drives POItemDetailPanel ─────────────────────
   // When exactly 1 row is checked: set selectedItem + load its sub-grid data.
   // Otherwise: clear everything.
@@ -200,11 +189,9 @@ export default function PurchaseOrderPage() {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
   }, []);
 
-  const handleAddNew = useCallback((_values) => {
-    const row = blankItemRow();
-    if (!showItemGrid) { queuedRowsRef.current.push(row); setShowItemGrid(true); }
-    else itemGridRef.current?.addRow(row);
-  }, [showItemGrid]);
+  const handleAddNew = useCallback(() => {
+    itemGridRef.current?.addRow(blankItemRow());
+  }, []);
 
   const handleGetItem = useCallback((_values) => {
     console.log('[PO] Get Item — wire up item selection modal here.');
@@ -243,8 +230,6 @@ export default function PurchaseOrderPage() {
       IndentID: 0, DepartmentID: 0, CrDays: '', Currency: '1.00',
       CompanyID: 1, YearID: 13, LoginID: 1, IDNumber: 0,
     };
-    queuedRowsRef.current = [];
-    setShowItemGrid(false);
     setSelectedItem(null);
     setLevyRows([]);
     setDeliveryRows([]);
@@ -275,29 +260,25 @@ export default function PurchaseOrderPage() {
           <EnterpriseFilterPanel
             title="Purchase Order Detail"
             staticFilters={poFilters}
-            onSearch={handleAddNew}
-            onOrderItem={handleGetItem}
-            orderItemLabel="Get Item"
             onFilterChange={handleFilterChange}
-            isSearching={isAdding}
-            actionLabel="Add New"
-            ActionIcon={Plus}
           />
         )}
       </section>
 
-      {/* 2. Item Grid — shown after first "Add New" click */}
-      {showItemGrid && (
-        <section className="workspace-page__grid po-page__grid">
-          <EntryGrid
-            ref={itemGridRef}
-            config={gridConfig}
-            title="Item Grid"
-            onSave={handleSave}
-            onSelectionChange={handleItemSelectionChange}
-          />
-        </section>
-      )}
+      {/* 2. Item Grid — always visible; empty table until rows are added */}
+      <section className="workspace-page__grid po-page__grid">
+        <EntryGrid
+          ref={itemGridRef}
+          config={gridConfig}
+          title="Item Grid"
+          onSave={handleSave}
+          onSelectionChange={handleItemSelectionChange}
+          onAddItem={handleAddNew}
+          addItemLabel="Add Item"
+          onGetItem={handleGetItem}
+          getItemLabel="Get Item"
+        />
+      </section>
 
       {/* 3. Item-wise collapsible panel — Levy Details | Delivery Schedule | Indent Detail */}
       <section className="po-page__section">
