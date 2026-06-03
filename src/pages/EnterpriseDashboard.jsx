@@ -11,7 +11,7 @@ export default function EnterpriseDashboard() {
       <KpiStrip />
       <div className="ent-dashboard__main">
         <div className="ent-dashboard__left">
-          <ReportBoardPanel compact showViewAll />
+          <ReportBoardPanel compact />
         </div>
         <div className="ent-dashboard__right">
           <TaskBoardPanel />
