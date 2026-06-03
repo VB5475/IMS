@@ -21,6 +21,7 @@ import React, {
   useState, useMemo, useCallback, useRef, useEffect,
   useImperativeHandle, forwardRef,
 } from 'react';
+import { Plus, ShoppingCart } from 'lucide-react';
 import SearchSelect from '../ui/SearchSelect';
 import TxnEntryBottomPanel from './EntryGridBottomPanel';
 import './EnterpriseGrid.css';
@@ -73,9 +74,13 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     title = 'Invoice Line Items',
     onSave,
     onCellEvent,
-    readOnly = false,       // true → read-only display mode (no editing)
-    initialRows = null,     // array → pre-populated rows (used in readOnly mode)
-    onSelectionChange = null, // (count: number) => void — notifies parent of selection changes
+    readOnly = false,
+    initialRows = null,
+    onSelectionChange = null,
+    onAddItem = null,        // () => void — "Add Item" button in grid header
+    addItemLabel = 'Add Item',
+    onGetItem = null,        // () => void — "Get Item" button in grid header
+    getItemLabel = 'Get Item',
   },
   ref,
 ) {
@@ -409,9 +414,27 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   return (
     <div className={`erp-grid-container erp-grid-container--dense erp-grid-container--fill ${resizing ? 'resizing' : ''}`}>
 
-      {title ? (
+      {(title || onAddItem || onGetItem) ? (
         <div className="grid-header">
-          <h2 className="grid-title">{title}</h2>
+          <div className="grid-header__inner">
+            {title && <h2 className="grid-title">{title}</h2>}
+            {(onGetItem || onAddItem) && (
+              <div className="grid-header__actions">
+                {onGetItem && (
+                  <button type="button" className="toolbar-btn" onClick={onGetItem}>
+                    <ShoppingCart size={13} strokeWidth={2.5} />
+                    {getItemLabel}
+                  </button>
+                )}
+                {onAddItem && (
+                  <button type="button" className="toolbar-btn primary" onClick={onAddItem}>
+                    <Plus size={13} strokeWidth={2.5} />
+                    {addItemLabel}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 
@@ -512,7 +535,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                 <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
                   {readOnly
                     ? 'No data available.'
-                    : <>Click <strong>Add New</strong> in the header panel to add a row.</>}
+                    : (onGetItem || onAddItem)
+                      ? <>
+                          {onGetItem && <>Click <strong>{getItemLabel}</strong> to pick items</>}
+                          {onGetItem && onAddItem && <>, or </>}
+                          {onAddItem && <>click <strong>{addItemLabel}</strong> to add a new row</>}.
+                        </>
+                      : <>Click <strong>Add Item</strong> to add a row.</>
+                  }
                 </td>
               </tr>
             )}

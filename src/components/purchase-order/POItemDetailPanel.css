@@ -1,0 +1,205 @@
+/* POItemDetailPanel.css — enterprise theme variables only */
+
+/* ── Panel shell ── */
+.pod-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color var(--transition);
+}
+
+.pod-panel--open {
+  border-color: var(--primary-light);
+}
+
+/* ── Collapse header button ── */
+.pod-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--bg-tint);
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--transition);
+}
+
+.pod-header:not(:disabled):hover { background: var(--primary-lighter); }
+
+.pod-header:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.pod-panel--open .pod-header {
+  background: var(--primary-lighter);
+  border-bottom-color: var(--border);
+}
+
+.pod-header__chevron {
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.pod-header__title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+/* Selected item chip */
+.pod-header__item {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1px 8px;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pod-header__hint {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Expanded body ── */
+.pod-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Tab bar ── */
+.pod-tab-bar {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.pod-tab-btn {
+  padding: 7px 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.pod-tab-btn:hover { color: var(--primary); background: var(--bg-tint); }
+
+.pod-tab-btn--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--surface);
+}
+
+/* ── Tab content area ── */
+.pod-tab-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Grid wrapper ── */
+.pod-grid-wrap {
+  overflow-x: auto;
+}
+
+/* ── Table ── */
+.pod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.pod-table thead tr { background: var(--col-base-header-bg); }
+
+.pod-table th {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--col-base-header-text);
+  text-align: left;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pod-table th:last-child { border-right: none; }
+
+.pod-table td {
+  padding: 5px 10px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.pod-table td:last-child { border-right: none; }
+
+.pod-table tbody tr:last-child td { border-bottom: none; }
+
+.pod-table tbody tr:hover { background: var(--bg-tint); }
+
+.pod-row--selected { background: var(--primary-lighter) !important; }
+
+.pod-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+/* ── Indent tab footer (Delete bar) ── */
+.pod-tab-footer {
+  display: flex;
+  justify-content: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-tint);
+}
+
+.pod-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--surface);
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.pod-delete-btn:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+  transform: translateY(-1px);
+}
+
+.pod-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }

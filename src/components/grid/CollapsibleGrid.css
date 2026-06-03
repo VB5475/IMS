@@ -1,0 +1,148 @@
+/* CollapsibleGrid.css — shared collapsible table panel */
+
+/* ── Panel shell ── */
+.cg-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ── Header button ── */
+.cg-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: var(--bg-tint);
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--transition);
+}
+
+.cg-header:hover { background: var(--primary-lighter); }
+
+.cg-header[aria-expanded="true"] { border-bottom-color: var(--border); }
+
+.cg-header__chevron {
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.cg-header__title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.cg-header__sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cg-header__badge {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Expanded body ── */
+.cg-body { padding: 10px; }
+
+.cg-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ── Table ── */
+.cg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.cg-table thead tr { background: var(--col-base-header-bg); }
+
+.cg-table th {
+  padding: 6px 11px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--col-base-header-text);
+  text-align: left;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cg-table th:last-child { border-right: none; }
+
+.cg-table td {
+  padding: 5px 11px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.cg-table td:last-child { border-right: none; }
+
+.cg-table tbody tr:last-child td { border-bottom: none; }
+
+.cg-table tbody tr:hover { background: var(--bg-tint); }
+
+.cg-empty {
+  text-align: center;
+  padding: 18px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+.cg-row--selected { background: var(--primary-lighter) !important; }
+
+/* ── Delete bar ── */
+.cg-delete-bar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 10px 2px;
+}
+
+.cg-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--surface);
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.cg-delete-btn:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+  transform: translateY(-1px);
+}
+
+.cg-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }

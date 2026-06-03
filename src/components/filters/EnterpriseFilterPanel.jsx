@@ -106,6 +106,22 @@ function FilterControl({ filter, value, options, onChange }) {
           />
         );
 
+      case controlTypeMap.CHECKBOX:
+        return (
+          <div className="efq-cell__checkbox-wrap">
+            <input
+              id={`efq-${FilterColName}`}
+              type="checkbox"
+              className="efq-cell__checkbox"
+              checked={value === true || value === 'true'}
+              onChange={(e) => onChange(FilterColName, e.target.checked)}
+            />
+            <label htmlFor={`efq-${FilterColName}`} className="efq-cell__checkbox-label">
+              {FilterCaption}
+            </label>
+          </div>
+        );
+
       case controlTypeMap.TEXTAREA:
         return (
           <textarea

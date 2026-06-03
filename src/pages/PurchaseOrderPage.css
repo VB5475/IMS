@@ -1,0 +1,28 @@
+/* PurchaseOrderPage.css */
+
+.po-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Match invoice/PI panel styling */
+.po-page .efq-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Item Grid: fixed height (wide columns need horizontal scroll) */
+.po-page__grid {
+  flex: 0 0 auto !important;
+  height: 300px;
+  min-height: 0;
+}
+
+.po-page__section {
+  flex-shrink: 0;
+}
+

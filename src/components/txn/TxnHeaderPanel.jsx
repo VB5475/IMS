@@ -118,10 +118,15 @@ export default function TxnHeaderPanel({
   title = '',
   filters = [],
   onAddNew,
-  onOrderItem,          // () => void — called when Order Item is clicked
+  onOrderItem,              // legacy — kept for backward compat (TxnEntryPage)
+  onSecondaryAction,        // preferred generic prop (replaces onOrderItem for new callers)
+  secondaryBtnLabel = 'Order Item',
+  SecondaryBtnIcon = ShoppingCart,
   isAdding = false,
   onFilterChange = null,
 }) {
+  // Unified secondary action handler — prefer onSecondaryAction over legacy onOrderItem
+  const secondaryHandler = onSecondaryAction || onOrderItem;
   // Local controlled values for all header fields
   const [values, setValues] = useState({});
 
@@ -153,17 +158,17 @@ export default function TxnHeaderPanel({
     <div className="tef-control tef-action-wrap">
       <span className="tef-label">&nbsp;</span>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        {/* Order Item button */}
-        {onOrderItem && (
+        {/* Secondary action button (Order Item / Indent Item / etc.) */}
+        {secondaryHandler && (
           <button
             className="tef-order-btn"
-            onClick={() => onOrderItem?.(values)}
+            onClick={() => secondaryHandler(values)}
             disabled={isAdding}
-            title="Order Item"
-            aria-label="Order Item"
+            title={secondaryBtnLabel}
+            aria-label={secondaryBtnLabel}
           >
-            <ShoppingCart size={14} strokeWidth={2.5} />
-            <span>Order Item</span>
+            <SecondaryBtnIcon size={14} strokeWidth={2.5} />
+            <span>{secondaryBtnLabel}</span>
           </button>
         )}
         {/* Add New button */}

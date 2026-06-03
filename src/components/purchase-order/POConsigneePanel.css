@@ -1,0 +1,133 @@
+/* POConsigneePanel.css — enterprise theme variables only */
+
+.poc-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Section header bar */
+.poc-panel__header {
+  padding: 7px 12px;
+  background: var(--bg-tint);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Body */
+.poc-panel__body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Radio group ── */
+.poc-radio-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.poc-radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.poc-radio-item__input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.poc-radio-item__label {
+  font-size: 0.8rem;
+  color: var(--text);
+  user-select: none;
+}
+
+/* ── Fields row ── */
+.poc-fields {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.poc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 160px;
+}
+
+.poc-field--wide {
+  flex: 1;
+  min-width: 220px;
+}
+
+.poc-field__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.poc-field__control--select {
+  min-width: 180px;
+}
+
+.poc-field__input {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg-tint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color var(--transition);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.poc-field__input:hover  { border-color: var(--border-dark); }
+.poc-field__input:focus  {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--primary-lighter);
+}
+
+.poc-field__textarea {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg-tint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+  transition: border-color var(--transition);
+  box-sizing: border-box;
+}
+
+.poc-field__textarea:hover { border-color: var(--border-dark); }
+.poc-field__textarea:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--primary-lighter);
+}
