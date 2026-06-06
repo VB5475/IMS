@@ -41,6 +41,62 @@
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
+/* ── Tab-bar header (Suppliers | Term And Conditions, etc.) ── */
+.grid-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-right: 10px;
+  background: var(--bg-tint);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.grid-tabbar__tabs {
+  display: flex;
+}
+
+.grid-tab {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.grid-tab:hover {
+  color: var(--primary);
+  background: rgba(30, 74, 122, 0.05);
+}
+
+.grid-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--surface);
+}
+
+.grid-tabbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.grid-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
 .grid-bottom-panel,
 .grid-toolbar-left,
 .grid-toolbar-right {
@@ -1356,4 +1412,53 @@ textarea:focus-visible {
 .erp-grid-container--scroll-body .grid-bottom-panel,
 .erp-grid-container--scroll-body .pagination-bar {
   flex-shrink: 0;
+}
+
+/* ── Collapsible children (EntryGrid inline sub-table) ── */
+.cell-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.eg-expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+
+.eg-expand-toggle:hover {
+  background: var(--primary-lighter);
+  border-color: var(--primary-light);
+}
+
+.eg-expand-toggle[aria-expanded="true"] {
+  background: var(--primary-lighter);
+  color: var(--primary);
+  border-color: var(--primary-light);
+}
+
+/* Row that holds the InlineChildTable — no hover highlight, no selection colour */
+.eg-child-row {
+  background: transparent !important;
+}
+
+.eg-child-row:hover {
+  background: transparent !important;
+}
+
+.eg-child-cell {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--border);
 }

@@ -1,88 +1,60 @@
-// constants.js — All API-related constants for the project
-// ─────────────────────────────────────────────────────────
+// constants.js — Shared API constants for the whole project
+// ──────────────────────────────────────────────────────────
+// Page-specific configs (RB codes, SP names, IDs, storage keys) live in each
+// page's own constants file, e.g. src/pages/purchase-inquiry/constants.js.
+// The re-exports below keep existing hook/component import paths unchanged.
 
+// ── Base URLs ──────────────────────────────────────────────────────────
 export const API_BASE_URL =
+  'http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx';
+
+export const API_BASE_URL_OLD =
   'http://122.179.135.100:8095/ERPWS_TB/webservice/WsIMS.asmx';
 
+// REST-style endpoint — body is a JSON object, not query params.
+// Used by SPs that route through the newer /API/Values gateway.
+export const API_BASE_URL_IMS =
+  'http://122.179.135.100:8095/IMS_LIVE';
+
+// ── API endpoint paths ─────────────────────────────────────────────────
 export const ENDPOINTS = {
-  /** Dashboard: fetches report board summary rows (ReportBoardName, Overdue, etc.) */
-  FN_FETCH_DATA: '/FN_Fetch_Data',
-
-  /** Fetches filter definitions for a given master ID */
-  GET_FILTERS: '/GetFilters',
-
-  /** Fetches dropdown options for a specific filter parameter */
-  GET_FILTER_DETAIL: '/GetFilterDetail',
-
-  /** Fetches master detail info (QueryName, FuncCode, etc.) */
-  GET_MASTER_DETAIL: '/GetMasterDetail',
-
-  /** Fetches stored procedure parameters for a given QueryName */
-  GET_PARAMETERS: '/GetParameters',
-
-  /** Fetches column definitions for the grid */
-  GET_DETAIL_COL_DATA: '/GetDetailColData',
-
-  /** Fetches grid row data by executing the built procedure string */
-  GET_MASTER_DATA_FILL: '/GetMasterDataFill',
-
-  /** Saves selected rows to the backend */
+  FN_FETCH_DATA:              '/FN_Fetch_Data',
+  // REST gateway — accepts a JSON body: { ObjType, ObjName, JSon (array), p_ErrCode, p_ErrMsg }
+  API_VALUES:                 '/API/Values',
+  GET_FILTERS:                '/GetFilters',
+  GET_FILTER_DETAIL:          '/GetFilterDetail',
+  GET_MASTER_DETAIL:          '/GetMasterDetail',
+  GET_PARAMETERS:             '/GetParameters',
+  GET_DETAIL_COL_DATA:        '/GetDetailColData',
+  GET_MASTER_DATA_FILL:       '/GetMasterDataFill',
   RB_REPORTBOARD_DETAIL_SAVE: '/RB_ReportBoardDetail_Save',
-
-  FN_TBL_RB_GRID_EVENT: "/fn_tbl_RB_Grid_Event",
-  RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save"
+  FN_TBL_RB_GRID_EVENT:       '/fn_tbl_RB_Grid_Event',
+  RB_MASTER_DETAIL_FORM_SAVE: '/RB_MasterDetailForm_Save',
 };
 
-/**
- * Params for FN_FETCH_DATA when fetching the report board summary.
- * ObjType=2, ObjName identifies the stored function.
- */
-export const REPORT_BOARD_SUMMARY = {
-  OBJ_TYPE: 2,
-  OBJ_NAME: 'Fn_tbl_FetchReportBoardSummaryUserWise',
-};
+// ── Shared request defaults (used across pages) ────────────────────────
+export const DEFAULT_LOGIN_ID    = 1;
+export const DEFAULT_COMPANY_ID  = 1;
+export const DEFAULT_YEAR_ID     = 13;
+export const DEFAULT_SESSION_ID  = 88;
+export const DEFAULT_DIVISION_ID = 0;
+export const API_TIMEOUT         = 30000;
 
 export const CBO_MODE = {
   FILTER: 'F',
   COLUMN: 'C',
 };
 
-export const STORAGE_KEYS = {
-  MASTER_DETAIL: 'masterDetail',
-  TXN_ENTRY_META: 'txnEntryMeta',       // { RBID, SaveProcName } for detail grid (RB_SampleInvDet)
-  TXN_HEADER_META: 'txnHeaderMeta',     // { RBID, SaveProcName } for master header (RB_SampleInvMst)
-};
-
-
-export const DEFAULT_RB_CODE_TXN = "RB_SampleInvDet"
-export const DEFAULT_RB_CODE_TXN_MST = "RB_SampleInvMst"   // header filter panel
-export const DEFAULT_LOGIN_ID = 1;
-export const DEFAULT_COMPANY_ID = 1;
-export const DEFAULT_YEAR_ID = 13;
-export const DEFAULT_SESSION_ID = 88;
-export const DEFAULT_DIVISION_ID = 0;
-
-export const API_TIMEOUT = 30000;
-
-// ── Column data-type identifiers (prefix-matched against ColDataType) ─
-// The API returns values like "numeric(18,0)", "varchar(50)", "datetime".
-// We only need the leading keyword — everything after the first '(' is ignored.
+// ── Column data-type identifiers (prefix-matched against ColDataType) ──
 export const COL_DATA_TYPE = {
-  NUMERIC: 'numeric',   // → default 0
-  VARCHAR: 'varchar',   // → default ''  (empty string)
+  NUMERIC:  'numeric',   // → default 0
+  VARCHAR:  'varchar',   // → default ''
   DATETIME: 'datetime',  // → default null
 };
 
 /**
  * Returns the correct server-side default value for a column based on its
  * ColDataType string from the GET_DETAIL_COL_DATA response.
- *
- * Rules (prefix-matched, case-insensitive):
- *   numeric*  → 0
- *   varchar*  → ''
- *   datetime* → null
- *   (unknown) → null   (safe fallback)
- *
  * @param {string|null|undefined} colDataType  e.g. "numeric(18,2)", "varchar(50)"
  * @returns {number|string|null}
  */
@@ -92,5 +64,15 @@ export function getColDefault(colDataType) {
   if (lower.startsWith(COL_DATA_TYPE.NUMERIC)) return 0;
   if (lower.startsWith(COL_DATA_TYPE.VARCHAR)) return '';
   if (lower.startsWith(COL_DATA_TYPE.DATETIME)) return null;
-  return null; // safe fallback for any unrecognised type
+  return null;
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// Page-config re-exports — the authoritative definitions live in each
+// page's own constants.js; these re-exports keep hooks and shared
+// components working without touching their import paths.
+// ══════════════════════════════════════════════════════════════════════
+export { DASHBOARD_CONFIG }        from '../pages/dashboard/constants';
+export { REPORT_WORKSPACE_CONFIG } from '../pages/report-workspace/constants';
+export { TXN_CONFIG }              from '../pages/txn-entry/constants';
+export { PI_CONFIG }               from '../pages/purchase-inquiry/constants';

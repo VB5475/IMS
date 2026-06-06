@@ -4,120 +4,95 @@
 // so logging, auth headers, error normalization, etc. are applied
 // in one place.
 //
+// Pass an optional baseURL to target a different server (e.g. API_BASE_URL_OLD).
+//
 // ── get(endpoint, params) ────────────────────────────────────────────
 // Accepts a plain-object `params` map.
 // Serialises it to URLSearchParams internally — callers never touch
 // URLSearchParams directly.
-//
-// Filtering rules applied before serialisation:
-//   - null / undefined values are dropped
-//   - empty-string values are KEPT (e.g. p_ErrMsg: '' must survive)
-//   - all other values are kept as-is
 
 import { useState, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_BASE_URL, API_TIMEOUT } from './constants';
 
-// ── Shared Axios instance (singleton) ─────────────────────────────
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
-});
+function attachInterceptors(client) {
+  client.interceptors.request.use(
+    (config) => {
+      console.log(
+        `%c[API ➜] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
+        'color:#6366f1;font-weight:600',
+        config.params || '',
+      );
+      return config;
+    },
+    (error) => {
+      console.error('[API ➜] Request setup error:', error);
+      return Promise.reject(error);
+    },
+  );
 
-// ── REQUEST interceptor ───────────────────────────────────────────
-apiClient.interceptors.request.use(
-  (config) => {
-    console.log(
-      `%c[API ➜] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
-      'color:#6366f1;font-weight:600',
-      config.params || ''
-    );
-    return config;
-  },
-  (error) => {
-    console.error('[API ➜] Request setup error:', error);
-    return Promise.reject(error);
-  }
-);
+  client.interceptors.response.use(
+    (response) => {
+      console.log(
+        `%c[API ✓] ${response.status} ${response.config.url}`,
+        'color:#22c55e;font-weight:600',
+      );
+      return response.data;
+    },
+    (error) => {
+      if (axios.isCancel(error)) return Promise.reject(error);
 
-// ── RESPONSE interceptor ──────────────────────────────────────────
-apiClient.interceptors.response.use(
-  (response) => {
-    console.log(
-      `%c[API ✓] ${response.status} ${response.config.url}`,
-      'color:#22c55e;font-weight:600'
-    );
-    return response.data;
-  },
-  (error) => {
-    if (axios.isCancel(error)) return Promise.reject(error);
+      const status = error.response?.status;
+      const url = error.config?.url;
 
-    const status = error.response?.status;
-    const url = error.config?.url;
+      console.error(
+        `%c[API ✗] ${status || 'NETWORK'} ${url}`,
+        'color:#ef4444;font-weight:600',
+        error.response?.data || error.message,
+      );
 
-    console.error(
-      `%c[API ✗] ${status || 'NETWORK'} ${url}`,
-      'color:#ef4444;font-weight:600',
-      error.response?.data || error.message
-    );
+      return Promise.reject({
+        status,
+        message: error.response?.data?.message || error.message,
+        raw: error,
+      });
+    },
+  );
+}
 
-    return Promise.reject({
-      status,
-      message: error.response?.data?.message || error.message,
-      raw: error,
+const clientCache = new Map();
+
+/** Returns a cached axios client for the given base URL. */
+export function getApiClient(baseURL = API_BASE_URL) {
+  if (!clientCache.has(baseURL)) {
+    const client = axios.create({
+      baseURL,
+      timeout: API_TIMEOUT,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
     });
+    attachInterceptors(client);
+    clientCache.set(baseURL, client);
   }
-);
+  return clientCache.get(baseURL);
+}
 
-// ── Export the raw client for non-hook contexts ───────────────────
-export { apiClient };
+/** Default client — IMS_LIVE */
+export const apiClient = getApiClient(API_BASE_URL);
 
-// ── Internal helper: build URLSearchParams from a plain object ────
-// Rules:
-//   null / undefined  → dropped
-//   everything else   → kept (including '' and 0 and -1)
 function buildQueryString(params = {}) {
   const entries = Object.entries(params).filter(([, v]) => v !== null && v !== undefined);
   return new URLSearchParams(Object.fromEntries(entries)).toString();
 }
 
-// const JSON_PARAMS = ['prmStrMstJSON', 'prmStrDetJSON'];
-
-// function buildQueryString(params = {}) {
-//   const parts = Object.entries(params)
-//     .filter(([, v]) => v !== null && v !== undefined)
-//     .map(([k, v]) => {
-//       const encoded = encodeURIComponent(v);
-//       const decoded = JSON_PARAMS.includes(k)
-//         ? encoded.replace(/%5B/gi, '[').replace(/%5D/gi, ']')
-//         : encoded;
-//       return `${k}=${decoded}`;
-//     });
-//   return parts.join('&');
-// }
-// ── Hook ──────────────────────────────────────────────────────────
 /**
- * useApi — provides `get` and `post` helpers that track
- * loading / error state automatically.
- *
- * Usage:
- *   const { get } = useApi();
- *
- *   // Pass params as a plain object — URLSearchParams is built internally
- *   const data = await get('/GetFilters', { prmMasterID: 1 });
- *   const data = await get('/FN_Fetch_Data', {
- *     ObjType: 2,
- *     ObjName: 'Fn_Fetch_RBDetailByRBCode',
- *     JSon: JSON.stringify([{ prmRBCode: 'RB_SampleInvDet' }]),
- *     p_ErrCode: -1,
- *     p_ErrMsg: '',        // ← empty string is preserved
- *   });
+ * useApi — provides `get` and `post` helpers that track loading / error state.
+ * @param {string} [baseURL] — defaults to API_BASE_URL
  */
-export function useApi() {
+export function useApi(baseURL = API_BASE_URL) {
+  const client = useMemo(() => getApiClient(baseURL), [baseURL]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const activeRequests = useRef(0);
@@ -130,7 +105,7 @@ export function useApi() {
     setLoading(true);
     setError(null);
     try {
-      return await apiClient.get(fullUrl);
+      return await client.get(fullUrl);
     } catch (err) {
       if (!axios.isCancel(err)) setError(err);
       throw err;
@@ -138,7 +113,7 @@ export function useApi() {
       activeRequests.current -= 1;
       if (activeRequests.current === 0) setLoading(false);
     }
-  }, []);
+  }, [client]);
 
   const post = useCallback(async (url, body = {}, params = {}) => {
     const qs = buildQueryString(params);
@@ -148,7 +123,7 @@ export function useApi() {
     setLoading(true);
     setError(null);
     try {
-      return await apiClient.post(fullUrl, body);
+      return await client.post(fullUrl, body);
     } catch (err) {
       if (!axios.isCancel(err)) setError(err);
       throw err;
@@ -156,10 +131,33 @@ export function useApi() {
       activeRequests.current -= 1;
       if (activeRequests.current === 0) setLoading(false);
     }
-  }, []);
+  }, [client]);
+
+  // GET with a JSON request body (mirrors: --request GET --header 'Content-Type: application/json' --data '{...}').
+  // Uses client.request() instead of client.get() to guarantee Axios serialises
+  // and sends the body even though the HTTP verb is GET.
+  const getWithBody = useCallback(async (url, body = {}) => {
+    activeRequests.current += 1;
+    setLoading(true);
+    setError(null);
+    try {
+      return await client.request({
+        method: 'GET',
+        url,
+        data: body,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (err) {
+      if (!axios.isCancel(err)) setError(err);
+      throw err;
+    } finally {
+      activeRequests.current -= 1;
+      if (activeRequests.current === 0) setLoading(false);
+    }
+  }, [client]);
 
   return useMemo(
-    () => ({ get, post, loading, error, client: apiClient }),
-    [get, post, loading, error]
+    () => ({ get, post, getWithBody, loading, error, client, baseURL }),
+    [get, post, getWithBody, loading, error, client, baseURL],
   );
 }

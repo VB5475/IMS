@@ -1,4 +1,4 @@
-// TxnEntryForm.jsx
+// TxnEntryPage.jsx
 // Transaction Entry page — Sample Invoice Detail
 //
 // Two separate API chains on mount:
@@ -14,16 +14,15 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { AlertCircle, Plus } from 'lucide-react';
-import EnterpriseFilterPanel from '../components/filters/EnterpriseFilterPanel';
-import EntryGrid from '../components/grid/EntryGrid';
-import OrderItemModal from '../components/txn/OrderItemModal';
-import { useTxnEntry } from '../hooks/useTxnEntry';
-import { useApi } from '../api/useApi';
-import { controlTypeMap } from '../data/dummyData';
-import { getColDefault, ENDPOINTS } from '../api/constants';
-import {
-  usePageHeader,
-} from '../context/PageHeaderContext';
+import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
+import EntryGrid from '../../components/grid/EntryGrid';
+import OrderItemModal from '../../components/txn/OrderItemModal';
+import { useTxnEntry } from '../../hooks/useTxnEntry';
+import { useApi } from '../../api/useApi';
+import { controlTypeMap } from '../../data/dummyData';
+import { getColDefault, ENDPOINTS, API_BASE_URL_OLD } from '../../api/constants';
+import { TXN_CONFIG } from './constants';
+import { usePageHeader } from '../../context/PageHeaderContext';
 import './TxnEntryPage.css';
 
 // ── Hardcoded header fields (mirrors the image: Sample Invoice Detail) ──
@@ -54,7 +53,7 @@ const TXN_HEADER_FILTERS = [
     FilterParameterID: 'InvoiceType',
     FilterColName: 'InvoiceTypeID',
     FilterCaption: 'Invoice Type',
-    FilterColCtrlType: controlTypeMap.DROPDOWN,  // search-select
+    FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: [],   // populated from fn_tbl_ddl_Sal_Configuration
   },
   {
@@ -90,12 +89,11 @@ let _tempId = -1;
 const nextTempId = () => _tempId--;
 
 export default function TxnEntryPage() {
-  const { id: routeId } = useParams();          // optional :id from route
-  const genIDNumber = routeId ? 1 : 0;           // 1 = edit existing, 0 = new entry
-  const { get } = useApi();
-  const gridRef = useRef(null); // imperative handle → addRow / getRows / getSelectedRows
+  const { id: routeId } = useParams();
+  const genIDNumber = routeId ? 1 : 0;
+  const { get } = useApi(API_BASE_URL_OLD);
+  const gridRef = useRef(null);
 
-  // ── Extra dropdown options fetched directly (not via useTxnEntry) ───
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [invoiceTypeOptions, setInvoiceTypeOptions] = useState([]);
@@ -104,49 +102,32 @@ export default function TxnEntryPage() {
     columns, allColumns, isFetching, metaError, fetchTxnMeta, fetchGridColumns, fireCellEvent,
     headerColumns, headerDropdownOpts, divisionOptions, headerFetching, headerError, fetchHeaderMeta,
     saveTxn, isSaving, saveError,
-  } = useTxnEntry();
+  } = useTxnEntry(API_BASE_URL_OLD);
 
-  // ── Sync hardcoded filters with API column data ──────────────────
-  // Match by FilterParameterID ↔ ColName.
-  // When matched:
-  //   FilterColName   ← ColName       (syncs key used in MstJSON)
-  //   FilterCaption   ← DisplayName   (syncs label shown on control)
-  //   staticOptions   ← API options   (dropdown data)
-  // Division dropdown is populated separately from Fn_tbl_FetchUserWsDivision.
-  // Unmatched hardcoded filters are kept as-is (no API data to sync).
   const syncedFilters = useMemo(() => {
-    // Helper: inject known API-fetched options by FilterParameterID
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case 'Division': return { ...filter, staticOptions: divisionOptions };
-        case 'Department': return { ...filter, staticOptions: departmentOptions };
-        case 'Supplier': return { ...filter, staticOptions: supplierOptions };
+        case 'Division':    return { ...filter, staticOptions: divisionOptions };
+        case 'Department':  return { ...filter, staticOptions: departmentOptions };
+        case 'Supplier':    return { ...filter, staticOptions: supplierOptions };
         case 'InvoiceType': return { ...filter, staticOptions: invoiceTypeOptions };
-        default: return filter;
+        default:            return filter;
       }
     };
 
-    if (headerColumns.length === 0) {
-      // API col defs not yet loaded — still inject already-fetched dropdown options
-      return TXN_HEADER_FILTERS.map(injectOptions);
-    }
+    if (headerColumns.length === 0) return TXN_HEADER_FILTERS.map(injectOptions);
 
-    // Build a lookup: ColName → API column object
     const apiColMap = {};
     headerColumns.forEach(col => { apiColMap[col.ColName] = col; });
 
     return TXN_HEADER_FILTERS.map(filter => {
       const withOpts = injectOptions(filter);
-
-      // Try matching by FilterParameterID first, then by FilterColName
       const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
       if (!apiCol) return withOpts;
-
       return {
         ...withOpts,
         FilterColName: apiCol.ColName,
         FilterCaption: apiCol.DisplayName,
-        // Only override staticOptions from headerDropdownOpts if we don't already have dedicated data
         staticOptions:
           withOpts?.staticOptions?.length > 0
             ? withOpts.staticOptions
@@ -155,109 +136,62 @@ export default function TxnEntryPage() {
     });
   }, [headerColumns, headerDropdownOpts, divisionOptions, departmentOptions, supplierOptions, invoiceTypeOptions]);
 
-  // Track current FilterPanel header values (always up-to-date via ref)
-  // Seeded with default values so untouched fields are still sent to the API.
-  // In fireCellEvent MstJSON, ColName is used as keys (synced from API).
   const headerValuesRef = useRef({
-    TranCode: '',
-    TranDate: null,
-    DivisionID: 0,
-    InvoiceTypeID: 0,
-    SupplierID: 0,
-    CurrencyID: 0,
-    CurrencyRate: 0,
-    DepartmentID: 0,
-    CompanyID: 1.0,
-    YearID: 13.0,
-    SessionID: 4150836.0,
-    LoginID: 1.0,
-    IDNumber: 0
+    TranCode: '', TranDate: null, DivisionID: 0, InvoiceTypeID: 0,
+    SupplierID: 0, CurrencyID: 0, CurrencyRate: 0, DepartmentID: 0,
+    CompanyID: 1.0, YearID: 13.0, SessionID: 4150836.0, LoginID: 1.0, IDNumber: 0,
   });
 
-  // Controls GridForm visibility — shown only after first "Add New" click
   const [showGrid, setShowGrid] = useState(false);
-
-  // Rows queued before GridForm is mounted (first click edge-case)
   const queuedRowsRef = useRef([]);
 
-  // ── Order Item modal state ─────────────────────────────────────────────
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [orderItems, setOrderItems] = useState([]);
   const [orderItemsLoading, setOrderItemsLoading] = useState(false);
   const [orderItemsError, setOrderItemsError] = useState(null);
 
-  // Tracks whether fetchGridColumns has already run (prevents re-fetching dropdowns)
   const gridColumnsLoadedRef = useRef(false);
-  // Spinner guard — prevents double-click while dropdown options are loading
   const [isGridLoading, setIsGridLoading] = useState(false);
 
-  // ── Fetch meta on mount ────────────────────────────────────────────────
-  // fetchHeaderMeta: filter panel + Division options (RB_SampleInvMst)
-  // fetchTxnMeta:   grid RBID + raw column defs only — NO dropdowns yet
   useEffect(() => {
     fetchHeaderMeta();
     fetchTxnMeta();
 
-    // ── Department options — Pr_Fetch_DepartmentData_IMS ──────────────────
     get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 1,
-      ObjName: 'Pr_Fetch_DepartmentData_IMS',
+      ObjName: TXN_CONFIG.SP_DEPARTMENTS,
       JSon: JSON.stringify([{ PrmDeptID: 0 }]),
-      p_ErrCode: -1,
-      p_ErrMsg: '',
+      p_ErrCode: -1, p_ErrMsg: '',
     }).then(res => {
-      const opts = (res?.Table || []).map(r => ({
-        value: String(r.DepartmentID),
-        label: r.DepartmentName,
-      }));
-      setDepartmentOptions(opts);
-      console.log('%c[TxnEntry] Department options:', 'color:#06b6d4;font-weight:600', opts.length);
+      setDepartmentOptions((res?.Table || []).map(r => ({ value: String(r.DepartmentID), label: r.DepartmentName })));
     }).catch(err => console.warn('[TxnEntry] Department fetch failed:', err));
 
-    // ── Supplier options — Pr_Fetch_SupplierData_IMS ──────────────────────
     get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 1,
-      ObjName: 'Pr_Fetch_SupplierData_IMS',
+      ObjName: TXN_CONFIG.SP_SUPPLIERS,
       JSon: JSON.stringify([{ PrmSupplierID: 0 }]),
-      p_ErrCode: -1,
-      p_ErrMsg: '',
+      p_ErrCode: -1, p_ErrMsg: '',
     }).then(res => {
-      const opts = (res?.Table || []).map(r => ({
-        value: String(r.SupplierID),
-        label: r.SupplierName,
-      }));
-      setSupplierOptions(opts);
-      console.log('%c[TxnEntry] Supplier options:', 'color:#06b6d4;font-weight:600', opts.length);
+      setSupplierOptions((res?.Table || []).map(r => ({ value: String(r.SupplierID), label: r.SupplierName })));
     }).catch(err => console.warn('[TxnEntry] Supplier fetch failed:', err));
 
-    // ── Invoice Type options — fn_tbl_ddl_Sal_Configuration ───────────────
     get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 2,
-      ObjName: 'fn_tbl_ddl_Sal_Configuration',
+      ObjName: TXN_CONFIG.SP_INVOICE_TYPES,
       JSon: JSON.stringify([{
-        PrmCompanyId: 1,
-        PrmDivisionId: 1,
-        PrmYearId: 14,
-        PrmUserId: 1,
-        PrmFormTag: 'SI',
-        PrmRefTYpe: '',
-        prmRef_MstID: 0,
-        prmRef_DetID: 0,
+        PrmCompanyId:  TXN_CONFIG.COMPANY_ID,
+        PrmDivisionId: TXN_CONFIG.LOGIN_ID,
+        PrmYearId:     TXN_CONFIG.INVOICE_TYPE_YEAR_ID,
+        PrmUserId:     TXN_CONFIG.LOGIN_ID,
+        PrmFormTag:    TXN_CONFIG.FORM_TAG,
+        PrmRefTYpe: '', prmRef_MstID: 0, prmRef_DetID: 0,
       }]),
-      p_ErrCode: -1,
-      p_ErrMsg: '',
+      p_ErrCode: -1, p_ErrMsg: '',
     }).then(res => {
-      const opts = (res?.Table || []).map(r => ({
-        value: String(r.InvoiceTypeID),
-        label: r.Name,
-      }));
-      setInvoiceTypeOptions(opts);
-      console.log('%c[TxnEntry] InvoiceType options:', 'color:#06b6d4;font-weight:600', opts.length);
+      setInvoiceTypeOptions((res?.Table || []).map(r => ({ value: String(r.InvoiceTypeID), label: r.Name })));
     }).catch(err => console.warn('[TxnEntry] InvoiceType fetch failed:', err));
 
   }, [fetchHeaderMeta, fetchTxnMeta]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Flush queued rows once GridForm mounts ────────────────────────────
 
   useEffect(() => {
     if (showGrid && gridRef.current && queuedRowsRef.current.length > 0) {
@@ -266,18 +200,10 @@ export default function TxnEntryPage() {
     }
   }, [showGrid]);
 
-  // ── Add New — called by FilterPanel when the button is clicked ───────
-  // On the FIRST click: lazily fetches grid dropdown options (fetchGridColumns)
-  // then builds the blank row and shows the grid.
-  // _values = current header field values from the filter panel (includes DivisionID)
-  // Subsequent clicks: re-uses already-built columns.
   const handleAddNew = useCallback(async (_values) => {
-    if (isFetching || isGridLoading) return; // still loading meta — ignore click
-    if (allColumns.length === 0) return;      // fetchTxnMeta not done yet
+    if (isFetching || isGridLoading) return;
+    if (allColumns.length === 0) return;
 
-    // ── Lazy-load grid columns on first click ──────────────────────
-    // DivisionID from the filter panel is passed so GET_FILTER_DETAIL
-    // uses the correct prmDivisionID when fetching column dropdowns.
     let activeCols = columns;
     if (!gridColumnsLoadedRef.current) {
       const divisionID = _values?.DivisionID ?? headerValuesRef.current?.DivisionID ?? 0;
@@ -288,61 +214,41 @@ export default function TxnEntryPage() {
       } finally {
         setIsGridLoading(false);
       }
-      if (!activeCols || activeCols.length === 0) return; // fetch failed
+      if (!activeCols || activeCols.length === 0) return;
     }
 
-    // ── Seed blank row with ALL columns (visible + hidden) ────────
-    // Default value driven by ColDataType via getColDefault():
-    //   numeric* → 0 | varchar* → '' | datetime* → null
     const blankRow = { id: nextTempId() };
-    allColumns.forEach(({ key, colDataType }) => {
-      blankRow[key] = getColDefault(colDataType);
-    });
-
-    // Safety net: seed any visible key not already covered
+    allColumns.forEach(({ key, colDataType }) => { blankRow[key] = getColDefault(colDataType); });
     activeCols.forEach(col => {
-      if (col.key !== 'cb' && !(col.key in blankRow)) {
-        blankRow[col.key] = getColDefault(col.colDataType);
-      }
+      if (col.key !== 'cb' && !(col.key in blankRow)) blankRow[col.key] = getColDefault(col.colDataType);
     });
 
-    if (!showGrid) {
-      queuedRowsRef.current.push(blankRow);
-      setShowGrid(true);
-    } else {
-      gridRef.current?.addRow(blankRow);
-    }
+    if (!showGrid) { queuedRowsRef.current.push(blankRow); setShowGrid(true); }
+    else gridRef.current?.addRow(blankRow);
   }, [columns, allColumns, showGrid, isFetching, isGridLoading, fetchGridColumns]);
 
-  // ── Order Item — fetch items for selected Division and open modal ────────
-  // Called by TxnEntryFilterPanel via onOrderItem(currentValues)
   const handleOrderItem = useCallback(async (panelValues) => {
     const divisionID = panelValues?.DivisionID ?? headerValuesRef.current?.DivisionID ?? 0;
     if (!divisionID || divisionID === '0' || divisionID === 0) {
       alert('Please select a Division before ordering items.');
       return;
     }
-
     setOrderModalOpen(true);
     setOrderItems([]);
     setOrderItemsError(null);
     setOrderItemsLoading(true);
-
     try {
       const response = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 1,
-        ObjName: 'Pr_TBD_FetchItemDetail',
+        ObjName: TXN_CONFIG.SP_ORDER_ITEMS,
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionID),
-          prmYearID: 14,
-          prmConfigID: 34,
+          prmYearID:     TXN_CONFIG.ORDER_ITEM_YEAR_ID,
+          prmConfigID:   TXN_CONFIG.ORDER_ITEM_CONFIG_ID,
         }]),
-        p_ErrCode: -1,
-        p_ErrMsg: '',
+        p_ErrCode: -1, p_ErrMsg: '',
       });
       setOrderItems(response?.Table || []);
-      console.log('%c[TxnEntry] Order items fetched:', 'color:#f59e0b;font-weight:600',
-        response?.Table?.length ?? 0, 'items');
     } catch (err) {
       console.error('[TxnEntry] Order item fetch failed:', err);
       setOrderItemsError(err?.message || 'Failed to fetch items. Please try again.');
@@ -351,17 +257,10 @@ export default function TxnEntryPage() {
     }
   }, [get, headerValuesRef]);
 
-  // ── Insert selected Order Items into the entry grid ───────────────────
-  // Each selected item is mapped to a blank row (seeded from allColumns)
-  // with the item's own fields merged in by matching key names.
   const handleInsertOrderItems = useCallback((selectedItems) => {
-    if (!selectedItems || selectedItems.length === 0) return;
-
-    // Ensure grid columns are built before inserting
+    if (!selectedItems?.length) return;
     const insertRow = async (item) => {
       let activeCols = columns;
-
-      // Lazy-load grid columns if not yet built (first interaction via Order Item)
       if (!gridColumnsLoadedRef.current) {
         const divisionID = headerValuesRef.current?.DivisionID ?? 0;
         setIsGridLoading(true);
@@ -371,107 +270,57 @@ export default function TxnEntryPage() {
         } finally {
           setIsGridLoading(false);
         }
-        if (!activeCols || activeCols.length === 0) return;
+        if (!activeCols?.length) return;
       }
-
-      // Seed blank row from allColumns, then merge item fields
       const blankRow = { id: nextTempId() };
-      allColumns.forEach(({ key, colDataType }) => {
-        blankRow[key] = getColDefault(colDataType);
-      });
-      // Merge item fields by key name match
-      Object.keys(item).forEach(key => {
-        if (key in blankRow) blankRow[key] = item[key];
-      });
-
-      if (!showGrid) {
-        queuedRowsRef.current.push(blankRow);
-      } else {
-        gridRef.current?.addRow(blankRow);
-      }
+      allColumns.forEach(({ key, colDataType }) => { blankRow[key] = getColDefault(colDataType); });
+      Object.keys(item).forEach(key => { if (key in blankRow) blankRow[key] = item[key]; });
+      if (!showGrid) queuedRowsRef.current.push(blankRow);
+      else gridRef.current?.addRow(blankRow);
     };
-
     (async () => {
-      for (const item of selectedItems) {
-        await insertRow(item);
-      }
-      // Show grid if not already visible
+      for (const item of selectedItems) await insertRow(item);
       if (!showGrid) setShowGrid(true);
     })();
   }, [columns, allColumns, showGrid, fetchGridColumns, gridColumnsLoadedRef]);
 
-  // ── Cell event — fires when user Tabs off an event column ──────────
-  // Calls the server-side calculation function and merges the result
-  // back into the grid row.
-  // Response shape: { Links: [{ ...fields, ErrCode: 1, ErrMsg: "Success" }] }
   const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
     const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
     if (!result || !gridRef.current) return;
-
     const responseRow = result?.Links?.[0];
     if (!responseRow) return;
-
-    // ErrCode === 1 means success on this API
     const errCode = responseRow.ErrCode;
     if (errCode !== 1 && errCode !== 1.0) {
-      console.warn(
-        '%c[TxnEntry] Cell-event returned an error:',
-        'color:#ef4444;font-weight:600',
-        responseRow.ErrMsg ?? `ErrCode ${errCode}`
-      );
+      console.warn('[TxnEntry] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
       return;
     }
-
-    // Strip the status fields — only merge the actual data fields
     const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
-
-    console.log(
-      '%c[TxnEntry] Merging event result into row:',
-      'color:#22c55e;font-weight:600',
-      { rowId, updatedFields }
-    );
-
     gridRef.current.updateRow?.(rowId, updatedFields);
   }, [fireCellEvent]);
 
-  // ── Track header values as they change in FilterPanel ──────────────
-  // ColName (synced from API) is used as the key
   const handleFilterChange = useCallback((colName, value) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: value };
   }, []);
 
-  // ── Save handler ────────────────────────────────────────────────────
-  // Only CHECKED rows (getSelectedRows) are sent to the save API.
   const handleSave = useCallback(async () => {
     const selectedRows = gridRef.current?.getSelectedRows?.() ?? [];
     if (selectedRows.length === 0) {
       alert('No rows selected. Please check at least one row to save.');
       return;
     }
-    console.log('[TxnEntry] Saving selected rows:', selectedRows);
     try {
-      const result = await saveTxn(
-        headerValuesRef.current,
-        selectedRows,
-        genIDNumber,
-      );
-      // Handle success
-      if (result) {
-        alert('Transaction saved successfully!');
-      }
+      const result = await saveTxn(headerValuesRef.current, selectedRows, genIDNumber);
+      if (result) alert('Transaction saved successfully!');
     } catch (err) {
-      // Error already logged + setSaveError in the hook
       alert(saveError || err?.message || 'Save failed.');
     }
   }, [saveTxn, genIDNumber, saveError]);
 
-  // ── GridForm config ─────────────────────────────────────────────────
   const gridConfig = {
     columns,
     pagination: { pageSize: 25, pageSizeOptions: [10, 25, 50, 100] },
   };
 
-  // ── Determine overall loading / error state ─────────────────────────
   const combinedError = metaError || headerError;
 
   usePageHeader({

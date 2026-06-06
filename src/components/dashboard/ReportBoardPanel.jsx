@@ -3,11 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
 import EnterpriseDataGrid from '../grid/EnterpriseDataGrid';
 import { useApi } from '../../api/useApi';
-import {
-  ENDPOINTS,
-  REPORT_BOARD_SUMMARY,
-  DEFAULT_LOGIN_ID,
-} from '../../api/constants';
+import { ENDPOINTS, API_BASE_URL_OLD } from '../../api/constants';
+import { DASHBOARD_CONFIG } from '../../pages/dashboard/constants';
 import './ReportBoardPanel.css';
 
 const REPORT_COLUMNS = [
@@ -52,12 +49,12 @@ const PAGE_SIZE_OPTIONS = {
 
 function buildReportBoardParams() {
   return {
-    ObjType: REPORT_BOARD_SUMMARY.OBJ_TYPE,
-    ObjName: REPORT_BOARD_SUMMARY.OBJ_NAME,
+    ObjType: DASHBOARD_CONFIG.REPORT_OBJ_TYPE,
+    ObjName: DASHBOARD_CONFIG.SP_REPORT_BOARDS,
     JSon: JSON.stringify([
       {
-        prmUserID: DEFAULT_LOGIN_ID,
-        prmSubDesgID: 0,
+        prmUserID: DASHBOARD_CONFIG.LOGIN_ID,
+        prmSubDesgID: DASHBOARD_CONFIG.DEFAULT_SUB_DESG_ID,
         prmOnDate: '2026-05-25T00:00:00',
       },
     ]),
@@ -68,7 +65,7 @@ function buildReportBoardParams() {
 
 export default function ReportBoardPanel({ compact = false, fill = compact }) {
   const navigate = useNavigate();
-  const { get } = useApi();
+  const { get } = useApi(API_BASE_URL_OLD);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);

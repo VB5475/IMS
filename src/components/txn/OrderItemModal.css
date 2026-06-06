@@ -71,28 +71,11 @@
   max-height: min(62vh, 560px);
 }
 
-.oim-grid-wrap .grid-header {
-  display: none;
-}
-
-.oim-grid-wrap .erp-grid-container--fill {
+.oim-grid-wrap .popup-grid {
   flex: 1;
   min-height: 0;
-  height: 100%;
   border: none;
   border-radius: 0;
-  box-shadow: none;
-}
-
-.oim-grid-wrap .erp-grid-container--fill .table-wrapper {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.oim-grid-wrap .pagination-bar,
-.oim-grid-wrap .grid-bottom-panel {
-  display: none;
 }
 
 /* ── Toolbar strip (matches filter command bar density) ── */

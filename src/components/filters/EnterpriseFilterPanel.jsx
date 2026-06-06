@@ -1,7 +1,7 @@
 // EnterpriseFilterPanel — tabular 3-column filter layout
 // Dynamic filter controls: GetFilters + GetFilterDetail via the local API layer.
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApi } from '../../api/useApi';
 import { ENDPOINTS, DEFAULT_LOGIN_ID, CBO_MODE } from '../../api/constants';
 import { controlTypeMap } from '../../data/dummyData';
@@ -45,7 +45,7 @@ function buildFilterRows(filters) {
   return rows;
 }
 
-function FilterControl({ filter, value, options, onChange }) {
+function FilterControl({ filter, value, options, onChange, disabled = false }) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
   const accent = getAccentClass(filter);
 
@@ -72,6 +72,7 @@ function FilterControl({ filter, value, options, onChange }) {
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             autoComplete="off"
+            disabled={disabled}
           />
         );
 
@@ -83,6 +84,7 @@ function FilterControl({ filter, value, options, onChange }) {
             className="efq-cell__input efq-cell__input--date"
             value={value || ''}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
 
@@ -103,6 +105,7 @@ function FilterControl({ filter, value, options, onChange }) {
             })}
             placeholder={`Select…`}
             ariaLabel={FilterCaption}
+            disabled={disabled}
           />
         );
 
@@ -115,6 +118,7 @@ function FilterControl({ filter, value, options, onChange }) {
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             rows={2}
+            disabled={disabled}
           />
         );
 
@@ -142,7 +146,7 @@ function FilterControl({ filter, value, options, onChange }) {
   );
 }
 
-function FilterTable({ filters, values, dropdownOptions, onChange }) {
+function FilterTable({ filters, values, dropdownOptions, onChange, disabled = false }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
   return (
@@ -160,6 +164,7 @@ function FilterTable({ filters, values, dropdownOptions, onChange }) {
                     : undefined
                 }
                 onChange={onChange}
+                disabled={disabled}
               />
             ) : (
               <>
@@ -174,6 +179,7 @@ function FilterTable({ filters, values, dropdownOptions, onChange }) {
                         : undefined
                     }
                     onChange={onChange}
+                    disabled={disabled}
                   />
                 ))}
                 {row.items.length < COLS
@@ -205,8 +211,12 @@ export default function EnterpriseFilterPanel({
   onOrderItem = null,
   orderItemLabel = 'Order Item',
   OrderItemIcon = null,
+  initialValues = null,
+  cascadeResets = null,
+  disabled = false,
+  apiBaseUrl,
 }) {
-  const { get } = useApi();
+  const { get } = useApi(apiBaseUrl);
 
   const [filters, setFilters] = useState(staticFilters || []);
   const [dropdownOptions, setDropdownOptions] = useState({});
@@ -214,6 +224,7 @@ export default function EnterpriseFilterPanel({
   const [defaults, setDefaults] = useState({});
   const [isLoading, setIsLoading] = useState(staticFilters === null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const initialValuesAppliedRef = useRef(false);
 
   const isEntryMode = staticFilters !== null;
   const ButtonIcon = ActionIcon || (isEntryMode ? Plus : Search);
@@ -236,7 +247,12 @@ export default function EnterpriseFilterPanel({
       }
     });
     setDropdownOptions(optMap);
-  }, [staticFilters, onFiltersLoaded]);
+    if (initialValues && !initialValuesAppliedRef.current) {
+      setValues(initialValues);
+      setDefaults(initialValues);
+      initialValuesAppliedRef.current = true;
+    }
+  }, [staticFilters, onFiltersLoaded, initialValues]);
 
   const fetchFilters = useCallback(async (signal) => {
     if (staticFilters !== null) return;
@@ -306,9 +322,19 @@ export default function EnterpriseFilterPanel({
   }, [fetchFilters]);
 
   const handleChange = useCallback((colName, value) => {
-    setValues((prev) => ({ ...prev, [colName]: value }));
+    setValues((prev) => {
+      const next = { ...prev, [colName]: value };
+      const resetFields = cascadeResets?.[colName];
+      if (resetFields) {
+        resetFields.forEach((field) => {
+          next[field] = '';
+        });
+      }
+      return next;
+    });
     onFilterChange?.(colName, value);
-  }, [onFilterChange]);
+    cascadeResets?.[colName]?.forEach((field) => onFilterChange?.(field, ''));
+  }, [onFilterChange, cascadeResets]);
 
   const handleActionClick = useCallback(() => {
     if (onSearch) onSearch(values, filters);
@@ -478,6 +504,7 @@ export default function EnterpriseFilterPanel({
               values={values}
               dropdownOptions={dropdownOptions}
               onChange={handleChange}
+              disabled={disabled}
             />
           </div>
 

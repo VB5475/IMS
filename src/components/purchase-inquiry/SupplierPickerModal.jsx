@@ -1,31 +1,42 @@
-// OrderItemModal — Item picker for Purchase Inquiry.
-// Displays an EntryGrid in read-only mode populated with API-fetched columns
-// (from GetDetailColData) and rows (from SP_ITEM_PICKER).
-// The user selects rows and clicks "Insert" to add them to the main item grid.
+// SupplierPickerModal — supplier picker for Purchase Inquiry (IMS_LIVE API)
+// Modal + EntryGrid (readOnly) for Fn_tbl_FetchCustomerSupplierTranWs4Web rows.
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import EntryGrid from '../grid/EntryGrid';
 import Loader from '../ui/Loader';
-import { ShoppingCart, CheckCheck, Package, AlertCircle } from 'lucide-react';
-import './OrderItemModal.css';
+import { Truck, CheckCheck, Users, AlertCircle } from 'lucide-react';
+import '../txn/OrderItemModal.css';
 
-export default function OrderItemModal({
-  isOpen    = false,
+const SUPPLIER_COLUMNS = [
+  { id: 'cb', name: '', key: 'cb', controlType: -1, width: 48, isFixed: true, isEditAllow: false },
+  { id: 'SupplierCode', name: 'Supplier Code', key: 'SupplierCode', controlType: 0, width: 120, isFixed: true, isEditAllow: false },
+  { id: 'SupplierName', name: 'Supplier Name', key: 'SupplierName', controlType: 0, width: 200, isFixed: false, isEditAllow: false },
+  { id: 'GstRegNo', name: 'GST Reg No.', key: 'GstRegNo', controlType: 0, width: 140, isFixed: false, isEditAllow: false },
+  { id: 'SuppAddress', name: 'Address', key: 'SuppAddress', controlType: 0, width: 220, isFixed: false, isEditAllow: false },
+  { id: 'City', name: 'City', key: 'City', controlType: 0, width: 120, isFixed: false, isEditAllow: false },
+  { id: 'ContactNo', name: 'Contact No.', key: 'ContactNo', controlType: 0, width: 110, isFixed: false, isEditAllow: false },
+];
+
+export default function SupplierPickerModal({
+  isOpen = false,
   onClose,
-  items     = [],       // row data from SP_ITEM_PICKER
-  columns   = [],       // EntryGrid column definitions from GetDetailColData
+  items = [],
   isLoading = false,
-  error     = null,
+  error = null,
   onInsert,
 }) {
   const gridRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
 
-  // Reset selection state every time the modal opens
   useEffect(() => {
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
+
+  const gridConfig = useMemo(() => ({
+    columns: SUPPLIER_COLUMNS,
+    pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
+  }), []);
 
   const handleInsert = useCallback(() => {
     if (!gridRef.current) return;
@@ -36,14 +47,7 @@ export default function OrderItemModal({
     }
   }, [onInsert, onClose]);
 
-  // Memoised config so EntryGrid doesn't re-initialise on every render
-  const gridConfig = useMemo(() => ({
-    columns,
-    pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
-  }), [columns]);
-
-  const hasColumns = columns.length > 0;
-  const showGrid   = !isLoading && !error && hasColumns;
+  const showGrid = !isLoading && !error && items.length > 0;
 
   const footer = showGrid ? (
     <div className="oim-footer">
@@ -51,10 +55,12 @@ export default function OrderItemModal({
         {selectedCount > 0 ? (
           <>
             <span className="oim-footer__badge">{selectedCount}</span>
-            <span>item{selectedCount !== 1 ? 's' : ''} selected for insert</span>
+            <span>
+              supplier{selectedCount !== 1 ? 's' : ''} selected for insert
+            </span>
           </>
         ) : (
-          <span className="oim-footer__hint">Select one or more rows to insert</span>
+          <span className="oim-footer__hint">Select one or more suppliers to insert</span>
         )}
       </div>
       <div className="oim-footer__actions">
@@ -66,7 +72,7 @@ export default function OrderItemModal({
           className="oim-btn oim-btn--primary"
           onClick={handleInsert}
           disabled={selectedCount === 0}
-          title={selectedCount > 0 ? `Insert ${selectedCount} row(s)` : 'Select at least one item'}
+          title={selectedCount > 0 ? `Insert ${selectedCount} supplier(s)` : 'Select at least one supplier'}
         >
           <CheckCheck size={14} strokeWidth={2.5} />
           Insert{selectedCount > 0 ? ` (${selectedCount})` : ''}
@@ -79,9 +85,9 @@ export default function OrderItemModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Select Items"
-      subtitle="Choose items to add to the inquiry"
-      icon={<ShoppingCart size={16} strokeWidth={2} />}
+      title="Select Suppliers"
+      subtitle="Choose suppliers for this purchase inquiry"
+      icon={<Truck size={16} strokeWidth={2} />}
       size="xl"
       variant="enterprise"
       footer={footer}
@@ -89,7 +95,7 @@ export default function OrderItemModal({
       <div className="oim">
         {isLoading && (
           <div className="oim-state">
-            <Loader text="Loading items…" />
+            <Loader text="Fetching suppliers…" />
           </div>
         )}
 
@@ -100,10 +106,10 @@ export default function OrderItemModal({
           </div>
         )}
 
-        {!isLoading && !error && !hasColumns && (
+        {!isLoading && !error && items.length === 0 && (
           <div className="oim-empty">
-            <Package size={32} strokeWidth={1.5} />
-            <p>No items found for the selected filter values.</p>
+            <Users size={32} strokeWidth={1.5} />
+            <p>No suppliers found for the selected division.</p>
           </div>
         )}
 
@@ -111,26 +117,23 @@ export default function OrderItemModal({
           <div className="oim-grid-wrap">
             <div className="oim-toolbar">
               <div className="oim-toolbar__left">
-                <span className="oim-toolbar__label">Available Items</span>
+                <span className="oim-toolbar__label">Available Suppliers</span>
                 <span className="oim-toolbar__count">
                   {items.length} record{items.length !== 1 ? 's' : ''}
                 </span>
               </div>
               {selectedCount > 0 && (
-                <span className="oim-toolbar__selected">{selectedCount} selected</span>
+                <span className="oim-toolbar__selected">
+                  {selectedCount} selected
+                </span>
               )}
             </div>
-
-            {/* key=isOpen forces a full remount on each open, resetting rows + selection */}
             <EntryGrid
-              key={String(isOpen)}
               ref={gridRef}
               config={gridConfig}
               title=""
               readOnly
               initialRows={items}
-              hideBottomPanel
-              emptyMessage="No items found for the selected criteria."
               onSelectionChange={setSelectedCount}
             />
           </div>

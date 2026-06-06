@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import EnterpriseFilterPanel from '../components/filters/EnterpriseFilterPanel';
-import EnterpriseGrid from '../components/grid/EnterpriseGrid';
-import Loader from '../components/ui/Loader';
-import { useGridSearch } from '../hooks/useGridSearch';
-import { gridMeta } from '../data/dummyData';
+import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
+import EnterpriseGrid from '../../components/grid/EnterpriseGrid';
+import Loader from '../../components/ui/Loader';
+import { useGridSearch } from '../../hooks/useGridSearch';
+import { gridMeta } from '../../data/dummyData';
 import { AlertCircle, Search } from 'lucide-react';
-import { usePageHeader } from '../context/PageHeaderContext';
+import { usePageHeader } from '../../context/PageHeaderContext';
+import { API_BASE_URL_OLD } from '../../api/constants';
 import './ReportWorkspacePage.css';
 
 export default function ReportWorkspacePage() {
@@ -24,7 +25,7 @@ export default function ReportWorkspacePage() {
     fetchMasterDetail,
     handleSearch,
     saveSelectedRows,
-  } = useGridSearch();
+  } = useGridSearch(API_BASE_URL_OLD);
 
   const reportTitle = masterDetail?.ReportDashBoardName || 'Report';
 
@@ -48,6 +49,7 @@ export default function ReportWorkspacePage() {
       <section className="workspace-page__filters">
         <EnterpriseFilterPanel
           masterID={masterID}
+          apiBaseUrl={API_BASE_URL_OLD}
           onSearch={onSearch}
           isSearching={isSearching}
           title={masterDetail?.ReportDashBoardName || gridMeta.title}

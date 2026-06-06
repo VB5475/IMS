@@ -21,8 +21,10 @@ import React, {
   useState, useMemo, useCallback, useRef, useEffect,
   useImperativeHandle, forwardRef,
 } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import SearchSelect from '../ui/SearchSelect';
 import TxnEntryBottomPanel from './EntryGridBottomPanel';
+import InlineChildTable from './InlineChildTable';
 import './EnterpriseGrid.css';
 import { isColumnFixed, getColumnCellClass, getColumnHeaderThemeClass } from './gridColumnClass';
 
@@ -73,9 +75,23 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     title = 'Invoice Line Items',
     onSave,
     onCellEvent,
+    eventColumns: eventColumnsProp = null,
     readOnly = false,       // true → read-only display mode (no editing)
+    hideBottomPanel = false, // true → hide the Save/Export bottom toolbar (embedded grids)
+    emptyMessage = null,     // custom message shown when there are no rows
+    tabs = null,             // [{ id, label }] → renders a tab-bar header instead of the title
+    activeTab = null,        // currently selected tab id (controlled by parent)
+    onTabChange = null,      // (tabId: string) => void
+    headerControls = null,   // ReactNode rendered on the right side of the tab bar
+    tabContentOverride = null, // ReactNode → replaces the grid body (used for other tabs)
     initialRows = null,     // array → pre-populated rows (used in readOnly mode)
     onSelectionChange = null, // (count: number) => void — notifies parent of selection changes
+    // ── Collapsible children ─────────────────────────────────────────
+    // When enableCollapsible=true each parent row that has an entry in
+    // childRowsMap shows an expand toggle.  childColumns drives the sub-table.
+    enableCollapsible = false,
+    childRowsMap = null,   // { [rowId: string]: rowData[] }
+    childColumns = [],     // column defs for the inline sub-table
   },
   ref,
 ) {
@@ -94,6 +110,16 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return map;
   });
   const [resizing, setResizing] = useState(null);
+  const [expandedRows, setExpandedRows] = useState(new Set());
+
+  const toggleExpand = useCallback((id) => {
+    const sid = String(id);
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(sid)) next.delete(sid); else next.add(sid);
+      return next;
+    });
+  }, []);
 
   // Always-current snapshot of rows for Tab-key event closures
   const rowsRef = useRef([]);
@@ -106,11 +132,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   // Load initialRows when provided (readOnly mode)
   useEffect(() => {
     if (initialRows && Array.isArray(initialRows) && initialRows.length > 0) {
-      // Ensure each row has an 'id' field for internal tracking
-      const withIds = initialRows.map((r, i) => ({
-        ...r,
-        id: r.id ?? r.ItemID ?? `_init_${i}`,
-      }));
+      // Always use index-based id to guarantee uniqueness regardless of what
+      // fields the API response contains (e.g. ItemID=0 on every row would
+      // cause all rows to share the same id and appear selected together).
+      const withIds = initialRows.map((r, i) => ({ ...r, id: `_row_${i}` }));
       setRows(withIds);
     }
   }, [initialRows]);
@@ -126,6 +151,20 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       setRows(prev =>
         prev.map(r => String(r.id) === String(rowId) ? { ...r, ...fields } : r)
       );
+    },
+    removeRows(rowIds) {
+      const removeSet = new Set(rowIds.map(String));
+      setRows(prev => prev.filter(r => !removeSet.has(String(r.id))));
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        rowIds.forEach((id) => next.delete(String(id)));
+        return next;
+      });
+    },
+    clearRows() {
+      setRows([]);
+      setSelectedIds(new Set());
+      setExpandedRows(new Set());
     },
   }), [selectedIds]);
 
@@ -289,9 +328,18 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     downloadCSV(`${title.replace(/\s+/g, '_')}_export.csv`, [headers, ...csvRows].join('\n'));
   }, [processedRows, columns, title]);
 
-  // ── Cell-event key handler ────────────────────────────────────────
+  const eventColumnSet = useMemo(
+    () => (eventColumnsProp instanceof Set ? eventColumnsProp : new Set(eventColumnsProp || [])),
+    [eventColumnsProp],
+  );
+
+  const activeEventColumns = useMemo(() => {
+    if (eventColumnSet.size > 0) return eventColumnSet;
+    return EVENT_COLUMNS;
+  }, [eventColumnSet]);
+
   const makeCellKeyDown = useCallback((row, col) => {
-    if (!onCellEvent || !EVENT_COLUMNS.has(col.key)) return undefined;
+    if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
     return (e) => {
       if (e.key === 'Tab') {
         const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
@@ -306,7 +354,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         });
       }
     };
-  }, [onCellEvent]);
+  }, [onCellEvent, activeEventColumns]);
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
@@ -409,12 +457,34 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   return (
     <div className={`erp-grid-container erp-grid-container--dense erp-grid-container--fill ${resizing ? 'resizing' : ''}`}>
 
-      {title ? (
+      {tabs && tabs.length > 0 ? (
+        <div className="grid-tabbar">
+          <div className="grid-tabbar__tabs">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`grid-tab ${activeTab === t.id ? 'grid-tab--active' : ''}`}
+                onClick={() => onTabChange?.(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {headerControls ? (
+            <div className="grid-tabbar__controls">{headerControls}</div>
+          ) : null}
+        </div>
+      ) : title ? (
         <div className="grid-header">
           <h2 className="grid-title">{title}</h2>
         </div>
       ) : null}
 
+      {tabContentOverride ? (
+        <div className="grid-tab-content">{tabContentOverride}</div>
+      ) : (
+      <>
       {selectedIds.size > 0 && (
         <div className="selection-bar">
           <span>{selectedIds.size} row(s) selected</span>
@@ -474,45 +544,76 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           </thead>
 
           <tbody>
-            {displayRows.map(row => (
-              <tr key={row.id} className={selectedIds.has(String(row.id)) ? 'selected' : ''}>
-                {columns.map(col => (
-                  <td
-                    key={`${row.id}-${col.id}`}
-                    className={cellClass(col)}
-                    style={cellStyle(col, 'body')}
-                    onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
-                  >
-                    <div
-                      className="cell-wrapper"
-                      onKeyDown={(!readOnly && col.key !== 'cb') ? makeCellKeyDown(row, col) : undefined}
-                    >
-                      {col.key === 'cb' ? (
-                        <div className="cell-checkbox">
-                          <input
-                            type="checkbox"
-                            className="row-checkbox"
-                            checked={selectedIds.has(String(row.id))}
-                            onChange={() => handleSelectRow(row.id)}
-                            onClick={e => e.stopPropagation()}
-                            aria-label={`Select row ${row.id}`}
-                          />
+            {displayRows.map(row => {
+              const rowId = String(row.id);
+              const hasChildren = enableCollapsible && childRowsMap && (childRowsMap[rowId]?.length > 0);
+              const isExpanded = hasChildren && expandedRows.has(rowId);
+              return (
+                <React.Fragment key={row.id}>
+                  <tr className={selectedIds.has(rowId) ? 'selected' : ''}>
+                    {columns.map(col => (
+                      <td
+                        key={`${row.id}-${col.id}`}
+                        className={cellClass(col)}
+                        style={cellStyle(col, 'body')}
+                        onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
+                      >
+                        <div
+                          className="cell-wrapper"
+                          onKeyDown={(!readOnly && col.key !== 'cb') ? makeCellKeyDown(row, col) : undefined}
+                        >
+                          {col.key === 'cb' ? (
+                            <div className="cell-checkbox">
+                              {hasChildren && (
+                                <button
+                                  type="button"
+                                  className="eg-expand-toggle"
+                                  onClick={(e) => { e.stopPropagation(); toggleExpand(row.id); }}
+                                  title={isExpanded ? 'Collapse indent details' : 'Expand indent details'}
+                                  aria-expanded={isExpanded}
+                                >
+                                  {isExpanded
+                                    ? <ChevronDown  size={11} strokeWidth={2.5} />
+                                    : <ChevronRight size={11} strokeWidth={2.5} />}
+                                </button>
+                              )}
+                              <input
+                                type="checkbox"
+                                className="row-checkbox"
+                                checked={selectedIds.has(rowId)}
+                                onChange={() => handleSelectRow(row.id)}
+                                onClick={e => e.stopPropagation()}
+                                aria-label={`Select row ${row.id}`}
+                              />
+                            </div>
+                          ) : (
+                            renderCell(row, col)
+                          )}
                         </div>
-                      ) : (
-                        renderCell(row, col)
-                      )}
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            ))}
+                      </td>
+                    ))}
+                  </tr>
+
+                  {isExpanded && (
+                    <tr className="eg-child-row">
+                      <td colSpan={columns.length} className="eg-child-cell">
+                        <InlineChildTable
+                          columns={childColumns.filter(c => c.key !== 'cb')}
+                          rows={childRowsMap[rowId]}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
 
             {displayRows.length === 0 && (
               <tr>
                 <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                  {readOnly
+                  {emptyMessage ?? (readOnly
                     ? 'No data available.'
-                    : <>Click <strong>Add New</strong> in the header panel to add a row.</>}
+                    : <>Click <strong>Add New</strong> in the header panel to add a row.</>)}
                 </td>
               </tr>
             )}
@@ -548,14 +649,16 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         </div>
       </div>
 
-      {/* Bottom toolbar — hidden in readOnly mode */}
-      {!readOnly && (
+      {/* Bottom toolbar — hidden in readOnly / embedded mode */}
+      {!readOnly && !hideBottomPanel && (
         <TxnEntryBottomPanel
           selectedCount={selectedIds.size}
           onExportExcel={handleExport}
           onCopy={handleCopy}
           onSave={handleSave}
         />
+      )}
+      </>
       )}
 
     </div>

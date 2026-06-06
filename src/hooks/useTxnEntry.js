@@ -15,16 +15,14 @@
 import { useState, useCallback, useRef } from 'react';
 import { useApi } from '../api/useApi';
 import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT } from '../api/constants';
-
 import {
   ENDPOINTS,
-  STORAGE_KEYS,
-  DEFAULT_RB_CODE_TXN,
-  DEFAULT_RB_CODE_TXN_MST,
+  API_BASE_URL,
+  API_TIMEOUT,
   DEFAULT_LOGIN_ID,
   getColDefault,
 } from '../api/constants';
+import { TXN_CONFIG } from '../pages/txn-entry/constants';
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -32,8 +30,8 @@ import {
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
-export function useTxnEntry() {
-  const { get } = useApi();
+export function useTxnEntry(baseURL = API_BASE_URL) {
+  const { get } = useApi(baseURL);
 
   // ── Grid (detail) state ─────────────────────────────────────────
   const [rbMeta, setRbMeta] = useState(null);
@@ -70,8 +68,8 @@ export function useTxnEntry() {
       // Step 1 — header RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: 'Fn_Fetch_RBDetailByRBCode',
-        JSon: JSON.stringify([{ prmRBCode: DEFAULT_RB_CODE_TXN_MST }]),
+        ObjName: TXN_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: '',
       });
@@ -80,7 +78,7 @@ export function useTxnEntry() {
 
       const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
       setHeaderRbMeta(hdrMeta);
-      localStorage.setItem(STORAGE_KEYS.TXN_HEADER_META, JSON.stringify(hdrMeta));
+      localStorage.setItem(TXN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
       console.log('%c[TxnEntry] Header meta stored:', 'color:#8b5cf6;font-weight:600', hdrMeta);
 
       // Step 2 — header column definitions
@@ -94,11 +92,11 @@ export function useTxnEntry() {
 
       // Step 3 — dropdown options + Division list  (parallel)
       const [colDropdownOptions, divisionData] = await Promise.all([
-        fetchDropdownOptions(get, apiColumns, hdrMeta.RBID, { funcCode: DEFAULT_RB_CODE_TXN_MST }),
+        fetchDropdownOptions(get, apiColumns, hdrMeta.RBID, { funcCode: TXN_CONFIG.RB_MASTER }),
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
-          ObjName: 'Fn_tbl_FetchUserWsDivision',
-          JSon: JSON.stringify([{ prmUserID: 1, prmCompanyID: 1, prmYearID: 14 }]),
+          ObjName: TXN_CONFIG.SP_DIVISIONS,
+          JSon: JSON.stringify([{ prmUserID: TXN_CONFIG.LOGIN_ID, prmCompanyID: TXN_CONFIG.COMPANY_ID, prmYearID: TXN_CONFIG.DIVISION_YEAR_ID }]),
           p_ErrCode: -1,
           p_ErrMsg: '',
         }).catch(err => {
@@ -138,8 +136,8 @@ export function useTxnEntry() {
       // Step A — RBID + SaveProcName
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: 'Fn_Fetch_RBDetailByRBCode',
-        JSon: JSON.stringify([{ prmRBCode: DEFAULT_RB_CODE_TXN }]),
+        ObjName: TXN_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_DETAIL }]),
         p_ErrCode: -1,
         p_ErrMsg: '',
       });
@@ -149,7 +147,7 @@ export function useTxnEntry() {
       const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
       setRbMeta(meta);
       rawDetailRbMetaRef.current = meta;
-      localStorage.setItem(STORAGE_KEYS.TXN_ENTRY_META, JSON.stringify(meta));
+      localStorage.setItem(TXN_CONFIG.STORAGE_ENTRY_META, JSON.stringify(meta));
       console.log('%c[TxnEntry] Meta stored:', 'color:#6366f1;font-weight:600', meta);
 
       // Step B — column definitions (allColumns only — no dropdowns yet)
@@ -196,7 +194,7 @@ export function useTxnEntry() {
         { divisionID });
       const colDropdownOptions = await fetchDropdownOptions(
         get, apiColumns, meta.RBID,
-        { funcCode: DEFAULT_RB_CODE_TXN, divisionID: Number(divisionID) || 0 }
+        { funcCode: TXN_CONFIG.RB_DETAIL, divisionID: Number(divisionID) || 0 }
       );
       const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
         filterable: false,
@@ -221,7 +219,7 @@ export function useTxnEntry() {
       console.log('see headerValues:', headerValues);
 
       const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-        GridEventFuncName: 'fn_tbl_RB_SampleInvDet_Event',
+        GridEventFuncName: TXN_CONFIG.SP_GRID_EVENT,
         EventColName: colName,
         DetJSON: JSON.stringify([newRowData]),
         MstJSon: JSON.stringify([headerValues]),
@@ -251,8 +249,8 @@ export function useTxnEntry() {
 
     try {
       // Read proc names from localStorage
-      const mstMeta = JSON.parse(localStorage.getItem(STORAGE_KEYS.TXN_HEADER_META) || 'null');
-      const detMeta = JSON.parse(localStorage.getItem(STORAGE_KEYS.TXN_ENTRY_META) || 'null');
+      const mstMeta = JSON.parse(localStorage.getItem(TXN_CONFIG.STORAGE_HEADER_META) || 'null');
+      const detMeta = JSON.parse(localStorage.getItem(TXN_CONFIG.STORAGE_ENTRY_META) || 'null');
 
       if (!mstMeta || !detMeta) {
         throw new Error('Missing save configuration. Please refresh and try again.');
@@ -285,11 +283,11 @@ export function useTxnEntry() {
       const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
 
       const body = {
-        PrmStrMstRBName: DEFAULT_RB_CODE_TXN_MST,
+        PrmStrMstRBName: TXN_CONFIG.RB_MASTER,
         prmStrMstJSON: JSON.stringify([headerValues]),
         prmstrMasterSaveProcName: mstMeta?.SaveProcName,
         prmstrDetailSaveProcName: detMeta?.SaveProcName,
-        PrmStrDetRBName: DEFAULT_RB_CODE_TXN,
+        PrmStrDetRBName: TXN_CONFIG.RB_DETAIL,
         prmStrDetJSON: JSON.stringify(cleanedRows),
         GenIDNumber: genIDNumber,
         p_ErrCode: -1,
@@ -297,7 +295,7 @@ export function useTxnEntry() {
       };
 
       const result = await axios.post(
-        `${API_BASE_URL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`,
+        `${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`,
         body,                          // ← raw JSON body
         {
           timeout: API_TIMEOUT,
@@ -321,7 +319,7 @@ export function useTxnEntry() {
     } finally {
       setIsSaving(false);
     }
-  }, [get]);
+  }, [get, baseURL]);
 
   return {
     // Grid (detail)

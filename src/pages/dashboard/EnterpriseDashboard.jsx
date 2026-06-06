@@ -1,8 +1,8 @@
 import React from 'react';
-import KpiStrip from '../components/KpiStrip';
-import ReportBoardPanel from '../components/dashboard/ReportBoardPanel';
-import TaskBoardPanel from '../components/dashboard/TaskBoardPanel';
-import DecisionPanel from '../components/dashboard/DecisionPanel';
+import KpiStrip from '../../components/KpiStrip';
+import ReportBoardPanel from '../../components/dashboard/ReportBoardPanel';
+import TaskBoardPanel from '../../components/dashboard/TaskBoardPanel';
+import DecisionPanel from '../../components/dashboard/DecisionPanel';
 import './EnterpriseDashboard.css';
 
 export default function EnterpriseDashboard() {

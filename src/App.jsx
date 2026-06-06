@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import AppShell from './layout/AppShell';
-import LoginPage from './pages/LoginPage';
-import EnterpriseDashboard from './pages/EnterpriseDashboard';
-import ReportWorkspacePage from './pages/ReportWorkspacePage';
-import TxnEntryPage from './pages/TxnEntryPage';
-import PurchaseInquiryPage from './pages/PurchaseInquiryPage';
+import LoginPage from './pages/login/LoginPage';
+import EnterpriseDashboard from './pages/dashboard/EnterpriseDashboard';
+import ReportWorkspacePage from './pages/report-workspace/ReportWorkspacePage';
+import TxnEntryPage from './pages/txn-entry/TxnEntryPage';
+import PurchaseInquiryPage from './pages/purchase-inquiry/PurchaseInquiryPage';
 import { PageHeaderProvider } from './context/PageHeaderContext';
 
 function AppLayout() {

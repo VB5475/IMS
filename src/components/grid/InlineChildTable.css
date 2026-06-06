@@ -1,0 +1,100 @@
+/* InlineChildTable.css
+   Inline child sub-table rendered inside a collapsible row of EntryGrid.
+   Uses the same design tokens as EnterpriseGrid.css.                     */
+
+/* ── Outer wrapper (full-width td content) ── */
+.ict-wrap {
+  display: flex;
+  align-items: stretch;
+  background: var(--primary-lighter, #eef2ff);
+  border-top: 1px solid var(--primary-light, #c7d2fe);
+  border-bottom: 1px solid var(--primary-light, #c7d2fe);
+}
+
+/* ── Left accent stripe ── */
+.ict-indent-marker {
+  width: 3px;
+  flex-shrink: 0;
+  background: var(--primary, #4f46e5);
+  border-radius: 0 2px 2px 0;
+  margin: 6px 0 6px 10px;
+}
+
+/* ── Right side: badge + table ── */
+.ict-content {
+  flex: 1;
+  padding: 6px 12px 8px 10px;
+  min-width: 0;
+}
+
+/* ── Row count badge ── */
+.ict-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.ict-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary, #4f46e5);
+  background: var(--surface, #fff);
+  border: 1px solid var(--primary-light, #c7d2fe);
+  border-radius: 10px;
+  padding: 1px 8px;
+  letter-spacing: 0.01em;
+}
+
+/* ── Scroll container ── */
+.ict-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 5px);
+  background: var(--surface, #fff);
+}
+
+/* ── Table ── */
+.ict-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.77rem;
+}
+
+.ict-table thead tr {
+  background: var(--col-base-header-bg, #f1f5f9);
+}
+
+.ict-table th {
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--col-base-header-text, #475569);
+  text-align: left;
+  border-right: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ict-table th:last-child { border-right: none; }
+
+.ict-table td {
+  padding: 4px 10px;
+  color: var(--text, #1e293b);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  border-right: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.ict-table td:last-child { border-right: none; }
+
+.ict-table tbody tr:last-child td { border-bottom: none; }
+
+.ict-table tbody tr:hover { background: var(--bg-tint, #f8fafc); }
+
+.ict-empty {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-style: italic;
+}

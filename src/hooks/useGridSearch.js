@@ -10,10 +10,8 @@
 
 import { useState, useCallback } from 'react';
 import { useApi } from '../api/useApi';
-import {
-  ENDPOINTS,
-  STORAGE_KEYS,
-} from '../api/constants';
+import { ENDPOINTS, API_BASE_URL } from '../api/constants';
+import { REPORT_WORKSPACE_CONFIG } from '../pages/report-workspace/constants';
 import {
   formatParamValue,
   fetchDropdownOptions,
@@ -22,8 +20,8 @@ import {
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
-export function useGridSearch() {
-  const { get } = useApi();
+export function useGridSearch(baseURL = API_BASE_URL) {
+  const { get } = useApi(baseURL);
 
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
@@ -39,7 +37,7 @@ export function useGridSearch() {
       const detail = data?.Links?.[0] || null;
       if (detail) {
         setMasterDetail(detail);
-        localStorage.setItem(STORAGE_KEYS.MASTER_DETAIL, JSON.stringify(detail));
+        localStorage.setItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL, JSON.stringify(detail));
         console.log('%c[MasterDetail] Stored:', 'color:#6366f1;font-weight:600', detail);
       }
       return detail;
@@ -56,12 +54,12 @@ export function useGridSearch() {
 
     try {
       // ── Step A: Column definitions ───────────────────────────────
-      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, { prmMasterID: masterID, prmLoginID: 1 });
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, { prmMasterID: masterID, prmLoginID: REPORT_WORKSPACE_CONFIG.LOGIN_ID });
       const apiColumns = colData?.Links || [];
       console.log('%c[Search] Columns:', 'color:#6366f1;font-weight:600', apiColumns.length);
 
       // ── Step B: Dropdown options for ColCtrlType=4 columns ──────
-      const storedDetail = JSON.parse(localStorage.getItem(STORAGE_KEYS.MASTER_DETAIL) || '{}');
+      const storedDetail = JSON.parse(localStorage.getItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL) || '{}');
       const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, masterID, {
         funcCode: storedDetail.FuncCode || '',
         divisionID: filterValues?.DivisionID || 0,
@@ -73,7 +71,7 @@ export function useGridSearch() {
       console.log('%c[Search] Grid columns built:', 'color:#22c55e;font-weight:600', gridColumns.length);
 
       // ── Step D: Procedure parameters ────────────────────────────
-      const storedMaster = JSON.parse(localStorage.getItem(STORAGE_KEYS.MASTER_DETAIL) || '{}');
+      const storedMaster = JSON.parse(localStorage.getItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL) || '{}');
       const queryName = storedMaster.QueryName || '';
 
       if (!queryName) throw new Error('No QueryName found in master detail. Please reload the page.');
@@ -88,10 +86,10 @@ export function useGridSearch() {
         const dataType = param?.DATA_TYPE?.toLowerCase()?.trim();
 
         switch (paramName) {
-          case '@prmCompanyID': return '1';
-          case '@prmYearID': return '13';
-          case '@prmLoginID': return '1';
-          case '@prmSessionID': return '88';
+          case '@prmCompanyID': return String(REPORT_WORKSPACE_CONFIG.COMPANY_ID);
+          case '@prmYearID': return String(REPORT_WORKSPACE_CONFIG.YEAR_ID);
+          case '@prmLoginID': return String(REPORT_WORKSPACE_CONFIG.LOGIN_ID);
+          case '@prmSessionID': return String(REPORT_WORKSPACE_CONFIG.SESSION_ID);
           case '@prmIsRptGroupSelected': return "''";
           case '@prmRptGroupID': return "''";
         }
@@ -133,7 +131,7 @@ export function useGridSearch() {
       setIsSearching(true);
       setSearchError(null);
 
-      const storedDetail = JSON.parse(localStorage.getItem(STORAGE_KEYS.MASTER_DETAIL) || '{}');
+      const storedDetail = JSON.parse(localStorage.getItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL) || '{}');
       const dataSaveProcName = storedDetail.DataSaveProcName || '';
 
       console.log('[Save] Selected rows:', selectedRows);
