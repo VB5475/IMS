@@ -80,5 +80,6 @@ export function getColDefault(colDataType) {
 // ══════════════════════════════════════════════════════════════════════
 export { DASHBOARD_CONFIG } from '../pages/dashboard/constants';
 export { REPORT_WORKSPACE_CONFIG } from '../pages/report-workspace/constants';
-export { TXN_CONFIG } from '../pages/txn-entry/constants';
-export { PI_CONFIG } from '../pages/purchase-inquiry/constants';
+export { TXN_CONFIG }              from '../pages/txn-entry/constants';
+export { PI_CONFIG }               from '../pages/purchase-inquiry/constants';
+export { PO_CONFIG }               from '../pages/purchase-order/constants';

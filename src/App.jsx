@@ -25,9 +25,8 @@ function AppRoutes() {
         <Route index element={<EnterpriseDashboard />} />
         <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
         <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
-        <Route path="purchase-inquiry/new" element={<PurchaseInquiryForm />} />
-        <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
-        <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
+        <Route path="purchase-inquiry/:id?" element={<PurchaseInquiryPage />} />
+        <Route path="purchase-order/:id?"  element={<PurchaseOrderPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
