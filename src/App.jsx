@@ -8,7 +8,8 @@ import TxnEntryPage from './pages/txn-entry/TxnEntryPage';
 import PurchaseInquiryPage from './pages/purchase-inquiry/PurchaseInquiryPage';
 import PurchaseInquiryForm from './pages/purchase-inquiry/PurchaseInquiryForm';
 import { PageHeaderProvider } from './context/PageHeaderContext';
-
+import PurchaseOrderPage  from './pages/purchase-order/PurchaseOrderPage';
+import PurchaseOrderForm  from './pages/purchase-order/PurchaseOrderForm';
 function AppLayout() {
   return (
     <AppShell>
@@ -25,8 +26,10 @@ function AppRoutes() {
         <Route index element={<EnterpriseDashboard />} />
         <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
         <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
-        <Route path="purchase-inquiry/:id?" element={<PurchaseInquiryPage />} />
-        <Route path="purchase-order/:id?"  element={<PurchaseOrderPage />} />
+        <Route path="purchase-inquiry"      element={<PurchaseInquiryPage />} />
+        <Route path="purchase-inquiry/:id" element={<PurchaseInquiryForm />} />
+        <Route path="purchase-order"       element={<PurchaseOrderPage />} />
+        <Route path="purchase-order/:id"   element={<PurchaseOrderForm />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
