@@ -11,14 +11,13 @@
 //   Division → Inquiry Type → Indent
 
 import { useState, useCallback, useRef } from 'react';
-import axios from 'axios';
 import { useApi } from '../api/useApi';
 import {
   ENDPOINTS,
   API_BASE_URL,
-  API_TIMEOUT,
   DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
+  OBJ_TYPE,
 } from '../api/constants';
 import { PI_CONFIG } from '../pages/purchase-inquiry/constants';
 import {
@@ -72,7 +71,7 @@ function buildEventColumnSet(apiColumns, fallbackKeys = []) {
 // only the RB code + storage key change).
 async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-    ObjType: 2,
+    ObjType: OBJ_TYPE.FUNCTION,
     ObjName: PI_CONFIG.SP_RB_META,
     JSon: JSON.stringify([{ prmRBCode: rbCode }]),
     p_ErrCode: -1,
@@ -93,7 +92,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function usePurchaseInquiry(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get, post } = useApi(baseURL);
 
   // ── Header (master) state ─────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);
@@ -129,7 +128,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     setIsLoadingInquiryTypes(true);
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
+        ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_INQUIRY_TYPES,
         JSon: JSON.stringify([{
           PrmCompanyId: DEFAULT_COMPANY_ID,
@@ -166,7 +165,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     setIsLoadingIndents(true);
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
+        ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_INDENTS,
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionId),
@@ -201,7 +200,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
 
     try {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
+        ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: PI_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
@@ -221,7 +220,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           prmLoginID: DEFAULT_LOGIN_ID,
         }),
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
+          ObjType: OBJ_TYPE.FUNCTION,
           ObjName: PI_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
             prmUserID: DEFAULT_LOGIN_ID,
@@ -235,7 +234,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           return null;
         }),
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 1,
+          ObjType: OBJ_TYPE.PROCEDURE,
           ObjName: PI_CONFIG.SP_DEPARTMENTS,
           JSon: JSON.stringify([{ PrmDeptID: 0 }]),
           p_ErrCode: -1,
@@ -348,20 +347,10 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         p_ErrMsg: '',
       };
 
-      const result = await axios.post(
-        `${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`,
-        body,
-        {
-          timeout: API_TIMEOUT,
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-        },
-      );
+      const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);
 
-      console.log('%c[PI] Save result:', 'color:#22c55e;font-weight:600', result.data);
-      return result.data;
+      console.log('%c[PI] Save result:', 'color:#22c55e;font-weight:600', result);
+      return result;
     } catch (err) {
       console.error('[PI] saveTxn failed:', err);
       setSaveError(err?.message || 'Save failed. Please try again.');
@@ -369,7 +358,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     } finally {
       setIsSaving(false);
     }
-  }, [baseURL]);
+  }, [post]);
 
   const clearInquiryTypes = useCallback(() => setInquiryTypeOptions([]), []);
   const clearIndents = useCallback(() => setIndentOptions([]), []);

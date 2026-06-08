@@ -20,7 +20,7 @@ import OrderItemModal from '../../components/txn/OrderItemModal';
 import { useTxnEntry } from '../../hooks/useTxnEntry';
 import { useApi } from '../../api/useApi';
 import { controlTypeMap } from '../../data/dummyData';
-import { getColDefault, ENDPOINTS, API_BASE_URL_OLD } from '../../api/constants';
+import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from '../../api/constants';
 import { TXN_CONFIG } from './constants';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import './TxnEntryPage.css';
@@ -107,11 +107,11 @@ export default function TxnEntryPage() {
   const syncedFilters = useMemo(() => {
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case 'Division':    return { ...filter, staticOptions: divisionOptions };
-        case 'Department':  return { ...filter, staticOptions: departmentOptions };
-        case 'Supplier':    return { ...filter, staticOptions: supplierOptions };
+        case 'Division': return { ...filter, staticOptions: divisionOptions };
+        case 'Department': return { ...filter, staticOptions: departmentOptions };
+        case 'Supplier': return { ...filter, staticOptions: supplierOptions };
         case 'InvoiceType': return { ...filter, staticOptions: invoiceTypeOptions };
-        default:            return filter;
+        default: return filter;
       }
     };
 
@@ -158,7 +158,7 @@ export default function TxnEntryPage() {
     fetchTxnMeta();
 
     get(ENDPOINTS.FN_FETCH_DATA, {
-      ObjType: 1,
+      ObjType: OBJ_TYPE.PROCEDURE,
       ObjName: TXN_CONFIG.SP_DEPARTMENTS,
       JSon: JSON.stringify([{ PrmDeptID: 0 }]),
       p_ErrCode: -1, p_ErrMsg: '',
@@ -167,7 +167,7 @@ export default function TxnEntryPage() {
     }).catch(err => console.warn('[TxnEntry] Department fetch failed:', err));
 
     get(ENDPOINTS.FN_FETCH_DATA, {
-      ObjType: 1,
+      ObjType: OBJ_TYPE.PROCEDURE,
       ObjName: TXN_CONFIG.SP_SUPPLIERS,
       JSon: JSON.stringify([{ PrmSupplierID: 0 }]),
       p_ErrCode: -1, p_ErrMsg: '',
@@ -176,14 +176,14 @@ export default function TxnEntryPage() {
     }).catch(err => console.warn('[TxnEntry] Supplier fetch failed:', err));
 
     get(ENDPOINTS.FN_FETCH_DATA, {
-      ObjType: 2,
+      ObjType: OBJ_TYPE.FUNCTION,
       ObjName: TXN_CONFIG.SP_INVOICE_TYPES,
       JSon: JSON.stringify([{
-        PrmCompanyId:  TXN_CONFIG.COMPANY_ID,
+        PrmCompanyId: TXN_CONFIG.COMPANY_ID,
         PrmDivisionId: TXN_CONFIG.LOGIN_ID,
-        PrmYearId:     TXN_CONFIG.INVOICE_TYPE_YEAR_ID,
-        PrmUserId:     TXN_CONFIG.LOGIN_ID,
-        PrmFormTag:    TXN_CONFIG.FORM_TAG,
+        PrmYearId: TXN_CONFIG.INVOICE_TYPE_YEAR_ID,
+        PrmUserId: TXN_CONFIG.LOGIN_ID,
+        PrmFormTag: TXN_CONFIG.FORM_TAG,
         PrmRefTYpe: '', prmRef_MstID: 0, prmRef_DetID: 0,
       }]),
       p_ErrCode: -1, p_ErrMsg: '',
@@ -239,12 +239,12 @@ export default function TxnEntryPage() {
     setOrderItemsLoading(true);
     try {
       const response = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 1,
+        ObjType: OBJ_TYPE.PROCEDURE,
         ObjName: TXN_CONFIG.SP_ORDER_ITEMS,
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionID),
-          prmYearID:     TXN_CONFIG.ORDER_ITEM_YEAR_ID,
-          prmConfigID:   TXN_CONFIG.ORDER_ITEM_CONFIG_ID,
+          prmYearID: TXN_CONFIG.ORDER_ITEM_YEAR_ID,
+          prmConfigID: TXN_CONFIG.ORDER_ITEM_CONFIG_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: '',
       });

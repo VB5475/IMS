@@ -18,27 +18,33 @@ export const API_BASE_URL_IMS =
 
 // ── API endpoint paths ─────────────────────────────────────────────────
 export const ENDPOINTS = {
-  FN_FETCH_DATA:              '/FN_Fetch_Data',
+  FN_FETCH_DATA: '/FN_Fetch_Data',
   // REST gateway — accepts a JSON body: { ObjType, ObjName, JSon (array), p_ErrCode, p_ErrMsg }
-  API_VALUES:                 '/API/Values',
-  GET_FILTERS:                '/GetFilters',
-  GET_FILTER_DETAIL:          '/GetFilterDetail',
-  GET_MASTER_DETAIL:          '/GetMasterDetail',
-  GET_PARAMETERS:             '/GetParameters',
-  GET_DETAIL_COL_DATA:        '/GetDetailColData',
-  GET_MASTER_DATA_FILL:       '/GetMasterDataFill',
+  API_VALUES: '/API/Values',
+  GET_FILTERS: '/GetFilters',
+  GET_FILTER_DETAIL: '/GetFilterDetail',
+  GET_MASTER_DETAIL: '/GetMasterDetail',
+  GET_PARAMETERS: '/GetParameters',
+  GET_DETAIL_COL_DATA: '/GetDetailColData',
+  GET_MASTER_DATA_FILL: '/GetMasterDataFill',
   RB_REPORTBOARD_DETAIL_SAVE: '/RB_ReportBoardDetail_Save',
-  FN_TBL_RB_GRID_EVENT:       '/fn_tbl_RB_Grid_Event',
+  FN_TBL_RB_GRID_EVENT: '/fn_tbl_RB_Grid_Event',
   RB_MASTER_DETAIL_FORM_SAVE: '/RB_MasterDetailForm_Save',
 };
 
 // ── Shared request defaults (used across pages) ────────────────────────
-export const DEFAULT_LOGIN_ID    = 1;
-export const DEFAULT_COMPANY_ID  = 1;
-export const DEFAULT_YEAR_ID     = 13;
-export const DEFAULT_SESSION_ID  = 88;
+export const DEFAULT_LOGIN_ID = 1;
+export const DEFAULT_COMPANY_ID = 1;
+export const DEFAULT_YEAR_ID = 13;
+export const DEFAULT_SESSION_ID = 88;
 export const DEFAULT_DIVISION_ID = 0;
-export const API_TIMEOUT         = 30000;
+export const API_TIMEOUT = 30000;
+
+/** FN_Fetch_Data / API/Values — ObjType discriminator */
+export const OBJ_TYPE = {
+  PROCEDURE: 1,
+  FUNCTION: 2,
+};
 
 export const CBO_MODE = {
   FILTER: 'F',
@@ -47,8 +53,8 @@ export const CBO_MODE = {
 
 // ── Column data-type identifiers (prefix-matched against ColDataType) ──
 export const COL_DATA_TYPE = {
-  NUMERIC:  'numeric',   // → default 0
-  VARCHAR:  'varchar',   // → default ''
+  NUMERIC: 'numeric',   // → default 0
+  VARCHAR: 'varchar',   // → default ''
   DATETIME: 'datetime',  // → default null
 };
 
@@ -72,7 +78,7 @@ export function getColDefault(colDataType) {
 // page's own constants.js; these re-exports keep hooks and shared
 // components working without touching their import paths.
 // ══════════════════════════════════════════════════════════════════════
-export { DASHBOARD_CONFIG }        from '../pages/dashboard/constants';
+export { DASHBOARD_CONFIG } from '../pages/dashboard/constants';
 export { REPORT_WORKSPACE_CONFIG } from '../pages/report-workspace/constants';
-export { TXN_CONFIG }              from '../pages/txn-entry/constants';
-export { PI_CONFIG }               from '../pages/purchase-inquiry/constants';
+export { TXN_CONFIG } from '../pages/txn-entry/constants';
+export { PI_CONFIG } from '../pages/purchase-inquiry/constants';

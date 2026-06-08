@@ -61,6 +61,11 @@ export const PI_CONFIG = {
   // localStorage keys for cached RB meta
   STORAGE_HEADER_META: 'piHeaderMeta',
   STORAGE_ENTRY_META: 'piEntryMeta',
+
+  // Inquiry list (FN_Fetch_Data)
+  LIST_OBJ_TYPE: 2,
+  SP_INQUIRY_LIST: 'Fn_tbl_Pur_InquiryMst_List',
+  LIST_DIVISION_ID: 15,
 };
 
 // ── Header filter definitions — cascade order: Division → Inquiry Type → Indent ──

@@ -1,201 +1,120 @@
-/* PurchaseInquiryPage.css */
+/* PurchaseInquiryPage.css — inquiry list view */
 
-/* ── Page shell ── */
-.pi-page {
+.pi-list-page {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 0; /* footer is sticky inside the scroll container — no extra padding needed */
   display: flex;
   flex-direction: column;
 }
 
-/* Match filter panel styling to the rest of the app */
-.pi-page .efq-panel {
+.pi-list-panel {
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
   box-shadow: var(--shadow-sm);
-}
-
-/* ── 3-tab grid section
-   Wraps the tab bar + two always-mounted EntryGrid instances.
-   Uses the same 2px primary border as .erp-grid-container. ── */
-.pi-grid-section {
-  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  height: 320px;
-  min-height: 0;
-  border: 2px solid var(--primary);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: 0 2px 8px rgba(30, 74, 122, 0.08);
   overflow: hidden;
+  min-height: 0;
 }
 
-/* Tab pane: hidden by default; fills remaining height when active */
-.pi-tab-pane {
-  display: none;
+.pi-list-panel--fill {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  height: 100%;
 }
 
-.pi-tab-pane--active {
+.pi-list-panel__header {
   display: flex;
-  flex-direction: column;
-}
-
-/* Strip duplicate border/shadow from the child EntryGrid —
-   the outer pi-grid-section provides the container chrome. */
-.pi-tab-pane .erp-grid-container {
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-
-/* Terms tab: plain scrollable pane */
-.pi-terms-pane {
-  flex: 1;
-  overflow: auto;
-  padding: 12px 16px;
-  background: var(--surface);
-}
-
-/* ── Misc sections (CollapsibleGrid etc.) ── */
-.pi-page__section {
-  flex-shrink: 0;
-}
-
-/* ── Tab-bar action buttons (Add New / Select Item / Select Supplier)
-   Matches the enterprise flat toolbar-btn pattern from enterprise-components.css ── */
-.pi-tab-action-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
 }
 
-.pi-tab-action-btn:hover:not(:disabled) {
-  background: var(--primary-lighter);
-  border-color: var(--primary);
+.pi-list-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
   color: var(--primary);
 }
 
-.pi-tab-action-btn:active:not(:disabled) {
-  background: var(--primary-light);
-}
-
-.pi-tab-action-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* ── "Approved" label + compact SearchSelect ── */
-.pi-tab-filter {
-  display: flex;
+.pi-list-panel__toolbar {
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.pi-tab-filter__label {
+.pi-list-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pi-list-panel__add-btn:hover {
+  filter: brightness(1.05);
+}
+
+.pi-list-panel__pagesize-label {
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-/* ── Delete button — danger semantic matching pi-action-btn--close ── */
-.pi-tab-delete-btn {
+.pi-list-panel__pagesize-select {
+  height: 26px;
+  min-width: 56px;
+  padding: 0 24px 0 8px;
+}
+
+.pi-list-panel .ng-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.pi-list-panel .ng-card-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pi-list__edit-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--danger);
-  background: #fef2f2;
-  border: 1px solid rgba(217, 48, 37, 0.25);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.pi-tab-delete-btn:hover:not(:disabled) {
-  background: #fde8e8;
-  border-color: var(--danger);
-}
-
-.pi-tab-delete-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* ── Terms & Conditions table ── */
-.pi-terms-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  min-width: 400px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
 }
 
-.pi-terms-table thead tr {
-  background: var(--col-base-header-bg);
+.pi-list__edit-btn:hover {
+  background: #eef3fa;
+  border-color: var(--primary);
 }
-
-.pi-terms-table th {
-  padding: 6px 12px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--col-base-header-text);
-  text-align: left;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-
-.pi-terms-table th:last-child {
-  border-right: none;
-}
-
-.pi-terms-table td {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-
-.pi-terms-table td:last-child {
-  border-right: none;
-}
-
-.pi-terms-empty {
-  text-align: center;
-  padding: 24px;
-  color: var(--text-muted);
-  font-style: italic;
-  font-size: 12px;
-  border-right: none !important;
-}
-

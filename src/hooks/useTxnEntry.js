@@ -14,13 +14,12 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useApi } from '../api/useApi';
-import axios from 'axios';
 import {
   ENDPOINTS,
   API_BASE_URL,
-  API_TIMEOUT,
   DEFAULT_LOGIN_ID,
   getColDefault,
+  OBJ_TYPE,
 } from '../api/constants';
 import { TXN_CONFIG } from '../pages/txn-entry/constants';
 import {
@@ -31,7 +30,7 @@ import {
 // ── Hook ─────────────────────────────────────────────────────────────
 
 export function useTxnEntry(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get, post } = useApi(baseURL);
 
   // ── Grid (detail) state ─────────────────────────────────────────
   const [rbMeta, setRbMeta] = useState(null);
@@ -67,7 +66,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
     try {
       // Step 1 — header RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
+        ObjType: OBJ_TYPE.FUNCTION,
         ObjName: TXN_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
@@ -94,7 +93,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
       const [colDropdownOptions, divisionData] = await Promise.all([
         fetchDropdownOptions(get, apiColumns, hdrMeta.RBID, { funcCode: TXN_CONFIG.RB_MASTER }),
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
+          ObjType: OBJ_TYPE.FUNCTION,
           ObjName: TXN_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{ prmUserID: TXN_CONFIG.LOGIN_ID, prmCompanyID: TXN_CONFIG.COMPANY_ID, prmYearID: TXN_CONFIG.DIVISION_YEAR_ID }]),
           p_ErrCode: -1,
@@ -135,7 +134,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
     try {
       // Step A — RBID + SaveProcName
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
+        ObjType: OBJ_TYPE.FUNCTION,
         ObjName: TXN_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_DETAIL }]),
         p_ErrCode: -1,
@@ -294,20 +293,10 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         p_ErrMsg: '',
       };
 
-      const result = await axios.post(
-        `${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`,
-        body,                          // ← raw JSON body
-        {
-          timeout: API_TIMEOUT,
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-        }
-      );
+      const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);
 
-      console.log('%c[TxnEntry] Save result:', 'color:#22c55e;font-weight:600', result.data);
-      return result.data;
+      console.log('%c[TxnEntry] Save result:', 'color:#22c55e;font-weight:600', result);
+      return result;
 
 
 
@@ -319,7 +308,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
     } finally {
       setIsSaving(false);
     }
-  }, [get, baseURL]);
+  }, [post]);
 
   return {
     // Grid (detail)
