@@ -5,7 +5,8 @@
 // Contains pure helper functions that are common to both hooks so they
 // are defined in one place and imported wherever needed.
 
-import { ENDPOINTS, CBO_MODE, DEFAULT_LOGIN_ID } from '../api/constants';
+import { ENDPOINTS, CBO_MODE } from '../api/constants';
+import { getUserSession } from '../session/userSession';
 
 // ── Column helpers ───────────────────────────────────────────────────
 
@@ -62,53 +63,88 @@ export function formatParamValue(value, dataType) {
 
 // ── Dropdown fetcher ─────────────────────────────────────────────────
 
+export function isLockOnEditModeCol(apiCol) {
+  return isTruthyApiFlag(apiCol?.IsLockOnEditModeAllow);
+}
+
+/** Build a single { value, label } option from a master/detail row using column metadata. */
+export function buildDropdownOptionFromRow(apiCol, rowData) {
+  if (!apiCol || !rowData) return [];
+  const valueCol = apiCol.CtrlValueCol || apiCol.ColName;
+  const displayCol = apiCol.CtrlDisplayCol || valueCol;
+  const value = rowData[valueCol];
+  if (value == null || value === '') return [];
+  const label = rowData[displayCol] ?? value;
+  return [{ value: String(value), label: String(label ?? '') }];
+}
+
+/** Read the display text for a dropdown column from a grid row. */
+export function getRowDropdownDisplay(row, col) {
+  const displayCol = col?.ctrlDisplayCol || col?.CtrlDisplayCol;
+  if (displayCol && row?.[displayCol] != null && row[displayCol] !== '') {
+    return String(row[displayCol]);
+  }
+  const valueCol = col?.ctrlValueCol || col?.CtrlValueCol || col?.key;
+  const value = row?.[valueCol ?? col?.key];
+  return value != null && value !== '' ? String(value) : '';
+}
+
 /**
  * Fetches dropdown options for every column whose ColCtrlType === 4
  * and returns a map of { [ColName]: [{ value, label }] }.
  *
- * @param {Function}  get          - useApi().get
- * @param {object[]}  apiColumns   - raw column list from GET_DETAIL_COL_DATA
- * @param {number}    masterID     - prmMasterID
- * @param {object}    [opts]
- * @param {string}    [opts.funcCode='']        - FuncCode from master detail
- * @param {number}    [opts.divisionID=0]       - DivisionID from filter values
- * @returns {Promise<Record<string, {value:string, label:string}[]>>}
+ * When existingRecordEdit is true, locked columns (IsLockOnEditModeAllow)
+ * skip the API and use rowData instead (master row for filters, omit for detail grid).
  */
 export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {}) {
-  const { funcCode = '', divisionID = 0 } = opts;
+  const {
+    funcCode = '',
+    divisionID = 0,
+    existingRecordEdit = false,
+    rowData = null,
+    fetchUnlockedDropdowns = true,
+  } = opts;
 
-  const dropdownCols = apiColumns.filter(c => c.ColCtrlType === 4);
+  const dropdownCols = apiColumns.filter((c) => c.ColCtrlType === 4);
   const colDropdownOptions = {};
 
-  if (dropdownCols.length > 0) {
-    await Promise.all(
-      dropdownCols.map(async (col) => {
-        try {
-          console.log("see FilterParameterID:", col)
+  if (dropdownCols.length === 0) return colDropdownOptions;
 
-          const detailData = await get(ENDPOINTS.GET_FILTER_DETAIL, {
-            prmMasterID: masterID,
-            prmFilterParameterName: col.ObjDetID,
-            prmCboMode: CBO_MODE.COLUMN,
-            prmFuncCode: funcCode,
-            prmDivisionID: divisionID,
-            prmLoginID: DEFAULT_LOGIN_ID,
-          });
+  await Promise.all(
+    dropdownCols.map(async (col) => {
+      if (existingRecordEdit && isLockOnEditModeCol(col)) {
+        colDropdownOptions[col.ColName] = rowData
+          ? buildDropdownOptionFromRow(col, rowData)
+          : [];
+        return;
+      }
 
+      if (existingRecordEdit && !fetchUnlockedDropdowns) {
+        colDropdownOptions[col.ColName] = [];
+        return;
+      }
 
-          colDropdownOptions[col.ColName] = (detailData?.Links || []).map(opt => {
-            const valKey = opt.FilterCtrlValueCol || 'IDNumber';
-            const labelKey = opt.FilterCtrlDisplayCol || 'Name';
+      try {
+        const detailData = await get(ENDPOINTS.GET_FILTER_DETAIL, {
+          prmMasterID: masterID,
+          prmFilterParameterName: col.ObjDetID,
+          prmCboMode: CBO_MODE.COLUMN,
+          prmFuncCode: funcCode,
+          prmDivisionID: divisionID,
+          prmLoginID: getUserSession().loginId,
+        });
 
-            return { value: String(opt[valKey]), label: opt[labelKey] };
-          });
-        } catch {
-          console.warn(`[gridUtils] Failed dropdown for column: ${col.DisplayName}`);
-          colDropdownOptions[col.ColName] = [];
-        }
-      })
-    );
-  }
+        colDropdownOptions[col.ColName] = (detailData?.Links || []).map((opt) => {
+          const valKey = opt.FilterCtrlValueCol || 'IDNumber';
+          const labelKey = opt.FilterCtrlDisplayCol || 'Name';
+          return { value: String(opt[valKey]), label: opt[labelKey] };
+        });
+      } catch {
+        console.warn(`[gridUtils] Failed dropdown for column: ${col.DisplayName}`);
+        colDropdownOptions[col.ColName] = [];
+      }
+    }),
+  );
 
   return colDropdownOptions;
 }
@@ -127,23 +163,38 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
  * @returns {object[]}  gridColumns ready for GridForm
  */
 export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
-  const { filterable = true, allEditable = false } = opts;
+  const { filterable = true, allEditable = false, existingRecordEdit = false } = opts;
 
   const dataColumns = apiColumns
     .filter(col => col.IsVisible !== false)
-    .map(col => ({
-      id: col.ColName,
-      name: col.DisplayName,
-      key: col.ColName,
-      controlType: col.ColCtrlType,
-      colDataType: col.ColDataType || null,   // e.g. "numeric(18,2)", "varchar(50)", "datetime"
-      width: getColumnWidth(col),
-      filterable,
-      filterType: deriveFilterType(col.ColCtrlType),
-      isFixed: isTruthyApiFlag(col.IsFreezeReq),
-      isEditAllow: allEditable ? true : isTruthyApiFlag(col.IsEditAllow),
-      dropdownOptions: colDropdownOptions[col.ColName] || [],
-    }));
+    .map(col => {
+      const lockOnEditMode = isLockOnEditModeCol(col);
+      let isEditAllow;
+      if (allEditable) {
+        isEditAllow = existingRecordEdit && lockOnEditMode
+          ? false
+          : true;
+      } else {
+        isEditAllow = isTruthyApiFlag(col.IsEditAllow);
+      }
+
+      return {
+        id: col.ColName,
+        name: col.DisplayName,
+        key: col.ColName,
+        controlType: col.ColCtrlType,
+        colDataType: col.ColDataType || null,
+        width: getColumnWidth(col),
+        filterable,
+        filterType: deriveFilterType(col.ColCtrlType),
+        isFixed: isTruthyApiFlag(col.IsFreezeReq),
+        isEditAllow,
+        lockOnEditMode,
+        ctrlValueCol: col.CtrlValueCol || col.ColName,
+        ctrlDisplayCol: col.CtrlDisplayCol || null,
+        dropdownOptions: colDropdownOptions[col.ColName] || [],
+      };
+    });
 
   dataColumns.sort((a, b) => (a.isFixed === b.isFixed ? 0 : a.isFixed ? -1 : 1));
 

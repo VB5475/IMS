@@ -21,6 +21,7 @@ import { useTxnEntry } from '../../hooks/useTxnEntry';
 import { useApi } from '../../api/useApi';
 import { controlTypeMap } from '../../data/dummyData';
 import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from '../../api/constants';
+import { getUserSession } from '../../session/userSession';
 import { TXN_CONFIG } from './constants';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import './TxnEntryPage.css';
@@ -136,10 +137,15 @@ export default function TxnEntryPage() {
     });
   }, [headerColumns, headerDropdownOpts, divisionOptions, departmentOptions, supplierOptions, invoiceTypeOptions]);
 
+  const session = getUserSession();
+
   const headerValuesRef = useRef({
     TranCode: '', TranDate: null, DivisionID: 0, InvoiceTypeID: 0,
     SupplierID: 0, CurrencyID: 0, CurrencyRate: 0, DepartmentID: 0,
-    CompanyID: 1.0, YearID: 13.0, SessionID: 4150836.0, LoginID: 1.0, IDNumber: 0,
+    CompanyID: 1.0, YearID: 13.0, SessionID: 4150836.0,
+    LoginID: session.loginId,
+    UserID: session.userId,
+    IDNumber: 0,
   });
 
   const [showGrid, setShowGrid] = useState(false);
@@ -182,7 +188,7 @@ export default function TxnEntryPage() {
         PrmCompanyId: TXN_CONFIG.COMPANY_ID,
         PrmDivisionId: TXN_CONFIG.LOGIN_ID,
         PrmYearId: TXN_CONFIG.INVOICE_TYPE_YEAR_ID,
-        PrmUserId: TXN_CONFIG.LOGIN_ID,
+        PrmUserId: getUserSession().loginId,
         PrmFormTag: TXN_CONFIG.FORM_TAG,
         PrmRefTYpe: '', prmRef_MstID: 0, prmRef_DetID: 0,
       }]),

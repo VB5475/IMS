@@ -20,9 +20,10 @@ export default function OrderItemModal({
   onInsert,
 }) {
   const gridRef = useRef(null);
+  const cancelBtnRef = useRef(null);
+  const insertBtnRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
 
-  // Reset selection state every time the modal opens
   useEffect(() => {
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
@@ -36,7 +37,6 @@ export default function OrderItemModal({
     }
   }, [onInsert, onClose]);
 
-  // Memoised config so EntryGrid doesn't re-initialise on every render
   const gridConfig = useMemo(() => ({
     columns,
     pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
@@ -44,6 +44,31 @@ export default function OrderItemModal({
 
   const hasColumns = columns.length > 0;
   const showGrid   = !isLoading && !error && hasColumns;
+
+  // Focus first grid row when data is ready — keyboard flow starts in the grid.
+  useEffect(() => {
+    if (!isOpen || !showGrid) return undefined;
+    const timer = window.setTimeout(() => {
+      if (!gridRef.current?.focusFirstInteractiveCell?.()) {
+        cancelBtnRef.current?.focus();
+      }
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, showGrid, items.length]);
+
+  const handleInsertKeyDown = useCallback((e) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      gridRef.current?.focusFirstInteractiveCell?.();
+    }
+  }, []);
+
+  const handleCancelKeyDown = useCallback((e) => {
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      gridRef.current?.focusFirstInteractiveCell?.();
+    }
+  }, []);
 
   const footer = showGrid ? (
     <div className="oim-footer">
@@ -58,13 +83,21 @@ export default function OrderItemModal({
         )}
       </div>
       <div className="oim-footer__actions">
-        <button type="button" className="oim-btn oim-btn--ghost" onClick={onClose}>
+        <button
+          ref={cancelBtnRef}
+          type="button"
+          className="oim-btn oim-btn--ghost"
+          onClick={onClose}
+          onKeyDown={handleCancelKeyDown}
+        >
           Cancel
         </button>
         <button
+          ref={insertBtnRef}
           type="button"
           className="oim-btn oim-btn--primary"
           onClick={handleInsert}
+          onKeyDown={handleInsertKeyDown}
           disabled={selectedCount === 0}
           title={selectedCount > 0 ? `Insert ${selectedCount} row(s)` : 'Select at least one item'}
         >
@@ -121,7 +154,6 @@ export default function OrderItemModal({
               )}
             </div>
 
-            {/* key=isOpen forces a full remount on each open, resetting rows + selection */}
             <EntryGrid
               key={String(isOpen)}
               ref={gridRef}

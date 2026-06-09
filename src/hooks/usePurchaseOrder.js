@@ -88,6 +88,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const [poTypeOptions,      setPoTypeOptions]       = useState([]);
   const [supplierOptions,    setSupplierOptions]     = useState([]);
   const [currencyOptions,    setCurrencyOptions]     = useState([]);
+  const [departmentOptions,  setDepartmentOptions]   = useState([]);
   const [existingPOs,        setExistingPOs]         = useState([]);
 
   const [isLoadingPoTypes,   setIsLoadingPoTypes]    = useState(false);
@@ -103,8 +104,49 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const [isSaving,    setIsSaving]    = useState(false);
   const [saveError,   setSaveError]   = useState(null);
 
-  const rawDetailColumnsRef = useRef([]);
-  const rawDetailRbMetaRef  = useRef(null);
+  const rawDetailColumnsRef    = useRef([]);
+  const rawDetailRbMetaRef     = useRef(null);
+  const supplierCurrencyMapRef = useRef({});
+
+  // ── fetchDepartments ───────────────────────────────────────────────
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 1,
+        ObjName: PO_CONFIG.SP_DEPT,
+        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID }]),
+        p_ErrCode: -1,
+        p_ErrMsg: '',
+      });
+      const opts = (res?.Table || []).map((r) => ({
+        value: String(r.DeptID ?? r.DepartmentID),
+        label: r.DeptName ?? r.DepartmentName ?? String(r.DeptID),
+      }));
+      setDepartmentOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn('[PO] Department fetch failed:', err);
+      setDepartmentOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  // ── fetchUniqueId — generate TranMstGenID on Add New ──────────────
+  const fetchUniqueId = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 1,
+        ObjName: PO_CONFIG.SP_UNIQUE_ID,
+        JSon: JSON.stringify([{ PrmIDNumber: 0, PrmYearID: PO_CONFIG.CONFIG_YEAR_ID }]),
+        p_ErrCode: -1,
+        p_ErrMsg: '',
+      });
+      return res?.Table?.[0]?.UniqueID ?? 0;
+    } catch (err) {
+      console.warn('[PO] UniqueID fetch failed:', err);
+      return 0;
+    }
+  }, [get]);
 
   // ── fetchPoTypes — cascade from Division ───────────────────────────
   const fetchPoTypes = useCallback(async (divisionId) => {
@@ -220,7 +262,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       localStorage.setItem(PO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
       console.log('%c[PO] Header meta stored:', 'color:#8b5cf6;font-weight:600', hdrMeta);
 
-      const [colData, divisionData, supplierData, currencyData] = await Promise.all([
+      const [colData, divisionData, supplierData, currencyData, deptData] = await Promise.all([
         get(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: hdrMeta.RBID,
           prmLoginID:  DEFAULT_LOGIN_ID,
@@ -252,6 +294,12 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           JSon: JSON.stringify([{ PrmCurrencyID: 0 }]),
           p_ErrCode: -1, p_ErrMsg: '',
         }).catch((err) => { console.warn('[PO] Currency fetch failed:', err); return null; }),
+        get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: 1,
+          ObjName: PO_CONFIG.SP_DEPT,
+          JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID }]),
+          p_ErrCode: -1, p_ErrMsg: '',
+        }).catch((err) => { console.warn('[PO] Department fetch failed:', err); return null; }),
       ]);
 
       setHeaderColumns(colData?.Links || []);
@@ -265,18 +313,34 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       );
 
       setIsLoadingSuppliers(true);
-      setSupplierOptions(
-        (supplierData?.Table || []).map((r) => ({
-          value: String(r.SupplierID ?? r.PartyID),
-          label: r.SupplierName ?? r.PartyName,
-        })),
-      );
+      const supplierRows = supplierData?.Table || [];
+      setSupplierOptions(supplierRows.map((r) => ({
+        value: String(r.SupplierID ?? r.PartyID),
+        label: r.SupplierName ?? r.PartyName,
+      })));
+      supplierCurrencyMapRef.current = {};
+      supplierRows.forEach((r) => {
+        const sid = String(r.SupplierID ?? r.PartyID);
+        supplierCurrencyMapRef.current[sid] = {
+          CurrencyID:   r.CurrencyID   ?? 0,
+          CurrencyName: r.CurrencyName ?? '',
+          CurrencyRate: r.CurrencyRate ?? 0,
+          CrDays:       r.CrDays       ?? 0,
+        };
+      });
       setIsLoadingSuppliers(false);
 
       setCurrencyOptions(
         (currencyData?.Table || []).map((r) => ({
           value: String(r.CurrencyID),
           label: r.CurrencyName ?? r.CurrencyCode ?? String(r.CurrencyID),
+        })),
+      );
+
+      setDepartmentOptions(
+        (deptData?.Table || []).map((r) => ({
+          value: String(r.DeptID ?? r.DepartmentID),
+          label: r.DeptName ?? r.DepartmentName ?? String(r.DeptID),
         })),
       );
     } catch (err) {
@@ -390,6 +454,10 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const clearPoTypes   = useCallback(() => setPoTypeOptions([]), []);
   const clearSaveError = useCallback(() => setSaveError(null), []);
 
+  const getSupplierCurrency = useCallback((supplierId) => (
+    supplierCurrencyMapRef.current[String(supplierId)] ?? null
+  ), []);
+
   return {
     // header
     headerColumns,
@@ -402,6 +470,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     poTypeOptions,
     supplierOptions,
     currencyOptions,
+    departmentOptions,
     existingPOs,
     // loaders
     isLoadingPoTypes,
@@ -411,7 +480,10 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     fetchPoTypes,
     clearPoTypes,
     fetchSupplierInfo,
+    getSupplierCurrency,
     fetchExistingPOs,
+    fetchDepartments,
+    fetchUniqueId,
     // detail grid
     columns,
     allColumns,

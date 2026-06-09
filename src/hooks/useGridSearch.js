@@ -11,6 +11,7 @@
 import { useState, useCallback } from 'react';
 import { useApi } from '../api/useApi';
 import { ENDPOINTS, API_BASE_URL } from '../api/constants';
+import { getUserSession } from '../session/userSession';
 import { REPORT_WORKSPACE_CONFIG } from '../pages/report-workspace/constants';
 import {
   formatParamValue,
@@ -54,7 +55,10 @@ export function useGridSearch(baseURL = API_BASE_URL) {
 
     try {
       // ── Step A: Column definitions ───────────────────────────────
-      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, { prmMasterID: masterID, prmLoginID: REPORT_WORKSPACE_CONFIG.LOGIN_ID });
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: masterID,
+        prmLoginID: getUserSession().loginId,
+      });
       const apiColumns = colData?.Links || [];
       console.log('%c[Search] Columns:', 'color:#6366f1;font-weight:600', apiColumns.length);
 
@@ -88,7 +92,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
         switch (paramName) {
           case '@prmCompanyID': return String(REPORT_WORKSPACE_CONFIG.COMPANY_ID);
           case '@prmYearID': return String(REPORT_WORKSPACE_CONFIG.YEAR_ID);
-          case '@prmLoginID': return String(REPORT_WORKSPACE_CONFIG.LOGIN_ID);
+          case '@prmLoginID': return String(getUserSession().loginId);
           case '@prmSessionID': return String(REPORT_WORKSPACE_CONFIG.SESSION_ID);
           case '@prmIsRptGroupSelected': return "''";
           case '@prmRptGroupID': return "''";

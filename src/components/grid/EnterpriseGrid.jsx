@@ -447,33 +447,25 @@ const GridForm = forwardRef(function GridForm(
     setScrollState({ left, right });
   }, []);
 
-  // ── Cell-event helper: fires onCellEvent on Tab when col is in EVENT_COLUMNS ──
-  // Returns an onKeyDown handler for the cell-wrapper <div>.
-  // Keyboard events from ANY child (text input, date input, SearchSelect trigger)
-  // bubble up to the wrapper, so this works for all control types.
-  const makeCellKeyDown = useCallback((row, col) => {
+  const fireCellEventForColumn = useCallback((row, col, liveValue) => {
+    if (!onCellEvent || !EVENT_COLUMNS.has(col.key)) return;
+    const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
+    onCellEvent({
+      rowId: row.id,
+      colKey: col.key,
+      rowData: { ...currentRow, [col.key]: liveValue },
+    });
+  }, [onCellEvent]);
+
+  const makeCellBlur = useCallback((row, col) => {
     if (!onCellEvent || !EVENT_COLUMNS.has(col.key)) return undefined;
     return (e) => {
-      if (e.key === 'Tab') {
-        // rowsRef.current is always the latest snapshot — no stale closure issue
-        const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
-
-        // For textbox/date inputs the browser fires onChange → onKeyDown in the
-        // same flush, but React may not have committed the state update yet.
-        // e.target.value gives us the in-flight typed value directly.
-        const liveValue =
-          e.target && (col.controlType === 1 || col.controlType === 2)
-            ? e.target.value
-            : currentRow[col.key];
-
-        onCellEvent({
-          rowId: row.id,
-          colKey: col.key,
-          rowData: { ...currentRow, [col.key]: liveValue },
-        });
-      }
+      const liveValue = col.controlType === 2
+        ? parseDateFromInput(e.target.value)
+        : e.target.value;
+      fireCellEventForColumn(row, col, liveValue);
     };
-  }, [onCellEvent]); // rowsRef is a ref — no need to list it as a dependency
+  }, [onCellEvent, fireCellEventForColumn]);
 
   const renderCellControl = (row, col) => {
     const value = row[col.key] ?? '';
@@ -486,7 +478,7 @@ const GridForm = forwardRef(function GridForm(
     };
     switch (col.controlType) {
       case 0: return <span className="cell-label" title={value}>{value}</span>;
-      case 1: return <input type="text" {...commonProps} />;
+      case 1: return <input type="text" {...commonProps} onBlur={makeCellBlur(row, col)} />;
       case 2: {
         const dateValue = formatDateForInput(value);
         return (
@@ -495,6 +487,7 @@ const GridForm = forwardRef(function GridForm(
             {...commonProps}
             value={dateValue}
             onChange={(e) => handleCellChange(row.id, col.key, parseDateFromInput(e.target.value))}
+            onBlur={makeCellBlur(row, col)}
           />
         );
       }
@@ -507,7 +500,10 @@ const GridForm = forwardRef(function GridForm(
         return (
           <SearchSelect
             value={String(value)}
-            onChange={(val) => handleCellChange(row.id, col.key, val)}
+            onChange={(val) => {
+              handleCellChange(row.id, col.key, val);
+              fireCellEventForColumn(row, col, val);
+            }}
             options={opts}
             placeholder="-- Select --"
             compact
@@ -523,6 +519,7 @@ const GridForm = forwardRef(function GridForm(
           <textarea
             {...commonProps}
             rows={rows}
+            onBlur={makeCellBlur(row, col)}
             style={{ whiteSpace: 'pre-wrap', overflowWrap: 'break-word', resize: 'none' }}
           />
         );
@@ -820,7 +817,7 @@ const GridForm = forwardRef(function GridForm(
                     style={cellStyle(col, 'body')}
                     onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
                   >
-                    <div className="cell-wrapper" onKeyDown={col.key !== 'cb' ? makeCellKeyDown(row, col) : undefined}>
+                    <div className="cell-wrapper">
                       {col.key === 'cb' ? (
                         <div className="cell-checkbox">
                           <input

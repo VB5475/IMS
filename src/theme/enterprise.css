@@ -106,6 +106,19 @@
   --col-readonly-filter: #e3eef8;
   --col-readonly-label: #163a62;
   --col-readonly-accent: #226db4;
+
+  /* Filter panel + grid field tones */
+  --field-view-bg: #e6f1fc;
+  --field-view-label-bg: #dceaf7;
+  --field-view-border: #b8cfe4;
+  --field-view-text: #1a4572;
+  --field-view-accent: #226db4;
+
+  --field-frozen-bg: #eef4fa;
+  --field-frozen-label-bg: #dbe8f5;
+  --field-frozen-border: #94b8d8;
+  --field-frozen-text: #1e4a7a;
+  --field-frozen-accent: #4682b4;
 }
 
 ::selection {

@@ -4,7 +4,7 @@
 // Supports two modes:
 //   mode="entry" (default / readOnly=false):
 //     • Cells are editable (text, date, dropdown, textarea)
-//     • Cell-event hooks fire on Tab for configured EVENT_COLUMNS
+//     • Cell-event hooks fire on blur (Tab or mouse) for configured EVENT_COLUMNS
 //     • Bottom panel: Export, Copy, Save
 //     • Rows added imperatively via ref.addRow(blankRow)
 //
@@ -14,8 +14,7 @@
 //     • Checkbox selection still works (for picking rows)
 //     • Accepts initialRows to pre-populate the grid
 //
-// EVENT_COLUMNS — the ColNames that trigger onCellEvent when the user
-// presses Tab.  Update this set if the stored procedure changes.
+// EVENT_COLUMNS — ColNames that trigger onCellEvent when the user leaves the cell.
 
 import React, {
   useState, useMemo, useCallback, useRef, useEffect,
@@ -26,7 +25,8 @@ import SearchSelect from '../ui/SearchSelect';
 import TxnEntryBottomPanel from './EntryGridBottomPanel';
 import InlineChildTable from './InlineChildTable';
 import './EnterpriseGrid.css';
-import { isColumnFixed, getColumnCellClass, getColumnHeaderThemeClass } from './gridColumnClass';
+import { isColumnFixed, isColumnEditable, getColumnCellClass, getColumnHeaderThemeClass } from './gridColumnClass';
+import { getRowDropdownDisplay } from '../../utils/gridUtils';
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -61,7 +61,7 @@ function downloadCSV(filename, csvContent) {
   document.body.removeChild(link);
 }
 
-// ── Columns that fire onCellEvent when user presses Tab ───────────────
+// ── Columns that fire onCellEvent when the user leaves the cell ───────
 // These match the ColName values returned by GET_DETAIL_COL_DATA.
 const EVENT_COLUMNS = new Set([
   'ItemID', 'TranQty', 'BaseQty', 'BaseRate', 'TranRate',
@@ -92,9 +92,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     enableCollapsible = false,
     childRowsMap = null,   // { [rowId: string]: rowData[] }
     childColumns = [],     // column defs for the inline sub-table
+    existingRecordEdit = false, // true → lock columns flagged IsLockOnEditModeAllow
   },
   ref,
 ) {
+  const columnEditOpts = useMemo(
+    () => ({ existingRecordEdit, viewMode: readOnly }),
+    [existingRecordEdit, readOnly],
+  );
   const { columns, pagination } = config;
   const { pageSize: defaultPageSize = 25, pageSizeOptions = [10, 25, 50, 100] } = pagination || {};
 
@@ -121,7 +126,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     });
   }, []);
 
-  // Always-current snapshot of rows for Tab-key event closures
+  // Always-current snapshot of rows for cell-event handlers
   const rowsRef = useRef([]);
   const tableWrapperRef = useRef(null);
 
@@ -165,6 +170,27 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       setRows([]);
       setSelectedIds(new Set());
       setExpandedRows(new Set());
+    },
+    loadRows(newRows) {
+      const withIds = (newRows || []).map((r, i) => ({
+        ...r,
+        id: String(r.id ?? r.CompUniqueKey ?? r.IDNumber ?? `_row_${i}`),
+      }));
+      setRows(withIds);
+      setSelectedIds(new Set());
+      setExpandedRows(new Set());
+    },
+    focusFirstInteractiveCell() {
+      const root = tableWrapperRef.current;
+      if (!root) return false;
+      const target = root.querySelector(
+        'tbody input[type="checkbox"], tbody .cell-input:not([readonly]):not([disabled]), tbody .search-select__trigger:not([disabled])',
+      );
+      if (target) {
+        target.focus();
+        return true;
+      }
+      return false;
     },
   }), [selectedIds]);
 
@@ -215,7 +241,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [columns]);
 
   // ── Dropdown label helper ─────────────────────────────────────────
-  const getDropdownLabel = useCallback((col, rawValue) => {
+  const getDropdownLabel = useCallback((col, rawValue, row = null) => {
+    const rowDisplay = row ? getRowDropdownDisplay(row, col) : '';
+    if (rowDisplay) return rowDisplay;
     if (col.controlType !== 4 || !col.dropdownOptions) return rawValue;
     const opts = col.dropdownOptions.map(opt => {
       if (typeof opt === 'string') return { value: opt, label: opt };
@@ -338,33 +366,44 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return EVENT_COLUMNS;
   }, [eventColumnSet]);
 
-  const makeCellKeyDown = useCallback((row, col) => {
+  const fireCellEventForColumn = useCallback((row, col, liveValue) => {
+    if (!onCellEvent || !activeEventColumns.has(col.key)) return;
+    const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
+    onCellEvent({
+      rowId: row.id,
+      colKey: col.key,
+      rowData: { ...currentRow, [col.key]: liveValue },
+    });
+  }, [onCellEvent, activeEventColumns]);
+
+  const makeCellBlur = useCallback((row, col) => {
     if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
     return (e) => {
-      if (e.key === 'Tab') {
-        const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
-        const liveValue =
-          e.target && (col.controlType === 1 || col.controlType === 2)
-            ? e.target.value
-            : currentRow[col.key];
-        onCellEvent({
-          rowId: row.id,
-          colKey: col.key,
-          rowData: { ...currentRow, [col.key]: liveValue },
-        });
-      }
+      const liveValue = col.controlType === 2
+        ? parseDateFromInput(e.target.value)
+        : e.target.value;
+      fireCellEventForColumn(row, col, liveValue);
     };
-  }, [onCellEvent, activeEventColumns]);
+  }, [onCellEvent, activeEventColumns, fireCellEventForColumn]);
+
+  const makeSearchSelectBlur = useCallback((row, col) => {
+    if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
+    return () => {
+      const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
+      fireCellEventForColumn(row, col, currentRow[col.key]);
+    };
+  }, [onCellEvent, activeEventColumns, fireCellEventForColumn]);
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
     const value = row[col.key] ?? '';
+    const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
 
     // ── Read-only mode: always render as label ──
-    if (readOnly) {
+    if (cellReadOnly) {
       if (col.controlType === 4) {
         // Show the display label for dropdown values
-        return <span className="cell-label" title={String(getDropdownLabel(col, value))}>{getDropdownLabel(col, value)}</span>;
+        return <span className="cell-label" title={String(getDropdownLabel(col, value, row))}>{getDropdownLabel(col, value, row) || '—'}</span>;
       }
       if (col.controlType === 2) {
         return <span className="cell-label" title={formatDateForInput(value)}>{formatDateForInput(value) || '—'}</span>;
@@ -384,7 +423,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       case 0: return <span className="cell-label" title={String(value)}>{value}</span>;
 
       case 1: return (
-        <input className="cell-input" type="text" {...commonProps} />
+        <input className="cell-input" type="text" {...commonProps} onBlur={makeCellBlur(row, col)} />
       );
 
       case 2: return (
@@ -394,6 +433,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           {...commonProps}
           value={formatDateForInput(value)}
           onChange={(e) => handleCellChange(row.id, col.key, parseDateFromInput(e.target.value))}
+          onBlur={makeCellBlur(row, col)}
         />
       );
 
@@ -406,7 +446,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         return (
           <SearchSelect
             value={String(value)}
-            onChange={(val) => handleCellChange(row.id, col.key, val)}
+            onChange={(val) => {
+              handleCellChange(row.id, col.key, val);
+              fireCellEventForColumn(row, col, val);
+            }}
+            onBlur={makeSearchSelectBlur(row, col)}
             options={opts}
             placeholder="-- Select --"
             compact
@@ -423,6 +467,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             className="cell-textarea"
             {...commonProps}
             rows={Math.max(1, Math.min(lineCount, 6))}
+            onBlur={makeCellBlur(row, col)}
           />
         );
       }
@@ -441,9 +486,21 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return base;
   };
 
-  const cellClass = (col) => getColumnCellClass(col, lastFixedColId);
+  const cellClass = (col) => getColumnCellClass(col, lastFixedColId, columnEditOpts);
 
-  const getHeaderThemeClass = (col) => getColumnHeaderThemeClass(col);
+  const getHeaderThemeClass = (col) => getColumnHeaderThemeClass(col, columnEditOpts);
+
+  const focusCellControl = useCallback((e, col) => {
+    if (readOnly || col.key === 'cb') return;
+    if (e.target.closest('input, textarea, button, .search-select__trigger, .search-select__clear')) return;
+    const focusable = e.currentTarget.querySelector(
+      'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
+    );
+    if (focusable) {
+      e.preventDefault();
+      focusable.focus();
+    }
+  }, [readOnly]);
 
   const handleScroll = useCallback((e) => {
     const el = e.target;
@@ -556,12 +613,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                         key={`${row.id}-${col.id}`}
                         className={cellClass(col)}
                         style={cellStyle(col, 'body')}
+                        onMouseDown={(e) => focusCellControl(e, col)}
                         onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
                       >
-                        <div
-                          className="cell-wrapper"
-                          onKeyDown={(!readOnly && col.key !== 'cb') ? makeCellKeyDown(row, col) : undefined}
-                        >
+                        <div className="cell-wrapper">
                           {col.key === 'cb' ? (
                             <div className="cell-checkbox">
                               {hasChildren && (

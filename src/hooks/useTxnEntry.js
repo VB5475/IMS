@@ -14,10 +14,10 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useApi } from '../api/useApi';
+import { getUserSession } from '../session/userSession';
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
   getColDefault,
   OBJ_TYPE,
 } from '../api/constants';
@@ -83,7 +83,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
       // Step 2 — header column definitions
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const apiColumns = colData?.Links || [];
       setHeaderColumns(apiColumns);
@@ -95,7 +95,11 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: TXN_CONFIG.SP_DIVISIONS,
-          JSon: JSON.stringify([{ prmUserID: TXN_CONFIG.LOGIN_ID, prmCompanyID: TXN_CONFIG.COMPANY_ID, prmYearID: TXN_CONFIG.DIVISION_YEAR_ID }]),
+          JSon: JSON.stringify([{
+            prmUserID: getUserSession().loginId,
+            prmCompanyID: TXN_CONFIG.COMPANY_ID,
+            prmYearID: TXN_CONFIG.DIVISION_YEAR_ID,
+          }]),
           p_ErrCode: -1,
           p_ErrMsg: '',
         }).catch(err => {
@@ -152,7 +156,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
       // Step B — column definitions (allColumns only — no dropdowns yet)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: meta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const apiColumns = colData?.Links || [];
       console.log('%c[TxnEntry] Raw columns received:', 'color:#6366f1;font-weight:600', apiColumns.length);

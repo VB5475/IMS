@@ -1,51 +1,51 @@
 // constants.js — Purchase Order page config
-// All RB codes, SP names, IDs, and request defaults used by this page in one place.
-// CONFIRM tags mark values that need backend verification before go-live.
+// All RB codes, SP names, IDs, and request defaults for the PO module.
+// Values aligned to MRD_Template4PO.docx (Richa, 09-Jun-2026).
 
 import { controlTypeMap } from '../../data/dummyData';
 
 export const PO_CONFIG = {
-  // RB board codes — using PI's verified codes until PO-specific RBs are registered on backend
-  RB_MASTER: 'RB_PurInquiryMst',
-  RB_DETAIL: 'RB_PurInquiryDet',
+  // RB board codes
+  RB_MASTER:             'RB_PurPOMst',
+  RB_DETAIL:             'RB_PurPODet',
+  RB_INDT_DETAIL:        'RB_PurPOIndtDet',
 
-  // Form identifiers — using PI's verified values
-  FORM_TAG: 'PO',
+  // Form identifiers
+  FORM_TAG:  'PO',
   TRAN_BOOK: 'PO',
 
   // Year IDs
-  CONFIG_YEAR_ID: 2,
+  CONFIG_YEAR_ID:   2,
   DIVISION_YEAR_ID: 2,
 
-  // Supplier picker (same SP as PI — party type 'S')
+  // Supplier picker
   SUPPLIER_PARTY_TYPE: 'S',
-  SUPPLIER_SP: 'Fn_tbl_FetchCustomerSupplierTranWs4Web',
+  SUPPLIER_SP:         'Fn_tbl_FetchCustomerSupplierTranWs4Web',
 
-  // RB codes for item picker modal — using PI's verified codes
-  RB_ITEM_PICKER_DIRECT: 'RB_PurInqSelOnlyItem',  // BasedOn = '0' (Direct)
-  RB_ITEM_PICKER_INDENT: 'RB_PurInqSelIndtItem',  // BasedOn = '2' (Indent wise)
+  // RB codes for item picker modal
+  RB_ITEM_PICKER_DIRECT: 'RB_PurPOSelOnlyItem',  // BasedOn = '0' (Direct)
+  RB_ITEM_PICKER_INDENT: 'RB_PurPOSelIndtItem',  // BasedOn = '2' (Indent wise)
 
-  // SP / function names used in API calls
+  // SP / function names
   SP_RB_META:        'Fn_Fetch_RBDetailByRBCode',
   SP_PO_TYPES:       'fn_tbl_ddl_Pur_Configuration',
-  SP_INDENTS:        'Fn_Tbl_FetchPurchaseItemDetailTransWs4Web',
   SP_DIVISIONS:      'Fn_tbl_FetchUserWsDivision',
   SP_ITEM_PICKER:    'Fn_Tbl_FetchPurchaseItemDetailTransWs4Web',
-  SP_INDENT_SUMMARY: 'Fn_tbl_FetchIndentSummaryItem4Inquiry',
+  SP_INDENT_SUMMARY: 'Fn_tbl_FetchIndentSummaryItem4PO',
   SP_CURRENCIES:     'Fn_tbl_FetchCurrencyList',
   SP_SUPPLIER_INFO:  'Fn_tbl_FetchSupplierCurrencyInfo',
   SP_EXISTING_POS:   'Fn_tbl_FetchPurOrderListForAmend',
+  SP_UNIQUE_ID:      'Pr_Gen_FetchLevyUniqueNo4Web',
+  SP_DEPT:           'Pr_Fetch_DepartmentData_IMS',
 
-  // "Based On" dropdown options (hardcoded — same as PI)
+  // "Based On" dropdown — MRD: Direct | Indent wise | Quotation only
   BASED_ON_OPTIONS: [
     { value: '0', label: 'Direct' },
-    { value: '1', label: 'Indent wise' },
-    { value: '2', label: 'Indent Item Wise' },
+    { value: '2', label: 'Indent wise' },
     { value: '3', label: 'Quotation' },
-    { value: '4', label: 'Inquiry' },
   ],
 
-  // Hardcoded columns for the Suppliers grid (same shape as PI)
+  // Hardcoded columns for the Suppliers grid
   SUPPLIER_GRID_COLUMNS: [
     { id: 'cb',           name: '',             key: 'cb',           controlType: -1, width: 48,  isFixed: true,  isEditAllow: false },
     { id: 'SrNo',         name: 'Sr.No',        key: 'SrNo',         controlType: 0,  width: 70,  isFixed: false, isEditAllow: false },
@@ -55,43 +55,46 @@ export const PO_CONFIG = {
     { id: 'MobileNo',     name: 'Mobile No.',   key: 'MobileNo',     controlType: 0,  width: 110, isFixed: false, isEditAllow: false },
   ],
 
-  INDENT_FRM_OPTION: 0,
+  INDENT_FRM_OPTION:   0,
+  // Item picker in indent mode sources from PI — use PURINQUIRY as prmTranBook
+  INDENT_SOURCE_BOOK: 'PURINQUIRY',
 
-  // Save endpoint — using PI's verified endpoint until PO-specific save proc is confirmed
-  SAVE_ENDPOINT: '/API/TranFormSave/Post_RB_PurInquiryMst_Save',
+  // Save endpoint (REST POST via API_BASE_URL_IMS)
+  SAVE_ENDPOINT: '/API/PurPOSave/Post_RB_PurPOMst_Save',
 
   // localStorage keys for cached RB meta
   STORAGE_HEADER_META: 'poHeaderMeta',
   STORAGE_ENTRY_META:  'poEntryMeta',
 
-  // Purchase Order listing (mirrors PI_CONFIG.LIST_* pattern)
-  LIST_OBJ_TYPE:   2,                          // OBJ_TYPE.FUNCTION
-  SP_PO_LIST:      'Fn_tbl_Pur_OrderMst_List', // CONFIRM with backend
-  LIST_DIVISION_ID: 15,                         // default division for listing fetch
+  // Purchase Order listing
+  LIST_OBJ_TYPE:    2,
+  SP_PO_LIST:       'Fn_tbl_Pur_POMst_List',
+  LIST_DIVISION_ID: 15,
 };
 
-// ── Header filter definitions ───────────────────────────────────────────────
-// Amend checkbox is NOT in this list — it is rendered separately in the page
-// because it drives conditional visibility of the Amend PO dropdown.
-// Field order follows the spec: PO No → PO Date → Division → PO Type →
-//   Based On → Supplier → Currency → Currency Rate → Cr. Days → Exp. Date
+// ── Header filter definitions ────────────────────────────────────────────────
+// Field order per MRD: TranCode → TranDate → DivisionID → ConfigID →
+//   DeliveryDate → SupplierID → DeptID → BasedOnID →
+//   CurrencyID → CurrencyRate → CreditDays → Remarks
+// Amend checkbox is rendered separately in the page component.
 export const PO_HEADER_FILTERS = [
-  { FilterParameterID: 'TranCode',      FilterColName: 'TranCode',     FilterCaption: 'PO No.',       FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: 'TranDate',      FilterColName: 'TranDate',     FilterCaption: 'PO Date',      FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: 'DivisionID',    FilterColName: 'DivisionID',   FilterCaption: 'Division',     FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'POTypeID',      FilterColName: 'POTypeID',     FilterCaption: 'PO Type',      FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'BasedOnID',     FilterColName: 'BasedOnID',    FilterCaption: 'Based On',     FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: PO_CONFIG.BASED_ON_OPTIONS },
-  { FilterParameterID: 'SupplierID',    FilterColName: 'SupplierID',   FilterCaption: 'Supplier',     FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'CurrencyID',    FilterColName: 'CurrencyID',   FilterCaption: 'Currency',     FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'CurrencyRate',  FilterColName: 'CurrencyRate', FilterCaption: 'Currency Rate',FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: 'CrDays',        FilterColName: 'CrDays',       FilterCaption: 'Cr. Days',     FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: 'ExpectedDate',  FilterColName: 'ExpectedDate', FilterCaption: 'Exp. Date',    FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: 'TranCode',     FilterColName: 'TranCode',     FilterCaption: 'PO No.',        FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: 'TranDate',     FilterColName: 'TranDate',     FilterCaption: 'Date',          FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: 'DivisionID',   FilterColName: 'DivisionID',   FilterCaption: 'Division',      FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'ConfigID',     FilterColName: 'ConfigID',     FilterCaption: 'PO Type',       FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'DeliveryDate', FilterColName: 'DeliveryDate', FilterCaption: 'Delivery Date', FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: 'SupplierID',   FilterColName: 'SupplierID',   FilterCaption: 'Supplier',      FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'DeptID',       FilterColName: 'DeptID',       FilterCaption: 'Department',    FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'BasedOnID',    FilterColName: 'BasedOnID',    FilterCaption: 'Based On',      FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: PO_CONFIG.BASED_ON_OPTIONS },
+  { FilterParameterID: 'CurrencyName', FilterColName: 'CurrencyName', FilterCaption: 'Currency',      FilterColCtrlType: controlTypeMap.LABEL },
+  { FilterParameterID: 'CurrencyRate', FilterColName: 'CurrencyRate', FilterCaption: 'Currency Rate', FilterColCtrlType: controlTypeMap.LABEL },
+  { FilterParameterID: 'CreditDays',   FilterColName: 'CreditDays',   FilterCaption: 'Cr. Days',      FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: 'Remarks',      FilterColName: 'Remarks',      FilterCaption: 'Remarks',       FilterColCtrlType: controlTypeMap.TEXTAREA },
 ];
 
 export const PO_GRID_TABS = [
-  { id: 'items',     label: 'Item Grid' },
-  { id: 'suppliers', label: 'Suppliers' },
-  { id: 'terms',     label: 'Term And Conditions' },
+  { id: 'items', label: 'Item Grid' },
+  { id: 'terms', label: 'Term And Conditions' },
 ];
 
 export const APPROVED_OPTS = [
@@ -112,11 +115,23 @@ export const INDENT_DETAILS_COLUMNS = [
   { key: 'Unit',       label: 'Unit',         width: 80 },
 ];
 
+// Footer totals — all read-only, populated from save/fetch response
+export const PO_FOOTER_FIELDS = [
+  { key: 'MstBaseAmount',    label: 'Base Amount' },
+  { key: 'MstTaxableValue',  label: 'Taxable Value' },
+  { key: 'MstCGST',          label: 'CGST' },
+  { key: 'MstSGST',          label: 'SGST' },
+  { key: 'MstIGST',          label: 'IGST' },
+  { key: 'MstExpense',       label: 'Expense' },
+  { key: 'MstNetBaseAmount', label: 'Net Base Amount' },
+  { key: 'MstRoundOff',      label: 'Round Off' },
+];
+
 export const PO_FILTER_INITIAL_VALUES = { BasedOnID: '0' };
 
-// When Division changes, clear the PO Type selection.
+// Cascade resets: Division change → clear PO Type (ConfigID)
 export const PO_FILTER_CASCADE_RESETS = {
-  DivisionID: ['POTypeID'],
+  DivisionID: ['ConfigID'],
 };
 
 export const SUPPLIER_GRID_CONFIG = {
@@ -124,7 +139,7 @@ export const SUPPLIER_GRID_CONFIG = {
   pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25] },
 };
 
-// Formats a date value as "dd-Mon-yyyy" for API params (matches PI formatTranDate).
+// Formats a date value as "dd-Mon-yyyy" for API params.
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export function formatTranDate(dateVal) {
   if (!dateVal) return '0';

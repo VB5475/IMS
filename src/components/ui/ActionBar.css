@@ -13,6 +13,22 @@
   flex-wrap: wrap;
 }
 
+.action-bar--align-end {
+  justify-content: flex-end;
+}
+
+.action-bar__inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action-bar--align-end .action-bar__inner {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
 /* Sticky variant — sits at the bottom of the scroll container */
 .action-bar--sticky {
   position: sticky;
