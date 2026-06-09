@@ -78,6 +78,29 @@
   border-radius: 0;
 }
 
+/* Read-only picker uses view-header by default (blue tint) — match main EntryGrid headers */
+.oim-grid-wrap .erp-table thead th.view-header {
+  background: var(--col-base-header-bg);
+  color: var(--col-base-header-text);
+  border-bottom: 1px solid var(--border);
+}
+
+.oim-grid-wrap .erp-table thead th.view-header .header-label {
+  color: var(--col-base-header-text);
+}
+
+.oim-grid-wrap .erp-table thead th.fixed-col.view-header,
+.oim-grid-wrap .erp-table thead th.fixed-header.view-header {
+  background: var(--col-fixed-bg);
+  color: var(--col-fixed-text);
+  border-bottom: 2px solid var(--col-fixed-border);
+}
+
+.oim-grid-wrap .erp-table thead th.fixed-col.view-header .header-label,
+.oim-grid-wrap .erp-table thead th.fixed-header.view-header .header-label {
+  color: var(--col-fixed-text);
+}
+
 /* ── Toolbar strip (matches filter command bar density) ── */
 .oim-toolbar {
   display: flex;
