@@ -8,6 +8,7 @@ import TxnEntryPage from './pages/txn-entry/TxnEntryPage';
 import PurchaseInquiryPage from './pages/purchase-inquiry/PurchaseInquiryPage';
 import PurchaseInquiryForm from './pages/purchase-inquiry/PurchaseInquiryForm';
 import { PageHeaderProvider } from './context/PageHeaderContext';
+import { UserProvider, useUser } from './context/UserContext';
 
 function AppLayout() {
   return (
@@ -17,18 +18,28 @@ function AppLayout() {
   );
 }
 
+function RequireAuth() {
+  const { isAuthenticated } = useUser();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <Outlet />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route element={<AppLayout />}>
-        <Route index element={<EnterpriseDashboard />} />
-        <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
-        <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
-        <Route path="purchase-inquiry/new" element={<PurchaseInquiryForm />} />
-        <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
-        <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<AppLayout />}>
+          <Route index element={<EnterpriseDashboard />} />
+          <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
+          <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
+          <Route path="purchase-inquiry/new" element={<PurchaseInquiryForm />} />
+          <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
+          <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Route>
     </Routes>
   );
@@ -37,9 +48,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <PageHeaderProvider>
-        <AppRoutes />
-      </PageHeaderProvider>
+      <UserProvider>
+        <PageHeaderProvider>
+          <AppRoutes />
+        </PageHeaderProvider>
+      </UserProvider>
     </BrowserRouter>
   );
 }

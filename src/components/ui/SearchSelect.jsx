@@ -22,6 +22,7 @@ import './search-select.css';
  *   ariaLabel     — aria-label for the trigger button
  *   disabled      — disables the control
  *   compact       — if true, uses compact sizing (for grid cells)
+ *   onBlur        — called when focus leaves the control (not while dropdown is open)
  */
 export default function SearchSelect({
   value = '',
@@ -34,6 +35,7 @@ export default function SearchSelect({
   ariaLabel,
   disabled = false,
   compact = false,
+  onBlur,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -196,6 +198,19 @@ export default function SearchSelect({
     [onChange]
   );
 
+  const handleTriggerBlur = useCallback(
+    (e) => {
+      if (!onBlur || disabled) return;
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (wrapperRef.current?.contains(active)) return;
+        if (dropdownRef.current?.contains(active)) return;
+        onBlur(e);
+      });
+    },
+    [disabled, onBlur],
+  );
+
   // ── Keyboard navigation ──────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e) => {
@@ -325,6 +340,7 @@ export default function SearchSelect({
         type="button"
         className="search-select__trigger"
         onClick={handleToggle}
+        onBlur={handleTriggerBlur}
         aria-label={ariaLabel || placeholder}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

@@ -4,6 +4,7 @@ import { FileText } from 'lucide-react';
 import EnterpriseDataGrid from '../grid/EnterpriseDataGrid';
 import { useApi } from '../../api/useApi';
 import { ENDPOINTS, API_BASE_URL_OLD } from '../../api/constants';
+import { getUserSession } from '../../session/userSession';
 import { DASHBOARD_CONFIG } from '../../pages/dashboard/constants';
 import './ReportBoardPanel.css';
 
@@ -53,7 +54,7 @@ function buildReportBoardParams() {
     ObjName: DASHBOARD_CONFIG.SP_REPORT_BOARDS,
     JSon: JSON.stringify([
       {
-        prmUserID: DASHBOARD_CONFIG.LOGIN_ID,
+        prmUserID: getUserSession().loginId,
         prmSubDesgID: DASHBOARD_CONFIG.DEFAULT_SUB_DESG_ID,
         prmOnDate: '2026-05-25T00:00:00',
       },

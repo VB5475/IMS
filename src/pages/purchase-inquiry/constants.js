@@ -24,6 +24,10 @@ export const PI_CONFIG = {
   RB_ITEM_PICKER_DIRECT: 'RB_PurInqSelOnlyItem',  // BasedOn = '0' (Direct)
   RB_ITEM_PICKER_INDENT: 'RB_PurInqSelIndtItem',  // BasedOn = '2' (Indent wise)
 
+  // Edit flow — GetMasterDataFill procedures
+  SP_MASTER_FILL: 'fn_tbl_RB_PurInquiryMst',
+  SP_DETAIL_FILL: 'fn_tbl_RB_PurInquiryDet',
+
   // SP / function names used in API calls
   SP_RB_META: 'Fn_Fetch_RBDetailByRBCode',
   SP_INQUIRY_TYPES: 'fn_tbl_ddl_Pur_Configuration',
@@ -31,6 +35,7 @@ export const PI_CONFIG = {
   SP_DIVISIONS: 'Fn_tbl_FetchUserWsDivision',
   SP_DEPARTMENTS: 'Pr_Fetch_DepartmentData_IMS',
   SP_ITEM_PICKER: 'Fn_Tbl_FetchPurchaseItemDetailTransWs4Web',
+  SP_GRID_EVENT: 'fn_tbl_RB_PurInquiryDet_Event',
 
   // Called when Indent wise is selected and user clicks Insert in the item picker.
   // Input: prmJSon = selected indent rows. Output: parent/item rows (aggregated).

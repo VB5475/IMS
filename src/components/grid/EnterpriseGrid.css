@@ -581,6 +581,62 @@
  font-weight: 500;
 }
 
+/* View mode — all fields read-only blue tint */
+.erp-table thead th.view-header {
+ background: var(--field-view-label-bg);
+ color: var(--field-view-text);
+ border-bottom: 2px solid var(--field-view-border);
+}
+
+.erp-table thead th.view-header .header-label {
+ color: var(--field-view-text);
+}
+
+.erp-table tbody td.view-col {
+ background: var(--field-view-bg);
+}
+
+.erp-table tbody tr:hover td.view-col {
+ background: #dceaf7;
+}
+
+.erp-table tbody tr.selected td.view-col {
+ background: #d4e4f4;
+}
+
+.erp-table tbody td.view-col .cell-label {
+ color: var(--field-view-text);
+ font-weight: 500;
+}
+
+/* Frozen on edit — navy-tinted locked fields */
+.erp-table thead th.frozen-header {
+ background: var(--field-frozen-label-bg);
+ color: var(--field-frozen-text);
+ border-bottom: 2px solid var(--field-frozen-border);
+}
+
+.erp-table thead th.frozen-header .header-label {
+ color: var(--field-frozen-text);
+}
+
+.erp-table tbody td.frozen-col {
+ background: var(--field-frozen-bg);
+}
+
+.erp-table tbody tr:hover td.frozen-col {
+ background: #e4edf6;
+}
+
+.erp-table tbody tr.selected td.frozen-col {
+ background: #dae6f2;
+}
+
+.erp-table tbody td.frozen-col .cell-label {
+ color: var(--field-frozen-text);
+ font-weight: 600;
+}
+
 /* Last fixed column edge — stronger shadow when scrolled horizontally */
 .erp-table th.fixed-col.last-fixed,
 .erp-table td.fixed-col.last-fixed {

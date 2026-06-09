@@ -4,8 +4,8 @@
 // Layout (top → bottom):
 //   1. EnterpriseFilterPanel  — header fields only (no action buttons)
 //   2. pi-grid-section        — custom 3-tab wrapper
-//        • Item Grid tab  → EntryGrid (API columns, RB_PurInquiryDet)
-//                           buttons: Add New | Select Item
+//        • Item Grid tab  → EntryGrid (RB_PurInquiryDet)
+//                           button: Select Item
 //        • Suppliers tab  → EntryGrid (hardcoded SUPPLIER_GRID_CONFIG)
 //                           button: Select Supplier
 //        • Terms tab      → static terms table (no buttons)
@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, Truck, Plus, Trash2, Package, FileText, Printer, Save, LogOut } from 'lucide-react';
+import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save, LogOut } from 'lucide-react';
 import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
 import EntryGrid from '../../components/grid/EntryGrid';
 import CollapsibleGrid from '../../components/grid/CollapsibleGrid';
@@ -28,8 +28,10 @@ import OrderItemModal from '../../components/txn/OrderItemModal';
 import SearchSelect from '../../components/ui/SearchSelect';
 import { usePurchaseInquiry } from '../../hooks/usePurchaseInquiry';
 import { useApi } from '../../api/useApi';
-import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, DEFAULT_LOGIN_ID, getColDefault, OBJ_TYPE } from '../../api/constants';
-import { buildGridColumns } from '../../utils/gridUtils';
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, getColDefault, OBJ_TYPE, DEFAULT_COMPANY_ID, DEFAULT_SESSION_ID } from '../../api/constants';
+import { getUserSession } from '../../session/userSession';
+import { buildGridColumns, buildDropdownOptionFromRow, isLockOnEditModeCol } from '../../utils/gridUtils';
+import { parseApiErrMsg } from '../../utils/apiResponse';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import {
   PI_CONFIG,
@@ -60,6 +62,38 @@ function mapPickerToSupplierRow(item, srNo) {
   };
 }
 
+function mapHeaderValuesToFilterValues(headerValues) {
+  if (!headerValues) return null;
+  return {
+    TranCode: headerValues.TranCode ?? '',
+    TranDate: headerValues.TranDate ?? '',
+    DivisionID: String(headerValues.DivisionID ?? ''),
+    ConfigID: String(headerValues.ConfigID ?? ''),
+    ExpectedDate: headerValues.ExpectedDate ?? '',
+    DeptID: String(headerValues.DeptID ?? ''),
+    BasedOnID: String(headerValues.BasedOnID ?? '0'),
+    Remarks: headerValues.Remarks ?? '',
+  };
+}
+
+function resolveEditLoadParams(recordId, listRecord) {
+  const session = getUserSession();
+  return {
+    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.YearID ?? session.yearId ?? PI_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.LoginID ?? session.loginId,
+    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.IDNUMBER ?? listRecord?.IDNumber ?? recordId,
+  };
+}
+
+function queryEditableFilterFields(panel) {
+  if (!panel) return [];
+  return [...panel.querySelectorAll(
+    'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
+  )].filter((el) => el.offsetParent !== null);
+}
+
 // Map an item picker row → items grid row (seeded from allColumns).
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
@@ -77,13 +111,18 @@ export default function PurchaseInquiryForm() {
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith('/new');
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
+  const isEditRoute = !isNewRoute && recordId > 0;
+  const listRecord = location.state?.record ?? null;
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
   const supplierGridRef = useRef(null);
+  const filterPanelRef = useRef(null);
+  const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
+  const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -91,9 +130,17 @@ export default function PurchaseInquiryForm() {
     fetchInquiryTypes, clearInquiryTypes,
     isLoadingInquiryTypes,
     columns, allColumns, isFetching, metaError,
-    fetchDetailMeta, fetchGridColumns,
+    fetchDetailMeta, fetchGridColumns, fetchEditRecord,
+    fetchUnlockedHeaderDropdowns,
+    fireCellEvent, eventColumns,
     saveTxn, isSaving, saveError, clearSaveError,
   } = usePurchaseInquiry(API_BASE_URL);
+
+  const [loadedMasterRow, setLoadedMasterRow] = useState(null);
+  const [loadedFilterValues, setLoadedFilterValues] = useState(null);
+  const [recordLoading, setRecordLoading] = useState(false);
+  const [recordLoadError, setRecordLoadError] = useState(null);
+  const editRecordLoadedRef = useRef(false);
 
   // Computed first so both the ref and the filter panel share the same initial date.
   const todayISO = useMemo(() => {
@@ -103,17 +150,21 @@ export default function PurchaseInquiryForm() {
 
   // TranDate seeded with todayISO so prmTranDate is correct on the first
   // "Select Item" click even before the user touches the date field.
+  const session = getUserSession();
+
   const headerValuesRef = useRef({
     TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
     DivisionID: 0, DeptID: 0, BasedOnID: '0',
-    Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID, LoginID: 1,
+    Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID,
+    LoginID: session.loginId,
+    UserID: session.userId,
     IDNumber: recordId,
   });
 
-  const filterInitialValues = useMemo(
-    () => ({ BasedOnID: '0', TranDate: todayISO }),
-    [todayISO],
-  );
+  const filterInitialValues = useMemo(() => {
+    if (loadedFilterValues) return loadedFilterValues;
+    return { BasedOnID: '0', TranDate: todayISO };
+  }, [loadedFilterValues, todayISO]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
   // initialValues, resetting all filter field values visually on Cancel.
@@ -124,8 +175,89 @@ export default function PurchaseInquiryForm() {
   // edit mode; "Cancel" (or the action-bar Cancel) returns to read-only.
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const enterEditMode = useCallback(() => setIsEditMode(true), []);
+  const focusFirstEditableFilterField = useCallback(() => {
+    const fields = queryEditableFilterFields(filterPanelRef.current);
+    if (fields.length === 0) return false;
+    fields[0].focus();
+    return true;
+  }, []);
+
+  const focusSelectItemButton = useCallback(() => {
+    setActiveTab('items');
+    selectItemBtnRef.current?.focus();
+  }, []);
+
+  const enterEditModeWithFocus = useCallback(() => {
+    setIsEditMode(true);
+    setActiveTab('items');
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (!focusFirstEditableFilterField()) {
+          focusSelectItemButton();
+        }
+      }, 80);
+    });
+  }, [focusFirstEditableFilterField, focusSelectItemButton]);
+
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
+
+  const resetFormToInitialState = useCallback(() => {
+    localStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
+    sessionStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
+    sessionStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
+
+    const resetSession = getUserSession();
+    headerValuesRef.current = {
+      TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
+      DivisionID: 0, DeptID: 0, BasedOnID: '0',
+      Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID,
+      LoginID: resetSession.loginId,
+      UserID: resetSession.userId,
+      IDNumber: 0,
+    };
+
+    queuedRowsRef.current = [];
+    gridColumnsLoadedRef.current = false;
+
+    clearInquiryTypes();
+    clearSaveError();
+
+    setActiveTab('items');
+    setApprovedFilter('all');
+    setIsGridLoading(false);
+    setIndentRows([]);
+    setItemSelectionCount(0);
+    setSupplierSelectionCount(0);
+
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+
+    setChildRowsMap({});
+    setChildColumns([]);
+
+    setSupplierModalOpen(false);
+    setSupplierModalItems([]);
+    setSupplierModalLoading(false);
+    setSupplierModalError(null);
+
+    itemGridRef.current?.clearRows?.();
+    supplierGridRef.current?.clearRows?.();
+
+    setFilterResetKey((k) => k + 1);
+    exitEditMode();
+  }, [clearInquiryTypes, clearSaveError, exitEditMode, todayISO]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) {
+      navigate('/purchase-inquiry');
+    } else {
+      resetFormToInitialState();
+    }
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('items');
@@ -167,20 +299,85 @@ export default function PurchaseInquiryForm() {
   });
 
   useEffect(() => {
-    fetchHeaderMeta();
+    fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta]);
+  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
+
+  const loadEditRecord = useCallback(async () => {
+    setRecordLoading(true);
+    setRecordLoadError(null);
+
+    try {
+      const params = resolveEditLoadParams(recordId, listRecord);
+      const { master, headerValues, details } = await fetchEditRecord(params);
+
+      if (!master || !headerValues) {
+        throw new Error('Inquiry record not found.');
+      }
+
+      headerValuesRef.current = headerValues;
+      setLoadedMasterRow(master);
+      editRecordLoadedRef.current = true;
+
+      setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
+      setFilterResetKey((k) => k + 1);
+
+      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
+        existingRecordEdit: true,
+        masterRow: master,
+        fetchUnlockedDropdowns: false,
+      });
+      if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
+
+      if (itemGridRef.current?.loadRows) {
+        itemGridRef.current.loadRows(details);
+      } else {
+        queuedRowsRef.current = details;
+      }
+    } catch (err) {
+      console.error('[PI] Edit record load failed:', err);
+      setRecordLoadError(err?.message || 'Failed to load inquiry record.');
+    } finally {
+      setRecordLoading(false);
+    }
+  }, [
+    recordId,
+    listRecord,
+    fetchEditRecord,
+    fetchGridColumns,
+  ]);
 
   useEffect(() => {
-    if (allColumns.length === 0 || gridColumnsLoadedRef.current) return;
+    if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
+
+    const divisionId = headerValuesRef.current?.DivisionID ?? loadedMasterRow?.DivisionID ?? 0;
+    fetchUnlockedHeaderDropdowns(divisionId);
+    fetchGridColumns(divisionId, {
+      existingRecordEdit: true,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+  }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns]);
+
+  useEffect(() => {
+    if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
     fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
-  }, [allColumns, fetchGridColumns]);
+  }, [allColumns, fetchGridColumns, isEditRoute]);
+
+  useEffect(() => {
+    if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
+    loadEditRecord();
+  }, [isEditRoute, allColumns.length, loadEditRecord]);
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      if (itemGridRef.current.loadRows) {
+        itemGridRef.current.loadRows(queuedRowsRef.current);
+      } else {
+        queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      }
       queuedRowsRef.current = [];
     }
   }, [columns]);
@@ -192,31 +389,85 @@ export default function PurchaseInquiryForm() {
 
   // ── syncedFilters ─────────────────────────────────────────────────
   const syncedFilters = useMemo(() => {
-    const injectOptions = (filter) => {
-      switch (filter.FilterParameterID) {
-        case 'DivisionID': return { ...filter, staticOptions: divisionOptions };
-        case 'ConfigID': return { ...filter, staticOptions: inquiryTypeOptions };
-        case 'DeptID': return { ...filter, staticOptions: departmentOptions };
-        default: return filter;
-      }
-    };
-
-    if (headerColumns.length === 0) return PI_HEADER_FILTERS.map(injectOptions);
-
     const apiColMap = {};
     headerColumns.forEach((col) => { apiColMap[col.ColName] = col; });
 
-    return PI_HEADER_FILTERS.map((filter) => {
-      const withOpts = injectOptions(filter);
+    const injectListOptions = (filter, baseFilter) => {
+      switch (filter.FilterParameterID) {
+        case 'DivisionID': return { ...baseFilter, staticOptions: divisionOptions };
+        case 'ConfigID': return { ...baseFilter, staticOptions: inquiryTypeOptions };
+        case 'DeptID': return { ...baseFilter, staticOptions: departmentOptions };
+        default: return baseFilter;
+      }
+    };
+
+    const buildFilterDef = (filter) => {
       const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
-      if (!apiCol) return withOpts;
-      return {
-        ...withOpts,
-        FilterColName: apiCol.ColName,
-        FilterColCtrlType: apiCol.ColCtrlType ?? withOpts.FilterColCtrlType,
+      const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
+
+      let def = {
+        ...filter,
+        lockOnEditMode,
+        ctrlValueCol: apiCol?.CtrlValueCol,
+        ctrlDisplayCol: apiCol?.CtrlDisplayCol,
       };
+
+      if (apiCol) {
+        def.FilterColName = apiCol.ColName;
+        def.FilterColCtrlType = apiCol.ColCtrlType ?? filter.FilterColCtrlType;
+      }
+
+      // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
+      if (isEditRoute && loadedMasterRow) {
+        if (filter.FilterParameterID === 'BasedOnID') {
+          const basedOnVal = String(
+            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? '0',
+          );
+          if (lockOnEditMode || !isEditMode) {
+            const match = PI_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
+            def.staticOptions = [{ value: basedOnVal, label: match?.label ?? basedOnVal }];
+          } else {
+            def.staticOptions = PI_CONFIG.BASED_ON_OPTIONS;
+          }
+          return def;
+        }
+
+        if (apiCol?.ColCtrlType === 4) {
+          if (lockOnEditMode || !isEditMode) {
+            def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
+          } else {
+            return injectListOptions(filter, def);
+          }
+          return def;
+        }
+
+        return def;
+      }
+
+      return injectListOptions(filter, def);
+    };
+
+    if (headerColumns.length === 0) return PI_HEADER_FILTERS.map(buildFilterDef);
+    return PI_HEADER_FILTERS.map(buildFilterDef);
+  }, [
+    headerColumns,
+    divisionOptions,
+    inquiryTypeOptions,
+    departmentOptions,
+    isEditRoute,
+    loadedMasterRow,
+    isEditMode,
+  ]);
+
+  const filterFieldTones = useMemo(() => {
+    const tones = {};
+    syncedFilters.forEach((f) => {
+      if (!isEditMode) tones[f.FilterColName] = 'view';
+      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = 'frozen';
+      else tones[f.FilterColName] = 'editable';
     });
-  }, [headerColumns, divisionOptions, inquiryTypeOptions, departmentOptions]);
+    return tones;
+  }, [syncedFilters, isEditMode, isEditRoute]);
 
   // ── Filter cascade ─────────────────────────────────────────────────
   const handleFilterChange = useCallback(async (colName, val) => {
@@ -226,7 +477,6 @@ export default function PurchaseInquiryForm() {
       headerValuesRef.current.ConfigID = 0;
       clearInquiryTypes();
       if (val && val !== '0') await fetchInquiryTypes(val);
-      return;
     }
   }, [fetchInquiryTypes, clearInquiryTypes]);
 
@@ -235,24 +485,20 @@ export default function PurchaseInquiryForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0);
+      const activeCols = await fetchGridColumns(
+        headerValuesRef.current?.DivisionID ?? 0,
+        {
+          existingRecordEdit: isEditRoute,
+          masterRow: loadedMasterRow,
+          fetchUnlockedDropdowns: isEditRoute ? isEditMode : true,
+        },
+      );
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
       setIsGridLoading(false);
     }
-  }, [columns, allColumns, fetchGridColumns]);
-
-  // ── Add New (Items tab) ────────────────────────────────────────────
-  const handleAddNew = useCallback(async () => {
-    if (isFetching || isGridLoading) return;
-    setActiveTab('items');
-    const activeCols = await ensureItemColumns();
-    if (!activeCols || activeCols.length === 0) return;
-    const blankRow = { id: nextTempId() };
-    allColumns.forEach(({ key, colDataType }) => { blankRow[key] = getColDefault(colDataType); });
-    addItemRow(blankRow);
-  }, [isFetching, isGridLoading, ensureItemColumns, allColumns, addItemRow]);
+  }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
 
   // ── Select Item (Items tab) ────────────────────────────────────────
   // Flow:
@@ -295,7 +541,7 @@ export default function PurchaseInquiryForm() {
       // Step 3 — fetch columns (read-only: skip dropdown options)
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes?.Links || [], {}, {
         filterable: false,
@@ -310,7 +556,7 @@ export default function PurchaseInquiryForm() {
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionID),
           prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID: DEFAULT_LOGIN_ID,
+          prmLoginID: getUserSession().loginId,
           prmTranDate: formatTranDate(TranDate),
           prmConfigID: Number(configID),
           prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
@@ -416,7 +662,7 @@ export default function PurchaseInquiryForm() {
         ObjName: PI_CONFIG.SUPPLIER_SP,
         JSon: JSON.stringify([{
           PrmDivisionId: Number(divisionID),
-          PrmLoginId: DEFAULT_LOGIN_ID,
+          PrmLoginId: getUserSession().loginId,
           PrmYearId: PI_CONFIG.CONFIG_YEAR_ID,
           PrmPartyType: PI_CONFIG.SUPPLIER_PARTY_TYPE,
         }]),
@@ -470,28 +716,44 @@ export default function PurchaseInquiryForm() {
     }
   }, [activeTab]);
 
+  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
+    const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+    if (!result || !itemGridRef.current) return;
+    const responseRow = result?.Links?.[0];
+    if (!responseRow) return;
+    const errCode = responseRow.ErrCode;
+    if (errCode !== 1 && errCode !== 1.0) {
+      console.warn('[PI] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+      return;
+    }
+    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+    itemGridRef.current.updateRow?.(rowId, updatedFields);
+  }, [fireCellEvent]);
+
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingPI, setIsSavingPI] = useState(false);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     // ── Master ────────────────────────────────────────────────────────
     const mstRow = {};
     headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
-    mstRow.LoginID = DEFAULT_LOGIN_ID;
+    const session = getUserSession();
+    mstRow.LoginID = session.loginId;
+    mstRow.UserID = session.userId;
 
     // ── Detail ────────────────────────────────────────────────────────
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, LoginID: session.loginId, UserID: session.userId };
     });
 
     // ── IndentDetail ──────────────────────────────────────────────────
     const indentDetailRows = Object.values(childRowsMap)
       .flat()
-      .map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
+      .map(({ id: _id, ...rest }) => ({ ...rest, LoginID: session.loginId, UserID: session.userId }));
 
     const payload = {
       prmStrMstJSON: JSON.stringify([mstRow]),
@@ -506,87 +768,45 @@ export default function PurchaseInquiryForm() {
 
     setIsSavingPI(true);
     try {
-      const res = await fetch(`${API_BASE_URL_IMS}${PI_CONFIG.SAVE_ENDPOINT}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
+      const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
       console.log('%c[PI Save] Response:', 'color:#22c55e;font-weight:700', result);
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert('Purchase Inquiry saved successfully!');
+      const { success, message } = parseApiErrMsg(result);
+      alert(message);
+      if (!success) return false;
+
+      if (!skipPostSave) completeSuccessfulSave();
+      return true;
     } catch (err) {
       console.error('[PI Save] Failed:', err);
       alert(err?.message || 'Save failed. Please try again.');
+      return false;
     } finally {
       setIsSavingPI(false);
     }
-  }, [headerColumns, allColumns, childRowsMap]);
+  }, [headerColumns, allColumns, childRowsMap, postSave, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
+    if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => {
     if (!window.confirm('Discard changes and reset the form?')) return;
 
-    // ── 1. Wipe page-session storage ──────────────────────────────────
-    localStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
+    if (isEditRoute) {
+      exitEditMode();
+      setChildRowsMap({});
+      setChildColumns([]);
+      supplierGridRef.current?.clearRows?.();
+      editRecordLoadedRef.current = false;
+      loadEditRecord();
+      return;
+    }
 
-    // ── 2. Reset header ref (TranDate back to today, matching filterInitialValues) ──
-    headerValuesRef.current = {
-      TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
-      DivisionID: 0, DeptID: 0, BasedOnID: '0',
-      Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID, LoginID: 1, IDNumber: 0,
-    };
-
-    // ── 3. Reset internal refs ────────────────────────────────────────
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-
-    // ── 4. Reset hook-owned state ─────────────────────────────────────
-    clearInquiryTypes();   // inquiryTypeOptions → []
-    clearSaveError();      // saveError → null
-
-    // ── 5. Reset every local useState to its initial value ────────────
-    setActiveTab('items');
-    setApprovedFilter('all');
-    setIsGridLoading(false);
-    setIndentRows([]);
-    setItemSelectionCount(0);
-    setSupplierSelectionCount(0);
-
-    // Item picker modal
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-
-    // Collapsible child state
-    setChildRowsMap({});
-    setChildColumns([]);
-
-    // Supplier picker modal
-    setSupplierModalOpen(false);
-    setSupplierModalItems([]);
-    setSupplierModalLoading(false);
-    setSupplierModalError(null);
-
-    // ── 6. Clear both grids ───────────────────────────────────────────
-    itemGridRef.current?.clearRows?.();
-    supplierGridRef.current?.clearRows?.();
-
-    // ── 7. Force-remount EnterpriseFilterPanel so its internal field
-    //       state is wiped and initialValues are re-applied cleanly ────
-    setFilterResetKey((k) => k + 1);
-
-    exitEditMode();
-  }, [clearInquiryTypes, clearSaveError, exitEditMode]);
+    resetFormToInitialState();
+  }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
 
   const handleClose = useCallback(() => navigate('/purchase-inquiry'), [navigate]);
   const handleDocument = useCallback(() => {
@@ -594,17 +814,85 @@ export default function PurchaseInquiryForm() {
   }, []);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
-  const combinedError = metaError || headerError;
-  const filterBusy = headerFetching || isLoadingInquiryTypes;
+  const combinedError = metaError || headerError || recordLoadError;
+  const filterPanelLoading = headerFetching || recordLoading;
+  const filterBusy = filterPanelLoading || isLoadingInquiryTypes;
+
+  // Alt+A Add | Alt+S Save | Alt+N Cancel | Alt+C Close
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      if (itemModalOpen || supplierModalOpen) return;
+
+      const key = e.key.toLowerCase();
+      switch (key) {
+        case 'a':
+          if (!isEditMode && !filterBusy) {
+            e.preventDefault();
+            enterEditModeWithFocus();
+          }
+          break;
+        case 's':
+          if (isEditMode && !isSavingPI) {
+            e.preventDefault();
+            handleSave();
+          }
+          break;
+        case 'n':
+          if (isEditMode) {
+            e.preventDefault();
+            handleCancel();
+          }
+          break;
+        case 'c':
+          e.preventDefault();
+          handleClose();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    isEditMode,
+    filterBusy,
+    isSavingPI,
+    itemModalOpen,
+    supplierModalOpen,
+    enterEditModeWithFocus,
+    handleSave,
+    handleCancel,
+    handleClose,
+  ]);
 
   // Extra buttons visible in the ActionBar while in edit mode
   const piExtraButtons = useMemo(() => [
     { key: 'document', label: 'Document F6', Icon: FileText, variant: 'secondary', onClick: handleDocument },
     { key: 'sep1', separator: true },
     { key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print', onClick: handleSaveAndPrint, disabled: isSavingPI },
-    { key: 'save', label: isSavingPI ? 'Saving…' : 'Save', Icon: Save, variant: 'save', onClick: handleSave, disabled: isSavingPI, loading: isSavingPI },
-    { key: 'sep2', separator: true },
-    { key: 'close', label: 'Close', Icon: LogOut, variant: 'close', onClick: handleClose },
+    {
+      key: 'save',
+      label: isSavingPI ? 'Saving…' : 'Save',
+      Icon: Save,
+      variant: 'save',
+      onClick: () => handleSave(),
+      disabled: isSavingPI,
+      loading: isSavingPI,
+      accessKey: 's',
+      title: 'Save (Alt+S)',
+    },
+    {
+      key: 'close',
+      label: 'Close',
+      Icon: LogOut,
+      variant: 'close',
+      onClick: handleClose,
+      showAlways: true,
+      accessKey: 'c',
+      title: 'Close (Alt+C)',
+    },
   ], [handleDocument, handleSaveAndPrint, isSavingPI, handleSave, handleClose]);
 
   return (
@@ -622,13 +910,16 @@ export default function PurchaseInquiryForm() {
         ) : (
           <EnterpriseFilterPanel
             key={filterResetKey}
+            panelRef={filterPanelRef}
             title="Purchase Inquiry Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={PI_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
-            isSearching={filterBusy}
-            disabled={!isEditMode}
+            isSearching={filterPanelLoading}
+            disabled={filterPanelLoading}
+            fieldTones={filterFieldTones}
+            onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}
       </section>
@@ -651,28 +942,17 @@ export default function PurchaseInquiryForm() {
 
           <div className="grid-tabbar__controls">
             {activeTab === 'items' && (
-              <>
-                <button
-                  type="button"
-                  className="pi-tab-action-btn"
-                  onClick={handleAddNew}
-                  disabled={!isEditMode || isFetching || isGridLoading}
-                  title="Add a blank item row"
-                >
-                  <Plus size={12} strokeWidth={2.5} />
-                  Add New
-                </button>
-                <button
-                  type="button"
-                  className="pi-tab-action-btn"
-                  onClick={handleSelectItem}
-                  disabled={!isEditMode}
-                  title="Pick items from list"
-                >
-                  <Package size={12} strokeWidth={2.5} />
-                  Select Item
-                </button>
-              </>
+              <button
+                ref={selectItemBtnRef}
+                type="button"
+                className="pi-tab-action-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick items from list (Tab here after header fields)"
+              >
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
+              </button>
             )}
 
             {activeTab === 'suppliers' && (
@@ -717,11 +997,15 @@ export default function PurchaseInquiryForm() {
             config={itemGridConfig}
             title=""
             hideBottomPanel
-            emptyMessage="No items yet. Click Add New or Select Item above."
+            readOnly={isEditRoute && !isEditMode}
+            emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onCellEvent={handleCellEvent}
+            eventColumns={eventColumns}
             enableCollapsible={Object.keys(childRowsMap).length > 0}
             childRowsMap={childRowsMap}
             childColumns={childColumns}
+            existingRecordEdit={isEditRoute && isEditMode}
           />
         </div>
 
@@ -765,9 +1049,12 @@ export default function PurchaseInquiryForm() {
       </section> */}
 
       <ActionBar
+        alignEnd
         isEditMode={isEditMode}
-        onAdd={enterEditMode}
+        onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addAccessKey="a"
+        cancelAccessKey="n"
         extraButtons={piExtraButtons}
       />
 

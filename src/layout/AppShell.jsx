@@ -11,11 +11,13 @@ import {
   Search,
   Settings,
   ArrowLeft,
+  LogOut,
 } from 'lucide-react';
 import {
   getDefaultRouteTitle,
   usePageHeaderContext,
 } from '../context/PageHeaderContext';
+import { useUser } from '../context/UserContext';
 import './AppShell.css';
 
 const NAV_SECTIONS = [
@@ -37,9 +39,16 @@ export default function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
+  const { userName, userId, logout } = useUser();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const title = header.title ?? getDefaultRouteTitle(location.pathname);
   const subtitle = header.subtitle ?? 'FY 2025-26 · 01 Jun 2026';
+  const profileInitial = (userName || userId || 'U').charAt(0).toUpperCase();
 
   return (
     <div className={`ent-shell ${collapsed ? 'ent-shell--collapsed' : ''}`}>
@@ -130,12 +139,37 @@ export default function AppShell({ children }) {
               <Settings size={16} strokeWidth={1.5} />
             </button>
             <div className="ent-topbar__divider" />
-            <div className="ent-topbar__profile">
-              <div className="ent-topbar__profile-text">
-                <span className="ent-topbar__profile-name">Admin</span>
-                <span className="ent-topbar__profile-role">Superuser</span>
+            <div className="ent-topbar__profile-menu">
+              <div className="ent-topbar__profile">
+                <div className="ent-topbar__profile-text">
+                  <span className="ent-topbar__profile-name">{userName || userId}</span>
+                  <span className="ent-topbar__profile-role">{userId}</span>
+                </div>
+                <div className="ent-topbar__avatar">{profileInitial}</div>
               </div>
-              <div className="ent-topbar__avatar">A</div>
+              <div className="ent-topbar__profile-dropdown">
+                <div className="ent-topbar__profile-dropdown-panel">
+                  <div className="ent-topbar__profile-dropdown-header">
+                    <div className="ent-topbar__avatar ent-topbar__avatar--dropdown">
+                      {profileInitial}
+                    </div>
+                    <div>
+                      <div className="ent-topbar__profile-dropdown-name">
+                        {userName || userId}
+                      </div>
+                      <div className="ent-topbar__profile-dropdown-id">{userId}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ent-topbar__profile-dropdown-logout"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={14} strokeWidth={1.75} />
+                    Log out
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </header>

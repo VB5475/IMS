@@ -6,9 +6,10 @@ import { useApi } from '../../api/useApi';
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
+  OBJ_TYPE,
 } from '../../api/constants';
+import { getUserSession } from '../../session/userSession';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { PI_CONFIG } from './constants';
 import './PurchaseInquiryPage.css';
@@ -37,7 +38,7 @@ function buildListParams() {
         prmDivisionID: PI_CONFIG.LIST_DIVISION_ID,
         prmFroDate: `${year}-01-01`,
         prmToDate: `${year}-12-31`,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
         prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
       },
     ]),
@@ -120,7 +121,7 @@ function buildInquiryColumns(navigate) {
           aria-label={`Edit inquiry ${row.InquiryNo ?? ''}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/purchase-inquiry/${row.IDNUMBER}/edit`);
+            navigate(`/purchase-inquiry/${row.IDNUMBER}/edit`, { state: { record: row } });
           }}
         >
           <Pencil size={13} strokeWidth={2} />

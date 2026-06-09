@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApi } from '../../api/useApi';
-import { ENDPOINTS, DEFAULT_LOGIN_ID, CBO_MODE } from '../../api/constants';
+import { ENDPOINTS, CBO_MODE } from '../../api/constants';
+import { getUserSession } from '../../session/userSession';
 import { controlTypeMap } from '../../data/dummyData';
 import SearchSelect from '../ui/SearchSelect';
 import { AlertCircle, Search, Database, RotateCcw, X, Plus, ShoppingCart, FileSpreadsheet } from 'lucide-react';
@@ -45,9 +46,14 @@ function buildFilterRows(filters) {
   return rows;
 }
 
-function FilterControl({ filter, value, options, onChange, disabled = false }) {
+function FilterControl({ filter, value, options, onChange, disabled = false, tone = 'editable' }) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
   const accent = getAccentClass(filter);
+  const isView = tone === 'view';
+  const isFrozen = tone === 'frozen';
+  const readOnly = isView || isFrozen;
+  const isLoading = disabled;
+  const blockInteraction = isLoading || readOnly;
 
   const handleChange = (e) => onChange(FilterColName, e.target.value);
 
@@ -72,7 +78,9 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             autoComplete="off"
-            disabled={disabled}
+            readOnly={readOnly}
+            disabled={isLoading}
+            tabIndex={readOnly ? -1 : 0}
           />
         );
 
@@ -84,7 +92,9 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
             className="efq-cell__input efq-cell__input--date"
             value={value || ''}
             onChange={handleChange}
-            disabled={disabled}
+            readOnly={readOnly}
+            disabled={isLoading}
+            tabIndex={readOnly ? -1 : 0}
           />
         );
 
@@ -92,7 +102,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
         return (
           <SearchSelect
             id={`efq-${FilterColName}`}
-            className="efq-cell__select"
+            className={`efq-cell__select${readOnly ? ` efq-cell__select--tone-${tone}` : ''}`}
             value={value || ''}
             onChange={(val) => onChange(FilterColName, val)}
             options={(options || []).map((opt) => {
@@ -105,7 +115,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
             })}
             placeholder={`Select…`}
             ariaLabel={FilterCaption}
-            disabled={disabled}
+            disabled={blockInteraction}
           />
         );
 
@@ -118,7 +128,9 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             rows={2}
-            disabled={disabled}
+            readOnly={readOnly}
+            disabled={isLoading}
+            tabIndex={readOnly ? -1 : 0}
           />
         );
 
@@ -131,10 +143,10 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
 
   return (
     <td
-      className={`efq-table__cell ${accent}${isTextarea ? ' efq-table__cell--full' : ''}`}
+      className={`efq-table__cell ${accent}${isTextarea ? ' efq-table__cell--full' : ''}${tone !== 'editable' ? ` efq-table__cell--tone-${tone}` : ''}`}
       colSpan={isTextarea ? COLS : 1}
     >
-      <div className={`efq-cell${isTextarea ? ' efq-cell--stacked' : ''}`}>
+      <div className={`efq-cell${isTextarea ? ' efq-cell--stacked' : ''}${tone !== 'editable' ? ` efq-cell--tone-${tone}` : ''}`}>
         {FilterColCtrlType === controlTypeMap.LABEL ? (
           <span className="efq-cell__label">{FilterCaption}</span>
         ) : (
@@ -146,8 +158,14 @@ function FilterControl({ filter, value, options, onChange, disabled = false }) {
   );
 }
 
-function FilterTable({ filters, values, dropdownOptions, onChange, disabled = false }) {
+function FilterTable({ filters, values, dropdownOptions, onChange, disabled = false, fieldTones = null }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
+
+  const getFieldTone = useCallback((filter) => {
+    if (fieldTones?.[filter.FilterColName]) return fieldTones[filter.FilterColName];
+    if (fieldTones?.[filter.FilterParameterID]) return fieldTones[filter.FilterParameterID];
+    return 'editable';
+  }, [fieldTones]);
 
   return (
     <table className="efq-table">
@@ -165,6 +183,7 @@ function FilterTable({ filters, values, dropdownOptions, onChange, disabled = fa
                 }
                 onChange={onChange}
                 disabled={disabled}
+                tone={getFieldTone(row.items[0])}
               />
             ) : (
               <>
@@ -180,6 +199,7 @@ function FilterTable({ filters, values, dropdownOptions, onChange, disabled = fa
                     }
                     onChange={onChange}
                     disabled={disabled}
+                    tone={getFieldTone(filter)}
                   />
                 ))}
                 {row.items.length < COLS
@@ -198,7 +218,7 @@ function FilterTable({ filters, values, dropdownOptions, onChange, disabled = fa
 export default function EnterpriseFilterPanel({
   title = '',
   masterID,
-  loginID = DEFAULT_LOGIN_ID,
+  loginID = getUserSession().loginId,
   funcCode = '',
   divisionID = 0,
   onSearch,
@@ -214,6 +234,9 @@ export default function EnterpriseFilterPanel({
   initialValues = null,
   cascadeResets = null,
   disabled = false,
+  fieldTones = null,
+  panelRef = null,
+  onLastFieldTabForward = null,
   apiBaseUrl,
 }) {
   const { get } = useApi(apiBaseUrl);
@@ -321,6 +344,37 @@ export default function EnterpriseFilterPanel({
     return () => controller.abort();
   }, [fetchFilters]);
 
+  useEffect(() => {
+    if (!onLastFieldTabForward || !panelRef?.current) return undefined;
+
+    const panel = panelRef.current;
+    const selector = [
+      'input:not([disabled]):not([readonly])',
+      'textarea:not([disabled]):not([readonly])',
+      '.search-select__trigger:not([disabled])',
+    ].join(', ');
+
+    const bindLastFieldTab = () => {
+      const fields = [...panel.querySelectorAll(selector)]
+        .filter((el) => el.offsetParent !== null);
+      const last = fields[fields.length - 1];
+      if (!last) return undefined;
+
+      const onKeyDown = (e) => {
+        if (e.key === 'Tab' && !e.shiftKey) {
+          e.preventDefault();
+          onLastFieldTabForward();
+        }
+      };
+
+      last.addEventListener('keydown', onKeyDown);
+      return () => last.removeEventListener('keydown', onKeyDown);
+    };
+
+    const cleanup = bindLastFieldTab();
+    return cleanup;
+  }, [panelRef, onLastFieldTabForward, filters, disabled, fieldTones]);
+
   const handleChange = useCallback((colName, value) => {
     setValues((prev) => {
       const next = { ...prev, [colName]: value };
@@ -405,7 +459,7 @@ export default function EnterpriseFilterPanel({
   );
 
   return (
-    <div className="efq-panel">
+    <div className="efq-panel" ref={panelRef}>
       <header className="efq-command">
         <div className="efq-command__brand">
           <span className="efq-command__icon" aria-hidden="true">
@@ -505,6 +559,7 @@ export default function EnterpriseFilterPanel({
               dropdownOptions={dropdownOptions}
               onChange={handleChange}
               disabled={disabled}
+              fieldTones={fieldTones}
             />
           </div>
 

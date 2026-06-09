@@ -313,6 +313,10 @@
   margin: 0 4px;
 }
 
+.ent-topbar__profile-menu {
+  position: relative;
+}
+
 .ent-topbar__profile {
   display: flex;
   align-items: center;
@@ -322,8 +326,89 @@
   cursor: pointer;
 }
 
-.ent-topbar__profile:hover {
+.ent-topbar__profile-menu:hover .ent-topbar__profile {
   background: var(--bg-tint);
+}
+
+.ent-topbar__profile-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  padding-top: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity var(--transition),
+    transform var(--transition),
+    visibility var(--transition);
+  z-index: 120;
+}
+
+.ent-topbar__profile-menu:hover .ent-topbar__profile-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.ent-topbar__profile-dropdown-panel {
+  min-width: 200px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.ent-topbar__profile-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.ent-topbar__profile-dropdown-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.ent-topbar__profile-dropdown-id {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.ent-topbar__avatar--dropdown {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ent-topbar__profile-dropdown-logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ent-topbar__profile-dropdown-logout:hover {
+  background: rgba(220, 53, 69, 0.08);
+  color: var(--danger);
 }
 
 .ent-topbar__profile-text {
