@@ -72,7 +72,7 @@ export const PO_CONFIG = {
   // Purchase Order listing
   LIST_OBJ_TYPE:    2,
   SP_PO_LIST:       'Fn_tbl_Pur_POMst_List',
-  LIST_DIVISION_ID: 15,
+  LIST_DIVISION_ID: 0,
 };
 
 // ── Header filter definitions ────────────────────────────────────────────────

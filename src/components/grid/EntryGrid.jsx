@@ -317,6 +317,21 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     }));
   }, []);
 
+  // ── Cell keyboard navigation (Enter = next focusable cell in row) ─
+  const makeCellKeyDown = useCallback((row, col) => (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const wrapper = e.currentTarget;
+    const tableWrapper = tableWrapperRef.current;
+    if (!tableWrapper) return;
+    const allCells = [...tableWrapper.querySelectorAll(
+      'td .cell-wrapper input:not([disabled]):not([readonly]), td .cell-wrapper textarea:not([disabled]):not([readonly]), td .cell-wrapper .search-select__trigger:not([disabled])',
+    )];
+    const idx = allCells.findIndex((el) => wrapper.contains(el));
+    const next = allCells[idx + 1];
+    if (next) next.focus();
+  }, []);
+
   // ── Bottom panel actions ──────────────────────────────────────────
   const handleSave = useCallback(() => {
     // onSave is called without arguments — the parent reads rows
