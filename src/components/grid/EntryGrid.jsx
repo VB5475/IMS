@@ -541,64 +541,64 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       {tabContentOverride ? (
         <div className="grid-tab-content">{tabContentOverride}</div>
       ) : (
-      <>
-      {selectedIds.size > 0 && (
-        <div className="selection-bar">
-          <span>{selectedIds.size} row(s) selected</span>
-          <button type="button" onClick={() => setSelectedIds(new Set())}>Clear selection</button>
-        </div>
-      )}
+        <>
+          {selectedIds.size > 0 && (
+            <div className="selection-bar">
+              <span>{selectedIds.size} row(s) selected</span>
+              <button type="button" onClick={() => setSelectedIds(new Set())}>Clear selection</button>
+            </div>
+          )}
 
-      <div
-        className={`table-wrapper ${scrollState.left ? 'scrolled-left' : ''} ${scrollState.right ? 'scrolled-right' : ''}`}
-        ref={tableWrapperRef}
-        onScroll={handleScroll}
-      >
-        <table className="erp-table">
-          <thead>
-            <tr>
-              {columns.map(col => (
-                <th
-                  key={col.id}
-                  className={`${cellClass(col) || ''} ${getHeaderThemeClass(col)}`}
-                  style={cellStyle(col, 'header')}
-                >
-                  {col.key === 'cb' ? (
-                    <div className="header-cell-content" style={{ justifyContent: 'center' }}>
-                      <input
-                        type="checkbox"
-                        className="row-checkbox"
-                        title="Select / deselect all visible rows"
-                        aria-label="Select all rows"
-                        checked={
-                          displayRows.length > 0 &&
-                          displayRows.every(r => selectedIds.has(String(r.id)))
-                        }
-                        onChange={handleSelectAll}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    </div>
-                  ) : (
-                    <div className="header-cell-content">
-                      <span
-                        className="header-label"
-                        onClick={() => handleSort(col.key)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {col.name}
-                        {sortConfig.key === col.key && (
-                          <span className="sort-icon">
-                            {sortConfig.direction === 'asc' ? '▲' : '▼'}
+          <div
+            className={`table-wrapper ${scrollState.left ? 'scrolled-left' : ''} ${scrollState.right ? 'scrolled-right' : ''}`}
+            ref={tableWrapperRef}
+            onScroll={handleScroll}
+          >
+            <table className="erp-table">
+              <thead>
+                <tr>
+                  {columns.map(col => (
+                    <th
+                      key={col.id}
+                      className={`${cellClass(col) || ''} ${getHeaderThemeClass(col)}`}
+                      style={cellStyle(col, 'header')}
+                    >
+                      {col.key === 'cb' ? (
+                        <div className="header-cell-content" style={{ justifyContent: 'center' }}>
+                          <input
+                            type="checkbox"
+                            className="row-checkbox"
+                            title="Select / deselect all visible rows"
+                            aria-label="Select all rows"
+                            checked={
+                              displayRows.length > 0 &&
+                              displayRows.every(r => selectedIds.has(String(r.id)))
+                            }
+                            onChange={handleSelectAll}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                      ) : (
+                        <div className="header-cell-content">
+                          <span
+                            className="header-label"
+                            onClick={() => handleSort(col.key)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {col.name}
+                            {sortConfig.key === col.key && (
+                              <span className="sort-icon">
+                                {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  <div className="resize-handle" onMouseDown={(e) => handleResizeStart(e, col.id)} />
-                </th>
-              ))}
-            </tr>
-          </thead>
+                        </div>
+                      )}
+                      <div className="resize-handle" onMouseDown={(e) => handleResizeStart(e, col.id)} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
           <tbody>
             {displayRows.map(row => {
@@ -613,10 +613,12 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                         key={`${row.id}-${col.id}`}
                         className={cellClass(col)}
                         style={cellStyle(col, 'body')}
-                        onMouseDown={(e) => focusCellControl(e, col)}
                         onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
                       >
-                        <div className="cell-wrapper">
+                        <div
+                          className="cell-wrapper"
+                          onKeyDown={(!readOnly && col.key !== 'cb') ? makeCellKeyDown(row, col) : undefined}
+                        >
                           {col.key === 'cb' ? (
                             <div className="cell-checkbox">
                               {hasChildren && (
@@ -649,71 +651,71 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                     ))}
                   </tr>
 
-                  {isExpanded && (
-                    <tr className="eg-child-row">
-                      <td colSpan={columns.length} className="eg-child-cell">
-                        <InlineChildTable
-                          columns={childColumns.filter(c => c.key !== 'cb')}
-                          rows={childRowsMap[rowId]}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
+                      {isExpanded && (
+                        <tr className="eg-child-row">
+                          <td colSpan={columns.length} className="eg-child-cell">
+                            <InlineChildTable
+                              columns={childColumns.filter(c => c.key !== 'cb')}
+                              rows={childRowsMap[rowId]}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
 
-            {displayRows.length === 0 && (
-              <tr>
-                <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                  {emptyMessage ?? (readOnly
-                    ? 'No data available.'
-                    : <>Click <strong>Add New</strong> in the header panel to add a row.</>)}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                {displayRows.length === 0 && (
+                  <tr>
+                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                      {emptyMessage ?? (readOnly
+                        ? 'No data available.'
+                        : <>Click <strong>Add New</strong> in the header panel to add a row.</>)}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      <div className="pagination-bar">
-        <div className="pagination-left">
-          Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> – <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of <strong>{processedRows.length}</strong> records
-        </div>
-        <div className="pagination-right">
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Rows:</span>
-          <select className="page-size-select" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-            {pageSizeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-          <button type="button" className="page-btn" onClick={() => setPage(1)} disabled={safePage <= 1}>«</button>
-          <button type="button" className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>‹</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(p => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2))
-            .map((p, idx, arr) => (
-              <React.Fragment key={p}>
-                {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ color: 'var(--text-muted)', padding: '0 4px' }}>…</span>}
-                <button
-                  type="button"
-                  className={`page-btn ${p === safePage ? 'active' : ''}`}
-                  onClick={() => setPage(p)}
-                >{p}</button>
-              </React.Fragment>
-            ))}
-          <button type="button" className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>›</button>
-          <button type="button" className="page-btn" onClick={() => setPage(totalPages)} disabled={safePage >= totalPages}>»</button>
-        </div>
-      </div>
+          <div className="pagination-bar">
+            <div className="pagination-left">
+              Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> – <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of <strong>{processedRows.length}</strong> records
+            </div>
+            <div className="pagination-right">
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Rows:</span>
+              <select className="page-size-select" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+                {pageSizeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <button type="button" className="page-btn" onClick={() => setPage(1)} disabled={safePage <= 1}>«</button>
+              <button type="button" className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>‹</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2))
+                .map((p, idx, arr) => (
+                  <React.Fragment key={p}>
+                    {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ color: 'var(--text-muted)', padding: '0 4px' }}>…</span>}
+                    <button
+                      type="button"
+                      className={`page-btn ${p === safePage ? 'active' : ''}`}
+                      onClick={() => setPage(p)}
+                    >{p}</button>
+                  </React.Fragment>
+                ))}
+              <button type="button" className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>›</button>
+              <button type="button" className="page-btn" onClick={() => setPage(totalPages)} disabled={safePage >= totalPages}>»</button>
+            </div>
+          </div>
 
-      {/* Bottom toolbar — hidden in readOnly / embedded mode */}
-      {!readOnly && !hideBottomPanel && (
-        <TxnEntryBottomPanel
-          selectedCount={selectedIds.size}
-          onExportExcel={handleExport}
-          onCopy={handleCopy}
-          onSave={handleSave}
-        />
-      )}
-      </>
+          {/* Bottom toolbar — hidden in readOnly / embedded mode */}
+          {!readOnly && !hideBottomPanel && (
+            <TxnEntryBottomPanel
+              selectedCount={selectedIds.size}
+              onExportExcel={handleExport}
+              onCopy={handleCopy}
+              onSave={handleSave}
+            />
+          )}
+        </>
       )}
 
     </div>

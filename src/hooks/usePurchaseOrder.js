@@ -451,6 +451,29 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     }
   }, [baseURL]);
 
+  // ── fireCellEvent — qty / rate column blur → server recalculation ───
+  const [isEventFiring, setIsEventFiring] = useState(false);
+
+  const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
+    setIsEventFiring(true);
+    try {
+      const { id, ...newRowData } = rowData;
+      const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
+        GridEventFuncName: PO_CONFIG.SP_GRID_EVENT,
+        EventColName:      colName,
+        DetJSON:           JSON.stringify([newRowData]),
+        MstJSon:           JSON.stringify([headerValues]),
+      });
+      console.log('%c[PO] CellEvent response:', 'color:#f59e0b;font-weight:600', { col: colName, result });
+      return result;
+    } catch (err) {
+      console.error('[PO] fireCellEvent failed:', err);
+      return null;
+    } finally {
+      setIsEventFiring(false);
+    }
+  }, [get]);
+
   const clearPoTypes   = useCallback(() => setPoTypeOptions([]), []);
   const clearSaveError = useCallback(() => setSaveError(null), []);
 
@@ -492,6 +515,9 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     metaError,
     fetchDetailMeta,
     fetchGridColumns,
+    // cell events
+    fireCellEvent,
+    isEventFiring,
     // save
     saveTxn,
     isSaving,

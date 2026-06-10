@@ -1,0 +1,40 @@
+/* TxnFooterTotals — shared read-only totals strip */
+
+.txn-footer-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: var(--surface-secondary, #f8fafc);
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,.05));
+}
+
+.txn-footer-totals__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.txn-footer-totals__label {
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.txn-footer-totals__input {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 4px;
+  background: var(--surface-primary, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  text-align: right;
+  width: 100%;
+  cursor: default;
+  outline: none;
+}

@@ -13,8 +13,8 @@
 //                           button: Select Item
 //        • Terms tab      → static terms table
 //        Fixed controls (always): Approved filter | Delete
-//   4. Footer totals panel  — read-only amount fields
-//   5. ActionBar            — Save / Cancel / Close etc.
+//   4. TxnFooterTotals      — read-only amount fields (reusable component)
+//   5. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -25,8 +25,10 @@ import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPane
 import EntryGrid             from '../../components/grid/EntryGrid';
 import ActionBar             from '../../components/ui/ActionBar';
 import OrderItemModal        from '../../components/txn/OrderItemModal';
+import TxnFooterTotals       from '../../components/txn/TxnFooterTotals';
 import SearchSelect          from '../../components/ui/SearchSelect';
 import { usePurchaseOrder }  from '../../hooks/usePurchaseOrder';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useApi }            from '../../api/useApi';
 import {
   ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, DEFAULT_LOGIN_ID, getColDefault, OBJ_TYPE,
@@ -41,6 +43,7 @@ import {
   TERMS_COLUMNS,
   PO_FOOTER_FIELDS,
   PO_FILTER_CASCADE_RESETS,
+  PO_SHORTCUT_CONFIG,
   formatTranDate,
 } from './constants';
 import './PurchaseOrderPage.css';
@@ -48,6 +51,14 @@ import './PurchaseOrderPage.css';
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
 let _poTempId = -1;
 const nextTempId = () => _poTempId--;
+
+// Returns all focusable, visible filter field elements inside a panel node.
+function queryEditableFilterFields(panel) {
+  if (!panel) return [];
+  return [...panel.querySelectorAll(
+    'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
+  )].filter((el) => el.offsetParent !== null);
+}
 
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
@@ -68,6 +79,8 @@ export default function PurchaseOrderForm() {
   const navigate        = useNavigate();
 
   const itemGridRef              = useRef(null);
+  const filterPanelRef           = useRef(null);
+  const selectItemBtnRef         = useRef(null);
   const gridColumnsLoadedRef     = useRef(false);
   const queuedRowsRef            = useRef([]);
   const { get: getLive }         = useApi(API_BASE_URL);
@@ -82,8 +95,9 @@ export default function PurchaseOrderForm() {
     fetchExistingPOs,
     fetchUniqueId,
     isLoadingPoTypes,
-    columns, allColumns, isFetching, metaError,
+    columns, allColumns, isFetching, metaError, eventColumns,
     fetchDetailMeta, fetchGridColumns,
+    fireCellEvent,
     saveTxn, isSaving, saveError, clearSaveError,
   } = usePurchaseOrder(API_BASE_URL);
 
@@ -144,14 +158,36 @@ export default function PurchaseOrderForm() {
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
-  const enterEditMode = useCallback(async () => {
+
+  const focusFirstEditableFilterField = useCallback(() => {
+    const fields = queryEditableFilterFields(filterPanelRef.current);
+    if (fields.length === 0) return false;
+    fields[0].focus();
+    return true;
+  }, []);
+
+  const focusSelectItemButton = useCallback(() => {
+    setActiveTab('items');
+    selectItemBtnRef.current?.focus();
+  }, []);
+
+  const enterEditModeWithFocus = useCallback(async () => {
     if (isNewRoute) {
       const uid = await fetchUniqueId();
       headerValuesRef.current.TranMstGenID = uid;
     }
     setIsEditMode(true);
-  }, [isNewRoute, fetchUniqueId]);
-  const exitEditMode  = useCallback(() => setIsEditMode(false), []);
+    setActiveTab('items');
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (!focusFirstEditableFilterField()) {
+          focusSelectItemButton();
+        }
+      }, 80);
+    });
+  }, [isNewRoute, fetchUniqueId, focusFirstEditableFilterField, focusSelectItemButton]);
+
+  const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('items');
@@ -159,9 +195,9 @@ export default function PurchaseOrderForm() {
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const activeSelectionCount = activeTab === 'items' ? itemSelectionCount : 0;
 
-  const [approvedFilter,        setApprovedFilter]        = useState('all');
-  const [isGridLoading,         setIsGridLoading]         = useState(false);
-  const [footerValues,          setFooterValues]          = useState({});
+  const [approvedFilter,         setApprovedFilter]         = useState('all');
+  const [isGridLoading,          setIsGridLoading]          = useState(false);
+  const [footerValues,           setFooterValues]           = useState({});
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
 
   // Item picker modal
@@ -230,10 +266,7 @@ export default function PurchaseOrderForm() {
       const withOpts = injectOptions(filter);
       const apiCol   = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
       if (!apiCol) return withOpts;
-      return {
-        ...withOpts,
-        FilterColName: apiCol.ColName,
-      };
+      return { ...withOpts, FilterColName: apiCol.ColName };
     });
   }, [headerColumns, divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
 
@@ -284,7 +317,6 @@ export default function PurchaseOrderForm() {
         headerValuesRef.current.CurrencyRate = 0;
         setCurrencyExternalValues({ CurrencyName: '', CurrencyRate: '' });
       }
-      return;
     }
   }, [fetchPoTypes, clearPoTypes, fetchSupplierInfo, getSupplierCurrency]);
 
@@ -301,6 +333,20 @@ export default function PurchaseOrderForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
+  // ── Cell event — qty / rate recalculation ─────────────────────────
+  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
+    const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+    if (!result || !itemGridRef.current) return;
+    const responseRow = result?.Links?.[0];
+    if (!responseRow) return;
+    const errCode = responseRow.ErrCode;
+    if (errCode !== 1 && errCode !== 1.0) {
+      console.warn('[PO] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+      return;
+    }
+    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+    itemGridRef.current.updateRow?.(rowId, updatedFields);
+  }, [fireCellEvent]);
 
   // ── Select Item ────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
@@ -419,7 +465,6 @@ export default function PurchaseOrderForm() {
     }
   }, [ensureItemColumns, allColumns, addItemRow, itemModalColumns]);
 
-
   // ── Delete selected rows ───────────────────────────────────────────
   const handleDeleteSelected = useCallback(() => {
     if (!itemGridRef.current) return;
@@ -535,21 +580,49 @@ export default function PurchaseOrderForm() {
     console.log('[PO] Document F6 — reserved for document generation.');
   }, []);
 
+  // ── Configurable keyboard shortcuts ───────────────────────────────
+  const filterBusy = headerFetching || isLoadingPoTypes;
+
+  const shortcutConfig = useMemo(() => ({
+    a: { handler: enterEditModeWithFocus, enabled: !isEditMode && !filterBusy },
+    s: { handler: handleSave,            enabled: isEditMode && !isSavingPO   },
+    n: { handler: handleCancel,          enabled: isEditMode                   },
+    c: { handler: handleClose,           enabled: true                         },
+  }), [isEditMode, filterBusy, isSavingPO, enterEditModeWithFocus, handleSave, handleCancel, handleClose]);
+
+  useKeyboardShortcuts(shortcutConfig, { disabled: itemModalOpen });
+
+  // ── Extra ActionBar buttons ────────────────────────────────────────
+  const poExtraButtons = useMemo(() => [
+    {
+      key: 'document', label: 'Document F6', Icon: FileText, variant: 'secondary',
+      onClick: handleDocument,
+    },
+    { key: 'sep1', separator: true },
+    {
+      key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print',
+      onClick: handleSaveAndPrint, disabled: isSavingPO,
+    },
+    {
+      key: 'save', label: isSavingPO ? 'Saving…' : 'Save', Icon: Save, variant: 'save',
+      onClick: handleSave, disabled: isSavingPO, loading: isSavingPO,
+      accessKey: 's',
+      title: PO_SHORTCUT_CONFIG.s.title,
+    },
+    { key: 'sep2', separator: true },
+    {
+      key: 'close', label: 'Close', Icon: LogOut, variant: 'close',
+      onClick: handleClose, showAlways: true,
+      accessKey: 'c',
+      title: PO_SHORTCUT_CONFIG.c.title,
+    },
+  ], [handleDocument, handleSaveAndPrint, isSavingPO, handleSave, handleClose]);
+
   const itemGridConfig = {
     columns,
     pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
   };
   const combinedError = metaError || headerError;
-  const filterBusy    = headerFetching || isLoadingPoTypes;
-
-  const poExtraButtons = useMemo(() => [
-    { key: 'document',  label: 'Document F6',                          Icon: FileText, variant: 'secondary', onClick: handleDocument },
-    { key: 'sep1',      separator: true },
-    { key: 'saveprint', label: 'Save & Print',                         Icon: Printer,  variant: 'print',     onClick: handleSaveAndPrint, disabled: isSavingPO },
-    { key: 'save',      label: isSavingPO ? 'Saving…' : 'Save',       Icon: Save,     variant: 'save',       onClick: handleSave,         disabled: isSavingPO, loading: isSavingPO },
-    { key: 'sep2',      separator: true },
-    { key: 'close',     label: 'Close',                                 Icon: LogOut,   variant: 'close',     onClick: handleClose },
-  ], [handleDocument, handleSaveAndPrint, isSavingPO, handleSave, handleClose]);
 
   return (
     <div className="workspace-page po-page">
@@ -598,6 +671,7 @@ export default function PurchaseOrderForm() {
             {/* ── Header filter panel ──────────────────────────────── */}
             <EnterpriseFilterPanel
               key={filterResetKey}
+              panelRef={filterPanelRef}
               title="Purchase Order Detail"
               staticFilters={syncedFilters}
               initialValues={filterInitialValues}
@@ -606,6 +680,7 @@ export default function PurchaseOrderForm() {
               externalValues={currencyExternalValues}
               isSearching={filterBusy}
               disabled={!isEditMode}
+              onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
             />
           </>
         )}
@@ -631,11 +706,12 @@ export default function PurchaseOrderForm() {
           <div className="grid-tabbar__controls">
             {activeTab === 'items' && (
               <button
+                ref={selectItemBtnRef}
                 type="button"
                 className="po-tab-action-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
-                title="Pick items from list"
+                title="Pick items from list (Tab here after header fields)"
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
@@ -673,6 +749,8 @@ export default function PurchaseOrderForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Add New or Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onCellEvent={handleCellEvent}
+            eventColumns={eventColumns}
             enableCollapsible={Object.keys(childRowsMap).length > 0}
             childRowsMap={childRowsMap}
             childColumns={childColumns}
@@ -698,26 +776,16 @@ export default function PurchaseOrderForm() {
 
       </section>
 
-      {/* ── Footer totals panel ── */}
-      <section className="po-footer-panel">
-        {PO_FOOTER_FIELDS.map(({ key, label }) => (
-          <div key={key} className="po-footer-field">
-            <span className="po-footer-field__label">{label}</span>
-            <input
-              type="text"
-              readOnly
-              className="po-footer-field__input"
-              value={footerValues[key] ?? '0.00'}
-              aria-label={label}
-            />
-          </div>
-        ))}
-      </section>
+      {/* ── Footer totals (reusable component) ── */}
+      <TxnFooterTotals fields={PO_FOOTER_FIELDS} values={footerValues} />
 
       <ActionBar
+        alignEnd
         isEditMode={isEditMode}
-        onAdd={enterEditMode}
+        onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addAccessKey="a"
+        cancelAccessKey="n"
         extraButtons={poExtraButtons}
       />
 

@@ -38,6 +38,9 @@ export const PO_CONFIG = {
   SP_UNIQUE_ID:      'Pr_Gen_FetchLevyUniqueNo4Web',
   SP_DEPT:           'Pr_Fetch_DepartmentData_IMS',
 
+  // Grid cell-event SP (fires on qty / rate column blur)
+  SP_GRID_EVENT: 'fn_tbl_RB_PurPODet_Event',
+
   // "Based On" dropdown — MRD: Direct | Indent wise | Quotation only
   BASED_ON_OPTIONS: [
     { value: '0', label: 'Direct' },
@@ -128,6 +131,17 @@ export const PO_FOOTER_FIELDS = [
 ];
 
 export const PO_FILTER_INITIAL_VALUES = { BasedOnID: '0' };
+
+// ── Configurable keyboard shortcuts ─────────────────────────────────────────
+// Keys are single lowercase letters bound to Alt+<key>.
+// To override per-user, store overrides in localStorage('ims_shortcuts_po')
+// and merge with this config before passing to useKeyboardShortcuts.
+export const PO_SHORTCUT_CONFIG = {
+  a: { label: 'Add',    title: 'Add (Alt+A)'    },
+  s: { label: 'Save',   title: 'Save (Alt+S)'   },
+  n: { label: 'Cancel', title: 'Cancel (Alt+N)' },
+  c: { label: 'Close',  title: 'Close (Alt+C)'  },
+};
 
 // Cascade resets: Division change → clear PO Type (ConfigID)
 export const PO_FILTER_CASCADE_RESETS = {
