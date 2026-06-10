@@ -13,7 +13,7 @@
 //                           button: Select Item
 //        • Terms tab      → static terms table
 //        Fixed controls (always): Approved filter | Delete
-//   4. TxnFooterTotals      — read-only amount fields (reusable component)
+//   4. TxnSummaryPanel      — live totals computed from grid rows (reusable)
 //   5. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -25,7 +25,7 @@ import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPane
 import EntryGrid             from '../../components/grid/EntryGrid';
 import ActionBar             from '../../components/ui/ActionBar';
 import OrderItemModal        from '../../components/txn/OrderItemModal';
-import TxnFooterTotals       from '../../components/txn/TxnFooterTotals';
+import TxnSummaryPanel       from '../../components/txn/TxnSummaryPanel';
 import SearchSelect          from '../../components/ui/SearchSelect';
 import { usePurchaseOrder }  from '../../hooks/usePurchaseOrder';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -41,7 +41,7 @@ import {
   PO_GRID_TABS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
-  PO_FOOTER_FIELDS,
+  PO_SUMMARY_FIELDS,
   PO_FILTER_CASCADE_RESETS,
   PO_SHORTCUT_CONFIG,
   formatTranDate,
@@ -79,6 +79,7 @@ export default function PurchaseOrderForm() {
   const navigate        = useNavigate();
 
   const itemGridRef              = useRef(null);
+  const summaryRef               = useRef(null);
   const filterPanelRef           = useRef(null);
   const selectItemBtnRef         = useRef(null);
   const gridColumnsLoadedRef     = useRef(false);
@@ -197,7 +198,7 @@ export default function PurchaseOrderForm() {
 
   const [approvedFilter,         setApprovedFilter]         = useState('all');
   const [isGridLoading,          setIsGridLoading]          = useState(false);
-  const [footerValues,           setFooterValues]           = useState({});
+  const [gridRows,               setGridRows]               = useState([]);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
 
   // Item picker modal
@@ -481,6 +482,7 @@ export default function PurchaseOrderForm() {
     headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
+    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     mstRow.LoginID = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
@@ -544,7 +546,7 @@ export default function PurchaseOrderForm() {
       YearID: PO_CONFIG.DIVISION_YEAR_ID, LoginID: 1, IDNumber: 0,
       IsAmend: 0, AmendPOID: 0,
     };
-    setFooterValues({});
+    setGridRows([]);
     setCurrencyExternalValues({ CurrencyName: '', CurrencyRate: '' });
 
     queuedRowsRef.current       = [];
@@ -749,6 +751,7 @@ export default function PurchaseOrderForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Add New or Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             enableCollapsible={Object.keys(childRowsMap).length > 0}
@@ -776,8 +779,8 @@ export default function PurchaseOrderForm() {
 
       </section>
 
-      {/* ── Footer totals (reusable component) ── */}
-      <TxnFooterTotals fields={PO_FOOTER_FIELDS} values={footerValues} />
+      {/* ── Summary totals — live from grid rows ── */}
+      <TxnSummaryPanel ref={summaryRef} fields={PO_SUMMARY_FIELDS} rows={gridRows} />
 
       <ActionBar
         alignEnd

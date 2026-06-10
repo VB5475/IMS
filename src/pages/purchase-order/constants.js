@@ -118,16 +118,18 @@ export const INDENT_DETAILS_COLUMNS = [
   { key: 'Unit',       label: 'Unit',         width: 80 },
 ];
 
-// Footer totals — all read-only, populated from save/fetch response
-export const PO_FOOTER_FIELDS = [
-  { key: 'MstBaseAmount',    label: 'Base Amount' },
-  { key: 'MstTaxableValue',  label: 'Taxable Value' },
-  { key: 'MstCGST',          label: 'CGST' },
-  { key: 'MstSGST',          label: 'SGST' },
-  { key: 'MstIGST',          label: 'IGST' },
-  { key: 'MstExpense',       label: 'Expense' },
-  { key: 'MstNetBaseAmount', label: 'Net Base Amount' },
-  { key: 'MstRoundOff',      label: 'Round Off' },
+// Summary fields — detKey maps detail row columns; mstKey maps master save payload keys.
+// Used by TxnSummaryPanel (reactive live totals + getSummary() for Save API).
+// detKey must match the exact field name returned by fn_tbl_RB_PurPODet_Event response.
+export const PO_SUMMARY_FIELDS = [
+  { detKey: 'BaseAmount',    label: 'Base Amount',     mstKey: 'MstBaseAmount'    },
+  { detKey: 'Expense',       label: 'Expense',         mstKey: 'MstExpense'       },
+  { detKey: 'TaxableValue',  label: 'Taxable Value',   mstKey: 'MstTaxableValue'  },
+  { detKey: 'CGST',          label: 'CGST',            mstKey: 'MstCGST'          },
+  { detKey: 'SGST',          label: 'SGST',            mstKey: 'MstSGST'          },
+  { detKey: 'IGST',          label: 'IGST',            mstKey: 'MstIGST'          },
+  { detKey: 'RoundOff',      label: 'Round Off',       mstKey: 'MstRoundOff'      },
+  { detKey: 'NetBaseAmount', label: 'Net Base Amount', mstKey: 'MstNetBaseAmount' },
 ];
 
 export const PO_FILTER_INITIAL_VALUES = { BasedOnID: '0' };

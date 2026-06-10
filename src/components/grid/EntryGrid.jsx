@@ -86,6 +86,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     tabContentOverride = null, // ReactNode → replaces the grid body (used for other tabs)
     initialRows = null,     // array → pre-populated rows (used in readOnly mode)
     onSelectionChange = null, // (count: number) => void — notifies parent of selection changes
+    onRowsChange = null,      // (rows: row[]) => void  — notifies parent when rows mutate
     // ── Collapsible children ─────────────────────────────────────────
     // When enableCollapsible=true each parent row that has an entry in
     // childRowsMap shows an expand toggle.  childColumns drives the sub-table.
@@ -130,8 +131,13 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const rowsRef = useRef([]);
   const tableWrapperRef = useRef(null);
 
+  // Stable ref so onRowsChange never causes extra effect re-runs
+  const onRowsChangeRef = useRef(onRowsChange);
+  useEffect(() => { onRowsChangeRef.current = onRowsChange; }, [onRowsChange]);
+
   useEffect(() => {
     rowsRef.current = rows;
+    onRowsChangeRef.current?.(rows);
   }, [rows]);
 
   // Load initialRows when provided (readOnly mode)

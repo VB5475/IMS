@@ -413,10 +413,15 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
-      setEventColumns(buildEventColumnSet(apiColumns, [
+      const evtSet = buildEventColumnSet(apiColumns, [
         'ItemID', 'TranQty', 'BaseQty', 'BaseRate', 'TranRate',
         'DiscPerc', 'Expense', 'GSTPerc',
-      ]));
+      ]);
+      // Force-add amount-driving columns regardless of API IsEventReq flags
+      ['TranQty', 'BaseQty', 'TranRate', 'BaseRate', 'UnitConvRate', 'DiscPerc', 'Expense', 'GSTPerc'].forEach(
+        (k) => evtSet.add(k),
+      );
+      setEventColumns(evtSet);
       setAllColumns(
         apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null })),
       );
