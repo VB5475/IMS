@@ -122,6 +122,20 @@ export const SUPPLIER_GRID_CONFIG = {
   pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25] },
 };
 
+// Summary fields — detKey sums detail rows; mstKey maps to master save payload.
+// Used by EnterpriseSummaryPanel (reactive live totals + getSummary() for Save API).
+// detKey must match the exact field name returned by fn_tbl_RB_PurInquiryDet_Event response.
+export const PI_SUMMARY_FIELDS = [
+  { detKey: 'BaseAmount',    label: 'Base Amount',     mstKey: 'MstBaseAmount'    },
+  { detKey: 'Expense',       label: 'Expense',         mstKey: 'MstExpense'       },
+  { detKey: 'TaxableValue',  label: 'Taxable Value',   mstKey: 'MstTaxableValue'  },
+  { detKey: 'CGST',          label: 'CGST',            mstKey: 'MstCGST'          },
+  { detKey: 'SGST',          label: 'SGST',            mstKey: 'MstSGST'          },
+  { detKey: 'IGST',          label: 'IGST',            mstKey: 'MstIGST'          },
+  { detKey: 'RoundOff',      label: 'Round Off',       mstKey: 'MstRoundOff'      },
+  { detKey: 'NetBaseAmount', label: 'Net Base Amount', mstKey: 'MstNetBaseAmount' },
+];
+
 // Formats a date value as "dd-Mon-yyyy" (e.g. "02-Jun-2026") for API params.
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export function formatTranDate(dateVal) {

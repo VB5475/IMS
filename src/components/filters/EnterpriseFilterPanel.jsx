@@ -233,6 +233,7 @@ export default function EnterpriseFilterPanel({
   OrderItemIcon = null,
   initialValues = null,
   cascadeResets = null,
+  externalValues = null,
   disabled = false,
   fieldTones = null,
   panelRef = null,
@@ -374,6 +375,11 @@ export default function EnterpriseFilterPanel({
     const cleanup = bindLastFieldTab();
     return cleanup;
   }, [panelRef, onLastFieldTabForward, filters, disabled, fieldTones]);
+
+  useEffect(() => {
+    if (!externalValues) return;
+    setValues((prev) => ({ ...prev, ...externalValues }));
+  }, [externalValues]);
 
   const handleChange = useCallback((colName, value) => {
     setValues((prev) => {
