@@ -1,18 +1,17 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from "react";
 
 /** Skip shortcuts while a SearchSelect dropdown is open. */
 export function shouldIgnoreKeyboardEvent(e) {
   return Boolean(
-    e.target.closest('.search-select--open')
-    || e.target.closest('.search-select__dropdown'),
+    e.target.closest(".search-select--open") || e.target.closest(".search-select__dropdown")
   );
 }
 
 const DEFAULT_KEYS = {
-  add: 'a',
-  save: 's',
-  cancel: 'n',
-  close: 'c',
+  add: "a",
+  save: "s",
+  cancel: "n",
+  close: "c",
 };
 
 /**
@@ -44,7 +43,7 @@ export function useEntryFormKeyboard({
 
       const key = e.key.toLowerCase();
 
-      if (key === 'escape') {
+      if (key === "escape") {
         if (isEditMode && onCancel) {
           e.preventDefault();
           onCancel();
@@ -84,8 +83,8 @@ export function useEntryFormKeyboard({
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     enabled,
     blocked,
@@ -129,8 +128,9 @@ export function usePickerModalKeyboard({
       if (shouldIgnoreKeyboardEvent(e)) return;
 
       const key = e.key.toLowerCase();
-      const insertShortcut = (e.altKey && key === 'i' && !e.ctrlKey && !e.metaKey)
-        || (key === 'enter' && (e.ctrlKey || e.metaKey) && !e.altKey);
+      const insertShortcut =
+        (e.altKey && key === "i" && !e.ctrlKey && !e.metaKey) ||
+        (key === "enter" && (e.ctrlKey || e.metaKey) && !e.altKey);
 
       if (insertShortcut && canInsert) {
         e.preventDefault();
@@ -138,23 +138,29 @@ export function usePickerModalKeyboard({
       }
     };
 
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [isOpen, showActions, onInsert, canInsert]);
 
-  const handleInsertKeyDown = useCallback((e) => {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      focusGrid();
-    }
-  }, [focusGrid]);
+  const handleInsertKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Tab" && !e.shiftKey) {
+        e.preventDefault();
+        focusGrid();
+      }
+    },
+    [focusGrid]
+  );
 
-  const handleCancelKeyDown = useCallback((e) => {
-    if (e.key === 'Tab' && e.shiftKey) {
-      e.preventDefault();
-      focusGrid();
-    }
-  }, [focusGrid]);
+  const handleCancelKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Tab" && e.shiftKey) {
+        e.preventDefault();
+        focusGrid();
+      }
+    },
+    [focusGrid]
+  );
 
   return {
     cancelBtnRef,

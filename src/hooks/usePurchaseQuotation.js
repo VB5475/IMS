@@ -10,23 +10,23 @@
 // Cascading filters (page onFilterChange):
 //   Division → Quotation Type + Supplier
 
-import { useState, useCallback, useRef } from 'react';
-import { useApi } from '../api/useApi';
-import { getUserSession } from '../session/userSession';
+import { useState, useCallback, useRef } from "react";
+import { useApi } from "../api/useApi";
+import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
-} from '../api/constants';
-import { QTN_CONFIG } from '../pages/purchase-quotation/constants';
+} from "../api/constants";
+import { QTN_CONFIG } from "../pages/purchase-quotation/constants";
 import {
   fetchDropdownOptions,
   buildGridColumns,
   isTruthyApiFlag,
   isLockOnEditModeCol,
-} from '../utils/gridUtils';
+} from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -35,33 +35,33 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
-  ].join(',');
+  ].join(",");
 }
 
 function mapMasterRowToHeaderValues(master, params) {
   const toDateInput = (value) => {
-    if (!value) return '';
-    if (typeof value === 'string' && value.includes('T')) return value.split('T')[0];
+    if (!value) return "";
+    if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toISOString().split('T')[0];
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0];
   };
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : '',
+    TranCode: master.TranCode != null ? String(master.TranCode) : "",
     TranDate: toDateInput(master.TranDate),
     DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
     ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
     ExpiryDate: toDateInput(master.ExpiryDate) || null,
     DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
     SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
-    CurrencyID: master.CurrencyID ?? '',
-    CurrencyRate: master.CurrencyRate ?? '',
-    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : '0',
-    SupplierQuotNo: master.SupplierQuotNo ?? '',
+    CurrencyID: master.CurrencyID ?? "",
+    CurrencyRate: master.CurrencyRate ?? "",
+    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
+    SupplierQuotNo: master.SupplierQuotNo ?? "",
     SupplierQuotDate: toDateInput(master.SupplierQuotDate) || null,
-    ContactPerson: master.ContactPerson ?? '',
-    Remarks: master.Remarks ?? '',
+    ContactPerson: master.ContactPerson ?? "",
+    Remarks: master.Remarks ?? "",
     CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
     YearID: Number(params.yearId) || QTN_CONFIG.CONFIG_YEAR_ID,
     LoginID: Number(params.loginId) || getUserSession().loginId,
@@ -98,7 +98,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     ObjName: QTN_CONFIG.SP_RB_META,
     JSon: JSON.stringify([{ prmRBCode: rbCode }]),
     p_ErrCode: -1,
-    p_ErrMsg: '',
+    p_ErrMsg: "",
   });
   const tableRow = metaData?.Table?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
@@ -141,86 +141,96 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  const fetchQuotationTypes = useCallback(async (divisionId) => {
-    if (!divisionId || divisionId === '0') {
-      setQuotationTypeOptions([]);
-      return [];
-    }
+  const fetchQuotationTypes = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setQuotationTypeOptions([]);
+        return [];
+      }
 
-    setIsLoadingQuotationTypes(true);
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: QTN_CONFIG.SP_QUOTATION_TYPES,
-        JSon: JSON.stringify([{
-          PrmCompanyId: DEFAULT_COMPANY_ID,
-          PrmDivisionId: Number(divisionId),
-          PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
-          PrmUserId: getUserSession().loginId,
-          PrmFormTag: QTN_CONFIG.FORM_TAG,
-          PrmRefType: '',
-        }]),
-        p_ErrCode: -1,
-        p_ErrMsg: '',
-      });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.ConfigurationId),
-        label: r.Name,
-      }));
-      setQuotationTypeOptions(opts);
-      return opts;
-    } catch (err) {
-      console.warn('[PQ] Quotation Type fetch failed:', err);
-      setQuotationTypeOptions([]);
-      return [];
-    } finally {
-      setIsLoadingQuotationTypes(false);
-    }
-  }, [get]);
+      setIsLoadingQuotationTypes(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: QTN_CONFIG.SP_QUOTATION_TYPES,
+          JSon: JSON.stringify([
+            {
+              PrmCompanyId: DEFAULT_COMPANY_ID,
+              PrmDivisionId: Number(divisionId),
+              PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+              PrmUserId: getUserSession().loginId,
+              PrmFormTag: QTN_CONFIG.FORM_TAG,
+              PrmRefType: "",
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const opts = (res?.Table || []).map((r) => ({
+          value: String(r.ConfigurationId),
+          label: r.Name,
+        }));
+        setQuotationTypeOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[PQ] Quotation Type fetch failed:", err);
+        setQuotationTypeOptions([]);
+        return [];
+      } finally {
+        setIsLoadingQuotationTypes(false);
+      }
+    },
+    [get]
+  );
 
-  const fetchSupplierOptions = useCallback(async (divisionId) => {
-    if (!divisionId || divisionId === '0') {
-      supplierRowsRef.current = new Map();
-      setSupplierOptions([]);
-      return [];
-    }
+  const fetchSupplierOptions = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        supplierRowsRef.current = new Map();
+        setSupplierOptions([]);
+        return [];
+      }
 
-    setIsLoadingSuppliers(true);
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: QTN_CONFIG.SUPPLIER_SP,
-        JSon: JSON.stringify([{
-          PrmDivisionId: Number(divisionId),
-          PrmLoginId: getUserSession().loginId,
-          PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
-          PrmPartyType: QTN_CONFIG.SUPPLIER_PARTY_TYPE,
-        }]),
-        p_ErrCode: -1,
-        p_ErrMsg: '',
-      });
-      const rows = res?.Table || [];
-      supplierRowsRef.current = new Map(
-        rows.map((r) => [String(Math.round(Number(r.SupplierID))), r]),
-      );
-      const opts = rows.map((r) => ({
-        value: String(Math.round(Number(r.SupplierID))),
-        label: r.SupplierName,
-      }));
-      setSupplierOptions(opts);
-      return opts;
-    } catch (err) {
-      console.warn('[PQ] Supplier fetch failed:', err);
-      supplierRowsRef.current = new Map();
-      setSupplierOptions([]);
-      return [];
-    } finally {
-      setIsLoadingSuppliers(false);
-    }
-  }, [get]);
+      setIsLoadingSuppliers(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: QTN_CONFIG.SUPPLIER_SP,
+          JSon: JSON.stringify([
+            {
+              PrmDivisionId: Number(divisionId),
+              PrmLoginId: getUserSession().loginId,
+              PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+              PrmPartyType: QTN_CONFIG.SUPPLIER_PARTY_TYPE,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const rows = res?.Table || [];
+        supplierRowsRef.current = new Map(
+          rows.map((r) => [String(Math.round(Number(r.SupplierID))), r])
+        );
+        const opts = rows.map((r) => ({
+          value: String(Math.round(Number(r.SupplierID))),
+          label: r.SupplierName,
+        }));
+        setSupplierOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[PQ] Supplier fetch failed:", err);
+        supplierRowsRef.current = new Map();
+        setSupplierOptions([]);
+        return [];
+      } finally {
+        setIsLoadingSuppliers(false);
+      }
+    },
+    [get]
+  );
 
   const getSupplierRow = useCallback((supplierId) => {
-    if (supplierId == null || supplierId === '' || supplierId === '0') return null;
+    if (supplierId == null || supplierId === "" || supplierId === "0") return null;
     return supplierRowsRef.current.get(String(Math.round(Number(supplierId)))) ?? null;
   }, []);
 
@@ -229,22 +239,24 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       const divisionData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: QTN_CONFIG.SP_DIVISIONS,
-        JSon: JSON.stringify([{
-          prmUserID: getUserSession().loginId,
-          prmCompanyID: DEFAULT_COMPANY_ID,
-          prmYearID: QTN_CONFIG.DIVISION_YEAR_ID,
-        }]),
+        JSon: JSON.stringify([
+          {
+            prmUserID: getUserSession().loginId,
+            prmCompanyID: DEFAULT_COMPANY_ID,
+            prmYearID: QTN_CONFIG.DIVISION_YEAR_ID,
+          },
+        ]),
         p_ErrCode: -1,
-        p_ErrMsg: '',
+        p_ErrMsg: "",
       });
       setDivisionOptions(
         (divisionData?.Table || []).map((r) => ({
           value: String(r.DivisionID),
           label: r.DivisionName,
-        })),
+        }))
       );
     } catch (err) {
-      console.warn('[PQ] Division fetch failed:', err);
+      console.warn("[PQ] Division fetch failed:", err);
       setDivisionOptions([]);
     }
   }, [get]);
@@ -256,94 +268,103 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         ObjName: QTN_CONFIG.SP_DEPARTMENTS,
         JSon: JSON.stringify([{ PrmDeptID: 0 }]),
         p_ErrCode: -1,
-        p_ErrMsg: '',
+        p_ErrMsg: "",
       });
       setDepartmentOptions(
         (departmentData?.Table || []).map((r) => ({
           value: String(r.DepartmentID),
           label: r.DepartmentName,
-        })),
+        }))
       );
     } catch (err) {
-      console.warn('[PQ] Department fetch failed:', err);
+      console.warn("[PQ] Department fetch failed:", err);
       setDepartmentOptions([]);
     }
   }, [get]);
 
-  const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
-    setHeaderFetching(true);
-    setHeaderError(null);
+  const fetchHeaderMeta = useCallback(
+    async ({ skipListDropdowns = false } = {}) => {
+      setHeaderFetching(true);
+      setHeaderError(null);
 
-    try {
-      const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: QTN_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: QTN_CONFIG.RB_MASTER }]),
-        p_ErrCode: -1,
-        p_ErrMsg: '',
-      });
-      const tableRow = metaData?.Table?.[0];
-      if (!tableRow) throw new Error('No Quotation header RB metadata returned from server.');
+      try {
+        const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: QTN_CONFIG.SP_RB_META,
+          JSon: JSON.stringify([{ prmRBCode: QTN_CONFIG.RB_MASTER }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const tableRow = metaData?.Table?.[0];
+        if (!tableRow) throw new Error("No Quotation header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
-      setHeaderRbMeta(hdrMeta);
-      localStorage.setItem(QTN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
+        const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+        setHeaderRbMeta(hdrMeta);
+        localStorage.setItem(QTN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
-      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: hdrMeta.RBID,
-        prmLoginID: getUserSession().loginId,
-      });
-      const apiColumns = colData?.Links || [];
-      setHeaderColumns(apiColumns);
+        const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+          prmMasterID: hdrMeta.RBID,
+          prmLoginID: getUserSession().loginId,
+        });
+        const apiColumns = colData?.Links || [];
+        setHeaderColumns(apiColumns);
 
-      if (skipListDropdowns) {
-        setDivisionOptions([]);
-        setDepartmentOptions([]);
+        if (skipListDropdowns) {
+          setDivisionOptions([]);
+          setDepartmentOptions([]);
+          return apiColumns;
+        }
+
+        await Promise.all([fetchDivisionOptions(), fetchDepartmentOptions()]);
+
         return apiColumns;
+      } catch (err) {
+        console.error("[PQ] fetchHeaderMeta failed:", err);
+        setHeaderError(err?.message || "Failed to load header configuration.");
+        return [];
+      } finally {
+        setHeaderFetching(false);
       }
-
-      await Promise.all([
-        fetchDivisionOptions(),
-        fetchDepartmentOptions(),
-      ]);
-
-      return apiColumns;
-    } catch (err) {
-      console.error('[PQ] fetchHeaderMeta failed:', err);
-      setHeaderError(err?.message || 'Failed to load header configuration.');
-      return [];
-    } finally {
-      setHeaderFetching(false);
-    }
-  }, [get, fetchDivisionOptions, fetchDepartmentOptions]);
+    },
+    [get, fetchDivisionOptions, fetchDepartmentOptions]
+  );
 
   /**
    * Edit flow — when user enters edit mode, reload list APIs only for header
    * dropdowns where IsLockOnEditModeAllow is false.
    */
-  const fetchUnlockedHeaderDropdowns = useCallback(async (divisionId) => {
-    if (!headerColumns.length) return;
+  const fetchUnlockedHeaderDropdowns = useCallback(
+    async (divisionId) => {
+      if (!headerColumns.length) return;
 
-    const needsDivision = headerColumns.some(
-      (c) => c.ColName === 'DivisionID' && !isLockOnEditModeCol(c),
-    );
-    const needsDept = headerColumns.some(
-      (c) => c.ColName === 'DeptID' && !isLockOnEditModeCol(c),
-    );
-    const needsConfig = headerColumns.some(
-      (c) => c.ColName === 'ConfigID' && !isLockOnEditModeCol(c),
-    );
-    const needsSupplier = headerColumns.some(
-      (c) => c.ColName === 'SupplierID' && !isLockOnEditModeCol(c),
-    );
+      const needsDivision = headerColumns.some(
+        (c) => c.ColName === "DivisionID" && !isLockOnEditModeCol(c)
+      );
+      const needsDept = headerColumns.some(
+        (c) => c.ColName === "DeptID" && !isLockOnEditModeCol(c)
+      );
+      const needsConfig = headerColumns.some(
+        (c) => c.ColName === "ConfigID" && !isLockOnEditModeCol(c)
+      );
+      const needsSupplier = headerColumns.some(
+        (c) => c.ColName === "SupplierID" && !isLockOnEditModeCol(c)
+      );
 
-    const tasks = [];
-    if (needsDivision) tasks.push(fetchDivisionOptions());
-    if (needsDept) tasks.push(fetchDepartmentOptions());
-    if (needsConfig && divisionId) tasks.push(fetchQuotationTypes(divisionId));
-    if (needsSupplier && divisionId) tasks.push(fetchSupplierOptions(divisionId));
-    await Promise.all(tasks);
-  }, [headerColumns, fetchDivisionOptions, fetchDepartmentOptions, fetchQuotationTypes, fetchSupplierOptions]);
+      const tasks = [];
+      if (needsDivision) tasks.push(fetchDivisionOptions());
+      if (needsDept) tasks.push(fetchDepartmentOptions());
+      if (needsConfig && divisionId) tasks.push(fetchQuotationTypes(divisionId));
+      if (needsSupplier && divisionId) tasks.push(fetchSupplierOptions(divisionId));
+      await Promise.all(tasks);
+    },
+    [
+      headerColumns,
+      fetchDivisionOptions,
+      fetchDepartmentOptions,
+      fetchQuotationTypes,
+      fetchSupplierOptions,
+    ]
+  );
 
   const fetchDetailMeta = useCallback(async () => {
     setIsFetching(true);
@@ -351,113 +372,133 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
     try {
       const { meta, apiColumns } = await loadRbDetailGridMeta(
-        get, QTN_CONFIG.RB_DETAIL, QTN_CONFIG.STORAGE_ENTRY_META,
+        get,
+        QTN_CONFIG.RB_DETAIL,
+        QTN_CONFIG.STORAGE_ENTRY_META
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
-      setEventColumns(buildEventColumnSet(apiColumns, [
-        'ItemID', 'TranQty', 'BaseQty', 'BaseRate', 'TranRate',
-        'DiscPerc', 'Expense', 'GSTPerc', 'Rate', 'Qty', 'Amount',
-      ]));
+      setEventColumns(
+        buildEventColumnSet(apiColumns, [
+          "ItemID",
+          "TranQty",
+          "BaseQty",
+          "BaseRate",
+          "TranRate",
+          "DiscPerc",
+          "Expense",
+          "GSTPerc",
+          "Rate",
+          "Qty",
+          "Amount",
+        ])
+      );
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null })),
+        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
       );
     } catch (err) {
-      console.error('[PQ] fetchDetailMeta failed:', err);
-      setMetaError(err?.message || 'Failed to load item grid configuration.');
+      console.error("[PQ] fetchDetailMeta failed:", err);
+      setMetaError(err?.message || "Failed to load item grid configuration.");
     } finally {
       setIsFetching(false);
     }
   }, [get]);
 
-  const fetchGridColumns = useCallback(async (divisionID = 0, editOpts = false) => {
-    const opts = typeof editOpts === 'boolean'
-      ? { existingRecordEdit: editOpts }
-      : (editOpts || {});
-    const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+  const fetchGridColumns = useCallback(
+    async (divisionID = 0, editOpts = false) => {
+      const opts =
+        typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
+      const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
 
-    const apiColumns = rawDetailColumnsRef.current;
-    const meta = rawDetailRbMetaRef.current;
+      const apiColumns = rawDetailColumnsRef.current;
+      const meta = rawDetailRbMetaRef.current;
 
-    if (!apiColumns.length || !meta) {
-      console.warn('[PQ] fetchGridColumns called before fetchDetailMeta completed.');
-      return [];
-    }
+      if (!apiColumns.length || !meta) {
+        console.warn("[PQ] fetchGridColumns called before fetchDetailMeta completed.");
+        return [];
+      }
 
-    try {
-      const colDropdownOptions = await fetchDropdownOptions(
-        get, apiColumns, meta.RBID,
-        {
+      try {
+        const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
           funcCode: QTN_CONFIG.RB_DETAIL,
           divisionID: Number(divisionID) || 0,
           existingRecordEdit,
           rowData: masterRow,
           fetchUnlockedDropdowns,
-        },
-      );
-      const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
-        filterable: false,
-        allEditable: true,
-        existingRecordEdit,
+        });
+        const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
+          filterable: false,
+          allEditable: true,
+          existingRecordEdit,
+        });
+        setColumns(gridColumns);
+        return gridColumns;
+      } catch (err) {
+        console.error("[PQ] fetchGridColumns failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
+
+  const fetchEditRecord = useCallback(
+    async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+      const prmParameters = buildMasterDataFillParams({
+        companyId,
+        yearId,
+        loginId,
+        sessionId,
+        idNumber,
       });
-      setColumns(gridColumns);
-      return gridColumns;
-    } catch (err) {
-      console.error('[PQ] fetchGridColumns failed:', err);
-      return [];
-    }
-  }, [get]);
 
-  const fetchEditRecord = useCallback(async ({
-    companyId, yearId, loginId, sessionId, idNumber,
-  }) => {
-    const prmParameters = buildMasterDataFillParams({
-      companyId, yearId, loginId, sessionId, idNumber,
-    });
+      const [mstRes, detRes] = await Promise.all([
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: QTN_CONFIG.SP_MASTER_FILL,
+          prmParameters,
+          prmFuncCode: QTN_CONFIG.RB_MASTER,
+        }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: QTN_CONFIG.SP_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: QTN_CONFIG.RB_DETAIL,
+        }),
+      ]);
 
-    const [mstRes, detRes] = await Promise.all([
-      get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: QTN_CONFIG.SP_MASTER_FILL,
-        prmParameters,
-        prmFuncCode: QTN_CONFIG.RB_MASTER,
-      }),
-      get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: QTN_CONFIG.SP_DETAIL_FILL,
-        prmParameters,
-        prmFuncCode: QTN_CONFIG.RB_DETAIL,
-      }),
-    ]);
+      const master = mstRes?.Links?.[0] ?? null;
+      const params = { companyId, yearId, loginId, sessionId, idNumber };
 
-    const master = mstRes?.Links?.[0] ?? null;
-    const params = { companyId, yearId, loginId, sessionId, idNumber };
-
-    return {
-      master,
-      headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-      details: mapDetailRowsToGridRows(detRes?.Links || []),
-    };
-  }, [get]);
+      return {
+        master,
+        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
+        details: mapDetailRowsToGridRows(detRes?.Links || []),
+      };
+    },
+    [get]
+  );
 
   const [isEventFiring, setIsEventFiring] = useState(false);
 
-  const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
-    setIsEventFiring(true);
-    try {
-      const { id, ...newRowData } = rowData;
-      const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-        GridEventFuncName: QTN_CONFIG.SP_GRID_EVENT,
-        EventColName: colName,
-        DetJSON: JSON.stringify([newRowData]),
-        MstJSon: JSON.stringify([headerValues]),
-      });
-      return result;
-    } catch (err) {
-      console.error('[PQ] fireCellEvent failed:', err);
-      return null;
-    } finally {
-      setIsEventFiring(false);
-    }
-  }, [get]);
+  const fireCellEvent = useCallback(
+    async (colName, rowData, headerValues) => {
+      setIsEventFiring(true);
+      try {
+        const { id, ...newRowData } = rowData;
+        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
+          GridEventFuncName: QTN_CONFIG.SP_GRID_EVENT,
+          EventColName: colName,
+          DetJSON: JSON.stringify([newRowData]),
+          MstJSon: JSON.stringify([headerValues]),
+        });
+        return result;
+      } catch (err) {
+        console.error("[PQ] fireCellEvent failed:", err);
+        return null;
+      } finally {
+        setIsEventFiring(false);
+      }
+    },
+    [get]
+  );
 
   const clearQuotationTypes = useCallback(() => setQuotationTypeOptions([]), []);
   const clearSuppliers = useCallback(() => {

@@ -1,12 +1,12 @@
-import React from 'react';
-import { FileText, ClipboardList, Receipt, TrendingUp } from 'lucide-react';
-import './KpiStrip.css';
+import React from "react";
+import { FileText, ClipboardList, Receipt, TrendingUp } from "lucide-react";
+import "./KpiStrip.css";
 
 const KPI_ITEMS = [
-  { label: 'Total Reports', value: '142', trend: '+12%', trendType: 'up', icon: FileText },
-  { label: 'Pending Tasks', value: '8', trend: '-3%', trendType: 'down', icon: ClipboardList },
-  { label: 'Open Invoices', value: '23', trend: '+5%', trendType: 'up', icon: Receipt },
-  { label: 'Revenue MTD', value: '₹4.2L', trend: '+18%', trendType: 'up', icon: TrendingUp },
+  { label: "Total Reports", value: "142", trend: "+12%", trendType: "up", icon: FileText },
+  { label: "Pending Tasks", value: "8", trend: "-3%", trendType: "down", icon: ClipboardList },
+  { label: "Open Invoices", value: "23", trend: "+5%", trendType: "up", icon: Receipt },
+  { label: "Revenue MTD", value: "₹4.2L", trend: "+18%", trendType: "up", icon: TrendingUp },
 ];
 
 export default function KpiStrip() {

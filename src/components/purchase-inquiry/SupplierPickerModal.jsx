@@ -1,22 +1,70 @@
 // SupplierPickerModal — supplier picker for Purchase Inquiry (IMS_LIVE API)
 // Modal + EntryGrid (readOnly) for Fn_tbl_FetchCustomerSupplierTranWs4Web rows.
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import Modal from '../ui/Modal';
-import EntryGrid from '../grid/EntryGrid';
-import Loader from '../ui/Loader';
-import { usePickerModalKeyboard } from '../../hooks/useEntryFormKeyboard';
-import { Truck, CheckCheck, Users, AlertCircle } from 'lucide-react';
-import '../txn/OrderItemModal.css';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import Modal from "../ui/Modal";
+import EntryGrid from "../grid/EntryGrid";
+import Loader from "../ui/Loader";
+import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { Truck, CheckCheck, Users, AlertCircle } from "lucide-react";
+import "../txn/OrderItemModal.css";
 
 const SUPPLIER_COLUMNS = [
-  { id: 'cb', name: '', key: 'cb', controlType: -1, width: 48, isFixed: true, isEditAllow: false },
-  { id: 'SupplierCode', name: 'Supplier Code', key: 'SupplierCode', controlType: 0, width: 120, isFixed: true, isEditAllow: false },
-  { id: 'SupplierName', name: 'Supplier Name', key: 'SupplierName', controlType: 0, width: 200, isFixed: false, isEditAllow: false },
-  { id: 'GstRegNo', name: 'GST Reg No.', key: 'GstRegNo', controlType: 0, width: 140, isFixed: false, isEditAllow: false },
-  { id: 'SuppAddress', name: 'Address', key: 'SuppAddress', controlType: 0, width: 220, isFixed: false, isEditAllow: false },
-  { id: 'City', name: 'City', key: 'City', controlType: 0, width: 120, isFixed: false, isEditAllow: false },
-  { id: 'ContactNo', name: 'Contact No.', key: 'ContactNo', controlType: 0, width: 110, isFixed: false, isEditAllow: false },
+  { id: "cb", name: "", key: "cb", controlType: -1, width: 48, isFixed: true, isEditAllow: false },
+  {
+    id: "SupplierCode",
+    name: "Supplier Code",
+    key: "SupplierCode",
+    controlType: 0,
+    width: 120,
+    isFixed: true,
+    isEditAllow: false,
+  },
+  {
+    id: "SupplierName",
+    name: "Supplier Name",
+    key: "SupplierName",
+    controlType: 0,
+    width: 200,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "GstRegNo",
+    name: "GST Reg No.",
+    key: "GstRegNo",
+    controlType: 0,
+    width: 140,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "SuppAddress",
+    name: "Address",
+    key: "SuppAddress",
+    controlType: 0,
+    width: 220,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "City",
+    name: "City",
+    key: "City",
+    controlType: 0,
+    width: 120,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "ContactNo",
+    name: "Contact No.",
+    key: "ContactNo",
+    controlType: 0,
+    width: 110,
+    isFixed: false,
+    isEditAllow: false,
+  },
 ];
 
 export default function SupplierPickerModal({
@@ -36,10 +84,13 @@ export default function SupplierPickerModal({
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
 
-  const gridConfig = useMemo(() => ({
-    columns: SUPPLIER_COLUMNS,
-    pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
-  }), []);
+  const gridConfig = useMemo(
+    () => ({
+      columns: SUPPLIER_COLUMNS,
+      pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
+    }),
+    []
+  );
 
   const handleInsert = useCallback(() => {
     if (!gridRef.current) return;
@@ -52,10 +103,7 @@ export default function SupplierPickerModal({
 
   const showGrid = !isLoading && !error && items.length > 0;
 
-  const {
-    handleInsertKeyDown,
-    handleCancelKeyDown,
-  } = usePickerModalKeyboard({
+  const { handleInsertKeyDown, handleCancelKeyDown } = usePickerModalKeyboard({
     isOpen,
     showActions: showGrid,
     onClose,
@@ -82,12 +130,12 @@ export default function SupplierPickerModal({
         {selectedCount > 0 ? (
           <>
             <span className="oim-footer__badge">{selectedCount}</span>
-            <span>
-              supplier{selectedCount !== 1 ? 's' : ''} selected for insert
-            </span>
+            <span>supplier{selectedCount !== 1 ? "s" : ""} selected for insert</span>
           </>
         ) : (
-          <span className="oim-footer__hint">Select rows (↑ to header checkbox) · Insert Alt+I</span>
+          <span className="oim-footer__hint">
+            Select rows (↑ to header checkbox) · Insert Alt+I
+          </span>
         )}
       </div>
       <div className="oim-footer__actions">
@@ -108,11 +156,15 @@ export default function SupplierPickerModal({
           onClick={handleInsert}
           onKeyDown={handleInsertKeyDown}
           disabled={selectedCount === 0}
-          title={selectedCount > 0 ? `Insert ${selectedCount} supplier(s) (Alt+I)` : 'Select at least one supplier'}
+          title={
+            selectedCount > 0
+              ? `Insert ${selectedCount} supplier(s) (Alt+I)`
+              : "Select at least one supplier"
+          }
           accessKey="i"
         >
           <CheckCheck size={14} strokeWidth={2.5} />
-          Insert{selectedCount > 0 ? ` (${selectedCount})` : ''}
+          Insert{selectedCount > 0 ? ` (${selectedCount})` : ""}
         </button>
       </div>
     </div>
@@ -156,13 +208,11 @@ export default function SupplierPickerModal({
               <div className="oim-toolbar__left">
                 <span className="oim-toolbar__label">Available Suppliers</span>
                 <span className="oim-toolbar__count">
-                  {items.length} record{items.length !== 1 ? 's' : ''}
+                  {items.length} record{items.length !== 1 ? "s" : ""}
                 </span>
               </div>
               {selectedCount > 0 && (
-                <span className="oim-toolbar__selected">
-                  {selectedCount} selected
-                </span>
+                <span className="oim-toolbar__selected">{selectedCount} selected</span>
               )}
             </div>
             <EntryGrid

@@ -1,25 +1,34 @@
 // EnterpriseFilterPanel — tabular 3-column filter layout
 // Dynamic filter controls: GetFilters + GetFilterDetail via the local API layer.
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useApi } from '../../api/useApi';
-import { ENDPOINTS, CBO_MODE } from '../../api/constants';
-import { getUserSession } from '../../session/userSession';
-import { controlTypeMap } from '../../data/dummyData';
-import SearchSelect from '../ui/SearchSelect';
-import { bindFormKeyboardNav } from '../../utils/formKeyboardNav';
-import { AlertCircle, Search, Database, RotateCcw, X, Plus, ShoppingCart, FileSpreadsheet } from 'lucide-react';
-import Loader from '../ui/Loader';
-import './enterprise-filter-query.css';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useApi } from "../../api/useApi";
+import { ENDPOINTS, CBO_MODE } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
+import { controlTypeMap } from "../../data/dummyData";
+import SearchSelect from "../ui/SearchSelect";
+import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
+import {
+  AlertCircle,
+  Search,
+  Database,
+  RotateCcw,
+  X,
+  Plus,
+  ShoppingCart,
+  FileSpreadsheet,
+} from "lucide-react";
+import Loader from "../ui/Loader";
+import "./enterprise-filter-query.css";
 
 const COLS = 3;
 
 function getAccentClass(filter) {
   const t = filter.FilterColCtrlType;
   if (t === controlTypeMap.DROPDOWN || t === controlTypeMap.LABEL) {
-    return 'efq-cell--fixed';
+    return "efq-cell--fixed";
   }
-  return 'efq-cell--editable';
+  return "efq-cell--editable";
 }
 
 /** Build table rows: 3 filters per row; textarea spans full width. */
@@ -31,7 +40,7 @@ function buildFilterRows(filters) {
     const filter = filters[i];
 
     if (filter.FilterColCtrlType === controlTypeMap.TEXTAREA) {
-      rows.push({ type: 'full', items: [filter] });
+      rows.push({ type: "full", items: [filter] });
       i += 1;
       continue;
     }
@@ -42,17 +51,17 @@ function buildFilterRows(filters) {
       items.push(filters[i]);
       i += 1;
     }
-    rows.push({ type: 'row', items });
+    rows.push({ type: "row", items });
   }
 
   return rows;
 }
 
-function FilterControl({ filter, value, options, onChange, disabled = false, tone = 'editable' }) {
+function FilterControl({ filter, value, options, onChange, disabled = false, tone = "editable" }) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
   const accent = getAccentClass(filter);
-  const isView = tone === 'view';
-  const isFrozen = tone === 'frozen';
+  const isView = tone === "view";
+  const isFrozen = tone === "frozen";
   const readOnly = isView || isFrozen;
   const isLoading = disabled;
   const blockInteraction = isLoading || readOnly;
@@ -68,7 +77,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
   const renderInput = () => {
     switch (FilterColCtrlType) {
       case controlTypeMap.LABEL:
-        return <span className="efq-cell__value">{value || '—'}</span>;
+        return <span className="efq-cell__value">{value || "—"}</span>;
 
       case controlTypeMap.TEXTBOX:
         return (
@@ -76,7 +85,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             id={`efq-${FilterColName}`}
             type="text"
             className="efq-cell__input"
-            value={value || ''}
+            value={value || ""}
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             autoComplete="off"
@@ -92,7 +101,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             id={`efq-${FilterColName}`}
             type="date"
             className="efq-cell__input efq-cell__input--date"
-            value={value || ''}
+            value={value || ""}
             onChange={handleChange}
             readOnly={readOnly}
             disabled={isLoading}
@@ -104,15 +113,15 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
         return (
           <SearchSelect
             id={`efq-${FilterColName}`}
-            className={`efq-cell__select${readOnly ? ` efq-cell__select--tone-${tone}` : ''}`}
-            value={value || ''}
+            className={`efq-cell__select${readOnly ? ` efq-cell__select--tone-${tone}` : ""}`}
+            value={value || ""}
             onChange={(val) => onChange(FilterColName, val)}
             options={(options || []).map((opt) => {
               if (opt.value !== undefined) {
                 return { value: String(opt.value), label: opt.label };
               }
-              const valKey = opt.FilterCtrlValueCol || 'IDNumber';
-              const labelKey = opt.FilterCtrlDisplayCol || 'Name';
+              const valKey = opt.FilterCtrlValueCol || "IDNumber";
+              const labelKey = opt.FilterCtrlDisplayCol || "Name";
               return { value: String(opt[valKey]), label: opt[labelKey] };
             })}
             placeholder={`Select…`}
@@ -126,7 +135,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
           <textarea
             id={`efq-${FilterColName}`}
             className="efq-cell__input efq-cell__input--textarea"
-            value={value || ''}
+            value={value || ""}
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             rows={2}
@@ -137,7 +146,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
         );
 
       default:
-        return <span className="efq-cell__value">{value || '—'}</span>;
+        return <span className="efq-cell__value">{value || "—"}</span>;
     }
   };
 
@@ -145,10 +154,12 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
 
   return (
     <td
-      className={`efq-table__cell ${accent}${isTextarea ? ' efq-table__cell--full' : ''}${tone !== 'editable' ? ` efq-table__cell--tone-${tone}` : ''}`}
+      className={`efq-table__cell ${accent}${isTextarea ? " efq-table__cell--full" : ""}${tone !== "editable" ? ` efq-table__cell--tone-${tone}` : ""}`}
       colSpan={isTextarea ? COLS : 1}
     >
-      <div className={`efq-cell${isTextarea ? ' efq-cell--stacked' : ''}${tone !== 'editable' ? ` efq-cell--tone-${tone}` : ''}`}>
+      <div
+        className={`efq-cell${isTextarea ? " efq-cell--stacked" : ""}${tone !== "editable" ? ` efq-cell--tone-${tone}` : ""}`}
+      >
         {FilterColCtrlType === controlTypeMap.LABEL ? (
           <span className="efq-cell__label">{FilterCaption}</span>
         ) : (
@@ -160,21 +171,31 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
   );
 }
 
-function FilterTable({ filters, values, dropdownOptions, onChange, disabled = false, fieldTones = null }) {
+function FilterTable({
+  filters,
+  values,
+  dropdownOptions,
+  onChange,
+  disabled = false,
+  fieldTones = null,
+}) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
-  const getFieldTone = useCallback((filter) => {
-    if (fieldTones?.[filter.FilterColName]) return fieldTones[filter.FilterColName];
-    if (fieldTones?.[filter.FilterParameterID]) return fieldTones[filter.FilterParameterID];
-    return 'editable';
-  }, [fieldTones]);
+  const getFieldTone = useCallback(
+    (filter) => {
+      if (fieldTones?.[filter.FilterColName]) return fieldTones[filter.FilterColName];
+      if (fieldTones?.[filter.FilterParameterID]) return fieldTones[filter.FilterParameterID];
+      return "editable";
+    },
+    [fieldTones]
+  );
 
   return (
     <table className="efq-table">
       <tbody>
         {rows.map((row, rowIdx) => (
           <tr key={`row-${rowIdx}`} className="efq-table__row">
-            {row.type === 'full' ? (
+            {row.type === "full" ? (
               <FilterControl
                 filter={row.items[0]}
                 value={values[row.items[0].FilterColName]}
@@ -204,9 +225,13 @@ function FilterTable({ filters, values, dropdownOptions, onChange, disabled = fa
                     tone={getFieldTone(filter)}
                   />
                 ))}
-                {row.items.length < COLS
-                  && Array.from({ length: COLS - row.items.length }).map((_, i) => (
-                    <td key={`pad-${rowIdx}-${i}`} className="efq-table__cell efq-table__cell--empty" aria-hidden="true" />
+                {row.items.length < COLS &&
+                  Array.from({ length: COLS - row.items.length }).map((_, i) => (
+                    <td
+                      key={`pad-${rowIdx}-${i}`}
+                      className="efq-table__cell efq-table__cell--empty"
+                      aria-hidden="true"
+                    />
                   ))}
               </>
             )}
@@ -218,22 +243,22 @@ function FilterTable({ filters, values, dropdownOptions, onChange, disabled = fa
 }
 
 export default function EnterpriseFilterPanel({
-  title = '',
+  title = "",
   masterID,
   loginID = getUserSession().loginId,
-  funcCode = '',
+  funcCode = "",
   divisionID = 0,
   onSearch,
   isSearching = false,
   isMetaLoading = false,
-  metaLoadingText = 'Loading header fields…',
+  metaLoadingText = "Loading header fields…",
   onFiltersLoaded,
   staticFilters = null,
-  actionLabel = 'Search',
+  actionLabel = "Search",
   ActionIcon = null,
   onFilterChange = null,
   onOrderItem = null,
-  orderItemLabel = 'Order Item',
+  orderItemLabel = "Order Item",
   OrderItemIcon = null,
   initialValues = null,
   cascadeResets = null,
@@ -258,13 +283,15 @@ export default function EnterpriseFilterPanel({
   const isEntryMode = staticFilters !== null;
   const ButtonIcon = ActionIcon || (isEntryMode ? Plus : Search);
   const SecondaryIcon = OrderItemIcon || ShoppingCart;
-  const runLabel = actionLabel === 'Search' && !isEntryMode ? 'Run Search' : actionLabel;
-  const headerLabel = isEntryMode && title ? title : 'Query Builder';
+  const runLabel = actionLabel === "Search" && !isEntryMode ? "Run Search" : actionLabel;
+  const headerLabel = isEntryMode && title ? title : "Query Builder";
   const HeaderIcon = isEntryMode ? FileSpreadsheet : Database;
   const showEntryMetaLoader = isEntryMode && isMetaLoading;
   const showDynamicLoader = !isEntryMode && isLoading;
   const headerSubtitle = isEntryMode
-    ? (showEntryMetaLoader ? 'Loading header fields…' : `${filters.length} header field${filters.length !== 1 ? 's' : ''}`)
+    ? showEntryMetaLoader
+      ? "Loading header fields…"
+      : `${filters.length} header field${filters.length !== 1 ? "s" : ""}`
     : title;
 
   useEffect(() => {
@@ -285,66 +312,69 @@ export default function EnterpriseFilterPanel({
     }
   }, [staticFilters, onFiltersLoaded, initialValues]);
 
-  const fetchFilters = useCallback(async (signal) => {
-    if (staticFilters !== null) return;
-    if (!masterID) return;
+  const fetchFilters = useCallback(
+    async (signal) => {
+      if (staticFilters !== null) return;
+      if (!masterID) return;
 
-    setIsLoading(true);
-    setErrorMsg(null);
-    try {
-      const data = await get(ENDPOINTS.GET_FILTERS, { prmMasterID: masterID });
-      if (signal?.aborted) return;
+      setIsLoading(true);
+      setErrorMsg(null);
+      try {
+        const data = await get(ENDPOINTS.GET_FILTERS, { prmMasterID: masterID });
+        if (signal?.aborted) return;
 
-      const filterList = data?.Links || [];
-      setFilters(filterList);
-      onFiltersLoaded?.(filterList.length > 0);
+        const filterList = data?.Links || [];
+        setFilters(filterList);
+        onFiltersLoaded?.(filterList.length > 0);
 
-      const seed = {};
-      filterList.forEach((f) => {
-        if (f.FilterCtrlDefaultValue != null && f.FilterCtrlDefaultValue !== '') {
-          seed[f.FilterColName] = String(f.FilterCtrlDefaultValue);
-        } else if (
-          f.FilterCtrlDefaultValue === null
-          || (f.FilterCtrlDefaultValue === '' && f.FilterColCtrlType === 4)
-        ) {
-          seed[f.FilterColName] = 0;
-        }
-      });
-      setValues(seed);
-      setDefaults(seed);
-
-      const dropdownFilters = filterList.filter(
-        (f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN,
-      );
-
-      const optionsMap = {};
-      await Promise.all(
-        dropdownFilters.map(async (f) => {
-          try {
-            const detailData = await get(ENDPOINTS.GET_FILTER_DETAIL, {
-              prmMasterID: masterID,
-              prmFilterParameterName: f.FilterParameterID,
-              prmCboMode: CBO_MODE.FILTER,
-              prmFuncCode: funcCode,
-              prmDivisionID: divisionID,
-              prmLoginID: loginID,
-            });
-            optionsMap[f.FilterParameterID] = detailData?.Links || [];
-          } catch {
-            optionsMap[f.FilterParameterID] = [];
+        const seed = {};
+        filterList.forEach((f) => {
+          if (f.FilterCtrlDefaultValue != null && f.FilterCtrlDefaultValue !== "") {
+            seed[f.FilterColName] = String(f.FilterCtrlDefaultValue);
+          } else if (
+            f.FilterCtrlDefaultValue === null ||
+            (f.FilterCtrlDefaultValue === "" && f.FilterColCtrlType === 4)
+          ) {
+            seed[f.FilterColName] = 0;
           }
-        }),
-      );
+        });
+        setValues(seed);
+        setDefaults(seed);
 
-      if (signal?.aborted) return;
-      setDropdownOptions(optionsMap);
-    } catch (err) {
-      if (signal?.aborted) return;
-      setErrorMsg(err?.message || 'Failed to load filter configuration. Please try again.');
-    } finally {
-      if (!signal?.aborted) setIsLoading(false);
-    }
-  }, [get, masterID, funcCode, divisionID, loginID, staticFilters, onFiltersLoaded]);
+        const dropdownFilters = filterList.filter(
+          (f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN
+        );
+
+        const optionsMap = {};
+        await Promise.all(
+          dropdownFilters.map(async (f) => {
+            try {
+              const detailData = await get(ENDPOINTS.GET_FILTER_DETAIL, {
+                prmMasterID: masterID,
+                prmFilterParameterName: f.FilterParameterID,
+                prmCboMode: CBO_MODE.FILTER,
+                prmFuncCode: funcCode,
+                prmDivisionID: divisionID,
+                prmLoginID: loginID,
+              });
+              optionsMap[f.FilterParameterID] = detailData?.Links || [];
+            } catch {
+              optionsMap[f.FilterParameterID] = [];
+            }
+          })
+        );
+
+        if (signal?.aborted) return;
+        setDropdownOptions(optionsMap);
+      } catch (err) {
+        if (signal?.aborted) return;
+        setErrorMsg(err?.message || "Failed to load filter configuration. Please try again.");
+      } finally {
+        if (!signal?.aborted) setIsLoading(false);
+      }
+    },
+    [get, masterID, funcCode, divisionID, loginID, staticFilters, onFiltersLoaded]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -357,26 +387,25 @@ export default function EnterpriseFilterPanel({
 
     const panel = panelRef.current;
     const selector = [
-      'input:not([disabled]):not([readonly])',
-      'textarea:not([disabled]):not([readonly])',
-      '.search-select__trigger:not([disabled])',
-    ].join(', ');
+      "input:not([disabled]):not([readonly])",
+      "textarea:not([disabled]):not([readonly])",
+      ".search-select__trigger:not([disabled])",
+    ].join(", ");
 
     const bindLastFieldTab = () => {
-      const fields = [...panel.querySelectorAll(selector)]
-        .filter((el) => el.offsetParent !== null);
+      const fields = [...panel.querySelectorAll(selector)].filter((el) => el.offsetParent !== null);
       const last = fields[fields.length - 1];
       if (!last) return undefined;
 
       const onKeyDown = (e) => {
-        if (e.key === 'Tab' && !e.shiftKey) {
+        if (e.key === "Tab" && !e.shiftKey) {
           e.preventDefault();
           onLastFieldTabForward();
         }
       };
 
-      last.addEventListener('keydown', onKeyDown);
-      return () => last.removeEventListener('keydown', onKeyDown);
+      last.addEventListener("keydown", onKeyDown);
+      return () => last.removeEventListener("keydown", onKeyDown);
     };
 
     const cleanup = bindLastFieldTab();
@@ -394,29 +423,32 @@ export default function EnterpriseFilterPanel({
     setValues((prev) => ({ ...prev, ...externalValues }));
   }, [externalValues]);
 
-  const handleChange = useCallback((colName, value) => {
-    setValues((prev) => {
-      const next = { ...prev, [colName]: value };
-      const resetFields = cascadeResets?.[colName];
-      if (resetFields) {
-        resetFields.forEach((field) => {
-          next[field] = '';
-        });
-      }
-      return next;
-    });
+  const handleChange = useCallback(
+    (colName, value) => {
+      setValues((prev) => {
+        const next = { ...prev, [colName]: value };
+        const resetFields = cascadeResets?.[colName];
+        if (resetFields) {
+          resetFields.forEach((field) => {
+            next[field] = "";
+          });
+        }
+        return next;
+      });
 
-    const applyPatch = (patch) => {
-      if (patch && typeof patch === 'object' && !(patch instanceof Promise)) {
-        setValues((prev) => ({ ...prev, ...patch }));
-      }
-    };
+      const applyPatch = (patch) => {
+        if (patch && typeof patch === "object" && !(patch instanceof Promise)) {
+          setValues((prev) => ({ ...prev, ...patch }));
+        }
+      };
 
-    applyPatch(onFilterChange?.(colName, value));
-    cascadeResets?.[colName]?.forEach((field) => {
-      applyPatch(onFilterChange?.(field, ''));
-    });
-  }, [onFilterChange, cascadeResets]);
+      applyPatch(onFilterChange?.(colName, value));
+      cascadeResets?.[colName]?.forEach((field) => {
+        applyPatch(onFilterChange?.(field, ""));
+      });
+    },
+    [onFilterChange, cascadeResets]
+  );
 
   const handleActionClick = useCallback(() => {
     if (onSearch) onSearch(values, filters);
@@ -429,35 +461,40 @@ export default function EnterpriseFilterPanel({
   const handleClearAll = useCallback(() => {
     const cleared = {};
     filters.forEach((f) => {
-      cleared[f.FilterColName] = '';
+      cleared[f.FilterColName] = "";
     });
     setValues(cleared);
   }, [filters]);
 
   const activeCriteriaCount = useMemo(
-    () => Object.values(values).filter((v) => v != null && v !== '' && String(v) !== '0').length,
-    [values],
+    () => Object.values(values).filter((v) => v != null && v !== "" && String(v) !== "0").length,
+    [values]
   );
 
-  const appliedChips = useMemo(() => filters
-    .filter((f) => {
-      const v = values[f.FilterColName];
-      return v != null && v !== '' && String(v) !== '0';
-    })
-    .map((f) => {
-      let display = String(values[f.FilterColName]);
-      if (f.FilterColCtrlType === controlTypeMap.DROPDOWN) {
-        const opts = dropdownOptions[f.FilterParameterID] || f.staticOptions || [];
-        const match = opts.find((o) => {
-          const val = o.value ?? o[o.FilterCtrlValueCol || 'IDNumber'];
-          return String(val) === String(values[f.FilterColName]);
-        });
-        if (match) {
-          display = match.label || match.Name || match[match.FilterCtrlDisplayCol || 'Name'] || display;
-        }
-      }
-      return { colName: f.FilterColName, caption: f.FilterCaption, display };
-    }), [filters, values, dropdownOptions]);
+  const appliedChips = useMemo(
+    () =>
+      filters
+        .filter((f) => {
+          const v = values[f.FilterColName];
+          return v != null && v !== "" && String(v) !== "0";
+        })
+        .map((f) => {
+          let display = String(values[f.FilterColName]);
+          if (f.FilterColCtrlType === controlTypeMap.DROPDOWN) {
+            const opts = dropdownOptions[f.FilterParameterID] || f.staticOptions || [];
+            const match = opts.find((o) => {
+              const val = o.value ?? o[o.FilterCtrlValueCol || "IDNumber"];
+              return String(val) === String(values[f.FilterColName]);
+            });
+            if (match) {
+              display =
+                match.label || match.Name || match[match.FilterCtrlDisplayCol || "Name"] || display;
+            }
+          }
+          return { colName: f.FilterColName, caption: f.FilterCaption, display };
+        }),
+    [filters, values, dropdownOptions]
+  );
 
   const handleOrderItemClick = useCallback(() => {
     if (onOrderItem) onOrderItem(values);
@@ -466,7 +503,7 @@ export default function EnterpriseFilterPanel({
   const ActionButton = (
     <button
       type="button"
-      className={`efq-btn-run${isEntryMode ? ' efq-btn-run--action' : ''}`}
+      className={`efq-btn-run${isEntryMode ? " efq-btn-run--action" : ""}`}
       onClick={handleActionClick}
       disabled={isSearching}
       title={runLabel}
@@ -495,9 +532,7 @@ export default function EnterpriseFilterPanel({
           </span>
           <div className="efq-command__titles">
             <h2 className="efq-command__label">{headerLabel}</h2>
-            {headerSubtitle && (
-              <span className="efq-command__subtitle">{headerSubtitle}</span>
-            )}
+            {headerSubtitle && <span className="efq-command__subtitle">{headerSubtitle}</span>}
           </div>
         </div>
 
@@ -607,7 +642,7 @@ export default function EnterpriseFilterPanel({
                     <button
                       type="button"
                       className="efq-chip__remove"
-                      onClick={() => handleChange(chip.colName, '')}
+                      onClick={() => handleChange(chip.colName, "")}
                       aria-label={`Remove ${chip.caption} filter`}
                     >
                       <X size={11} strokeWidth={2.5} />
@@ -623,9 +658,11 @@ export default function EnterpriseFilterPanel({
         </>
       )}
 
-      {!showDynamicLoader && !showEntryMetaLoader && !errorMsg && filters.length === 0 && onSearch && (
-        <div className="efq-empty-run">{ActionButton}</div>
-      )}
+      {!showDynamicLoader &&
+        !showEntryMetaLoader &&
+        !errorMsg &&
+        filters.length === 0 &&
+        onSearch && <div className="efq-empty-run">{ActionButton}</div>}
     </div>
   );
 }

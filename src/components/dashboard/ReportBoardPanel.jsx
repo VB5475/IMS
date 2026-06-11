@@ -1,45 +1,45 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileText } from 'lucide-react';
-import EnterpriseDataGrid from '../grid/EnterpriseDataGrid';
-import { useApi } from '../../api/useApi';
-import { ENDPOINTS, API_BASE_URL_OLD } from '../../api/constants';
-import { getUserSession } from '../../session/userSession';
-import { DASHBOARD_CONFIG } from '../../pages/dashboard/constants';
-import './ReportBoardPanel.css';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { FileText } from "lucide-react";
+import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
+import { useApi } from "../../api/useApi";
+import { ENDPOINTS, API_BASE_URL_OLD } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
+import { DASHBOARD_CONFIG } from "../../pages/dashboard/constants";
+import "./ReportBoardPanel.css";
 
 const REPORT_COLUMNS = [
   {
-    key: 'ReportBoardName',
-    label: 'Board Name',
-    width: '36%',
+    key: "ReportBoardName",
+    label: "Board Name",
+    width: "36%",
     filterable: true,
     isLink: true,
   },
   {
-    key: 'Overdue',
-    label: 'Over Due',
-    width: '14%',
-    badge: (value) => (value > 0 ? 'danger' : 'neutral'),
+    key: "Overdue",
+    label: "Over Due",
+    width: "14%",
+    badge: (value) => (value > 0 ? "danger" : "neutral"),
   },
   {
-    key: 'ShortTerm',
-    label: 'Short Term',
-    width: '14%',
-    badge: (value) => (value > 0 ? 'warning' : 'neutral'),
+    key: "ShortTerm",
+    label: "Short Term",
+    width: "14%",
+    badge: (value) => (value > 0 ? "warning" : "neutral"),
   },
   {
-    key: 'LongTerm',
-    label: 'Long Term',
-    width: '14%',
-    badge: (value) => (value > 0 ? 'success' : 'neutral'),
+    key: "LongTerm",
+    label: "Long Term",
+    width: "14%",
+    badge: (value) => (value > 0 ? "success" : "neutral"),
   },
   {
-    key: 'Team',
-    label: 'Team',
-    width: '22%',
+    key: "Team",
+    label: "Team",
+    width: "22%",
     filterable: true,
-    align: 'left',
+    align: "left",
   },
 ];
 
@@ -56,11 +56,11 @@ function buildReportBoardParams() {
       {
         prmUserID: getUserSession().loginId,
         prmSubDesgID: DASHBOARD_CONFIG.DEFAULT_SUB_DESG_ID,
-        prmOnDate: '2026-05-25T00:00:00',
+        prmOnDate: "2026-05-25T00:00:00",
       },
     ]),
     p_ErrCode: -1,
-    p_ErrMsg: '',
+    p_ErrMsg: "",
   };
 }
 
@@ -74,7 +74,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
 
   const pageSizeOptions = useMemo(
     () => (compact ? PAGE_SIZE_OPTIONS.compact : PAGE_SIZE_OPTIONS.default),
-    [compact],
+    [compact]
   );
   const [pageSize, setPageSize] = useState(() => (compact ? 8 : 10));
 
@@ -89,12 +89,12 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildReportBoardParams());
       const rows = (json?.Table || []).map((row) => ({
         ...row,
-        Team: row.Team || 'Default Team',
+        Team: row.Team || "Default Team",
       }));
       setData(rows);
     } catch (err) {
-      console.error('[ReportBoardPanel] fetch failed:', err);
-      setError('Failed to load reports.');
+      console.error("[ReportBoardPanel] fetch failed:", err);
+      setError("Failed to load reports.");
     } finally {
       setLoading(false);
     }
@@ -104,14 +104,11 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     fetchReportBoards();
   }, [fetchReportBoards]);
 
-  const handleRowClick = useCallback(
-    (row) => navigate(`/main/${row.ReportBoardID}`),
-    [navigate],
-  );
+  const handleRowClick = useCallback((row) => navigate(`/main/${row.ReportBoardID}`), [navigate]);
 
   return (
     <section
-      className={`rbp-panel ${fill ? 'rbp-panel--fill' : ''} ${compact ? 'rbp-panel--compact' : ''}`}
+      className={`rbp-panel ${fill ? "rbp-panel--fill" : ""} ${compact ? "rbp-panel--compact" : ""}`}
     >
       <header className="rbp-panel__header">
         <div className="rbp-panel__title">
@@ -130,7 +127,9 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
             aria-label="Rows per page"
           >
             {pageSizeOptions.map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </div>

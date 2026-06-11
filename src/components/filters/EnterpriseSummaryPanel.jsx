@@ -20,17 +20,17 @@
 //   // Before save:
 //   const mstRow = { ...headerValues, ...summaryRef.current.getSummary() };
 
-import React, { useMemo, useImperativeHandle, forwardRef } from 'react';
-import './EnterpriseSummaryPanel.css';
+import React, { useMemo, useImperativeHandle, forwardRef } from "react";
+import "./EnterpriseSummaryPanel.css";
 
 function fmt(val) {
   const n = Number(val);
-  return isNaN(n) ? '0.00' : n.toFixed(2);
+  return isNaN(n) ? "0.00" : n.toFixed(2);
 }
 
 const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
   { fields = [], rows = [] },
-  ref,
+  ref
 ) {
   const summary = useMemo(() => {
     const totals = {};
@@ -44,9 +44,13 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
     return totals;
   }, [fields, rows]);
 
-  useImperativeHandle(ref, () => ({
-    getSummary: () => ({ ...summary }),
-  }), [summary]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      getSummary: () => ({ ...summary }),
+    }),
+    [summary]
+  );
 
   return (
     <section className="enterprise-summary-panel" aria-label="Transaction summary">

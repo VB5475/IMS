@@ -11,31 +11,31 @@
 // Serialises it to URLSearchParams internally — callers never touch
 // URLSearchParams directly.
 
-import { useState, useRef, useCallback, useMemo } from 'react';
-import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT } from './constants';
+import { useState, useRef, useCallback, useMemo } from "react";
+import axios from "axios";
+import { API_BASE_URL, API_TIMEOUT } from "./constants";
 
 function attachInterceptors(client) {
   client.interceptors.request.use(
     (config) => {
       console.log(
         `%c[API ➜] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
-        'color:#6366f1;font-weight:600',
-        config.params || '',
+        "color:#6366f1;font-weight:600",
+        config.params || ""
       );
       return config;
     },
     (error) => {
-      console.error('[API ➜] Request setup error:', error);
+      console.error("[API ➜] Request setup error:", error);
       return Promise.reject(error);
-    },
+    }
   );
 
   client.interceptors.response.use(
     (response) => {
       console.log(
         `%c[API ✓] ${response.status} ${response.config.url}`,
-        'color:#22c55e;font-weight:600',
+        "color:#22c55e;font-weight:600"
       );
       return response.data;
     },
@@ -46,9 +46,9 @@ function attachInterceptors(client) {
       const url = error.config?.url;
 
       console.error(
-        `%c[API ✗] ${status || 'NETWORK'} ${url}`,
-        'color:#ef4444;font-weight:600',
-        error.response?.data || error.message,
+        `%c[API ✗] ${status || "NETWORK"} ${url}`,
+        "color:#ef4444;font-weight:600",
+        error.response?.data || error.message
       );
 
       return Promise.reject({
@@ -56,7 +56,7 @@ function attachInterceptors(client) {
         message: error.response?.data?.message || error.message,
         raw: error,
       });
-    },
+    }
   );
 }
 
@@ -69,8 +69,8 @@ export function getApiClient(baseURL = API_BASE_URL) {
       baseURL,
       timeout: API_TIMEOUT,
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
     });
     attachInterceptors(client);
@@ -97,67 +97,76 @@ export function useApi(baseURL = API_BASE_URL) {
   const [error, setError] = useState(null);
   const activeRequests = useRef(0);
 
-  const get = useCallback(async (url, params = {}) => {
-    const qs = buildQueryString(params);
-    const fullUrl = qs ? `${url}?${qs}` : url;
+  const get = useCallback(
+    async (url, params = {}) => {
+      const qs = buildQueryString(params);
+      const fullUrl = qs ? `${url}?${qs}` : url;
 
-    activeRequests.current += 1;
-    setLoading(true);
-    setError(null);
-    try {
-      return await client.get(fullUrl);
-    } catch (err) {
-      if (!axios.isCancel(err)) setError(err);
-      throw err;
-    } finally {
-      activeRequests.current -= 1;
-      if (activeRequests.current === 0) setLoading(false);
-    }
-  }, [client]);
+      activeRequests.current += 1;
+      setLoading(true);
+      setError(null);
+      try {
+        return await client.get(fullUrl);
+      } catch (err) {
+        if (!axios.isCancel(err)) setError(err);
+        throw err;
+      } finally {
+        activeRequests.current -= 1;
+        if (activeRequests.current === 0) setLoading(false);
+      }
+    },
+    [client]
+  );
 
-  const post = useCallback(async (url, body = {}, params = {}) => {
-    const qs = buildQueryString(params);
-    const fullUrl = qs ? `${url}?${qs}` : url;
+  const post = useCallback(
+    async (url, body = {}, params = {}) => {
+      const qs = buildQueryString(params);
+      const fullUrl = qs ? `${url}?${qs}` : url;
 
-    activeRequests.current += 1;
-    setLoading(true);
-    setError(null);
-    try {
-      return await client.post(fullUrl, body);
-    } catch (err) {
-      if (!axios.isCancel(err)) setError(err);
-      throw err;
-    } finally {
-      activeRequests.current -= 1;
-      if (activeRequests.current === 0) setLoading(false);
-    }
-  }, [client]);
+      activeRequests.current += 1;
+      setLoading(true);
+      setError(null);
+      try {
+        return await client.post(fullUrl, body);
+      } catch (err) {
+        if (!axios.isCancel(err)) setError(err);
+        throw err;
+      } finally {
+        activeRequests.current -= 1;
+        if (activeRequests.current === 0) setLoading(false);
+      }
+    },
+    [client]
+  );
 
   // GET with a JSON request body (mirrors: --request GET --header 'Content-Type: application/json' --data '{...}').
   // Uses client.request() instead of client.get() to guarantee Axios serialises
   // and sends the body even though the HTTP verb is GET.
-  const getWithBody = useCallback(async (url, body = {}) => {
-    activeRequests.current += 1;
-    setLoading(true);
-    setError(null);
-    try {
-      return await client.request({
-        method: 'GET',
-        url,
-        data: body,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } catch (err) {
-      if (!axios.isCancel(err)) setError(err);
-      throw err;
-    } finally {
-      activeRequests.current -= 1;
-      if (activeRequests.current === 0) setLoading(false);
-    }
-  }, [client]);
+  const getWithBody = useCallback(
+    async (url, body = {}) => {
+      activeRequests.current += 1;
+      setLoading(true);
+      setError(null);
+      try {
+        return await client.request({
+          method: "GET",
+          url,
+          data: body,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        if (!axios.isCancel(err)) setError(err);
+        throw err;
+      } finally {
+        activeRequests.current -= 1;
+        if (activeRequests.current === 0) setLoading(false);
+      }
+    },
+    [client]
+  );
 
   return useMemo(
     () => ({ get, post, getWithBody, loading, error, client, baseURL }),
-    [get, post, getWithBody, loading, error, client, baseURL],
+    [get, post, getWithBody, loading, error, client, baseURL]
   );
 }

@@ -332,7 +332,9 @@
   white-space: nowrap;
 }
 
-.po-terms-table th:last-child { border-right: none; }
+.po-terms-table th:last-child {
+  border-right: none;
+}
 
 .po-terms-table td {
   padding: 6px 12px;
@@ -341,7 +343,9 @@
   border-right: 1px solid var(--border);
 }
 
-.po-terms-table td:last-child { border-right: none; }
+.po-terms-table td:last-child {
+  border-right: none;
+}
 
 .po-terms-empty {
   text-align: center;

@@ -76,7 +76,9 @@
   user-select: none;
 }
 
-.ict-table th:last-child { border-right: none; }
+.ict-table th:last-child {
+  border-right: none;
+}
 
 .ict-table td {
   padding: 4px 10px;
@@ -86,11 +88,17 @@
   white-space: nowrap;
 }
 
-.ict-table td:last-child { border-right: none; }
+.ict-table td:last-child {
+  border-right: none;
+}
 
-.ict-table tbody tr:last-child td { border-bottom: none; }
+.ict-table tbody tr:last-child td {
+  border-bottom: none;
+}
 
-.ict-table tbody tr:hover { background: var(--bg-tint, #f8fafc); }
+.ict-table tbody tr:hover {
+  background: var(--bg-tint, #f8fafc);
+}
 
 .ict-empty {
   text-align: center;

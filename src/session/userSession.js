@@ -1,12 +1,12 @@
 // userSession.js — persisted session readable outside React (hooks, utils, API helpers)
 
-const STORAGE_KEY = 'ims_user_session';
+const STORAGE_KEY = "ims_user_session";
 
 export const DEFAULT_USER_SESSION = {
   isAuthenticated: false,
   loginId: 1,
-  userId: 'Admin',
-  userName: 'Administrator',
+  userId: "Admin",
+  userName: "Administrator",
   companyId: 1,
   yearId: 1,
   userGroupId: null,
@@ -24,7 +24,11 @@ function readStoredSession() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_USER_SESSION, ...parsed, isAuthenticated: Boolean(parsed?.isAuthenticated) };
+    return {
+      ...DEFAULT_USER_SESSION,
+      ...parsed,
+      isAuthenticated: Boolean(parsed?.isAuthenticated),
+    };
   } catch {
     return null;
   }

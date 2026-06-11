@@ -6,11 +6,11 @@
 //   • filterType on each column controls which filter UI renders
 //     ('list' | 'date' | 'number' | 'text')
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
-import Loader from '../ui/Loader';
-import ColumnFilter, { applyColumnFilterValue, isFilterActive } from './Columnfilter';
-import './EnterpriseDataGrid.css';
+import React, { useState, useMemo, useRef, useCallback } from "react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import Loader from "../ui/Loader";
+import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
+import "./EnterpriseDataGrid.css";
 
 /**
  * NormalGrid — a reusable paginated data-grid card.
@@ -52,12 +52,12 @@ function EnterpriseDataGrid({
   loading = false,
   error = null,
   onRowClick,
-  loaderText = 'Loading…',
+  loaderText = "Loading…",
   defaultPageSize = 10,
   pageSizeOptions = [5, 10, 20, 50, 99],
   pageSize: pageSizeProp,
   onPageSizeChange,
-  emptyMessage = 'No records found.',
+  emptyMessage = "No records found.",
   hideHeader = false,
   fill = false,
 }) {
@@ -67,12 +67,15 @@ function EnterpriseDataGrid({
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
   const itemsPerPage = pageSizeProp ?? internalPageSize;
 
-  const setItemsPerPage = useCallback((next) => {
-    const value = typeof next === 'function' ? next(itemsPerPage) : next;
-    if (onPageSizeChange) onPageSizeChange(value);
-    else setInternalPageSize(value);
-    setCurrentPage(1);
-  }, [itemsPerPage, onPageSizeChange]);
+  const setItemsPerPage = useCallback(
+    (next) => {
+      const value = typeof next === "function" ? next(itemsPerPage) : next;
+      if (onPageSizeChange) onPageSizeChange(value);
+      else setInternalPageSize(value);
+      setCurrentPage(1);
+    },
+    [itemsPerPage, onPageSizeChange]
+  );
 
   // One ref per column for anchor positioning — keyed by col.key
   const filterButtonRefs = useRef({});
@@ -85,16 +88,20 @@ function EnterpriseDataGrid({
 
   /* ── Filter toggle ────────────────────────────────────────────────── */
   const toggleFilter = useCallback((colKey) => {
-    setActiveFilterCol(prev => (prev === colKey ? null : colKey));
+    setActiveFilterCol((prev) => (prev === colKey ? null : colKey));
   }, []);
 
   const handleFilterChange = useCallback((colKey, value) => {
-    setColumnFilters(prev => ({ ...prev, [colKey]: value }));
+    setColumnFilters((prev) => ({ ...prev, [colKey]: value }));
     setCurrentPage(1);
   }, []);
 
   const handleFilterClear = useCallback((colKey) => {
-    setColumnFilters(prev => { const n = { ...prev }; delete n[colKey]; return n; });
+    setColumnFilters((prev) => {
+      const n = { ...prev };
+      delete n[colKey];
+      return n;
+    });
     setCurrentPage(1);
   }, []);
 
@@ -102,7 +109,7 @@ function EnterpriseDataGrid({
   const filteredData = useMemo(() => {
     let result = [...data];
     Object.entries(columnFilters).forEach(([key, filterValue]) => {
-      const col = columns.find(c => c.key === key);
+      const col = columns.find((c) => c.key === key);
       result = applyColumnFilterValue(result, key, filterValue, col);
     });
     return result;
@@ -125,40 +132,50 @@ function EnterpriseDataGrid({
     }
     if (col.isLink) {
       return (
-        <span className="ng-link" onClick={e => { e.stopPropagation(); onRowClick?.(row); }}>
+        <span
+          className="ng-link"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRowClick?.(row);
+          }}
+        >
           {value}
         </span>
       );
     }
-    return value ?? '—';
+    return value ?? "—";
   };
 
-  const rowIsClickable = onRowClick && !columns.some(c => c.isLink);
-  const cellAlign = (col, colIndex) => col.align ?? (colIndex === 0 ? 'left' : 'center');
+  const rowIsClickable = onRowClick && !columns.some((c) => c.isLink);
+  const cellAlign = (col, colIndex) => col.align ?? (colIndex === 0 ? "left" : "center");
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className={`ng-card ${fill ? 'ng-card--fill' : ''}`}>
+    <div className={`ng-card ${fill ? "ng-card--fill" : ""}`}>
       {/* ── header ── */}
       {!hideHeader && (
-      <div className="ng-card-header">
-        <h2 className="ng-card-title">
-          {icon && <span className="ng-card-icon">{icon}</span>}
-          {title}
-        </h2>
-        <div className="ng-pagesize-wrapper">
-          <label htmlFor="ng-pagesize-select">Show</label>
-          <select
-            id="ng-pagesize-select"
-            className="ng-select"
-            value={itemsPerPage}
-            onChange={e => setItemsPerPage(Number(e.target.value))}
-          >
-            {pageSizeOptions.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-          <label htmlFor="ng-pagesize-select">entries</label>
+        <div className="ng-card-header">
+          <h2 className="ng-card-title">
+            {icon && <span className="ng-card-icon">{icon}</span>}
+            {title}
+          </h2>
+          <div className="ng-pagesize-wrapper">
+            <label htmlFor="ng-pagesize-select">Show</label>
+            <select
+              id="ng-pagesize-select"
+              className="ng-select"
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            >
+              {pageSizeOptions.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="ng-pagesize-select">entries</label>
+          </div>
         </div>
-      </div>
       )}
 
       {/* ── body ── */}
@@ -189,13 +206,13 @@ function EnterpriseDataGrid({
                             {col.filterable && (
                               <span
                                 ref={filterRef}
-                                className={`ng-filter-icon ${active ? 'ng-filter-icon--active' : ''}`}
+                                className={`ng-filter-icon ${active ? "ng-filter-icon--active" : ""}`}
                                 onClick={() => toggleFilter(col.key)}
                                 role="button"
                                 aria-label={`Filter ${col.label}`}
                                 title={`Filter ${col.label}`}
                               >
-                                <Filter size={11} color='#162d5c' />
+                                <Filter size={11} color="#162d5c" />
                               </span>
                             )}
                           </div>
@@ -212,15 +229,11 @@ function EnterpriseDataGrid({
                     currentData.map((row, ri) => (
                       <tr
                         key={ri}
-                        className={rowIsClickable ? 'ng-row--clickable' : ''}
+                        className={rowIsClickable ? "ng-row--clickable" : ""}
                         onClick={rowIsClickable ? () => onRowClick(row) : undefined}
                       >
                         {columns.map((col, ci) => (
-                          <td
-                            key={ci}
-                            style={{ textAlign: cellAlign(col, ci) }}
-                            data-col={col.key}
-                          >
+                          <td key={ci} style={{ textAlign: cellAlign(col, ci) }} data-col={col.key}>
                             {renderCell(col, row)}
                           </td>
                         ))}
@@ -241,23 +254,22 @@ function EnterpriseDataGrid({
             {filteredData.length > 0 && (
               <div className="ng-bottom-panel">
                 <p className="ng-pagination-info">
-                  Showing{' '}
-                  <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> –{' '}
-                  <strong>{Math.min(currentPage * itemsPerPage, filteredData.length)}</strong>{' '}
-                  of <strong>{filteredData.length}</strong> entries
+                  Showing <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> –{" "}
+                  <strong>{Math.min(currentPage * itemsPerPage, filteredData.length)}</strong> of{" "}
+                  <strong>{filteredData.length}</strong> entries
                   {filteredData.length !== data.length && ` (filtered from ${data.length})`}
                 </p>
                 <div className="ng-pagination-controls">
                   <button
                     className="ng-page-btn"
-                    onClick={() => setCurrentPage(p => p - 1)}
+                    onClick={() => setCurrentPage((p) => p - 1)}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft size={16} /> Previous
                   </button>
                   <button
                     className="ng-page-btn"
-                    onClick={() => setCurrentPage(p => p + 1)}
+                    onClick={() => setCurrentPage((p) => p + 1)}
                     disabled={currentPage >= totalPages}
                   >
                     Next <ChevronRight size={16} />
@@ -270,21 +282,22 @@ function EnterpriseDataGrid({
       </div>
 
       {/* ── Filter popup (portaled to body) ── */}
-      {activeFilterCol && (() => {
-        const col = columns.find(c => c.key === activeFilterCol);
-        if (!col) return null;
-        return (
-          <ColumnFilter
-            col={col}
-            allRows={data}
-            value={columnFilters[activeFilterCol]}
-            onChange={handleFilterChange}
-            onClear={handleFilterClear}
-            onClose={() => setActiveFilterCol(null)}
-            anchorRef={getFilterRef(activeFilterCol)}
-          />
-        );
-      })()}
+      {activeFilterCol &&
+        (() => {
+          const col = columns.find((c) => c.key === activeFilterCol);
+          if (!col) return null;
+          return (
+            <ColumnFilter
+              col={col}
+              allRows={data}
+              value={columnFilters[activeFilterCol]}
+              onChange={handleFilterChange}
+              onClear={handleFilterClear}
+              onClose={() => setActiveFilterCol(null)}
+              anchorRef={getFilterRef(activeFilterCol)}
+            />
+          );
+        })()}
     </div>
   );
 }

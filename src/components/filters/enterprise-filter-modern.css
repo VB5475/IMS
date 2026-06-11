@@ -13,7 +13,7 @@
 
 .filter-panel::before,
 .tef-panel::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -131,12 +131,12 @@
   text-shadow: none;
 }
 
-.filter-panel .filter-control input[type='text'],
-.filter-panel .filter-control input[type='date'],
+.filter-panel .filter-control input[type="text"],
+.filter-panel .filter-control input[type="date"],
 .filter-panel .filter-control select,
 .filter-panel .filter-control textarea,
-.tef-panel .tef-control input[type='text'],
-.tef-panel .tef-control input[type='date'],
+.tef-panel .tef-control input[type="text"],
+.tef-panel .tef-control input[type="date"],
 .tef-panel .tef-control select,
 .tef-panel .tef-control textarea {
   height: 30px;

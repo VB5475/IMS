@@ -1,27 +1,36 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Pencil } from 'lucide-react';
-import EnterpriseDataGrid from '../../components/grid/EnterpriseDataGrid';
-import { useApi } from '../../api/useApi';
-import {
-  ENDPOINTS,
-  API_BASE_URL,
-  DEFAULT_COMPANY_ID,
-} from '../../api/constants';
-import { getUserSession } from '../../session/userSession';
-import { usePageHeader } from '../../context/PageHeaderContext';
-import { QTN_CONFIG } from './constants';
-import './PurchaseQuotationPage.css';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Plus, Pencil } from "lucide-react";
+import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import { useApi } from "../../api/useApi";
+import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
+import { usePageHeader } from "../../context/PageHeaderContext";
+import { QTN_CONFIG } from "./constants";
+import "./PurchaseQuotationPage.css";
 
 const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_ABBR = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 function formatListDate(value) {
-  if (!value) return '—';
+  if (!value) return "—";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  const dd = String(d.getDate()).padStart(2, '0');
+  if (Number.isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
   const mon = MONTH_ABBR[d.getMonth()];
   return `${dd}-${mon}-${d.getFullYear()}`;
 }
@@ -42,82 +51,82 @@ function buildListParams() {
       },
     ]),
     p_ErrCode: -1,
-    p_ErrMsg: '',
+    p_ErrMsg: "",
   };
 }
 
 function buildQuotationColumns(navigate) {
   return [
     {
-      key: 'QuotationNo',
-      label: 'Quotation No.',
-      width: '14%',
+      key: "QuotationNo",
+      label: "Quotation No.",
+      width: "14%",
       filterable: true,
-      align: 'left',
+      align: "left",
     },
     {
-      key: 'QuotationDate',
-      label: 'Quotation Date',
-      width: '11%',
+      key: "QuotationDate",
+      label: "Quotation Date",
+      width: "11%",
       filterable: true,
-      filterType: 'date',
+      filterType: "date",
       render: (value) => formatListDate(value),
     },
     {
-      key: 'ExpiryDate',
-      label: 'Expiry Date',
-      width: '11%',
+      key: "ExpiryDate",
+      label: "Expiry Date",
+      width: "11%",
       filterable: true,
-      filterType: 'date',
+      filterType: "date",
       render: (value) => formatListDate(value),
     },
     {
-      key: 'Division',
-      label: 'Division',
-      width: '12%',
+      key: "Division",
+      label: "Division",
+      width: "12%",
       filterable: true,
-      align: 'left',
+      align: "left",
     },
     {
-      key: 'QuotationType',
-      label: 'Quotation Type',
-      width: '13%',
+      key: "QuotationType",
+      label: "Quotation Type",
+      width: "13%",
       filterable: true,
-      align: 'left',
+      align: "left",
     },
     {
-      key: 'SupplierName',
-      label: 'Supplier',
-      width: '15%',
+      key: "SupplierName",
+      label: "Supplier",
+      width: "15%",
       filterable: true,
-      align: 'left',
+      align: "left",
     },
     {
-      key: 'CreatedBy',
-      label: 'Created By',
-      width: '10%',
+      key: "CreatedBy",
+      label: "Created By",
+      width: "10%",
       filterable: true,
-      align: 'left',
+      align: "left",
     },
     {
-      key: 'CreatedDate',
-      label: 'Created Date',
-      width: '10%',
+      key: "CreatedDate",
+      label: "Created Date",
+      width: "10%",
       filterable: true,
-      filterType: 'date',
+      filterType: "date",
       render: (value) => formatListDate(value),
     },
     {
-      key: '_actions',
-      label: 'Edit',
-      width: '4%',
-      align: 'center',
+      key: "_actions",
+      label: "Edit",
+      width: "4%",
+      align: "center",
       render: (_value, row) => (
         <button
           type="button"
           className="pq-list__edit-btn"
-          title={`Edit quotation ${row.QuotationNo ?? ''}`}
-          aria-label={`Edit quotation ${row.QuotationNo ?? ''}`}
+          title={`Edit quotation ${row.QuotationNo ?? ""}`}
+          aria-label={`Edit quotation ${row.QuotationNo ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/purchase-quotation/${row.IDNUMBER}/edit`, { state: { record: row } });
@@ -140,10 +149,10 @@ export default function PurchaseQuotationPage() {
   const [pageSize, setPageSize] = useState(8);
 
   usePageHeader({
-    title: 'Purchase Quotation',
-    subtitle: 'Browse purchase quotations or create a new one.',
+    title: "Purchase Quotation",
+    subtitle: "Browse purchase quotations or create a new one.",
     showBack: true,
-    backTo: '/',
+    backTo: "/",
   });
 
   const columns = useMemo(() => buildQuotationColumns(navigate), [navigate]);
@@ -155,8 +164,8 @@ export default function PurchaseQuotationPage() {
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
       setData(json?.Table ?? []);
     } catch (err) {
-      console.error('[PurchaseQuotationPage] list fetch failed:', err);
-      setError('Failed to load purchase quotations.');
+      console.error("[PurchaseQuotationPage] list fetch failed:", err);
+      setError("Failed to load purchase quotations.");
     } finally {
       setLoading(false);
     }
@@ -167,7 +176,7 @@ export default function PurchaseQuotationPage() {
   }, [fetchQuotations]);
 
   const handleAddNew = useCallback(() => {
-    navigate('/purchase-quotation/new');
+    navigate("/purchase-quotation/new");
   }, [navigate]);
 
   return (
@@ -194,7 +203,9 @@ export default function PurchaseQuotationPage() {
               aria-label="Rows per page"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </div>

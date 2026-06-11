@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileSpreadsheet,
@@ -14,26 +14,23 @@ import {
   Settings,
   ArrowLeft,
   LogOut,
-} from 'lucide-react';
-import {
-  getDefaultRouteTitle,
-  usePageHeaderContext,
-} from '../context/PageHeaderContext';
-import { useUser } from '../context/UserContext';
-import './AppShell.css';
+} from "lucide-react";
+import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
+import { useUser } from "../context/UserContext";
+import "./AppShell.css";
 
 const NAV_SECTIONS = [
   {
-    label: 'Home',
-    items: [{ to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true }],
+    label: "Home",
+    items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
   },
   {
-    label: 'Modules',
+    label: "Modules",
     items: [
-      { to: '/txn-entry', icon: FileSpreadsheet, label: 'Invoices', end: false },
-      { to: '/purchase-inquiry', icon: ClipboardList, label: 'Purchase Inquiry', end: false },
-      { to: '/purchase-quotation', icon: FileText, label: 'Purchase Quotation', end: false },
-      { to: '/purchase-order', icon: ShoppingCart, label: 'Purchase Order', end: false },
+      { to: "/txn-entry", icon: FileSpreadsheet, label: "Invoices", end: false },
+      { to: "/purchase-inquiry", icon: ClipboardList, label: "Purchase Inquiry", end: false },
+      { to: "/purchase-quotation", icon: FileText, label: "Purchase Quotation", end: false },
+      { to: "/purchase-order", icon: ShoppingCart, label: "Purchase Order", end: false },
     ],
   },
 ];
@@ -47,15 +44,15 @@ export default function AppShell({ children }) {
 
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
+    navigate("/login", { replace: true });
   };
 
   const title = header.title ?? getDefaultRouteTitle(location.pathname);
-  const subtitle = header.subtitle ?? 'FY 2025-26 · 01 Jun 2026';
-  const profileInitial = (userName || userId || 'U').charAt(0).toUpperCase();
+  const subtitle = header.subtitle ?? "FY 2025-26 · 01 Jun 2026";
+  const profileInitial = (userName || userId || "U").charAt(0).toUpperCase();
 
   return (
-    <div className={`ent-shell ${collapsed ? 'ent-shell--collapsed' : ''}`}>
+    <div className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""}`}>
       <aside className="ent-sidebar">
         <div className="ent-sidebar__header">
           <div className="ent-sidebar__brand">
@@ -73,7 +70,7 @@ export default function AppShell({ children }) {
             type="button"
             className="ent-sidebar__collapse"
             onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
           </button>
@@ -82,16 +79,14 @@ export default function AppShell({ children }) {
         <nav className="ent-sidebar__nav">
           {NAV_SECTIONS.map((section) => (
             <div key={section.label} className="ent-sidebar__section">
-              {!collapsed && (
-                <div className="ent-sidebar__section-label">{section.label}</div>
-              )}
+              {!collapsed && <div className="ent-sidebar__section-label">{section.label}</div>}
               {section.items.map(({ to, icon: Icon, label, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
                   className={({ isActive }) =>
-                    `ent-sidebar__link ${isActive ? 'ent-sidebar__link--active' : ''}`
+                    `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
                   }
                   title={collapsed ? label : undefined}
                 >
@@ -119,7 +114,7 @@ export default function AppShell({ children }) {
               <button
                 type="button"
                 className="ent-topbar__back"
-                onClick={() => navigate(header.backTo || '/')}
+                onClick={() => navigate(header.backTo || "/")}
               >
                 <ArrowLeft size={14} />
                 Back
@@ -158,9 +153,7 @@ export default function AppShell({ children }) {
                       {profileInitial}
                     </div>
                     <div>
-                      <div className="ent-topbar__profile-dropdown-name">
-                        {userName || userId}
-                      </div>
+                      <div className="ent-topbar__profile-dropdown-name">{userName || userId}</div>
                       <div className="ent-topbar__profile-dropdown-id">{userId}</div>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
-@import './theme/enterprise.css';
-@import './theme/workspace-base.css';
-@import './theme/enterprise-components.css';
+@import "./theme/enterprise.css";
+@import "./theme/workspace-base.css";
+@import "./theme/enterprise-components.css";
 
 *,
 *::before,

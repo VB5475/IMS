@@ -9,22 +9,20 @@
 
 export const GRID_FOCUSABLE_SELECTOR = [
   'tbody input[type="checkbox"]',
-  'tbody input.cell-input:not([disabled]):not([readonly])',
-  'tbody textarea.cell-textarea:not([disabled]):not([readonly])',
-  'tbody .search-select__trigger:not([disabled])',
-].join(', ');
+  "tbody input.cell-input:not([disabled]):not([readonly])",
+  "tbody textarea.cell-textarea:not([disabled]):not([readonly])",
+  "tbody .search-select__trigger:not([disabled])",
+].join(", ");
 
 function isDropdownOpen(target) {
   return Boolean(
-    target?.closest?.('.search-select--open')
-    || target?.closest?.('.search-select__dropdown'),
+    target?.closest?.(".search-select--open") || target?.closest?.(".search-select__dropdown")
   );
 }
 
 function getDataRows(root) {
-  return [...root.querySelectorAll('tbody tr')].filter(
-    (tr) => !tr.classList.contains('eg-child-row')
-      && !tr.querySelector('td[colspan]'),
+  return [...root.querySelectorAll("tbody tr")].filter(
+    (tr) => !tr.classList.contains("eg-child-row") && !tr.querySelector("td[colspan]")
   );
 }
 
@@ -34,9 +32,9 @@ function getCellTarget(td, readOnly) {
   if (checkbox) return checkbox;
   if (readOnly) return null;
   return td.querySelector(
-    'input.cell-input:not([disabled]):not([readonly]), '
-    + 'textarea.cell-textarea:not([disabled]):not([readonly]), '
-    + '.search-select__trigger:not([disabled])',
+    "input.cell-input:not([disabled]):not([readonly]), " +
+      "textarea.cell-textarea:not([disabled]):not([readonly]), " +
+      ".search-select__trigger:not([disabled])"
   );
 }
 
@@ -45,7 +43,7 @@ function getHeaderCheckboxRow(root, colCount) {
   if (!headerCb) return null;
 
   const row = Array(colCount).fill(null);
-  const headerCells = root.querySelectorAll('thead tr th');
+  const headerCells = root.querySelectorAll("thead tr th");
   headerCells.forEach((th, index) => {
     if (index < colCount && th.querySelector('input[type="checkbox"]')) {
       row[index] = headerCb;
@@ -61,9 +59,9 @@ function getHeaderCheckboxRow(root, colCount) {
 
 export function buildCellMatrix(root, readOnly = false, options = {}) {
   const { includeHeaderRow = false } = options;
-  const bodyMatrix = getDataRows(root).map((tr) => (
-    [...tr.querySelectorAll('td')].map((td) => getCellTarget(td, readOnly))
-  ));
+  const bodyMatrix = getDataRows(root).map((tr) =>
+    [...tr.querySelectorAll("td")].map((td) => getCellTarget(td, readOnly))
+  );
 
   if (!includeHeaderRow || bodyMatrix.length === 0) return bodyMatrix;
 
@@ -88,7 +86,7 @@ function findPosition(matrix, element) {
 function focusTarget(target) {
   if (!target) return false;
   target.focus();
-  if (target instanceof HTMLInputElement && (target.type === 'text' || target.type === 'number')) {
+  if (target instanceof HTMLInputElement && (target.type === "text" || target.type === "number")) {
     target.select();
   }
   return true;
@@ -139,39 +137,37 @@ function shouldNavigateOnArrow(e) {
     return false;
   }
 
-  if (el.type === 'checkbox' || el.type === 'date') {
+  if (el.type === "checkbox" || el.type === "date") {
     return true;
   }
 
-  if (el.type !== 'text' && el.type !== 'number') {
+  if (el.type !== "text" && el.type !== "number") {
     return true;
   }
 
   const { selectionStart, selectionEnd, value } = el;
-  if (e.key === 'ArrowLeft' && selectionStart === 0 && selectionEnd === 0) return true;
-  if (e.key === 'ArrowRight' && selectionStart === value.length && selectionEnd === value.length) {
+  if (e.key === "ArrowLeft" && selectionStart === 0 && selectionEnd === 0) return true;
+  if (e.key === "ArrowRight" && selectionStart === value.length && selectionEnd === value.length) {
     return true;
   }
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') return true;
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") return true;
   return false;
 }
 
 function getRowIdFromTarget(target) {
-  const tr = target.closest('tbody tr');
+  const tr = target.closest("tbody tr");
   if (!tr) return null;
-  return tr.getAttribute('data-eg-row-id');
+  return tr.getAttribute("data-eg-row-id");
 }
 
 /**
  * Handle a keydown event originating from inside a grid.
  * Returns true when the event was handled (caller should preventDefault).
  */
-export function handleGridKeyboardEvent(e, {
-  root,
-  readOnly = false,
-  includeHeaderRow = false,
-  onToggleRow = null,
-}) {
+export function handleGridKeyboardEvent(
+  e,
+  { root, readOnly = false, includeHeaderRow = false, onToggleRow = null }
+) {
   if (!root || isDropdownOpen(e.target)) return false;
 
   const matrix = buildCellMatrix(root, readOnly, { includeHeaderRow });
@@ -182,15 +178,15 @@ export function handleGridKeyboardEvent(e, {
 
   const { key, shiftKey } = e;
 
-  if (key === ' ' && e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+  if (key === " " && e.target instanceof HTMLInputElement && e.target.type === "checkbox") {
     return false;
   }
 
-  if (key === ' ' && onToggleRow) {
+  if (key === " " && onToggleRow) {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
       return false;
     }
-    if (e.target.closest('.search-select__trigger')) {
+    if (e.target.closest(".search-select__trigger")) {
       return false;
     }
     const rowId = getRowIdFromTarget(e.target);
@@ -201,7 +197,7 @@ export function handleGridKeyboardEvent(e, {
     }
   }
 
-  if (key === 'Tab') {
+  if (key === "Tab") {
     const moved = moveFocus(matrix, pos, 0, shiftKey ? -1 : 1);
     if (moved) {
       e.preventDefault();
@@ -210,7 +206,7 @@ export function handleGridKeyboardEvent(e, {
     return false;
   }
 
-  if (key === 'Enter' && !shiftKey) {
+  if (key === "Enter" && !shiftKey) {
     if (e.target instanceof HTMLTextAreaElement) return false;
     if (e.target instanceof HTMLElement) e.target.blur();
     const moved = moveFocus(matrix, pos, 1, 0);
@@ -218,7 +214,7 @@ export function handleGridKeyboardEvent(e, {
     return moved;
   }
 
-  if (key === 'Enter' && shiftKey) {
+  if (key === "Enter" && shiftKey) {
     if (e.target instanceof HTMLTextAreaElement) return false;
     if (e.target instanceof HTMLElement) e.target.blur();
     const moved = moveFocus(matrix, pos, -1, 0);
@@ -226,7 +222,7 @@ export function handleGridKeyboardEvent(e, {
     return moved;
   }
 
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) {
     if (!shouldNavigateOnArrow(e)) return false;
 
     const deltas = {
@@ -237,7 +233,7 @@ export function handleGridKeyboardEvent(e, {
     };
     const [dRow, dCol] = deltas[key];
     e.preventDefault();
-    if (e.target instanceof HTMLInputElement && e.target.type !== 'checkbox') {
+    if (e.target instanceof HTMLInputElement && e.target.type !== "checkbox") {
       e.target.blur();
     }
     return moveFocus(matrix, pos, dRow, dCol);

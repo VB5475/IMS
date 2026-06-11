@@ -3,10 +3,10 @@
 
 export const DASHBOARD_CONFIG = {
   // SP / function name for the report board summary panel
-  SP_REPORT_BOARDS:    'Fn_tbl_FetchReportBoardSummaryUserWise',
-  REPORT_OBJ_TYPE:     2,
+  SP_REPORT_BOARDS: "Fn_tbl_FetchReportBoardSummaryUserWise",
+  REPORT_OBJ_TYPE: 2,
 
   // Request params
-  LOGIN_ID:            1,
+  LOGIN_ID: 1,
   DEFAULT_SUB_DESG_ID: 0,
 };

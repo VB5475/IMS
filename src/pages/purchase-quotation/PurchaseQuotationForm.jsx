@@ -12,23 +12,38 @@
 //
 // Quotation item picker RB + prmFrmOption follow BasedOnID ('0' Direct | '2' Inquiry Based).
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from 'lucide-react';
-import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
-import EntryGrid from '../../components/grid/EntryGrid';
-import ActionBar from '../../components/ui/ActionBar';
-import OrderItemModal from '../../components/txn/OrderItemModal';
-import SearchSelect from '../../components/ui/SearchSelect';
-import { usePurchaseQuotation } from '../../hooks/usePurchaseQuotation';
-import { useApi } from '../../api/useApi';
-import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, getColDefault, OBJ_TYPE, DEFAULT_COMPANY_ID, DEFAULT_SESSION_ID } from '../../api/constants';
-import { getUserSession } from '../../session/userSession';
-import { buildGridColumns, buildDropdownOptionFromRow, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from '../../utils/gridUtils';
-import { controlTypeMap } from '../../data/dummyData';
-import { parseApiErrMsg } from '../../utils/apiResponse';
-import { usePageHeader } from '../../context/PageHeaderContext';
-import { useEntryFormKeyboard } from '../../hooks/useEntryFormKeyboard';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
+import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import EntryGrid from "../../components/grid/EntryGrid";
+import ActionBar from "../../components/ui/ActionBar";
+import OrderItemModal from "../../components/txn/OrderItemModal";
+import SearchSelect from "../../components/ui/SearchSelect";
+import { usePurchaseQuotation } from "../../hooks/usePurchaseQuotation";
+import { useApi } from "../../api/useApi";
+import {
+  ENDPOINTS,
+  API_BASE_URL,
+  API_BASE_URL_IMS,
+  getColDefault,
+  OBJ_TYPE,
+  DEFAULT_COMPANY_ID,
+  DEFAULT_SESSION_ID,
+} from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
+import {
+  buildGridColumns,
+  buildDropdownOptionFromRow,
+  isLockOnEditModeCol,
+  syncHeaderFilterWithApiCol,
+  buildHeaderColMap,
+  resolveHeaderApiCol,
+} from "../../utils/gridUtils";
+import { controlTypeMap } from "../../data/dummyData";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { usePageHeader } from "../../context/PageHeaderContext";
+import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import {
   QTN_CONFIG,
   QTN_HEADER_FILTERS,
@@ -39,8 +54,8 @@ import {
   TERMS_COLUMNS,
   QTN_FILTER_CASCADE_RESETS,
   formatTranDate,
-} from './constants';
-import './PurchaseQuotationForm.css';
+} from "./constants";
+import "./PurchaseQuotationForm.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ─────────
 let _pqTempId = -1;
@@ -49,28 +64,28 @@ const nextTempId = () => _pqTempId--;
 function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
   if (!headerValues) return null;
   return {
-    TranCode: headerValues.TranCode ?? '',
-    TranDate: headerValues.TranDate ?? '',
-    DivisionID: String(headerValues.DivisionID ?? ''),
-    ConfigID: String(headerValues.ConfigID ?? ''),
-    ExpiryDate: headerValues.ExpiryDate ?? '',
-    DeptID: String(headerValues.DeptID ?? ''),
-    SupplierID: String(headerValues.SupplierID ?? ''),
-    CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ''),
-    CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : '',
-    BasedOnID: String(headerValues.BasedOnID ?? '0'),
-    SupplierQuotNo: headerValues.SupplierQuotNo ?? '',
-    SupplierQuotDate: headerValues.SupplierQuotDate ?? '',
-    ContactPerson: headerValues.ContactPerson ?? '',
-    Remarks: headerValues.Remarks ?? '',
+    TranCode: headerValues.TranCode ?? "",
+    TranDate: headerValues.TranDate ?? "",
+    DivisionID: String(headerValues.DivisionID ?? ""),
+    ConfigID: String(headerValues.ConfigID ?? ""),
+    ExpiryDate: headerValues.ExpiryDate ?? "",
+    DeptID: String(headerValues.DeptID ?? ""),
+    SupplierID: String(headerValues.SupplierID ?? ""),
+    CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ""),
+    CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : "",
+    BasedOnID: String(headerValues.BasedOnID ?? "0"),
+    SupplierQuotNo: headerValues.SupplierQuotNo ?? "",
+    SupplierQuotDate: headerValues.SupplierQuotDate ?? "",
+    ContactPerson: headerValues.ContactPerson ?? "",
+    Remarks: headerValues.Remarks ?? "",
   };
 }
 
 function buildCurrencyPatchFromSupplier(supplier) {
-  if (!supplier) return { CurrencyID: '', CurrencyRate: '' };
+  if (!supplier) return { CurrencyID: "", CurrencyRate: "" };
   return {
-    CurrencyID: supplier.CurrencyName ?? String(supplier.CurrencyID ?? ''),
-    CurrencyRate: supplier.CurrencyRate != null ? String(supplier.CurrencyRate) : '',
+    CurrencyID: supplier.CurrencyName ?? String(supplier.CurrencyID ?? ""),
+    CurrencyRate: supplier.CurrencyRate != null ? String(supplier.CurrencyRate) : "",
   };
 }
 
@@ -87,17 +102,21 @@ function resolveEditLoadParams(recordId, listRecord) {
 
 function queryEditableFilterFields(panel) {
   if (!panel) return [];
-  return [...panel.querySelectorAll(
-    'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
-  )].filter((el) => el.offsetParent !== null);
+  return [
+    ...panel.querySelectorAll(
+      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+    ),
+  ].filter((el) => el.offsetParent !== null);
 }
 
 // Map an item picker row → items grid row (seeded from allColumns).
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
-  allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+  allColumns.forEach(({ key, colDataType }) => {
+    row[key] = getColDefault(colDataType);
+  });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== 'id' && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
   });
   return row;
 }
@@ -107,7 +126,7 @@ function mapPickerToItemRow(item, allColumns) {
 export default function PurchaseQuotationForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
-  const isNewRoute = location.pathname.endsWith('/new');
+  const isNewRoute = location.pathname.endsWith("/new");
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
@@ -122,15 +141,31 @@ export default function PurchaseQuotationForm() {
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, departmentOptions, quotationTypeOptions, supplierOptions,
-    fetchQuotationTypes, clearQuotationTypes,
-    fetchSupplierOptions, clearSuppliers, getSupplierRow,
-    isLoadingQuotationTypes, isLoadingSuppliers,
-    columns, allColumns, isFetching, metaError,
-    fetchDetailMeta, fetchGridColumns, fetchEditRecord,
+    headerColumns,
+    headerFetching,
+    headerError,
+    fetchHeaderMeta,
+    divisionOptions,
+    departmentOptions,
+    quotationTypeOptions,
+    supplierOptions,
+    fetchQuotationTypes,
+    clearQuotationTypes,
+    fetchSupplierOptions,
+    clearSuppliers,
+    getSupplierRow,
+    isLoadingQuotationTypes,
+    isLoadingSuppliers,
+    columns,
+    allColumns,
+    isFetching,
+    metaError,
+    fetchDetailMeta,
+    fetchGridColumns,
+    fetchEditRecord,
     fetchUnlockedHeaderDropdowns,
-    fireCellEvent, eventColumns,
+    fireCellEvent,
+    eventColumns,
   } = usePurchaseQuotation(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
@@ -142,16 +177,28 @@ export default function PurchaseQuotationForm() {
   // Computed first so both the ref and the filter panel share the same initial date.
   const todayISO = useMemo(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    TranCode: '', TranDate: todayISO, ConfigID: 0, ExpiryDate: null,
-    DivisionID: 0, DeptID: 0, SupplierID: 0, CurrencyID: '', CurrencyRate: '',
-    BasedOnID: '0', SupplierQuotNo: '', SupplierQuotDate: null, ContactPerson: '',
-    Remarks: '', CompanyID: 1, YearID: QTN_CONFIG.DIVISION_YEAR_ID,
+    TranCode: "",
+    TranDate: todayISO,
+    ConfigID: 0,
+    ExpiryDate: null,
+    DivisionID: 0,
+    DeptID: 0,
+    SupplierID: 0,
+    CurrencyID: "",
+    CurrencyRate: "",
+    BasedOnID: "0",
+    SupplierQuotNo: "",
+    SupplierQuotDate: null,
+    ContactPerson: "",
+    Remarks: "",
+    CompanyID: 1,
+    YearID: QTN_CONFIG.DIVISION_YEAR_ID,
     LoginID: session.loginId,
     UserID: session.userId,
     IDNumber: recordId,
@@ -159,7 +206,7 @@ export default function PurchaseQuotationForm() {
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { BasedOnID: '0', TranDate: todayISO };
+    return { BasedOnID: "0", TranDate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
@@ -177,13 +224,13 @@ export default function PurchaseQuotationForm() {
   }, []);
 
   const focusSelectItemButton = useCallback(() => {
-    setActiveTab('items');
+    setActiveTab("items");
     selectItemBtnRef.current?.focus();
   }, []);
 
   const enterEditModeWithFocus = useCallback(() => {
     setIsEditMode(true);
-    setActiveTab('items');
+    setActiveTab("items");
     window.requestAnimationFrame(() => {
       window.setTimeout(() => {
         if (!focusFirstEditableFilterField()) {
@@ -203,10 +250,22 @@ export default function PurchaseQuotationForm() {
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      TranCode: '', TranDate: todayISO, ConfigID: 0, ExpiryDate: null,
-      DivisionID: 0, DeptID: 0, SupplierID: 0, CurrencyID: '', CurrencyRate: '',
-      BasedOnID: '0', SupplierQuotNo: '', SupplierQuotDate: null, ContactPerson: '',
-      Remarks: '', CompanyID: 1, YearID: QTN_CONFIG.DIVISION_YEAR_ID,
+      TranCode: "",
+      TranDate: todayISO,
+      ConfigID: 0,
+      ExpiryDate: null,
+      DivisionID: 0,
+      DeptID: 0,
+      SupplierID: 0,
+      CurrencyID: "",
+      CurrencyRate: "",
+      BasedOnID: "0",
+      SupplierQuotNo: "",
+      SupplierQuotDate: null,
+      ContactPerson: "",
+      Remarks: "",
+      CompanyID: 1,
+      YearID: QTN_CONFIG.DIVISION_YEAR_ID,
       LoginID: resetSession.loginId,
       UserID: resetSession.userId,
       IDNumber: 0,
@@ -218,8 +277,8 @@ export default function PurchaseQuotationForm() {
     clearQuotationTypes();
     clearSuppliers();
 
-    setActiveTab('items');
-    setApprovedFilter('all');
+    setActiveTab("items");
+    setApprovedFilter("all");
     setIsGridLoading(false);
     setItemSelectionCount(0);
 
@@ -237,19 +296,19 @@ export default function PurchaseQuotationForm() {
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
-      navigate('/purchase-quotation');
+      navigate("/purchase-quotation");
     } else {
       resetFormToInitialState();
     }
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   // ── Tab state ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('items');
+  const [activeTab, setActiveTab] = useState("items");
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
-  const activeSelectionCount = activeTab === 'items' ? itemSelectionCount : 0;
+  const activeSelectionCount = activeTab === "items" ? itemSelectionCount : 0;
 
-  const [approvedFilter, setApprovedFilter] = useState('all');
+  const [approvedFilter, setApprovedFilter] = useState("all");
   const [isGridLoading, setIsGridLoading] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -259,12 +318,12 @@ export default function PurchaseQuotationForm() {
   const [itemModalError, setItemModalError] = useState(null);
 
   usePageHeader({
-    title: isNewRoute ? 'New Purchase Quotation' : 'Purchase Quotation',
+    title: isNewRoute ? "New Purchase Quotation" : "Purchase Quotation",
     subtitle: isNewRoute
-      ? 'Fill in the header fields, then use the Item Grid tab.'
-      : `Quotation #${recordId || routeId || '—'} — fill in the header fields, then use the Item Grid tab.`,
+      ? "Fill in the header fields, then use the Item Grid tab."
+      : `Quotation #${recordId || routeId || "—"} — fill in the header fields, then use the Item Grid tab.`,
     showBack: true,
-    backTo: '/purchase-quotation',
+    backTo: "/purchase-quotation",
   });
 
   useEffect(() => {
@@ -281,7 +340,7 @@ export default function PurchaseQuotationForm() {
       const { master, headerValues, details } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
-        throw new Error('Quotation record not found.');
+        throw new Error("Quotation record not found.");
       }
 
       headerValuesRef.current = headerValues;
@@ -304,8 +363,8 @@ export default function PurchaseQuotationForm() {
         queuedRowsRef.current = details;
       }
     } catch (err) {
-      console.error('[PQ] Edit record load failed:', err);
-      setRecordLoadError(err?.message || 'Failed to load quotation record.');
+      console.error("[PQ] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load quotation record.");
     } finally {
       setRecordLoading(false);
     }
@@ -357,11 +416,16 @@ export default function PurchaseQuotationForm() {
 
     const injectListOptions = (filter, baseFilter) => {
       switch (filter.FilterParameterID) {
-        case 'DivisionID': return { ...baseFilter, staticOptions: divisionOptions };
-        case 'ConfigID': return { ...baseFilter, staticOptions: quotationTypeOptions };
-        case 'DeptID': return { ...baseFilter, staticOptions: departmentOptions };
-        case 'SupplierID': return { ...baseFilter, staticOptions: supplierOptions };
-        default: return baseFilter;
+        case "DivisionID":
+          return { ...baseFilter, staticOptions: divisionOptions };
+        case "ConfigID":
+          return { ...baseFilter, staticOptions: quotationTypeOptions };
+        case "DeptID":
+          return { ...baseFilter, staticOptions: departmentOptions };
+        case "SupplierID":
+          return { ...baseFilter, staticOptions: supplierOptions };
+        default:
+          return baseFilter;
       }
     };
 
@@ -378,13 +442,14 @@ export default function PurchaseQuotationForm() {
           : (apiCol.ColCtrlType ?? filter.FilterColCtrlType);
       }
 
-      const isDropdownField = forceListDropdown || def.FilterColCtrlType === controlTypeMap.DROPDOWN;
+      const isDropdownField =
+        forceListDropdown || def.FilterColCtrlType === controlTypeMap.DROPDOWN;
 
       // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
       if (isEditRoute && loadedMasterRow) {
-        if (filter.FilterParameterID === 'BasedOnID') {
+        if (filter.FilterParameterID === "BasedOnID") {
           const basedOnVal = String(
-            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? '0',
+            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? "0"
           );
           if (lockOnEditMode || !isEditMode) {
             const match = QTN_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
@@ -426,63 +491,64 @@ export default function PurchaseQuotationForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      const alwaysReadOnly = QTN_READONLY_FIELDS.includes(f.FilterColName)
-        || QTN_READONLY_FIELDS.includes(f.FilterParameterID);
-      if (alwaysReadOnly) tones[f.FilterColName] = 'view';
-      else if (!isEditMode) tones[f.FilterColName] = 'view';
-      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = 'frozen';
-      else tones[f.FilterColName] = 'editable';
+      const alwaysReadOnly =
+        QTN_READONLY_FIELDS.includes(f.FilterColName) ||
+        QTN_READONLY_FIELDS.includes(f.FilterParameterID);
+      if (alwaysReadOnly) tones[f.FilterColName] = "view";
+      else if (!isEditMode) tones[f.FilterColName] = "view";
+      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = "frozen";
+      else tones[f.FilterColName] = "editable";
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
 
   // ── Filter cascade ─────────────────────────────────────────────────
-  const handleFilterChange = useCallback((colName, val) => {
-    headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+  const handleFilterChange = useCallback(
+    (colName, val) => {
+      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (colName === 'SupplierID') {
-      if (!val || val === '0') {
-        headerValuesRef.current.CurrencyID = '';
-        headerValuesRef.current.CurrencyRate = '';
-        return buildCurrencyPatchFromSupplier(null);
+      if (colName === "SupplierID") {
+        if (!val || val === "0") {
+          headerValuesRef.current.CurrencyID = "";
+          headerValuesRef.current.CurrencyRate = "";
+          return buildCurrencyPatchFromSupplier(null);
+        }
+        const supplier = getSupplierRow(val);
+        if (supplier) {
+          headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
+          headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
+          return buildCurrencyPatchFromSupplier(supplier);
+        }
+        return undefined;
       }
-      const supplier = getSupplierRow(val);
-      if (supplier) {
-        headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
-        headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? '';
-        return buildCurrencyPatchFromSupplier(supplier);
+
+      if (colName === "DivisionID") {
+        headerValuesRef.current.ConfigID = 0;
+        headerValuesRef.current.SupplierID = 0;
+        headerValuesRef.current.CurrencyID = "";
+        headerValuesRef.current.CurrencyRate = "";
+        clearQuotationTypes();
+        clearSuppliers();
+        if (val && val !== "0") {
+          void Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+        }
       }
+
       return undefined;
-    }
-
-    if (colName === 'DivisionID') {
-      headerValuesRef.current.ConfigID = 0;
-      headerValuesRef.current.SupplierID = 0;
-      headerValuesRef.current.CurrencyID = '';
-      headerValuesRef.current.CurrencyRate = '';
-      clearQuotationTypes();
-      clearSuppliers();
-      if (val && val !== '0') {
-        void Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
-      }
-    }
-
-    return undefined;
-  }, [fetchQuotationTypes, fetchSupplierOptions, clearQuotationTypes, clearSuppliers, getSupplierRow]);
+    },
+    [fetchQuotationTypes, fetchSupplierOptions, clearQuotationTypes, clearSuppliers, getSupplierRow]
+  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(
-        headerValuesRef.current?.DivisionID ?? 0,
-        {
-          existingRecordEdit: isEditRoute,
-          masterRow: loadedMasterRow,
-          fetchUnlockedDropdowns: isEditRoute ? isEditMode : true,
-        },
-      );
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0, {
+        existingRecordEdit: isEditRoute,
+        masterRow: loadedMasterRow,
+        fetchUnlockedDropdowns: isEditRoute ? isEditMode : true,
+      });
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -497,8 +563,8 @@ export default function PurchaseQuotationForm() {
     const divisionID = DivisionID ?? 0;
     const configID = ConfigID ?? 0;
     const frmOption = Number(BasedOnID) || 0;
-    if (!divisionID || divisionID === '0' || divisionID === 0) {
-      alert('Please select a Division before selecting items.');
+    if (!divisionID || divisionID === "0" || divisionID === 0) {
+      alert("Please select a Division before selecting items.");
       return;
     }
 
@@ -509,61 +575,71 @@ export default function PurchaseQuotationForm() {
     setItemModalLoading(true);
 
     try {
-      const rbCode = frmOption === 2
-        ? QTN_CONFIG.RB_ITEM_PICKER_INQUIRY
-        : QTN_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const rbCode =
+        frmOption === 2 ? QTN_CONFIG.RB_ITEM_PICKER_INQUIRY : QTN_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: QTN_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: rbCode }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       const rbRow = rbRes?.Table?.[0];
-      if (!rbRow) throw new Error('Could not load item picker configuration.');
+      if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
         prmLoginID: getUserSession().loginId,
       });
-      const gridColumns = buildGridColumns(colRes?.Links || [], {}, {
-        filterable: false,
-        allEditable: false,
-      });
+      const gridColumns = buildGridColumns(
+        colRes?.Links || [],
+        {},
+        {
+          filterable: false,
+          allEditable: false,
+        }
+      );
       setItemModalColumns(gridColumns);
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: QTN_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([{
-          prmDivisionID: Number(divisionID),
-          prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID: getUserSession().loginId,
-          prmTranDate: formatTranDate(TranDate),
-          prmConfigID: Number(configID),
-          prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-          prmTranBook: QTN_CONFIG.TRAN_BOOK,
-          prmFrmOption: frmOption,
-        }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        JSon: JSON.stringify([
+          {
+            prmDivisionID: Number(divisionID),
+            prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
+            prmLoginID: getUserSession().loginId,
+            prmTranDate: formatTranDate(TranDate),
+            prmConfigID: Number(configID),
+            prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
+            prmTranBook: QTN_CONFIG.TRAN_BOOK,
+            prmFrmOption: frmOption,
+          },
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       setItemModalItems(rowRes?.Table || []);
     } catch (err) {
-      console.error('[PQ] Item picker fetch failed:', err);
-      setItemModalError(err?.message || 'Failed to fetch items.');
+      console.error("[PQ] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab('items');
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
 
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    },
+    [ensureItemColumns, allColumns, addItemRow]
+  );
 
   // ── Delete selected rows (items grid) ──────────────────────────────
   const handleDeleteSelected = useCallback(() => {
@@ -574,67 +650,79 @@ export default function PurchaseQuotationForm() {
     ref.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
-    const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-    if (!result || !itemGridRef.current) return;
-    const responseRow = result?.Links?.[0];
-    if (!responseRow) return;
-    const errCode = responseRow.ErrCode;
-    if (errCode !== 1 && errCode !== 1.0) {
-      console.warn('[PQ] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
-      return;
-    }
-    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
-    itemGridRef.current.updateRow?.(rowId, updatedFields);
-  }, [fireCellEvent]);
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.Links?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.ErrCode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[PQ] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
 
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingQtn, setIsSavingQtn] = useState(false);
 
-  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
-    // ── Master ────────────────────────────────────────────────────────
-    const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
-    const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
-    const userSession = getUserSession();
-    mstRow.LoginID = userSession.loginId;
-    mstRow.UserID = userSession.userId;
+  const handleSave = useCallback(
+    async ({ skipPostSave = false } = {}) => {
+      // ── Master ────────────────────────────────────────────────────────
+      const mstRow = {};
+      headerColumns.forEach((col) => {
+        mstRow[col.ColName] = getColDefault(col.ColDataType);
+      });
+      const hv = headerValuesRef.current;
+      Object.entries(hv).forEach(([k, v]) => {
+        if (k !== "id") mstRow[k] = v;
+      });
+      const userSession = getUserSession();
+      mstRow.LoginID = userSession.loginId;
+      mstRow.UserID = userSession.userId;
 
-    // ── Detail ────────────────────────────────────────────────────────
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: userSession.loginId, UserID: userSession.userId };
-    });
+      // ── Detail ────────────────────────────────────────────────────────
+      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
+        const row = {};
+        allColumns.forEach(({ key, colDataType }) => {
+          row[key] = getColDefault(colDataType);
+        });
+        return { ...row, ...rest, LoginID: userSession.loginId, UserID: userSession.userId };
+      });
 
-    const payload = {
-      prmStrMstJSON: JSON.stringify([mstRow]),
-      prmStrDetJSON: JSON.stringify(detRows),
-    };
+      const payload = {
+        prmStrMstJSON: JSON.stringify([mstRow]),
+        prmStrDetJSON: JSON.stringify(detRows),
+      };
 
-    console.log('%c[PQ Save] Payload:', 'color:#f59e0b;font-weight:700', payload);
-    console.log('%c[PQ Save] Master:', 'color:#6366f1;font-weight:600', [mstRow]);
-    console.log('%c[PQ Save] Detail:', 'color:#22c55e;font-weight:600', detRows);
+      console.log("%c[PQ Save] Payload:", "color:#f59e0b;font-weight:700", payload);
+      console.log("%c[PQ Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
+      console.log("%c[PQ Save] Detail:", "color:#22c55e;font-weight:600", detRows);
 
-    setIsSavingQtn(true);
-    try {
-      const result = await postSave(QTN_CONFIG.SAVE_ENDPOINT, payload);
-      console.log('%c[PQ Save] Response:', 'color:#22c55e;font-weight:700', result);
-      const { success, message } = parseApiErrMsg(result);
-      alert(message);
-      if (!success) return false;
+      setIsSavingQtn(true);
+      try {
+        const result = await postSave(QTN_CONFIG.SAVE_ENDPOINT, payload);
+        console.log("%c[PQ Save] Response:", "color:#22c55e;font-weight:700", result);
+        const { success, message } = parseApiErrMsg(result);
+        alert(message);
+        if (!success) return false;
 
-      if (!skipPostSave) completeSuccessfulSave();
-      return true;
-    } catch (err) {
-      console.error('[PQ Save] Failed:', err);
-      alert(err?.message || 'Save failed. Please try again.');
-      return false;
-    } finally {
-      setIsSavingQtn(false);
-    }
-  }, [headerColumns, allColumns, postSave, completeSuccessfulSave]);
+        if (!skipPostSave) completeSuccessfulSave();
+        return true;
+      } catch (err) {
+        console.error("[PQ Save] Failed:", err);
+        alert(err?.message || "Save failed. Please try again.");
+        return false;
+      } finally {
+        setIsSavingQtn(false);
+      }
+    },
+    [headerColumns, allColumns, postSave, completeSuccessfulSave]
+  );
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -644,7 +732,7 @@ export default function PurchaseQuotationForm() {
   }, [handleSave, completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => {
-    if (!window.confirm('Discard changes and reset the form?')) return;
+    if (!window.confirm("Discard changes and reset the form?")) return;
 
     if (isEditRoute) {
       exitEditMode();
@@ -656,12 +744,15 @@ export default function PurchaseQuotationForm() {
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
 
-  const handleClose = useCallback(() => navigate('/purchase-quotation'), [navigate]);
+  const handleClose = useCallback(() => navigate("/purchase-quotation"), [navigate]);
   const handleDocument = useCallback(() => {
-    console.log('[PQ] Document F6 — reserved for document generation.');
+    console.log("[PQ] Document F6 — reserved for document generation.");
   }, []);
 
-  const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
+  const itemGridConfig = {
+    columns,
+    pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
+  };
   const combinedError = metaError || headerError || recordLoadError;
   const filterPanelLoading = headerFetching || recordLoading;
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
@@ -679,42 +770,63 @@ export default function PurchaseQuotationForm() {
   });
 
   // Extra buttons visible in the ActionBar while in edit mode
-  const qtnExtraButtons = useMemo(() => [
-    { key: 'document', label: 'Document F6', Icon: FileText, variant: 'secondary', onClick: handleDocument },
-    { key: 'sep1', separator: true },
-    { key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print', onClick: handleSaveAndPrint, disabled: isSavingQtn },
-    {
-      key: 'save',
-      label: isSavingQtn ? 'Saving…' : 'Save',
-      Icon: Save,
-      variant: 'save',
-      onClick: () => handleSave(),
-      disabled: isSavingQtn,
-      loading: isSavingQtn,
-      accessKey: 's',
-      title: 'Save (Alt+S)',
-    },
-    {
-      key: 'close',
-      label: 'Close',
-      Icon: LogOut,
-      variant: 'close',
-      onClick: handleClose,
-      showAlways: true,
-      accessKey: 'c',
-      title: 'Close (Alt+C)',
-    },
-  ], [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave, handleClose]);
+  const qtnExtraButtons = useMemo(
+    () => [
+      {
+        key: "document",
+        label: "Document F6",
+        Icon: FileText,
+        variant: "secondary",
+        onClick: handleDocument,
+      },
+      { key: "sep1", separator: true },
+      {
+        key: "saveprint",
+        label: "Save & Print",
+        Icon: Printer,
+        variant: "print",
+        onClick: handleSaveAndPrint,
+        disabled: isSavingQtn,
+      },
+      {
+        key: "save",
+        label: isSavingQtn ? "Saving…" : "Save",
+        Icon: Save,
+        variant: "save",
+        onClick: () => handleSave(),
+        disabled: isSavingQtn,
+        loading: isSavingQtn,
+        accessKey: "s",
+        title: "Save (Alt+S)",
+      },
+      {
+        key: "close",
+        label: "Close",
+        Icon: LogOut,
+        variant: "close",
+        onClick: handleClose,
+        showAlways: true,
+        accessKey: "c",
+        title: "Close (Alt+C)",
+      },
+    ],
+    [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave, handleClose]
+  );
 
   return (
     <div className="workspace-page pq-page">
-
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
             <AlertCircle size={16} strokeWidth={2} />
             <span>{combinedError}</span>
-            <button type="button" onClick={() => { fetchHeaderMeta(); fetchDetailMeta(); }}>
+            <button
+              type="button"
+              onClick={() => {
+                fetchHeaderMeta();
+                fetchDetailMeta();
+              }}
+            >
               Retry
             </button>
           </div>
@@ -737,14 +849,13 @@ export default function PurchaseQuotationForm() {
       </section>
 
       <section className="pq-grid-section">
-
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
             {QTN_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? 'grid-tab--active' : ''}`}
+                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
                 onClick={() => setActiveTab(t.id)}
               >
                 {t.label}
@@ -753,7 +864,7 @@ export default function PurchaseQuotationForm() {
           </div>
 
           <div className="grid-tabbar__controls">
-            {activeTab === 'items' && (
+            {activeTab === "items" && (
               <button
                 ref={selectItemBtnRef}
                 type="button"
@@ -790,7 +901,7 @@ export default function PurchaseQuotationForm() {
           </div>
         </div>
 
-        <div className={`pq-tab-pane${activeTab === 'items' ? ' pq-tab-pane--active' : ''}`}>
+        <div className={`pq-tab-pane${activeTab === "items" ? " pq-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -805,11 +916,15 @@ export default function PurchaseQuotationForm() {
           />
         </div>
 
-        {activeTab === 'terms' && (
+        {activeTab === "terms" && (
           <div className="pq-terms-pane">
             <table className="pq-terms-table">
               <thead>
-                <tr>{TERMS_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr>
+                <tr>
+                  {TERMS_COLUMNS.map((c) => (
+                    <th key={c}>{c}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 <tr>
@@ -821,7 +936,6 @@ export default function PurchaseQuotationForm() {
             </table>
           </div>
         )}
-
       </section>
 
       <ActionBar

@@ -62,9 +62,16 @@
 }
 
 @keyframes loginOrbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(24px, -18px) scale(1.04); }
-  66% { transform: translate(-16px, 12px) scale(0.96); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(24px, -18px) scale(1.04);
+  }
+  66% {
+    transform: translate(-16px, 12px) scale(0.96);
+  }
 }
 
 /* ── Style preview tabs ── */
@@ -167,8 +174,13 @@
 }
 
 @keyframes loginHeroShine {
-  0%, 100% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
+  0%,
+  100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
 }
 
 .login-hero__brand {
@@ -241,7 +253,9 @@
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .login-metric:hover {
@@ -314,7 +328,9 @@
   position: relative;
   border-radius: 16px;
   padding: 32px 28px 24px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .login-card__accent {
@@ -404,7 +420,9 @@
   border-radius: 10px;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .login-field__row {
@@ -551,10 +569,16 @@
   box-shadow: 0 6px 16px rgba(30, 74, 122, 0.35);
 }
 
-.login-page--horizon .login-card__header h3 { color: var(--text); }
-.login-page--horizon .login-card__header p { color: var(--text-secondary); }
+.login-page--horizon .login-card__header h3 {
+  color: var(--text);
+}
+.login-page--horizon .login-card__header p {
+  color: var(--text-secondary);
+}
 .login-page--horizon .login-field span,
-.login-page--horizon .login-field label { color: var(--text); }
+.login-page--horizon .login-field label {
+  color: var(--text);
+}
 .login-page--horizon .login-field__control {
   border: 1px solid var(--border);
   background: #fff;
@@ -569,10 +593,18 @@
   border-left: 3px solid var(--danger);
   color: var(--danger);
 }
-.login-page--horizon .login-field__link { color: var(--primary); }
-.login-page--horizon .login-field__toggle { color: var(--text-muted); }
-.login-page--horizon .login-remember { color: var(--text-secondary); }
-.login-page--horizon .login-remember input { accent-color: var(--primary); }
+.login-page--horizon .login-field__link {
+  color: var(--primary);
+}
+.login-page--horizon .login-field__toggle {
+  color: var(--text-muted);
+}
+.login-page--horizon .login-remember {
+  color: var(--text-secondary);
+}
+.login-page--horizon .login-remember input {
+  accent-color: var(--primary);
+}
 .login-page--horizon .login-submit {
   background: linear-gradient(135deg, #226db4 0%, #1e4a7a 100%);
   color: #fff;
@@ -585,7 +617,9 @@
   border-top: 1px solid var(--border);
   color: var(--text-muted);
 }
-.login-page--horizon .login-footer { color: var(--text-muted); }
+.login-page--horizon .login-footer {
+  color: var(--text-muted);
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    MERIDIAN — product-preview split (Floret / Origin B2B pattern)
@@ -657,8 +691,13 @@
 }
 
 @keyframes loginPreviewFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .login-preview__sidebar {
@@ -737,15 +776,30 @@
   animation: loginBarPulse 3s ease-in-out infinite;
 }
 
-.login-preview__bar:nth-child(2) { animation-delay: 0.2s; }
-.login-preview__bar:nth-child(3) { animation-delay: 0.4s; }
-.login-preview__bar:nth-child(4) { animation-delay: 0.6s; }
-.login-preview__bar:nth-child(5) { animation-delay: 0.8s; }
-.login-preview__bar:nth-child(6) { animation-delay: 1s; }
+.login-preview__bar:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.login-preview__bar:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.login-preview__bar:nth-child(4) {
+  animation-delay: 0.6s;
+}
+.login-preview__bar:nth-child(5) {
+  animation-delay: 0.8s;
+}
+.login-preview__bar:nth-child(6) {
+  animation-delay: 1s;
+}
 
 @keyframes loginBarPulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .login-preview__bullets {
@@ -784,10 +838,16 @@
   background: linear-gradient(145deg, #226db4, #1e4a7a);
 }
 
-.login-page--meridian .login-card__header h3 { color: var(--text); }
-.login-page--meridian .login-card__header p { color: var(--text-secondary); }
+.login-page--meridian .login-card__header h3 {
+  color: var(--text);
+}
+.login-page--meridian .login-card__header p {
+  color: var(--text-secondary);
+}
 .login-page--meridian .login-field span,
-.login-page--meridian .login-field label { color: var(--text); }
+.login-page--meridian .login-field label {
+  color: var(--text);
+}
 .login-page--meridian .login-field__control {
   border: 1px solid var(--border);
   background: #fff;
@@ -801,8 +861,12 @@
   border-left: 3px solid var(--danger);
   color: var(--danger);
 }
-.login-page--meridian .login-field__link { color: var(--primary); }
-.login-page--meridian .login-remember { color: var(--text-secondary); }
+.login-page--meridian .login-field__link {
+  color: var(--primary);
+}
+.login-page--meridian .login-remember {
+  color: var(--text-secondary);
+}
 .login-page--meridian .login-submit {
   background: var(--primary);
   color: #fff;
@@ -811,7 +875,9 @@
   border-top: 1px solid var(--border);
   color: var(--text-muted);
 }
-.login-page--meridian .login-footer { color: var(--text-muted); }
+.login-page--meridian .login-footer {
+  color: var(--text-muted);
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    CITADEL — trust-center sign-in (Cieden / enterprise SSO pattern)
@@ -941,10 +1007,14 @@
   color: #0f2d4a;
 }
 
-.login-page--citadel .login-card__header p { color: #5c6470; }
+.login-page--citadel .login-card__header p {
+  color: #5c6470;
+}
 
 .login-page--citadel .login-field span,
-.login-page--citadel .login-field label { color: #2d3748; }
+.login-page--citadel .login-field label {
+  color: #2d3748;
+}
 
 .login-page--citadel .login-field__control {
   border: 1px solid #c8d0da;
@@ -963,8 +1033,12 @@
   color: var(--danger);
 }
 
-.login-page--citadel .login-field__link { color: #1e4a7a; }
-.login-page--citadel .login-remember { color: #5c6470; }
+.login-page--citadel .login-field__link {
+  color: #1e4a7a;
+}
+.login-page--citadel .login-remember {
+  color: #5c6470;
+}
 .login-page--citadel .login-submit {
   background: #0f2d4a;
   color: #fff;

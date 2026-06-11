@@ -17,46 +17,56 @@
 // EVENT_COLUMNS — ColNames that trigger onCellEvent when the user leaves the cell.
 
 import React, {
-  useState, useMemo, useCallback, useRef, useEffect,
-  useImperativeHandle, forwardRef,
-} from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import SearchSelect from '../ui/SearchSelect';
-import TxnEntryBottomPanel from './EntryGridBottomPanel';
-import InlineChildTable from './InlineChildTable';
-import './EnterpriseGrid.css';
-import { isColumnFixed, isColumnEditable, getColumnCellClass, getColumnHeaderThemeClass } from './gridColumnClass';
-import { getRowDropdownDisplay } from '../../utils/gridUtils';
-import { focusFirstGridCell, handleGridKeyboardEvent } from '../../utils/gridKeyboardNav';
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import SearchSelect from "../ui/SearchSelect";
+import TxnEntryBottomPanel from "./EntryGridBottomPanel";
+import InlineChildTable from "./InlineChildTable";
+import "./EnterpriseGrid.css";
+import {
+  isColumnFixed,
+  isColumnEditable,
+  getColumnCellClass,
+  getColumnHeaderThemeClass,
+} from "./gridColumnClass";
+import { getRowDropdownDisplay } from "../../utils/gridUtils";
+import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKeyboardNav";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
-  if (typeof w === 'number') return w;
-  if (typeof w === 'string') return parseInt(w, 10) || 0;
+  if (typeof w === "number") return w;
+  if (typeof w === "string") return parseInt(w, 10) || 0;
   return 0;
 }
 
 function formatDateForInput(isoString) {
-  if (!isoString) return '';
-  if (typeof isoString === 'string' && isoString.includes('T')) {
-    return isoString.split('T')[0];
+  if (!isoString) return "";
+  if (typeof isoString === "string" && isoString.includes("T")) {
+    return isoString.split("T")[0];
   }
   const d = new Date(isoString);
-  if (isNaN(d.getTime())) return '';
-  return d.toISOString().split('T')[0];
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString().split("T")[0];
 }
 
 function parseDateFromInput(dateString) {
-  if (!dateString) return '';
+  if (!dateString) return "";
   return `${dateString}T00:00:00`;
 }
 
 function downloadCSV(filename, csvContent) {
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = filename;
-  link.style.display = 'none';
+  link.style.display = "none";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -65,43 +75,49 @@ function downloadCSV(filename, csvContent) {
 // ── Columns that fire onCellEvent when the user leaves the cell ───────
 // These match the ColName values returned by GET_DETAIL_COL_DATA.
 const EVENT_COLUMNS = new Set([
-  'ItemID', 'TranQty', 'BaseQty', 'BaseRate', 'TranRate',
-  'DiscPerc', 'Expense', 'GSTPerc',
+  "ItemID",
+  "TranQty",
+  "BaseQty",
+  "BaseRate",
+  "TranRate",
+  "DiscPerc",
+  "Expense",
+  "GSTPerc",
 ]);
 
 // ── Component ─────────────────────────────────────────────────────────
 const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   {
     config,
-    title = 'Invoice Line Items',
+    title = "Invoice Line Items",
     onSave,
     onCellEvent,
     eventColumns: eventColumnsProp = null,
-    readOnly = false,       // true → read-only display mode (no editing)
+    readOnly = false, // true → read-only display mode (no editing)
     hideBottomPanel = false, // true → hide the Save/Export bottom toolbar (embedded grids)
-    emptyMessage = null,     // custom message shown when there are no rows
-    tabs = null,             // [{ id, label }] → renders a tab-bar header instead of the title
-    activeTab = null,        // currently selected tab id (controlled by parent)
-    onTabChange = null,      // (tabId: string) => void
-    headerControls = null,   // ReactNode rendered on the right side of the tab bar
+    emptyMessage = null, // custom message shown when there are no rows
+    tabs = null, // [{ id, label }] → renders a tab-bar header instead of the title
+    activeTab = null, // currently selected tab id (controlled by parent)
+    onTabChange = null, // (tabId: string) => void
+    headerControls = null, // ReactNode rendered on the right side of the tab bar
     tabContentOverride = null, // ReactNode → replaces the grid body (used for other tabs)
-    initialRows = null,     // array → pre-populated rows (used in readOnly mode)
+    initialRows = null, // array → pre-populated rows (used in readOnly mode)
     onSelectionChange = null, // (count: number) => void — notifies parent of selection changes
-    onRowsChange = null,      // (rows: row[]) => void  — notifies parent when rows mutate
+    onRowsChange = null, // (rows: row[]) => void  — notifies parent when rows mutate
     // ── Collapsible children ─────────────────────────────────────────
     // When enableCollapsible=true each parent row that has an entry in
     // childRowsMap shows an expand toggle.  childColumns drives the sub-table.
     enableCollapsible = false,
-    childRowsMap = null,   // { [rowId: string]: rowData[] }
-    childColumns = [],     // column defs for the inline sub-table
+    childRowsMap = null, // { [rowId: string]: rowData[] }
+    childColumns = [], // column defs for the inline sub-table
     existingRecordEdit = false, // true → lock columns flagged IsLockOnEditModeAllow
-    enableKeyboardNav = true,  // Excel-like Tab / Enter / arrow / Space navigation
+    enableKeyboardNav = true, // Excel-like Tab / Enter / arrow / Space navigation
   },
-  ref,
+  ref
 ) {
   const columnEditOpts = useMemo(
     () => ({ existingRecordEdit, viewMode: readOnly }),
-    [existingRecordEdit, readOnly],
+    [existingRecordEdit, readOnly]
   );
   const { columns, pagination } = config;
   const { pageSize: defaultPageSize = 25, pageSizeOptions = [10, 25, 50, 100] } = pagination || {};
@@ -110,11 +126,13 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [scrollState, setScrollState] = useState({ left: false, right: false });
   const [columnWidths, setColumnWidths] = useState(() => {
     const map = {};
-    columns.forEach(c => { map[c.id] = c.width; });
+    columns.forEach((c) => {
+      map[c.id] = c.width;
+    });
     return map;
   });
   const [resizing, setResizing] = useState(null);
@@ -124,7 +142,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     const sid = String(id);
     setExpandedRows((prev) => {
       const next = new Set(prev);
-      if (next.has(sid)) next.delete(sid); else next.add(sid);
+      if (next.has(sid)) next.delete(sid);
+      else next.add(sid);
       return next;
     });
   }, []);
@@ -135,7 +154,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // Stable ref so onRowsChange never causes extra effect re-runs
   const onRowsChangeRef = useRef(onRowsChange);
-  useEffect(() => { onRowsChangeRef.current = onRowsChange; }, [onRowsChange]);
+  useEffect(() => {
+    onRowsChangeRef.current = onRowsChange;
+  }, [onRowsChange]);
 
   useEffect(() => {
     rowsRef.current = rows;
@@ -154,46 +175,54 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [initialRows]);
 
   // ── Imperative handle ─────────────────────────────────────────
-  useImperativeHandle(ref, () => ({
-    addRow(blankRow) { setRows(prev => [...prev, blankRow]); },
-    getRows() { return rowsRef.current; },
-    getSelectedRows() {
-      return rowsRef.current.filter(r => selectedIds.has(String(r.id)));
-    },
-    updateRow(rowId, fields) {
-      setRows(prev =>
-        prev.map(r => String(r.id) === String(rowId) ? { ...r, ...fields } : r)
-      );
-    },
-    removeRows(rowIds) {
-      const removeSet = new Set(rowIds.map(String));
-      setRows(prev => prev.filter(r => !removeSet.has(String(r.id))));
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        rowIds.forEach((id) => next.delete(String(id)));
-        return next;
-      });
-    },
-    clearRows() {
-      setRows([]);
-      setSelectedIds(new Set());
-      setExpandedRows(new Set());
-    },
-    loadRows(newRows) {
-      const withIds = (newRows || []).map((r, i) => ({
-        ...r,
-        id: String(r.id ?? r.CompUniqueKey ?? r.IDNumber ?? `_row_${i}`),
-      }));
-      setRows(withIds);
-      setSelectedIds(new Set());
-      setExpandedRows(new Set());
-    },
-    focusFirstInteractiveCell() {
-      const root = tableWrapperRef.current;
-      if (!root) return false;
-      return focusFirstGridCell(root, readOnly, { includeHeaderRow: readOnly });
-    },
-  }), [selectedIds, readOnly]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      addRow(blankRow) {
+        setRows((prev) => [...prev, blankRow]);
+      },
+      getRows() {
+        return rowsRef.current;
+      },
+      getSelectedRows() {
+        return rowsRef.current.filter((r) => selectedIds.has(String(r.id)));
+      },
+      updateRow(rowId, fields) {
+        setRows((prev) =>
+          prev.map((r) => (String(r.id) === String(rowId) ? { ...r, ...fields } : r))
+        );
+      },
+      removeRows(rowIds) {
+        const removeSet = new Set(rowIds.map(String));
+        setRows((prev) => prev.filter((r) => !removeSet.has(String(r.id))));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          rowIds.forEach((id) => next.delete(String(id)));
+          return next;
+        });
+      },
+      clearRows() {
+        setRows([]);
+        setSelectedIds(new Set());
+        setExpandedRows(new Set());
+      },
+      loadRows(newRows) {
+        const withIds = (newRows || []).map((r, i) => ({
+          ...r,
+          id: String(r.id ?? r.CompUniqueKey ?? r.IDNumber ?? `_row_${i}`),
+        }));
+        setRows(withIds);
+        setSelectedIds(new Set());
+        setExpandedRows(new Set());
+      },
+      focusFirstInteractiveCell() {
+        const root = tableWrapperRef.current;
+        if (!root) return false;
+        return focusFirstGridCell(root, readOnly, { includeHeaderRow: readOnly });
+      },
+    }),
+    [selectedIds, readOnly]
+  );
 
   // Notify parent when selection changes
   useEffect(() => {
@@ -201,25 +230,33 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [selectedIds, onSelectionChange]);
 
   // ── Column resize ─────────────────────────────────────────────────
-  const handleResizeStart = useCallback((e, colId) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startWidth = toPixels(columnWidths[colId] || columns.find(c => c.id === colId)?.width || 120);
-    setResizing({ colId, startX: e.clientX, startWidth });
-  }, [columnWidths, columns]);
+  const handleResizeStart = useCallback(
+    (e, colId) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startWidth = toPixels(
+        columnWidths[colId] || columns.find((c) => c.id === colId)?.width || 120
+      );
+      setResizing({ colId, startX: e.clientX, startWidth });
+    },
+    [columnWidths, columns]
+  );
 
   useEffect(() => {
     if (!resizing) return;
     const handleMove = (e) => {
       const diff = e.clientX - resizing.startX;
-      setColumnWidths(prev => ({ ...prev, [resizing.colId]: Math.max(60, resizing.startWidth + diff) }));
+      setColumnWidths((prev) => ({
+        ...prev,
+        [resizing.colId]: Math.max(60, resizing.startWidth + diff),
+      }));
     };
     const handleUp = () => setResizing(null);
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleUp);
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleUp);
     return () => {
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', handleUp);
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleUp);
     };
   }, [resizing]);
 
@@ -227,7 +264,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const fixedLeftMap = useMemo(() => {
     const map = {};
     let left = 0;
-    columns.forEach(col => {
+    columns.forEach((col) => {
       if (isColumnFixed(col)) {
         map[col.id] = left;
         left += toPixels(columnWidths[col.id] || col.width) || 120;
@@ -237,24 +274,25 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [columns, columnWidths]);
 
   const lastFixedColId = useMemo(() => {
-    const fixed = columns.filter(c => isColumnFixed(c));
+    const fixed = columns.filter((c) => isColumnFixed(c));
     return fixed.length > 0 ? fixed[fixed.length - 1].id : null;
   }, [columns]);
 
   // ── Dropdown label helper ─────────────────────────────────────────
   const getDropdownLabel = useCallback((col, rawValue, row = null) => {
-    const rowDisplay = row ? getRowDropdownDisplay(row, col) : '';
+    const rowDisplay = row ? getRowDropdownDisplay(row, col) : "";
     if (rowDisplay) return rowDisplay;
     if (col.controlType !== 4 || !col.dropdownOptions) return rawValue;
-    const opts = col.dropdownOptions.map(opt => {
-      if (typeof opt === 'string') return { value: opt, label: opt };
-      if (opt && typeof opt === 'object') {
-        if (opt.value !== undefined) return { value: String(opt.value), label: opt.label || String(opt.value) };
+    const opts = col.dropdownOptions.map((opt) => {
+      if (typeof opt === "string") return { value: opt, label: opt };
+      if (opt && typeof opt === "object") {
+        if (opt.value !== undefined)
+          return { value: String(opt.value), label: opt.label || String(opt.value) };
         return { value: String(opt.IDNumber ?? opt), label: opt.Name ?? String(opt) };
       }
       return { value: String(opt), label: String(opt) };
     });
-    const found = opts.find(o => String(o.value) === String(rawValue));
+    const found = opts.find((o) => String(o.value) === String(rawValue));
     return found ? found.label : rawValue;
   }, []);
 
@@ -263,17 +301,17 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     let data = [...rows];
     if (sortConfig.key) {
       data.sort((a, b) => {
-        const aVal = a[sortConfig.key] ?? '';
-        const bVal = b[sortConfig.key] ?? '';
+        const aVal = a[sortConfig.key] ?? "";
+        const bVal = b[sortConfig.key] ?? "";
         const aNum = Number(aVal);
         const bNum = Number(bVal);
         let cmp = 0;
-        if (!isNaN(aNum) && !isNaN(bNum) && aVal !== '' && bVal !== '') {
+        if (!isNaN(aNum) && !isNaN(bNum) && aVal !== "" && bVal !== "") {
           cmp = aNum - bNum;
         } else {
           cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
         }
-        return sortConfig.direction === 'asc' ? cmp : -cmp;
+        return sortConfig.direction === "asc" ? cmp : -cmp;
       });
     }
     return data;
@@ -284,12 +322,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const startIdx = (safePage - 1) * pageSize;
   const displayRows = processedRows.slice(startIdx, startIdx + pageSize);
 
-  useEffect(() => { setPage(1); }, [pageSize, sortConfig]);
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, sortConfig]);
 
   // ── Selection ─────────────────────────────────────────────────────
   const handleSelectAll = useCallback(() => {
-    const pageIds = displayRows.map(r => String(r.id));
-    if (pageIds.length > 0 && pageIds.every(id => selectedIds.has(id))) {
+    const pageIds = displayRows.map((r) => String(r.id));
+    if (pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(pageIds));
@@ -298,40 +338,48 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   const handleSelectRow = useCallback((id) => {
     const sid = String(id);
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(sid)) next.delete(sid); else next.add(sid);
+      if (next.has(sid)) next.delete(sid);
+      else next.add(sid);
       return next;
     });
   }, []);
 
   // ── Cell change ───────────────────────────────────────────────────
   const handleCellChange = useCallback((rowId, colKey, value) => {
-    setRows(prev => prev.map(r => String(r.id) === String(rowId) ? { ...r, [colKey]: value } : r));
+    setRows((prev) =>
+      prev.map((r) => (String(r.id) === String(rowId) ? { ...r, [colKey]: value } : r))
+    );
   }, []);
 
   // ── Sort handler ──────────────────────────────────────────────────
   const handleSort = useCallback((key) => {
-    setSortConfig(prev => ({
+    setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   }, []);
 
   // ── Cell keyboard navigation (Enter = next focusable cell in row) ─
-  const makeCellKeyDown = useCallback((row, col) => (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const wrapper = e.currentTarget;
-    const tableWrapper = tableWrapperRef.current;
-    if (!tableWrapper) return;
-    const allCells = [...tableWrapper.querySelectorAll(
-      'td .cell-wrapper input:not([disabled]):not([readonly]), td .cell-wrapper textarea:not([disabled]):not([readonly]), td .cell-wrapper .search-select__trigger:not([disabled])',
-    )];
-    const idx = allCells.findIndex((el) => wrapper.contains(el));
-    const next = allCells[idx + 1];
-    if (next) next.focus();
-  }, []);
+  const makeCellKeyDown = useCallback(
+    (row, col) => (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const wrapper = e.currentTarget;
+      const tableWrapper = tableWrapperRef.current;
+      if (!tableWrapper) return;
+      const allCells = [
+        ...tableWrapper.querySelectorAll(
+          "td .cell-wrapper input:not([disabled]):not([readonly]), td .cell-wrapper textarea:not([disabled]):not([readonly]), td .cell-wrapper .search-select__trigger:not([disabled])"
+        ),
+      ];
+      const idx = allCells.findIndex((el) => wrapper.contains(el));
+      const next = allCells[idx + 1];
+      if (next) next.focus();
+    },
+    []
+  );
 
   // ── Bottom panel actions ──────────────────────────────────────────
   const handleSave = useCallback(() => {
@@ -342,9 +390,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   const handleCopy = useCallback(() => {
     if (selectedIds.size === 0) return;
-    const toCopy = rows.filter(r => selectedIds.has(String(r.id)));
+    const toCopy = rows.filter((r) => selectedIds.has(String(r.id)));
     let currentMinId = 0;
-    rows.forEach(r => {
+    rows.forEach((r) => {
       const n = Number(r.IDNumber);
       if (n < currentMinId) currentMinId = n;
     });
@@ -352,10 +400,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       const newId = currentMinId - (idx + 1);
       return { ...r, id: newId, IDNumber: newId };
     });
-    setRows(prev => {
+    setRows((prev) => {
       const next = [...prev];
       for (let i = toCopy.length - 1; i >= 0; i--) {
-        const idx = next.findIndex(r => String(r.id) === String(toCopy[i].id));
+        const idx = next.findIndex((r) => String(r.id) === String(toCopy[i].id));
         if (idx !== -1) next.splice(idx + 1, 0, newRows[i]);
         else next.push(newRows[i]);
       }
@@ -365,16 +413,16 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [selectedIds, rows]);
 
   const handleExport = useCallback(() => {
-    const headers = columns.map(c => c.name).join(',');
-    const csvRows = processedRows.map(r =>
-      columns.map(c => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`).join(',')
+    const headers = columns.map((c) => c.name).join(",");
+    const csvRows = processedRows.map((r) =>
+      columns.map((c) => `"${String(r[c.key] ?? "").replace(/"/g, '""')}"`).join(",")
     );
-    downloadCSV(`${title.replace(/\s+/g, '_')}_export.csv`, [headers, ...csvRows].join('\n'));
+    downloadCSV(`${title.replace(/\s+/g, "_")}_export.csv`, [headers, ...csvRows].join("\n"));
   }, [processedRows, columns, title]);
 
   const eventColumnSet = useMemo(
     () => (eventColumnsProp instanceof Set ? eventColumnsProp : new Set(eventColumnsProp || [])),
-    [eventColumnsProp],
+    [eventColumnsProp]
   );
 
   const activeEventColumns = useMemo(() => {
@@ -382,49 +430,69 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return EVENT_COLUMNS;
   }, [eventColumnSet]);
 
-  const fireCellEventForColumn = useCallback((row, col, liveValue) => {
-    if (!onCellEvent || !activeEventColumns.has(col.key)) return;
-    const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
-    onCellEvent({
-      rowId: row.id,
-      colKey: col.key,
-      rowData: { ...currentRow, [col.key]: liveValue },
-    });
-  }, [onCellEvent, activeEventColumns]);
+  const fireCellEventForColumn = useCallback(
+    (row, col, liveValue) => {
+      if (!onCellEvent || !activeEventColumns.has(col.key)) return;
+      const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
+      onCellEvent({
+        rowId: row.id,
+        colKey: col.key,
+        rowData: { ...currentRow, [col.key]: liveValue },
+      });
+    },
+    [onCellEvent, activeEventColumns]
+  );
 
-  const makeCellBlur = useCallback((row, col) => {
-    if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
-    return (e) => {
-      const liveValue = col.controlType === 2
-        ? parseDateFromInput(e.target.value)
-        : e.target.value;
-      fireCellEventForColumn(row, col, liveValue);
-    };
-  }, [onCellEvent, activeEventColumns, fireCellEventForColumn]);
+  const makeCellBlur = useCallback(
+    (row, col) => {
+      if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
+      return (e) => {
+        const liveValue =
+          col.controlType === 2 ? parseDateFromInput(e.target.value) : e.target.value;
+        fireCellEventForColumn(row, col, liveValue);
+      };
+    },
+    [onCellEvent, activeEventColumns, fireCellEventForColumn]
+  );
 
-  const makeSearchSelectBlur = useCallback((row, col) => {
-    if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
-    return () => {
-      const currentRow = rowsRef.current.find(r => String(r.id) === String(row.id)) || row;
-      fireCellEventForColumn(row, col, currentRow[col.key]);
-    };
-  }, [onCellEvent, activeEventColumns, fireCellEventForColumn]);
+  const makeSearchSelectBlur = useCallback(
+    (row, col) => {
+      if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
+      return () => {
+        const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
+        fireCellEventForColumn(row, col, currentRow[col.key]);
+      };
+    },
+    [onCellEvent, activeEventColumns, fireCellEventForColumn]
+  );
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
-    const value = row[col.key] ?? '';
+    const value = row[col.key] ?? "";
     const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
 
     // ── Read-only mode: always render as label ──
     if (cellReadOnly) {
       if (col.controlType === 4) {
         // Show the display label for dropdown values
-        return <span className="cell-label" title={String(getDropdownLabel(col, value, row))}>{getDropdownLabel(col, value, row) || '—'}</span>;
+        return (
+          <span className="cell-label" title={String(getDropdownLabel(col, value, row))}>
+            {getDropdownLabel(col, value, row) || "—"}
+          </span>
+        );
       }
       if (col.controlType === 2) {
-        return <span className="cell-label" title={formatDateForInput(value)}>{formatDateForInput(value) || '—'}</span>;
+        return (
+          <span className="cell-label" title={formatDateForInput(value)}>
+            {formatDateForInput(value) || "—"}
+          </span>
+        );
       }
-      return <span className="cell-label" title={String(value)}>{value === '' || value == null ? '—' : value}</span>;
+      return (
+        <span className="cell-label" title={String(value)}>
+          {value === "" || value == null ? "—" : value}
+        </span>
+      );
     }
 
     // ── Editable mode ──
@@ -432,30 +500,42 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       value,
       onChange: (e) => handleCellChange(row.id, col.key, e.target.value),
       tabIndex: 0,
-      'aria-label': `${col.name} for row ${row.id}`,
+      "aria-label": `${col.name} for row ${row.id}`,
     };
 
     switch (col.controlType) {
-      case 0: return <span className="cell-label" title={String(value)}>{value}</span>;
+      case 0:
+        return (
+          <span className="cell-label" title={String(value)}>
+            {value}
+          </span>
+        );
 
-      case 1: return (
-        <input className="cell-input" type="text" {...commonProps} onBlur={makeCellBlur(row, col)} />
-      );
+      case 1:
+        return (
+          <input
+            className="cell-input"
+            type="text"
+            {...commonProps}
+            onBlur={makeCellBlur(row, col)}
+          />
+        );
 
-      case 2: return (
-        <input
-          className="cell-input"
-          type="date"
-          {...commonProps}
-          value={formatDateForInput(value)}
-          onChange={(e) => handleCellChange(row.id, col.key, parseDateFromInput(e.target.value))}
-          onBlur={makeCellBlur(row, col)}
-        />
-      );
+      case 2:
+        return (
+          <input
+            className="cell-input"
+            type="date"
+            {...commonProps}
+            value={formatDateForInput(value)}
+            onChange={(e) => handleCellChange(row.id, col.key, parseDateFromInput(e.target.value))}
+            onBlur={makeCellBlur(row, col)}
+          />
+        );
 
       case 4: {
-        const opts = (col.dropdownOptions || []).map(opt => {
-          if (typeof opt === 'string') return { value: opt, label: opt };
+        const opts = (col.dropdownOptions || []).map((opt) => {
+          if (typeof opt === "string") return { value: opt, label: opt };
           if (opt.value !== undefined) return opt;
           return { value: String(opt.IDNumber ?? opt), label: opt.Name ?? String(opt) };
         });
@@ -476,7 +556,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       }
 
       case 9: {
-        const text = String(value ?? '');
+        const text = String(value ?? "");
         const lineCount = (text.match(/\n/g) || []).length + 1;
         return (
           <textarea
@@ -488,16 +568,17 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         );
       }
 
-      default: return <span className="cell-label">{value}</span>;
+      default:
+        return <span className="cell-label">{value}</span>;
     }
   };
 
   // ── Cell style helpers ────────────────────────────────────────────
-  const cellStyle = (col, rowType = 'body') => {
+  const cellStyle = (col, rowType = "body") => {
     const w = `${toPixels(columnWidths[col.id] || col.width) || 120}px`;
     const base = { width: w, minWidth: w, maxWidth: w };
     if (isColumnFixed(col)) {
-      base['--col-sticky-left'] = `${fixedLeftMap[col.id] ?? 0}px`;
+      base["--col-sticky-left"] = `${fixedLeftMap[col.id] ?? 0}px`;
     }
     return base;
   };
@@ -506,27 +587,36 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   const getHeaderThemeClass = (col) => getColumnHeaderThemeClass(col, columnEditOpts);
 
-  const focusCellControl = useCallback((e, col) => {
-    if (readOnly || col.key === 'cb') return;
-    if (e.target.closest('input, textarea, button, .search-select__trigger, .search-select__clear')) return;
-    const focusable = e.currentTarget.querySelector(
-      'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
-    );
-    if (focusable) {
-      e.preventDefault();
-      focusable.focus();
-    }
-  }, [readOnly]);
+  const focusCellControl = useCallback(
+    (e, col) => {
+      if (readOnly || col.key === "cb") return;
+      if (
+        e.target.closest("input, textarea, button, .search-select__trigger, .search-select__clear")
+      )
+        return;
+      const focusable = e.currentTarget.querySelector(
+        "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+      );
+      if (focusable) {
+        e.preventDefault();
+        focusable.focus();
+      }
+    },
+    [readOnly]
+  );
 
-  const handleGridKeyDown = useCallback((e) => {
-    if (!enableKeyboardNav || !tableWrapperRef.current) return;
-    handleGridKeyboardEvent(e, {
-      root: tableWrapperRef.current,
-      readOnly,
-      includeHeaderRow: readOnly,
-      onToggleRow: handleSelectRow,
-    });
-  }, [enableKeyboardNav, readOnly, handleSelectRow]);
+  const handleGridKeyDown = useCallback(
+    (e) => {
+      if (!enableKeyboardNav || !tableWrapperRef.current) return;
+      handleGridKeyboardEvent(e, {
+        root: tableWrapperRef.current,
+        readOnly,
+        includeHeaderRow: readOnly,
+        onToggleRow: handleSelectRow,
+      });
+    },
+    [enableKeyboardNav, readOnly, handleSelectRow]
+  );
 
   const handleScroll = useCallback((e) => {
     const el = e.target;
@@ -538,8 +628,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ─────────────────────────────────────────────────────────────────
   return (
-    <div className={`erp-grid-container erp-grid-container--dense erp-grid-container--fill ${resizing ? 'resizing' : ''}`}>
-
+    <div
+      className={`erp-grid-container erp-grid-container--dense erp-grid-container--fill ${resizing ? "resizing" : ""}`}
+    >
       {tabs && tabs.length > 0 ? (
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
@@ -547,16 +638,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               <button
                 key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? 'grid-tab--active' : ''}`}
+                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
                 onClick={() => onTabChange?.(t.id)}
               >
                 {t.label}
               </button>
             ))}
           </div>
-          {headerControls ? (
-            <div className="grid-tabbar__controls">{headerControls}</div>
-          ) : null}
+          {headerControls ? <div className="grid-tabbar__controls">{headerControls}</div> : null}
         </div>
       ) : title ? (
         <div className="grid-header">
@@ -571,12 +660,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           {selectedIds.size > 0 && (
             <div className="selection-bar">
               <span>{selectedIds.size} row(s) selected</span>
-              <button type="button" onClick={() => setSelectedIds(new Set())}>Clear selection</button>
+              <button type="button" onClick={() => setSelectedIds(new Set())}>
+                Clear selection
+              </button>
             </div>
           )}
 
           <div
-            className={`table-wrapper ${scrollState.left ? 'scrolled-left' : ''} ${scrollState.right ? 'scrolled-right' : ''}`}
+            className={`table-wrapper ${scrollState.left ? "scrolled-left" : ""} ${scrollState.right ? "scrolled-right" : ""}`}
             ref={tableWrapperRef}
             onScroll={handleScroll}
             onKeyDown={handleGridKeyDown}
@@ -584,14 +675,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             <table className="erp-table">
               <thead>
                 <tr>
-                  {columns.map(col => (
+                  {columns.map((col) => (
                     <th
                       key={col.id}
-                      className={`${cellClass(col) || ''} ${getHeaderThemeClass(col)}`}
-                      style={cellStyle(col, 'header')}
+                      className={`${cellClass(col) || ""} ${getHeaderThemeClass(col)}`}
+                      style={cellStyle(col, "header")}
                     >
-                      {col.key === 'cb' ? (
-                        <div className="header-cell-content" style={{ justifyContent: 'center' }}>
+                      {col.key === "cb" ? (
+                        <div className="header-cell-content" style={{ justifyContent: "center" }}>
                           <input
                             type="checkbox"
                             className="row-checkbox"
@@ -599,10 +690,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                             aria-label="Select all rows"
                             checked={
                               displayRows.length > 0 &&
-                              displayRows.every(r => selectedIds.has(String(r.id)))
+                              displayRows.every((r) => selectedIds.has(String(r.id)))
                             }
                             onChange={handleSelectAll}
-                            onClick={e => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
                           />
                         </div>
                       ) : (
@@ -610,56 +701,71 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                           <span
                             className="header-label"
                             onClick={() => handleSort(col.key)}
-                            style={{ cursor: 'pointer' }}
+                            style={{ cursor: "pointer" }}
                           >
                             {col.name}
                             {sortConfig.key === col.key && (
                               <span className="sort-icon">
-                                {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                {sortConfig.direction === "asc" ? "▲" : "▼"}
                               </span>
                             )}
                           </span>
                         </div>
                       )}
-                      <div className="resize-handle" onMouseDown={(e) => handleResizeStart(e, col.id)} />
+                      <div
+                        className="resize-handle"
+                        onMouseDown={(e) => handleResizeStart(e, col.id)}
+                      />
                     </th>
                   ))}
                 </tr>
               </thead>
 
               <tbody>
-                {displayRows.map(row => {
+                {displayRows.map((row) => {
                   const rowId = String(row.id);
-                  const hasChildren = enableCollapsible && childRowsMap && (childRowsMap[rowId]?.length > 0);
+                  const hasChildren =
+                    enableCollapsible && childRowsMap && childRowsMap[rowId]?.length > 0;
                   const isExpanded = hasChildren && expandedRows.has(rowId);
                   return (
                     <React.Fragment key={row.id}>
                       <tr
-                        className={selectedIds.has(rowId) ? 'selected' : ''}
+                        className={selectedIds.has(rowId) ? "selected" : ""}
                         data-eg-row-id={rowId}
                       >
-                        {columns.map(col => (
+                        {columns.map((col) => (
                           <td
                             key={`${row.id}-${col.id}`}
                             className={cellClass(col)}
-                            style={cellStyle(col, 'body')}
+                            style={cellStyle(col, "body")}
                             onMouseDown={(e) => focusCellControl(e, col)}
-                            onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
+                            onClick={() => {
+                              if (col.key === "cb") handleSelectRow(row.id);
+                            }}
                           >
                             <div className="cell-wrapper">
-                              {col.key === 'cb' ? (
+                              {col.key === "cb" ? (
                                 <div className="cell-checkbox">
                                   {hasChildren && (
                                     <button
                                       type="button"
                                       className="eg-expand-toggle"
-                                      onClick={(e) => { e.stopPropagation(); toggleExpand(row.id); }}
-                                      title={isExpanded ? 'Collapse indent details' : 'Expand indent details'}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleExpand(row.id);
+                                      }}
+                                      title={
+                                        isExpanded
+                                          ? "Collapse indent details"
+                                          : "Expand indent details"
+                                      }
                                       aria-expanded={isExpanded}
                                     >
-                                      {isExpanded
-                                        ? <ChevronDown size={11} strokeWidth={2.5} />
-                                        : <ChevronRight size={11} strokeWidth={2.5} />}
+                                      {isExpanded ? (
+                                        <ChevronDown size={11} strokeWidth={2.5} />
+                                      ) : (
+                                        <ChevronRight size={11} strokeWidth={2.5} />
+                                      )}
                                     </button>
                                   )}
                                   <input
@@ -667,7 +773,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                                     className="row-checkbox"
                                     checked={selectedIds.has(rowId)}
                                     onChange={() => handleSelectRow(row.id)}
-                                    onClick={e => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
                                     aria-label={`Select row ${row.id}`}
                                   />
                                 </div>
@@ -683,7 +789,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                         <tr className="eg-child-row">
                           <td colSpan={columns.length} className="eg-child-cell">
                             <InlineChildTable
-                              columns={childColumns.filter(c => c.key !== 'cb')}
+                              columns={childColumns.filter((c) => c.key !== "cb")}
                               rows={childRowsMap[rowId]}
                             />
                           </td>
@@ -695,10 +801,18 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
                 {displayRows.length === 0 && (
                   <tr>
-                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                      {emptyMessage ?? (readOnly
-                        ? 'No data available.'
-                        : <>Click <strong>Add New</strong> in the header panel to add a row.</>)}
+                    <td
+                      colSpan={columns.length}
+                      style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}
+                    >
+                      {emptyMessage ??
+                        (readOnly ? (
+                          "No data available."
+                        ) : (
+                          <>
+                            Click <strong>Add New</strong> in the header panel to add a row.
+                          </>
+                        ))}
                     </td>
                   </tr>
                 )}
@@ -708,29 +822,73 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
           <div className="pagination-bar">
             <div className="pagination-left">
-              Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> – <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of <strong>{processedRows.length}</strong> records
+              Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> –{" "}
+              <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of{" "}
+              <strong>{processedRows.length}</strong> records
             </div>
             <div className="pagination-right">
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Rows:</span>
-              <select className="page-size-select" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-                {pageSizeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Rows:</span>
+              <select
+                className="page-size-select"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                {pageSizeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </select>
-              <button type="button" className="page-btn" onClick={() => setPage(1)} disabled={safePage <= 1}>«</button>
-              <button type="button" className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>‹</button>
+              <button
+                type="button"
+                className="page-btn"
+                onClick={() => setPage(1)}
+                disabled={safePage <= 1}
+              >
+                «
+              </button>
+              <button
+                type="button"
+                className="page-btn"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+              >
+                ‹
+              </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2))
+                .filter(
+                  (p) => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2)
+                )
                 .map((p, idx, arr) => (
                   <React.Fragment key={p}>
-                    {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ color: 'var(--text-muted)', padding: '0 4px' }}>…</span>}
+                    {idx > 0 && arr[idx - 1] !== p - 1 && (
+                      <span style={{ color: "var(--text-muted)", padding: "0 4px" }}>…</span>
+                    )}
                     <button
                       type="button"
-                      className={`page-btn ${p === safePage ? 'active' : ''}`}
+                      className={`page-btn ${p === safePage ? "active" : ""}`}
                       onClick={() => setPage(p)}
-                    >{p}</button>
+                    >
+                      {p}
+                    </button>
                   </React.Fragment>
                 ))}
-              <button type="button" className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>›</button>
-              <button type="button" className="page-btn" onClick={() => setPage(totalPages)} disabled={safePage >= totalPages}>»</button>
+              <button
+                type="button"
+                className="page-btn"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                className="page-btn"
+                onClick={() => setPage(totalPages)}
+                disabled={safePage >= totalPages}
+              >
+                »
+              </button>
             </div>
           </div>
 
@@ -745,7 +903,6 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           )}
         </>
       )}
-
     </div>
   );
 });

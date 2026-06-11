@@ -7,22 +7,22 @@
 
 export const FORM_FOCUSABLE_SELECTOR = [
   'input:not([disabled]):not([readonly]):not([type="hidden"])',
-  'textarea:not([disabled]):not([readonly])',
-  'select:not([disabled])',
-  '.search-select__trigger:not([disabled])',
-  'button.efq-btn-run:not([disabled])',
-].join(', ');
+  "textarea:not([disabled]):not([readonly])",
+  "select:not([disabled])",
+  ".search-select__trigger:not([disabled])",
+  "button.efq-btn-run:not([disabled])",
+].join(", ");
 
 function isDropdownOpen(target) {
   return Boolean(
-    target?.closest?.('.search-select--open')
-    || target?.closest?.('.search-select__dropdown'),
+    target?.closest?.(".search-select--open") || target?.closest?.(".search-select__dropdown")
   );
 }
 
 function getVisibleFields(root) {
-  return [...root.querySelectorAll(FORM_FOCUSABLE_SELECTOR)]
-    .filter((el) => el.offsetParent !== null && el.tabIndex !== -1);
+  return [...root.querySelectorAll(FORM_FOCUSABLE_SELECTOR)].filter(
+    (el) => el.offsetParent !== null && el.tabIndex !== -1
+  );
 }
 
 function resolveFieldElement(target) {
@@ -39,7 +39,7 @@ export function bindFormKeyboardNav(root, { enabled = true } = {}) {
   if (!root || !enabled) return () => {};
 
   const onKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key !== "Enter" || e.altKey || e.ctrlKey || e.metaKey) return;
     if (isDropdownOpen(e.target)) return;
     if (e.target instanceof HTMLTextAreaElement && !e.shiftKey) return;
 
@@ -55,12 +55,14 @@ export function bindFormKeyboardNav(root, { enabled = true } = {}) {
 
     e.preventDefault();
     fields[nextIndex].focus();
-    if (fields[nextIndex] instanceof HTMLInputElement
-      && (fields[nextIndex].type === 'text' || fields[nextIndex].type === 'number')) {
+    if (
+      fields[nextIndex] instanceof HTMLInputElement &&
+      (fields[nextIndex].type === "text" || fields[nextIndex].type === "number")
+    ) {
       fields[nextIndex].select();
     }
   };
 
-  root.addEventListener('keydown', onKeyDown);
-  return () => root.removeEventListener('keydown', onKeyDown);
+  root.addEventListener("keydown", onKeyDown);
+  return () => root.removeEventListener("keydown", onKeyDown);
 }

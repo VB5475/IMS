@@ -47,7 +47,9 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  transition: background var(--transition), border-color var(--transition);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
   flex-shrink: 0;
 }
 
@@ -78,6 +80,12 @@
   white-space: nowrap;
 }
 
-.tbp-item__status--success { color: var(--success); }
-.tbp-item__status--warning { color: var(--warning); }
-.tbp-item__status--info { color: var(--secondary); }
+.tbp-item__status--success {
+  color: var(--success);
+}
+.tbp-item__status--warning {
+  color: var(--warning);
+}
+.tbp-item__status--info {
+  color: var(--secondary);
+}

@@ -1,6 +1,6 @@
-import React from 'react';
-import { Lightbulb, ArrowRight } from 'lucide-react';
-import './DecisionPanel.css';
+import React from "react";
+import { Lightbulb, ArrowRight } from "lucide-react";
+import "./DecisionPanel.css";
 
 export default function DecisionPanel() {
   return (

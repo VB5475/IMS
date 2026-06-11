@@ -1,17 +1,11 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
   buildSessionFromAuthRow,
   clearUserSession,
   getUserSession,
   initUserSession,
   setUserSession,
-} from '../session/userSession';
+} from "../session/userSession";
 
 initUserSession();
 
@@ -44,7 +38,7 @@ export function UserProvider({ children }) {
       login,
       logout,
     }),
-    [user, login, logout],
+    [user, login, logout]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
@@ -53,7 +47,7 @@ export function UserProvider({ children }) {
 export function useUser() {
   const ctx = useContext(UserContext);
   if (!ctx) {
-    throw new Error('useUser must be used within UserProvider');
+    throw new Error("useUser must be used within UserProvider");
   }
   return ctx;
 }
