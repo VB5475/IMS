@@ -13,7 +13,7 @@
 //                           button: Select Item
 //        • Terms tab      → static terms table
 //        Fixed controls (always): Approved filter | Delete
-//   4. TxnSummaryPanel      — live totals computed from grid rows (reusable)
+//   4. EnterpriseSummaryPanel — live totals computed from grid rows (reusable)
 //   5. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -25,7 +25,7 @@ import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPane
 import EntryGrid             from '../../components/grid/EntryGrid';
 import ActionBar             from '../../components/ui/ActionBar';
 import OrderItemModal        from '../../components/txn/OrderItemModal';
-import TxnSummaryPanel       from '../../components/summary/TxnSummaryPanel';
+import EnterpriseSummaryPanel from '../../components/filters/EnterpriseSummaryPanel';
 import SearchSelect          from '../../components/ui/SearchSelect';
 import { usePurchaseOrder }  from '../../hooks/usePurchaseOrder';
 import { useApi }            from '../../api/useApi';
@@ -817,7 +817,7 @@ export default function PurchaseOrderForm() {
       </section>
 
       {/* ── Summary totals — live from grid rows ── */}
-      <TxnSummaryPanel ref={summaryRef} fields={PO_SUMMARY_FIELDS} rows={gridRows} />
+      <EnterpriseSummaryPanel ref={summaryRef} fields={PO_SUMMARY_FIELDS} rows={gridRows} />
 
       <ActionBar
         alignEnd

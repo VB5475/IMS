@@ -1,6 +1,6 @@
-/* TxnSummaryPanel — horizontal summary/totals bar for transaction forms */
+/* EnterpriseSummaryPanel — horizontal summary/totals bar for enterprise forms */
 
-.txn-summary-panel {
+.enterprise-summary-panel {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -12,14 +12,14 @@
   flex-shrink: 0;
 }
 
-.txn-summary-panel__field {
+.enterprise-summary-panel__field {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 130px;
 }
 
-.txn-summary-panel__label {
+.enterprise-summary-panel__label {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -28,7 +28,7 @@
   white-space: nowrap;
 }
 
-.txn-summary-panel__input {
+.enterprise-summary-panel__input {
   width: 100%;
   height: 26px;
   padding: 0 6px;
@@ -44,6 +44,6 @@
   outline: none;
 }
 
-.txn-summary-panel__input:focus {
+.enterprise-summary-panel__input:focus {
   border-color: var(--primary);
 }

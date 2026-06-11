@@ -1,4 +1,4 @@
-// TxnSummaryPanel — reusable transaction summary / totals bar.
+// EnterpriseSummaryPanel — reusable summary / totals bar for enterprise forms.
 //
 // Computes column totals from live detail grid rows and exposes them
 // via ref for injection into the Save API master row.
@@ -16,19 +16,19 @@
 //
 // Usage:
 //   const summaryRef = useRef(null);
-//   <TxnSummaryPanel ref={summaryRef} fields={PO_SUMMARY_FIELDS} rows={gridRows} />
+//   <EnterpriseSummaryPanel ref={summaryRef} fields={PO_SUMMARY_FIELDS} rows={gridRows} />
 //   // Before save:
 //   const mstRow = { ...headerValues, ...summaryRef.current.getSummary() };
 
 import React, { useMemo, useImperativeHandle, forwardRef } from 'react';
-import './TxnSummaryPanel.css';
+import './EnterpriseSummaryPanel.css';
 
 function fmt(val) {
   const n = Number(val);
   return isNaN(n) ? '0.00' : n.toFixed(2);
 }
 
-const TxnSummaryPanel = forwardRef(function TxnSummaryPanel(
+const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
   { fields = [], rows = [] },
   ref,
 ) {
@@ -49,16 +49,16 @@ const TxnSummaryPanel = forwardRef(function TxnSummaryPanel(
   }), [summary]);
 
   return (
-    <section className="txn-summary-panel" aria-label="Transaction summary">
+    <section className="enterprise-summary-panel" aria-label="Transaction summary">
       {fields.map(({ detKey, mstKey, label }) => {
         const k = mstKey || detKey;
         return (
-          <div key={k} className="txn-summary-panel__field">
-            <span className="txn-summary-panel__label">{label}</span>
+          <div key={k} className="enterprise-summary-panel__field">
+            <span className="enterprise-summary-panel__label">{label}</span>
             <input
               type="text"
               readOnly
-              className="txn-summary-panel__input"
+              className="enterprise-summary-panel__input"
               value={fmt(summary[k])}
               aria-label={label}
               tabIndex={-1}
@@ -70,4 +70,4 @@ const TxnSummaryPanel = forwardRef(function TxnSummaryPanel(
   );
 });
 
-export default TxnSummaryPanel;
+export default EnterpriseSummaryPanel;

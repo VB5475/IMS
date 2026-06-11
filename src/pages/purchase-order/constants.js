@@ -119,7 +119,7 @@ export const INDENT_DETAILS_COLUMNS = [
 ];
 
 // Summary fields — detKey maps detail row columns; mstKey maps master save payload keys.
-// Used by TxnSummaryPanel (reactive live totals + getSummary() for Save API).
+// Used by EnterpriseSummaryPanel (reactive live totals + getSummary() for Save API).
 // detKey must match the exact field name returned by fn_tbl_RB_PurPODet_Event response.
 export const PO_SUMMARY_FIELDS = [
   { detKey: 'BaseAmount',    label: 'Base Amount',     mstKey: 'MstBaseAmount'    },

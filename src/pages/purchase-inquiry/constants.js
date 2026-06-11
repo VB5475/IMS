@@ -123,7 +123,7 @@ export const SUPPLIER_GRID_CONFIG = {
 };
 
 // Summary fields — detKey sums detail rows; mstKey maps to master save payload.
-// Used by TxnSummaryPanel (reactive live totals + getSummary() for Save API).
+// Used by EnterpriseSummaryPanel (reactive live totals + getSummary() for Save API).
 // detKey must match the exact field name returned by fn_tbl_RB_PurInquiryDet_Event response.
 export const PI_SUMMARY_FIELDS = [
   { detKey: 'BaseAmount',    label: 'Base Amount',     mstKey: 'MstBaseAmount'    },
