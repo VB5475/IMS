@@ -12,20 +12,12 @@
 //
 // All API calls go through useApi().get(endpoint, params).
 
-import { useState, useCallback, useRef } from 'react';
-import { useApi } from '../api/useApi';
-import { getUserSession } from '../session/userSession';
-import {
-  ENDPOINTS,
-  API_BASE_URL,
-  getColDefault,
-  OBJ_TYPE,
-} from '../api/constants';
-import { TXN_CONFIG } from '../pages/txn-entry/constants';
-import {
-  fetchDropdownOptions,
-  buildGridColumns,
-} from '../utils/gridUtils';
+import { useState, useCallback, useRef } from "react";
+import { useApi } from "../api/useApi";
+import { getUserSession } from "../session/userSession";
+import { ENDPOINTS, API_BASE_URL, getColDefault, OBJ_TYPE } from "../api/constants";
+import { TXN_CONFIG } from "../pages/txn-entry/constants";
+import { fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
@@ -70,15 +62,15 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         ObjName: TXN_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg: '',
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.Table?.[0];
-      if (!tableRow) throw new Error('No header RB metadata returned from server.');
+      if (!tableRow) throw new Error("No header RB metadata returned from server.");
 
       const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
       setHeaderRbMeta(hdrMeta);
       localStorage.setItem(TXN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
-      console.log('%c[TxnEntry] Header meta stored:', 'color:#8b5cf6;font-weight:600', hdrMeta);
+      console.log("%c[TxnEntry] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
 
       // Step 2 — header column definitions
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
@@ -87,7 +79,11 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
       });
       const apiColumns = colData?.Links || [];
       setHeaderColumns(apiColumns);
-      console.log('%c[TxnEntry] Header columns received:', 'color:#8b5cf6;font-weight:600', apiColumns.length);
+      console.log(
+        "%c[TxnEntry] Header columns received:",
+        "color:#8b5cf6;font-weight:600",
+        apiColumns.length
+      );
 
       // Step 3 — dropdown options + Division list  (parallel)
       const [colDropdownOptions, divisionData] = await Promise.all([
@@ -95,33 +91,37 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: TXN_CONFIG.SP_DIVISIONS,
-          JSon: JSON.stringify([{
-            prmUserID: getUserSession().loginId,
-            prmCompanyID: TXN_CONFIG.COMPANY_ID,
-            prmYearID: TXN_CONFIG.DIVISION_YEAR_ID,
-          }]),
+          JSon: JSON.stringify([
+            {
+              prmUserID: getUserSession().loginId,
+              prmCompanyID: TXN_CONFIG.COMPANY_ID,
+              prmYearID: TXN_CONFIG.DIVISION_YEAR_ID,
+            },
+          ]),
           p_ErrCode: -1,
-          p_ErrMsg: '',
-        }).catch(err => {
-          console.warn('[TxnEntry] Division fetch failed:', err);
+          p_ErrMsg: "",
+        }).catch((err) => {
+          console.warn("[TxnEntry] Division fetch failed:", err);
           return null;
         }),
       ]);
 
       setHeaderDropdownOpts(colDropdownOptions);
 
-      const divOpts = (divisionData?.Table || []).map(row => ({
+      const divOpts = (divisionData?.Table || []).map((row) => ({
         value: String(row.DivisionID),
         label: row.DivisionName,
       }));
       setDivisionOptions(divOpts);
-      console.log('%c[TxnEntry] Division options:', 'color:#22c55e;font-weight:600', divOpts);
-      console.log('%c[TxnEntry] Header columns synced:', 'color:#22c55e;font-weight:600',
-        apiColumns.map(c => `${c.DisplayName} (${c.ColName})`));
-
+      console.log("%c[TxnEntry] Division options:", "color:#22c55e;font-weight:600", divOpts);
+      console.log(
+        "%c[TxnEntry] Header columns synced:",
+        "color:#22c55e;font-weight:600",
+        apiColumns.map((c) => `${c.DisplayName} (${c.ColName})`)
+      );
     } catch (err) {
-      console.error('[TxnEntry] fetchHeaderMeta failed:', err);
-      setHeaderError(err?.message || 'Failed to load header configuration.');
+      console.error("[TxnEntry] fetchHeaderMeta failed:", err);
+      setHeaderError(err?.message || "Failed to load header configuration.");
     } finally {
       setHeaderFetching(false);
     }
@@ -142,16 +142,16 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         ObjName: TXN_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_DETAIL }]),
         p_ErrCode: -1,
-        p_ErrMsg: '',
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.Table?.[0];
-      if (!tableRow) throw new Error('No RB metadata returned from server.');
+      if (!tableRow) throw new Error("No RB metadata returned from server.");
 
       const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
       setRbMeta(meta);
       rawDetailRbMetaRef.current = meta;
       localStorage.setItem(TXN_CONFIG.STORAGE_ENTRY_META, JSON.stringify(meta));
-      console.log('%c[TxnEntry] Meta stored:', 'color:#6366f1;font-weight:600', meta);
+      console.log("%c[TxnEntry] Meta stored:", "color:#6366f1;font-weight:600", meta);
 
       // Step B — column definitions (allColumns only — no dropdowns yet)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
@@ -159,19 +159,22 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         prmLoginID: getUserSession().loginId,
       });
       const apiColumns = colData?.Links || [];
-      console.log('%c[TxnEntry] Raw columns received:', 'color:#6366f1;font-weight:600', apiColumns.length);
+      console.log(
+        "%c[TxnEntry] Raw columns received:",
+        "color:#6366f1;font-weight:600",
+        apiColumns.length
+      );
 
       // Store raw columns in ref for use by fetchGridColumns later
       rawDetailColumnsRef.current = apiColumns;
 
       // allColumns lets TxnEntryForm seed blank rows with correct defaults
       setAllColumns(
-        apiColumns.map(c => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
       );
-
     } catch (err) {
-      console.error('[TxnEntry] fetchTxnMeta failed:', err);
-      setMetaError(err?.message || 'Failed to load form configuration.');
+      console.error("[TxnEntry] fetchTxnMeta failed:", err);
+      setMetaError(err?.message || "Failed to load form configuration.");
     } finally {
       setIsFetching(false);
     }
@@ -183,60 +186,74 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
   // divisionID — taken from the Division field in the header filter panel
   //   so GET_FILTER_DETAIL receives the correct prmDivisionID.
   // Returns the built columns array so the caller can use them immediately.
-  const fetchGridColumns = useCallback(async (divisionID = 0) => {
-    const apiColumns = rawDetailColumnsRef.current;
-    const meta = rawDetailRbMetaRef.current;
+  const fetchGridColumns = useCallback(
+    async (divisionID = 0) => {
+      const apiColumns = rawDetailColumnsRef.current;
+      const meta = rawDetailRbMetaRef.current;
 
-    if (!apiColumns.length || !meta) {
-      console.warn('[TxnEntry] fetchGridColumns called before fetchTxnMeta completed.');
-      return [];
-    }
+      if (!apiColumns.length || !meta) {
+        console.warn("[TxnEntry] fetchGridColumns called before fetchTxnMeta completed.");
+        return [];
+      }
 
-    try {
-      console.log('%c[TxnEntry] Fetching grid dropdown options…', 'color:#6366f1;font-weight:600',
-        { divisionID });
-      const colDropdownOptions = await fetchDropdownOptions(
-        get, apiColumns, meta.RBID,
-        { funcCode: TXN_CONFIG.RB_DETAIL, divisionID: Number(divisionID) || 0 }
-      );
-      const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
-        filterable: false,
-        allEditable: true,
-      });
-      setColumns(gridColumns);
-      console.log('%c[TxnEntry] Grid columns built:', 'color:#22c55e;font-weight:600',
-        `${gridColumns.length} cols`);
-      return gridColumns;
-    } catch (err) {
-      console.error('[TxnEntry] fetchGridColumns failed:', err);
-      return [];
-    }
-  }, [get]);
+      try {
+        console.log(
+          "%c[TxnEntry] Fetching grid dropdown options…",
+          "color:#6366f1;font-weight:600",
+          { divisionID }
+        );
+        const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
+          funcCode: TXN_CONFIG.RB_DETAIL,
+          divisionID: Number(divisionID) || 0,
+        });
+        const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
+          filterable: false,
+          allEditable: true,
+        });
+        setColumns(gridColumns);
+        console.log(
+          "%c[TxnEntry] Grid columns built:",
+          "color:#22c55e;font-weight:600",
+          `${gridColumns.length} cols`
+        );
+        return gridColumns;
+      } catch (err) {
+        console.error("[TxnEntry] fetchGridColumns failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
 
   // ── Cell event: fire server-side calculation on Tab ─────────────
-  const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
-    setIsEventFiring(true);
-    try {
-      const { id, ...newRowData } = rowData;
-      console.log('see trimmedRowData:', newRowData);
-      console.log('see headerValues:', headerValues);
+  const fireCellEvent = useCallback(
+    async (colName, rowData, headerValues) => {
+      setIsEventFiring(true);
+      try {
+        const { id, ...newRowData } = rowData;
+        console.log("see trimmedRowData:", newRowData);
+        console.log("see headerValues:", headerValues);
 
-      const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-        GridEventFuncName: TXN_CONFIG.SP_GRID_EVENT,
-        EventColName: colName,
-        DetJSON: JSON.stringify([newRowData]),
-        MstJSon: JSON.stringify([headerValues]),
-      });
-      console.log('%c[TxnEntry] CellEvent response:',
-        'color:#f59e0b;font-weight:600', { col: colName, result });
-      return result;
-    } catch (err) {
-      console.error('[TxnEntry] fireCellEvent failed:', err);
-      return null;
-    } finally {
-      setIsEventFiring(false);
-    }
-  }, [get]);
+        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
+          GridEventFuncName: TXN_CONFIG.SP_GRID_EVENT,
+          EventColName: colName,
+          DetJSON: JSON.stringify([newRowData]),
+          MstJSon: JSON.stringify([headerValues]),
+        });
+        console.log("%c[TxnEntry] CellEvent response:", "color:#f59e0b;font-weight:600", {
+          col: colName,
+          result,
+        });
+        return result;
+      } catch (err) {
+        console.error("[TxnEntry] fireCellEvent failed:", err);
+        return null;
+      } finally {
+        setIsEventFiring(false);
+      }
+    },
+    [get]
+  );
 
   // ── saveTxn — save master (header) + detail (grid) to backend ──────
   // Reads SaveProcName from localStorage for both master and detail.
@@ -246,73 +263,71 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
-  const saveTxn = useCallback(async (headerValues, detailRows, genIDNumber = 0) => {
-    setIsSaving(true);
-    setSaveError(null);
+  const saveTxn = useCallback(
+    async (headerValues, detailRows, genIDNumber = 0) => {
+      setIsSaving(true);
+      setSaveError(null);
 
-    try {
-      // Read proc names from localStorage
-      const mstMeta = JSON.parse(localStorage.getItem(TXN_CONFIG.STORAGE_HEADER_META) || 'null');
-      const detMeta = JSON.parse(localStorage.getItem(TXN_CONFIG.STORAGE_ENTRY_META) || 'null');
+      try {
+        // Read proc names from localStorage
+        const mstMeta = JSON.parse(localStorage.getItem(TXN_CONFIG.STORAGE_HEADER_META) || "null");
+        const detMeta = JSON.parse(localStorage.getItem(TXN_CONFIG.STORAGE_ENTRY_META) || "null");
 
-      if (!mstMeta || !detMeta) {
-        throw new Error('Missing save configuration. Please refresh and try again.');
+        if (!mstMeta || !detMeta) {
+          throw new Error("Missing save configuration. Please refresh and try again.");
+        }
+
+        // Strip internal 'id' field from each detail row before sending
+        // const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
+        // // console.log("see the cleanedRows:", cleanedRows)
+        // const params = {
+        //   PrmStrMstRBName: DEFAULT_RB_CODE_TXN_MST,
+        //   prmStrMstJSON: JSON.stringify([headerValues]),
+        //   prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+        //   prmstrDetailSaveProcName: detMeta?.SaveProcName,
+        //   PrmStrDetRBName: DEFAULT_RB_CODE_TXN,
+        //   prmStrDetJSON: JSON.stringify(cleanedRows),
+        //   GenIDNumber: genIDNumber,
+        //   p_ErrCode: -1,
+        //   p_ErrMsg: '',
+        // };
+
+        // // console.log('%c[TxnEntry] Saving transaction…', 'color:#f59e0b;font-weight:600', params);
+
+        // const result = await get(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, params);
+
+        // console.log('%c[TxnEntry] Save result:', 'color:#22c55e;font-weight:600', result);
+        // return result;
+
+        // Strip internal 'id' field from each detail row before sending
+        const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
+
+        const body = {
+          PrmStrMstRBName: TXN_CONFIG.RB_MASTER,
+          prmStrMstJSON: JSON.stringify([headerValues]),
+          prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+          prmstrDetailSaveProcName: detMeta?.SaveProcName,
+          PrmStrDetRBName: TXN_CONFIG.RB_DETAIL,
+          prmStrDetJSON: JSON.stringify(cleanedRows),
+          GenIDNumber: genIDNumber,
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        };
+
+        const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);
+
+        console.log("%c[TxnEntry] Save result:", "color:#22c55e;font-weight:600", result);
+        return result;
+      } catch (err) {
+        console.error("[TxnEntry] saveTxn failed:", err);
+        setSaveError(err?.message || "Save failed. Please try again.");
+        throw err;
+      } finally {
+        setIsSaving(false);
       }
-
-      // Strip internal 'id' field from each detail row before sending
-      // const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-      // // console.log("see the cleanedRows:", cleanedRows)
-      // const params = {
-      //   PrmStrMstRBName: DEFAULT_RB_CODE_TXN_MST,
-      //   prmStrMstJSON: JSON.stringify([headerValues]),
-      //   prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-      //   prmstrDetailSaveProcName: detMeta?.SaveProcName,
-      //   PrmStrDetRBName: DEFAULT_RB_CODE_TXN,
-      //   prmStrDetJSON: JSON.stringify(cleanedRows),
-      //   GenIDNumber: genIDNumber,
-      //   p_ErrCode: -1,
-      //   p_ErrMsg: '',
-      // };
-
-      // // console.log('%c[TxnEntry] Saving transaction…', 'color:#f59e0b;font-weight:600', params);
-
-      // const result = await get(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, params);
-
-      // console.log('%c[TxnEntry] Save result:', 'color:#22c55e;font-weight:600', result);
-      // return result;
-
-
-      // Strip internal 'id' field from each detail row before sending
-      const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-
-      const body = {
-        PrmStrMstRBName: TXN_CONFIG.RB_MASTER,
-        prmStrMstJSON: JSON.stringify([headerValues]),
-        prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-        prmstrDetailSaveProcName: detMeta?.SaveProcName,
-        PrmStrDetRBName: TXN_CONFIG.RB_DETAIL,
-        prmStrDetJSON: JSON.stringify(cleanedRows),
-        GenIDNumber: genIDNumber,
-        p_ErrCode: -1,
-        p_ErrMsg: '',
-      };
-
-      const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);
-
-      console.log('%c[TxnEntry] Save result:', 'color:#22c55e;font-weight:600', result);
-      return result;
-
-
-
-
-    } catch (err) {
-      console.error('[TxnEntry] saveTxn failed:', err);
-      setSaveError(err?.message || 'Save failed. Please try again.');
-      throw err;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [post]);
+    },
+    [post]
+  );
 
   return {
     // Grid (detail)
@@ -323,7 +338,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
     isEventFiring,
     metaError,
     fetchTxnMeta,
-    fetchGridColumns,   // call on first "Add New" click
+    fetchGridColumns, // call on first "Add New" click
     fireCellEvent,
 
     // Header (master) — raw API columns for syncing

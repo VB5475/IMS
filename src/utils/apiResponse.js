@@ -4,21 +4,21 @@
 function normalizeApiPayload(result) {
   if (result == null) return result;
 
-  if (typeof result === 'string') {
+  if (typeof result === "string") {
     try {
       return JSON.parse(result);
     } catch {
-      return { ErrMsg: [{ ErrCode: '-1', ErrMsg: result }] };
+      return { ErrMsg: [{ ErrCode: "-1", ErrMsg: result }] };
     }
   }
 
   if (result.d !== undefined && result.d !== null) {
     const inner = result.d;
-    if (typeof inner === 'string') {
+    if (typeof inner === "string") {
       try {
         return JSON.parse(inner);
       } catch {
-        return { ErrMsg: [{ ErrCode: '-1', ErrMsg: inner }] };
+        return { ErrMsg: [{ ErrCode: "-1", ErrMsg: inner }] };
       }
     }
     return inner;
@@ -28,7 +28,7 @@ function normalizeApiPayload(result) {
 }
 
 function pickField(obj, ...keys) {
-  if (!obj || typeof obj !== 'object') return undefined;
+  if (!obj || typeof obj !== "object") return undefined;
   for (const key of keys) {
     if (obj[key] !== undefined && obj[key] !== null) return obj[key];
   }
@@ -40,26 +40,29 @@ function toErrEntries(payload) {
 
   if (Array.isArray(payload) && payload.length > 0) {
     const first = payload[0];
-    if (pickField(first, 'ErrCode', 'errCode', 'p_ErrCode') !== undefined
-      || pickField(first, 'ErrMsg', 'errMsg', 'p_ErrMsg') !== undefined) {
+    if (
+      pickField(first, "ErrCode", "errCode", "p_ErrCode") !== undefined ||
+      pickField(first, "ErrMsg", "errMsg", "p_ErrMsg") !== undefined
+    ) {
       return payload;
     }
   }
 
-  let entries = pickField(payload, 'ErrMsg', 'errMsg');
+  let entries = pickField(payload, "ErrMsg", "errMsg");
   if (entries && !Array.isArray(entries)) entries = [entries];
   if (Array.isArray(entries) && entries.length > 0) return entries;
 
   const tableRow = payload?.Table?.[0];
-  if (tableRow && (
-    pickField(tableRow, 'ErrCode', 'errCode', 'p_ErrCode') !== undefined
-    || pickField(tableRow, 'ErrMsg', 'errMsg', 'p_ErrMsg') !== undefined
-  )) {
+  if (
+    tableRow &&
+    (pickField(tableRow, "ErrCode", "errCode", "p_ErrCode") !== undefined ||
+      pickField(tableRow, "ErrMsg", "errMsg", "p_ErrMsg") !== undefined)
+  ) {
     return [tableRow];
   }
 
-  const errCode = pickField(payload, 'ErrCode', 'errCode', 'p_ErrCode');
-  const errMsg = pickField(payload, 'ErrMsg', 'errMsg', 'p_ErrMsg');
+  const errCode = pickField(payload, "ErrCode", "errCode", "p_ErrCode");
+  const errMsg = pickField(payload, "ErrMsg", "errMsg", "p_ErrMsg");
   if (errCode !== undefined || errMsg !== undefined) {
     return [{ ErrCode: errCode, ErrMsg: errMsg }];
   }
@@ -80,13 +83,13 @@ export function parseApiErrMsg(result) {
     return {
       success: false,
       errCode: null,
-      message: 'Unexpected response from server.',
+      message: "Unexpected response from server.",
     };
   }
 
   const row = entries[0] ?? {};
-  const errCode = Number(pickField(row, 'ErrCode', 'errCode', 'p_ErrCode'));
-  const message = String(pickField(row, 'ErrMsg', 'errMsg', 'p_ErrMsg') ?? '').trim();
+  const errCode = Number(pickField(row, "ErrCode", "errCode", "p_ErrCode"));
+  const message = String(pickField(row, "ErrMsg", "errMsg", "p_ErrMsg") ?? "").trim();
 
   return {
     success: errCode === 1,

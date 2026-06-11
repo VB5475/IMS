@@ -9,13 +9,13 @@
 //   rows     {Array}   — data rows; each row must have a field per column key
 //   defaultExpanded {boolean} — whether to start open (default false)
 
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import './CollapsibleGrid.css';
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import "./CollapsibleGrid.css";
 
 export default function CollapsibleGrid({
-  title = 'Details',
-  subtitle = '',
+  title = "Details",
+  subtitle = "",
   columns = [],
   rows = [],
   defaultExpanded = false,
@@ -31,9 +31,11 @@ export default function CollapsibleGrid({
         aria-expanded={expanded}
       >
         <span className="cg-header__chevron">
-          {expanded
-            ? <ChevronDown  size={13} strokeWidth={2.5} />
-            : <ChevronRight size={13} strokeWidth={2.5} />}
+          {expanded ? (
+            <ChevronDown size={13} strokeWidth={2.5} />
+          ) : (
+            <ChevronRight size={13} strokeWidth={2.5} />
+          )}
         </span>
         <span className="cg-header__title">{title}</span>
         {subtitle && <span className="cg-header__sub">{subtitle}</span>}
@@ -64,7 +66,7 @@ export default function CollapsibleGrid({
                   rows.map((row, idx) => (
                     <tr key={row.id ?? idx}>
                       {columns.map((col) => (
-                        <td key={col.key}>{row[col.key] ?? '—'}</td>
+                        <td key={col.key}>{row[col.key] ?? "—"}</td>
                       ))}
                     </tr>
                   ))

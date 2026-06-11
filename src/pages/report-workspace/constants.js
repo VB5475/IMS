@@ -3,11 +3,11 @@
 
 export const REPORT_WORKSPACE_CONFIG = {
   // Default values injected into proc-string parameters by @param name
-  LOGIN_ID:    1,
-  COMPANY_ID:  1,
-  YEAR_ID:     13,
-  SESSION_ID:  88,
+  LOGIN_ID: 1,
+  COMPANY_ID: 1,
+  YEAR_ID: 13,
+  SESSION_ID: 88,
 
   // localStorage key for cached master detail
-  STORAGE_MASTER_DETAIL: 'masterDetail',
+  STORAGE_MASTER_DETAIL: "masterDetail",
 };

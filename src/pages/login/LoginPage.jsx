@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   ShieldCheck,
@@ -22,18 +22,23 @@ import {
   Server,
   KeyRound,
   Quote,
-} from 'lucide-react';
-import { useApi } from '../../api/useApi';
-import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from '../../api/constants';
-import { useUser } from '../../context/UserContext';
-import { LOGIN_CONFIG } from './constants';
-import Loader from '../../components/ui/Loader';
-import './LoginPage.css';
+} from "lucide-react";
+import { useApi } from "../../api/useApi";
+import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../../api/constants";
+import { useUser } from "../../context/UserContext";
+import { LOGIN_CONFIG } from "./constants";
+import Loader from "../../components/ui/Loader";
+import "./LoginPage.css";
 
 const DESIGN_TABS = [
-  { id: 'horizon', label: 'Horizon', Icon: Layers, desc: 'Split workspace · flagship ERP' },
-  { id: 'meridian', label: 'Meridian', Icon: LayoutDashboard, desc: 'Product preview · value-first split' },
-  { id: 'citadel', label: 'Citadel', Icon: Shield, desc: 'Trust center · security-led sign-in' },
+  { id: "horizon", label: "Horizon", Icon: Layers, desc: "Split workspace · flagship ERP" },
+  {
+    id: "meridian",
+    label: "Meridian",
+    Icon: LayoutDashboard,
+    desc: "Product preview · value-first split",
+  },
+  { id: "citadel", label: "Citadel", Icon: Shield, desc: "Trust center · security-led sign-in" },
 ];
 
 function LoginProductPreview() {
@@ -71,20 +76,26 @@ function LoginProductPreview() {
             </div>
           </div>
           <div className="login-preview__chart">
-            <div className="login-preview__bar" style={{ height: '42%' }} />
-            <div className="login-preview__bar" style={{ height: '68%' }} />
-            <div className="login-preview__bar" style={{ height: '55%' }} />
-            <div className="login-preview__bar" style={{ height: '82%' }} />
-            <div className="login-preview__bar" style={{ height: '61%' }} />
-            <div className="login-preview__bar" style={{ height: '74%' }} />
+            <div className="login-preview__bar" style={{ height: "42%" }} />
+            <div className="login-preview__bar" style={{ height: "68%" }} />
+            <div className="login-preview__bar" style={{ height: "55%" }} />
+            <div className="login-preview__bar" style={{ height: "82%" }} />
+            <div className="login-preview__bar" style={{ height: "61%" }} />
+            <div className="login-preview__bar" style={{ height: "74%" }} />
           </div>
         </div>
       </div>
 
       <ul className="login-preview__bullets">
-        <li><CheckCircle2 size={14} /> Real-time inventory &amp; procurement</li>
-        <li><CheckCircle2 size={14} /> Division-wise access controls</li>
-        <li><CheckCircle2 size={14} /> Audit-ready transaction history</li>
+        <li>
+          <CheckCircle2 size={14} /> Real-time inventory &amp; procurement
+        </li>
+        <li>
+          <CheckCircle2 size={14} /> Division-wise access controls
+        </li>
+        <li>
+          <CheckCircle2 size={14} /> Audit-ready transaction history
+        </li>
       </ul>
     </div>
   );
@@ -95,16 +106,22 @@ function buildBootstrapParams(loginId) {
     ObjType: OBJ_TYPE.FUNCTION,
     JSon: JSON.stringify([{ prmLoginID: loginId }]),
     p_ErrCode: -1,
-    p_ErrMsg: '',
+    p_ErrMsg: "",
   };
 }
 
 function LoginSecurityStrip() {
   return (
     <div className="login-security-strip">
-      <span><ShieldCheck size={13} /> Encrypted session</span>
-      <span><KeyRound size={13} /> Role-based access</span>
-      <span><Server size={13} /> On-premise ready</span>
+      <span>
+        <ShieldCheck size={13} /> Encrypted session
+      </span>
+      <span>
+        <KeyRound size={13} /> Role-based access
+      </span>
+      <span>
+        <Server size={13} /> On-premise ready
+      </span>
     </div>
   );
 }
@@ -202,13 +219,15 @@ function LoginForm({
           <div className="login-field">
             <div className="login-field__row">
               <label htmlFor="password">Password</label>
-              <button type="button" className="login-field__link">Forgot password?</button>
+              <button type="button" className="login-field__link">
+                Forgot password?
+              </button>
             </div>
             <div className="login-field__password">
               <input
                 className="login-field__control"
                 id="password"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -217,7 +236,7 @@ function LoginForm({
                 type="button"
                 className="login-field__toggle"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -230,7 +249,7 @@ function LoginForm({
           </label>
 
           <button type="submit" className="login-submit" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Sign In'}
+            {submitting ? "Signing in…" : "Sign In"}
             {!submitting && <LogIn size={15} />}
           </button>
         </form>
@@ -249,28 +268,28 @@ export default function LoginPage() {
   const { get } = useApi(API_BASE_URL);
   const { login, isAuthenticated } = useUser();
 
-  const [design, setDesign] = useState('horizon');
+  const [design, setDesign] = useState("horizon");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
   const [companies, setCompanies] = useState([]);
   const [years, setYears] = useState([]);
-  const [companyId, setCompanyId] = useState('');
-  const [yearId, setYearId] = useState('');
-  const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState('');
+  const [companyId, setCompanyId] = useState("");
+  const [yearId, setYearId] = useState("");
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
   const loadLoginOptions = useCallback(async () => {
     setLoadingOptions(true);
-    setError('');
+    setError("");
     try {
       const bootstrap = buildBootstrapParams(LOGIN_CONFIG.BOOTSTRAP_LOGIN_ID);
       const [companyRes, yearRes] = await Promise.all([
@@ -290,8 +309,8 @@ export default function LoginPage() {
         setYearId(String(yearRows[0].YearID));
       }
     } catch (err) {
-      console.error('[LoginPage] bootstrap fetch failed:', err);
-      setError('Failed to load company or financial year options.');
+      console.error("[LoginPage] bootstrap fetch failed:", err);
+      setError("Failed to load company or financial year options.");
     } finally {
       setLoadingOptions(false);
     }
@@ -303,34 +322,36 @@ export default function LoginPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
+    setError("");
     setSubmitting(true);
 
     try {
       const authRes = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: LOGIN_CONFIG.SP_AUTH,
-        JSon: JSON.stringify([{
-          prmUserID: userId.trim(),
-          prmPassword: password,
-          prmCompanyID: Number(companyId),
-          prmYearID: Number(yearId),
-        }]),
+        JSon: JSON.stringify([
+          {
+            prmUserID: userId.trim(),
+            prmPassword: password,
+            prmCompanyID: Number(companyId),
+            prmYearID: Number(yearId),
+          },
+        ]),
         p_ErrCode: -1,
-        p_ErrMsg: '',
+        p_ErrMsg: "",
       });
 
       const authRow = authRes?.Table?.[0];
       if (!authRow?.LoginID) {
-        setError('Invalid user ID or password. Please try again.');
+        setError("Invalid user ID or password. Please try again.");
         return;
       }
 
       login(authRow, { companyId, yearId });
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
-      console.error('[LoginPage] authentication failed:', err);
-      setError(err?.message || 'Sign in failed. Please try again.');
+      console.error("[LoginPage] authentication failed:", err);
+      setError(err?.message || "Sign in failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -373,7 +394,7 @@ export default function LoginPage() {
               type="button"
               role="tab"
               aria-selected={design === id}
-              className={`login-theme-tab${design === id ? ' login-theme-tab--active' : ''}`}
+              className={`login-theme-tab${design === id ? " login-theme-tab--active" : ""}`}
               onClick={() => setDesign(id)}
             >
               <Icon size={14} />
@@ -381,9 +402,7 @@ export default function LoginPage() {
             </button>
           ))}
         </div>
-        {activeTab && (
-          <p className="login-theme-bar__hint">{activeTab.desc}</p>
-        )}
+        {activeTab && <p className="login-theme-bar__hint">{activeTab.desc}</p>}
       </div>
 
       <section className="login-hero login-hero--horizon">
@@ -402,8 +421,8 @@ export default function LoginPage() {
           <div className="login-hero__intro">
             <h2>Run operations with clarity and control</h2>
             <p>
-              Inventory, procurement, invoicing, and executive reporting —
-              built for teams that need speed without sacrificing compliance.
+              Inventory, procurement, invoicing, and executive reporting — built for teams that need
+              speed without sacrificing compliance.
             </p>
           </div>
 
@@ -433,11 +452,17 @@ export default function LoginPage() {
         </div>
 
         <div className="login-hero__trust">
-          <span><ShieldCheck size={14} /> Secure access</span>
+          <span>
+            <ShieldCheck size={14} /> Secure access
+          </span>
           <span className="login-hero__dot" aria-hidden="true" />
-          <span><Lock size={14} /> Audit-ready</span>
+          <span>
+            <Lock size={14} /> Audit-ready
+          </span>
           <span className="login-hero__dot" aria-hidden="true" />
-          <span><CheckCircle2 size={14} /> Enterprise SLA</span>
+          <span>
+            <CheckCircle2 size={14} /> Enterprise SLA
+          </span>
         </div>
       </section>
 
@@ -451,8 +476,8 @@ export default function LoginPage() {
             <blockquote className="login-testimonial">
               <Quote size={18} className="login-testimonial__icon" />
               <p>
-                Horizon cut our purchase inquiry cycle from days to hours.
-                Finance and operations finally share one source of truth.
+                Horizon cut our purchase inquiry cycle from days to hours. Finance and operations
+                finally share one source of truth.
               </p>
               <footer>
                 <strong>Operations Director</strong>

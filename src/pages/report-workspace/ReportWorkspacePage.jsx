@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
-import EnterpriseGrid from '../../components/grid/EnterpriseGrid';
-import Loader from '../../components/ui/Loader';
-import { useGridSearch } from '../../hooks/useGridSearch';
-import { gridMeta } from '../../data/dummyData';
-import { AlertCircle, Search } from 'lucide-react';
-import { usePageHeader } from '../../context/PageHeaderContext';
-import { API_BASE_URL_OLD } from '../../api/constants';
-import './ReportWorkspacePage.css';
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import EnterpriseGrid from "../../components/grid/EnterpriseGrid";
+import Loader from "../../components/ui/Loader";
+import { useGridSearch } from "../../hooks/useGridSearch";
+import { gridMeta } from "../../data/dummyData";
+import { AlertCircle, Search } from "lucide-react";
+import { usePageHeader } from "../../context/PageHeaderContext";
+import { API_BASE_URL_OLD } from "../../api/constants";
+import "./ReportWorkspacePage.css";
 
 export default function ReportWorkspacePage() {
   const [hasFilters, setHasFilters] = useState(null);
@@ -27,13 +27,13 @@ export default function ReportWorkspacePage() {
     saveSelectedRows,
   } = useGridSearch(API_BASE_URL_OLD);
 
-  const reportTitle = masterDetail?.ReportDashBoardName || 'Report';
+  const reportTitle = masterDetail?.ReportDashBoardName || "Report";
 
   usePageHeader({
     title: reportTitle,
-    subtitle: 'Configure filters and search to load data.',
+    subtitle: "Configure filters and search to load data.",
     showBack: true,
-    backTo: '/',
+    backTo: "/",
   });
 
   useEffect(() => {
@@ -87,9 +87,13 @@ export default function ReportWorkspacePage() {
               <Search size={40} strokeWidth={1.5} />
               <p>
                 {hasFilters === false ? (
-                  <>Click <strong>Search</strong> to load data.</>
+                  <>
+                    Click <strong>Search</strong> to load data.
+                  </>
                 ) : (
-                  <>Set your filters and click <strong>Search</strong> to load data.</>
+                  <>
+                    Set your filters and click <strong>Search</strong> to load data.
+                  </>
                 )}
               </p>
             </div>

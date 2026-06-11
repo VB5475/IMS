@@ -15,8 +15,12 @@
 }
 
 @keyframes modal-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ── Dialog ── */
@@ -35,16 +39,32 @@
 }
 
 @keyframes modal-slide-up {
-  from { opacity: 0; transform: translateY(18px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Size variants */
-.modal-dialog--sm  { max-width: 480px; }
-.modal-dialog--md  { max-width: 700px; }
-.modal-dialog--lg  { max-width: 960px; }
-.modal-dialog--xl  { max-width: 1200px; }
-.modal-dialog--full { max-width: calc(100vw - 32px); }
+.modal-dialog--sm {
+  max-width: 480px;
+}
+.modal-dialog--md {
+  max-width: 700px;
+}
+.modal-dialog--lg {
+  max-width: 960px;
+}
+.modal-dialog--xl {
+  max-width: 1200px;
+}
+.modal-dialog--full {
+  max-width: calc(100vw - 32px);
+}
 
 /* ── Header ── */
 .modal-header {
@@ -111,7 +131,9 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border-dark) transparent;
 }
-.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
 .modal-body::-webkit-scrollbar-thumb {
   background: var(--border-dark);
   border-radius: 99px;
@@ -177,7 +199,7 @@
 }
 
 .modal-dialog--enterprise .modal-header::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;

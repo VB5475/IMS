@@ -70,10 +70,22 @@
   color: var(--primary-hover);
 }
 
-.ng-badge--danger { background: #fee2e2; color: #b91c1c; }
-.ng-badge--warning { background: #fef3c7; color: #92400e; }
-.ng-badge--success { background: #d1fae5; color: #065f46; }
-.ng-badge--neutral { background: #f1f5f9; color: var(--text-muted); }
+.ng-badge--danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.ng-badge--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+.ng-badge--success {
+  background: #d1fae5;
+  color: #065f46;
+}
+.ng-badge--neutral {
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
 
 .ng-badge {
   display: inline-flex;
@@ -255,7 +267,9 @@
 }
 
 @keyframes ent-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Search select ── */

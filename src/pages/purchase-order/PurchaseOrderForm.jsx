@@ -16,24 +16,27 @@
 //   4. EnterpriseSummaryPanel — live totals computed from grid rows (reusable)
 //   5. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
+import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import EntryGrid from "../../components/grid/EntryGrid";
+import ActionBar from "../../components/ui/ActionBar";
+import OrderItemModal from "../../components/txn/OrderItemModal";
+import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
+import SearchSelect from "../../components/ui/SearchSelect";
+import { usePurchaseOrder } from "../../hooks/usePurchaseOrder";
+import { useApi } from "../../api/useApi";
 import {
-  AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut,
-} from 'lucide-react';
-import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
-import EntryGrid             from '../../components/grid/EntryGrid';
-import ActionBar             from '../../components/ui/ActionBar';
-import OrderItemModal        from '../../components/txn/OrderItemModal';
-import EnterpriseSummaryPanel from '../../components/filters/EnterpriseSummaryPanel';
-import SearchSelect          from '../../components/ui/SearchSelect';
-import { usePurchaseOrder }  from '../../hooks/usePurchaseOrder';
-import { useApi }            from '../../api/useApi';
-import {
-  ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, DEFAULT_LOGIN_ID, getColDefault, OBJ_TYPE,
-} from '../../api/constants';
-import { buildGridColumns }  from '../../utils/gridUtils';
-import { usePageHeader }     from '../../context/PageHeaderContext';
+  ENDPOINTS,
+  API_BASE_URL,
+  API_BASE_URL_IMS,
+  DEFAULT_LOGIN_ID,
+  getColDefault,
+  OBJ_TYPE,
+} from "../../api/constants";
+import { buildGridColumns } from "../../utils/gridUtils";
+import { usePageHeader } from "../../context/PageHeaderContext";
 import {
   PO_CONFIG,
   PO_HEADER_FILTERS,
@@ -44,8 +47,8 @@ import {
   PO_FILTER_CASCADE_RESETS,
   PO_SHORTCUT_CONFIG,
   formatTranDate,
-} from './constants';
-import './PurchaseOrderPage.css';
+} from "./constants";
+import "./PurchaseOrderPage.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
 let _poTempId = -1;
@@ -54,16 +57,20 @@ const nextTempId = () => _poTempId--;
 // Returns all focusable, visible filter field elements inside a panel node.
 function queryEditableFilterFields(panel) {
   if (!panel) return [];
-  return [...panel.querySelectorAll(
-    'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
-  )].filter((el) => el.offsetParent !== null);
+  return [
+    ...panel.querySelectorAll(
+      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+    ),
+  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
-  allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+  allColumns.forEach(({ key, colDataType }) => {
+    row[key] = getColDefault(colDataType);
+  });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== 'id' && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
   });
   return row;
 }
@@ -72,84 +79,99 @@ function mapPickerToItemRow(item, allColumns) {
 
 export default function PurchaseOrderForm() {
   const { id: routeId } = useParams();
-  const location        = useLocation();
-  const isNewRoute      = location.pathname.endsWith('/new') || routeId === 'new';
-  const recordId        = isNewRoute ? 0 : Number(routeId) || 0;
-  const navigate        = useNavigate();
+  const location = useLocation();
+  const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
+  const recordId = isNewRoute ? 0 : Number(routeId) || 0;
+  const navigate = useNavigate();
 
-  const itemGridRef              = useRef(null);
-  const summaryRef               = useRef(null);
-  const filterPanelRef           = useRef(null);
-  const selectItemBtnRef         = useRef(null);
-  const gridColumnsLoadedRef     = useRef(false);
-  const queuedRowsRef            = useRef([]);
-  const { get: getLive }         = useApi(API_BASE_URL);
+  const itemGridRef = useRef(null);
+  const summaryRef = useRef(null);
+  const filterPanelRef = useRef(null);
+  const selectItemBtnRef = useRef(null);
+  const gridColumnsLoadedRef = useRef(false);
+  const queuedRowsRef = useRef([]);
+  const { get: getLive } = useApi(API_BASE_URL);
 
   const {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, poTypeOptions, supplierOptions,
+    headerColumns,
+    headerFetching,
+    headerError,
+    fetchHeaderMeta,
+    divisionOptions,
+    poTypeOptions,
+    supplierOptions,
     departmentOptions,
     existingPOs,
-    fetchPoTypes, clearPoTypes,
-    fetchSupplierInfo, getSupplierCurrency,
+    fetchPoTypes,
+    clearPoTypes,
+    fetchSupplierInfo,
+    getSupplierCurrency,
     fetchExistingPOs,
     fetchUniqueId,
     isLoadingPoTypes,
-    columns, allColumns, isFetching, metaError, eventColumns,
-    fetchDetailMeta, fetchGridColumns,
+    columns,
+    allColumns,
+    isFetching,
+    metaError,
+    eventColumns,
+    fetchDetailMeta,
+    fetchGridColumns,
     fireCellEvent,
-    saveTxn, isSaving, saveError, clearSaveError,
+    saveTxn,
+    isSaving,
+    saveError,
+    clearSaveError,
   } = usePurchaseOrder(API_BASE_URL);
 
   const todayISO = useMemo(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode:     '',
-    TranDate:     todayISO,
-    ConfigID:     0,
+    TranCode: "",
+    TranDate: todayISO,
+    ConfigID: 0,
     DeliveryDate: null,
-    DivisionID:   0,
-    SupplierID:   0,
-    DeptID:       0,
-    CurrencyID:   0,
-    CurrencyName: '',
+    DivisionID: 0,
+    SupplierID: 0,
+    DeptID: 0,
+    CurrencyID: 0,
+    CurrencyName: "",
     CurrencyRate: 0,
-    CreditDays:   0,
-    BasedOnID:    '0',
-    Remarks:      '',
+    CreditDays: 0,
+    BasedOnID: "0",
+    Remarks: "",
     TranMstGenID: 0,
-    CompanyID:    1,
-    YearID:       PO_CONFIG.DIVISION_YEAR_ID,
-    LoginID:      1,
-    IDNumber:     recordId,
-    IsAmend:      0,
-    AmendPOID:    0,
+    CompanyID: 1,
+    YearID: PO_CONFIG.DIVISION_YEAR_ID,
+    LoginID: 1,
+    IDNumber: recordId,
+    IsAmend: 0,
+    AmendPOID: 0,
   });
 
-  const filterInitialValues = useMemo(
-    () => ({ BasedOnID: '0', TranDate: todayISO }),
-    [todayISO],
-  );
+  const filterInitialValues = useMemo(() => ({ BasedOnID: "0", TranDate: todayISO }), [todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
 
   // ── Amend strip state ──────────────────────────────────────────────
-  const [isAmend,   setIsAmend]   = useState(false);
-  const [amendPOID, setAmendPOID] = useState('');
+  const [isAmend, setIsAmend] = useState(false);
+  const [amendPOID, setAmendPOID] = useState("");
 
-  const handleAmendChange = useCallback(async (checked) => {
-    setIsAmend(checked);
-    headerValuesRef.current.IsAmend = checked ? 1 : 0;
-    if (!checked) {
-      setAmendPOID('');
-      headerValuesRef.current.AmendPOID = 0;
-      return;
-    }
-    await fetchExistingPOs();
-  }, [fetchExistingPOs]);
+  const handleAmendChange = useCallback(
+    async (checked) => {
+      setIsAmend(checked);
+      headerValuesRef.current.IsAmend = checked ? 1 : 0;
+      if (!checked) {
+        setAmendPOID("");
+        headerValuesRef.current.AmendPOID = 0;
+        return;
+      }
+      await fetchExistingPOs();
+    },
+    [fetchExistingPOs]
+  );
 
   const handleAmendPOChange = useCallback((val) => {
     setAmendPOID(val);
@@ -167,7 +189,7 @@ export default function PurchaseOrderForm() {
   }, []);
 
   const focusSelectItemButton = useCallback(() => {
-    setActiveTab('items');
+    setActiveTab("items");
     selectItemBtnRef.current?.focus();
   }, []);
 
@@ -177,7 +199,7 @@ export default function PurchaseOrderForm() {
       headerValuesRef.current.TranMstGenID = uid;
     }
     setIsEditMode(true);
-    setActiveTab('items');
+    setActiveTab("items");
     window.requestAnimationFrame(() => {
       window.setTimeout(() => {
         if (!focusFirstEditableFilterField()) {
@@ -190,34 +212,34 @@ export default function PurchaseOrderForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   // ── Tab state ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('items');
+  const [activeTab, setActiveTab] = useState("items");
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
-  const activeSelectionCount = activeTab === 'items' ? itemSelectionCount : 0;
+  const activeSelectionCount = activeTab === "items" ? itemSelectionCount : 0;
 
-  const [approvedFilter,         setApprovedFilter]         = useState('all');
-  const [isGridLoading,          setIsGridLoading]          = useState(false);
-  const [gridRows,               setGridRows]               = useState([]);
+  const [approvedFilter, setApprovedFilter] = useState("all");
+  const [isGridLoading, setIsGridLoading] = useState(false);
+  const [gridRows, setGridRows] = useState([]);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
 
   // Item picker modal
-  const [itemModalOpen,    setItemModalOpen]    = useState(false);
-  const [itemModalItems,   setItemModalItems]   = useState([]);
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemModalItems, setItemModalItems] = useState([]);
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
-  const [itemModalError,   setItemModalError]   = useState(null);
+  const [itemModalError, setItemModalError] = useState(null);
 
   // Collapsible indent children (indent-wise mode)
   const [childRowsMap, setChildRowsMap] = useState({});
   const [childColumns, setChildColumns] = useState([]);
 
   usePageHeader({
-    title:    isNewRoute ? 'New Purchase Order' : 'Purchase Order',
+    title: isNewRoute ? "New Purchase Order" : "Purchase Order",
     subtitle: isNewRoute
-      ? 'Fill in the header fields, then use Item Grid or Suppliers tabs.'
-      : `PO #${recordId || routeId || '—'} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
+      ? "Fill in the header fields, then use Item Grid or Suppliers tabs."
+      : `PO #${recordId || routeId || "—"} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
     showBack: true,
-    backTo:   '/purchase-order',
+    backTo: "/purchase-order",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -249,76 +271,92 @@ export default function PurchaseOrderForm() {
   const syncedFilters = useMemo(() => {
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case 'DivisionID': return { ...filter, staticOptions: divisionOptions };
-        case 'ConfigID':   return { ...filter, staticOptions: poTypeOptions };
-        case 'SupplierID': return { ...filter, staticOptions: supplierOptions };
-        case 'DeptID':     return { ...filter, staticOptions: departmentOptions };
-        default:           return filter;
+        case "DivisionID":
+          return { ...filter, staticOptions: divisionOptions };
+        case "ConfigID":
+          return { ...filter, staticOptions: poTypeOptions };
+        case "SupplierID":
+          return { ...filter, staticOptions: supplierOptions };
+        case "DeptID":
+          return { ...filter, staticOptions: departmentOptions };
+        default:
+          return filter;
       }
     };
 
     if (headerColumns.length === 0) return PO_HEADER_FILTERS.map(injectOptions);
 
     const apiColMap = {};
-    headerColumns.forEach((col) => { apiColMap[col.ColName] = col; });
+    headerColumns.forEach((col) => {
+      apiColMap[col.ColName] = col;
+    });
 
     return PO_HEADER_FILTERS.map((filter) => {
       const withOpts = injectOptions(filter);
-      const apiCol   = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
+      const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
       if (!apiCol) return withOpts;
       return { ...withOpts, FilterColName: apiCol.ColName };
     });
   }, [headerColumns, divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
 
   // ── Filter change / cascade ────────────────────────────────────────
-  const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (colName === 'DivisionID') {
-      headerValuesRef.current.ConfigID   = 0;
-      headerValuesRef.current.SupplierID = 0;
-      clearPoTypes();
-      itemGridRef.current?.clearRows?.();
-      setChildRowsMap({});
-      if (val && val !== '0') await fetchPoTypes(val);
-      return;
-    }
-
-    if (colName === 'TranDate') {
-      headerValuesRef.current.SupplierID = 0;
-      itemGridRef.current?.clearRows?.();
-      setChildRowsMap({});
-      return;
-    }
-
-    if (colName === 'SupplierID') {
-      itemGridRef.current?.clearRows?.();
-      setChildRowsMap({});
-      if (val && val !== '0') {
-        const cached = getSupplierCurrency(val);
-        if (cached) {
-          headerValuesRef.current.CurrencyID   = cached.CurrencyID;
-          headerValuesRef.current.CurrencyName = cached.CurrencyName;
-          headerValuesRef.current.CurrencyRate = cached.CurrencyRate;
-          headerValuesRef.current.CreditDays   = cached.CrDays;
-          setCurrencyExternalValues({ CurrencyName: cached.CurrencyName, CurrencyRate: String(cached.CurrencyRate) });
-        } else {
-          const info = await fetchSupplierInfo(val);
-          if (info) {
-            headerValuesRef.current.CurrencyID   = info.CurrencyID;
-            headerValuesRef.current.CurrencyRate = info.CurrencyRate;
-            headerValuesRef.current.CreditDays   = info.CrDays;
-            setCurrencyExternalValues({ CurrencyName: '', CurrencyRate: String(info.CurrencyRate) });
-          }
-        }
-      } else {
-        headerValuesRef.current.CurrencyID   = 0;
-        headerValuesRef.current.CurrencyName = '';
-        headerValuesRef.current.CurrencyRate = 0;
-        setCurrencyExternalValues({ CurrencyName: '', CurrencyRate: '' });
+      if (colName === "DivisionID") {
+        headerValuesRef.current.ConfigID = 0;
+        headerValuesRef.current.SupplierID = 0;
+        clearPoTypes();
+        itemGridRef.current?.clearRows?.();
+        setChildRowsMap({});
+        if (val && val !== "0") await fetchPoTypes(val);
+        return;
       }
-    }
-  }, [fetchPoTypes, clearPoTypes, fetchSupplierInfo, getSupplierCurrency]);
+
+      if (colName === "TranDate") {
+        headerValuesRef.current.SupplierID = 0;
+        itemGridRef.current?.clearRows?.();
+        setChildRowsMap({});
+        return;
+      }
+
+      if (colName === "SupplierID") {
+        itemGridRef.current?.clearRows?.();
+        setChildRowsMap({});
+        if (val && val !== "0") {
+          const cached = getSupplierCurrency(val);
+          if (cached) {
+            headerValuesRef.current.CurrencyID = cached.CurrencyID;
+            headerValuesRef.current.CurrencyName = cached.CurrencyName;
+            headerValuesRef.current.CurrencyRate = cached.CurrencyRate;
+            headerValuesRef.current.CreditDays = cached.CrDays;
+            setCurrencyExternalValues({
+              CurrencyName: cached.CurrencyName,
+              CurrencyRate: String(cached.CurrencyRate),
+            });
+          } else {
+            const info = await fetchSupplierInfo(val);
+            if (info) {
+              headerValuesRef.current.CurrencyID = info.CurrencyID;
+              headerValuesRef.current.CurrencyRate = info.CurrencyRate;
+              headerValuesRef.current.CreditDays = info.CrDays;
+              setCurrencyExternalValues({
+                CurrencyName: "",
+                CurrencyRate: String(info.CurrencyRate),
+              });
+            }
+          }
+        } else {
+          headerValuesRef.current.CurrencyID = 0;
+          headerValuesRef.current.CurrencyName = "";
+          headerValuesRef.current.CurrencyRate = 0;
+          setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
+        }
+      }
+    },
+    [fetchPoTypes, clearPoTypes, fetchSupplierInfo, getSupplierCurrency]
+  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -334,26 +372,29 @@ export default function PurchaseOrderForm() {
   }, [columns, allColumns, fetchGridColumns]);
 
   // ── Cell event — qty / rate recalculation ─────────────────────────
-  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
-    const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-    if (!result || !itemGridRef.current) return;
-    const responseRow = result?.Links?.[0];
-    if (!responseRow) return;
-    const errCode = responseRow.ErrCode;
-    if (errCode !== 1 && errCode !== 1.0) {
-      console.warn('[PO] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
-      return;
-    }
-    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
-    itemGridRef.current.updateRow?.(rowId, updatedFields);
-  }, [fireCellEvent]);
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.Links?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.ErrCode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[PO] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
 
   // ── Select Item ────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
     const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValuesRef.current;
     const divisionID = DivisionID ?? 0;
-    if (!divisionID || divisionID === '0' || divisionID === 0) {
-      alert('Please select a Division before selecting items.');
+    if (!divisionID || divisionID === "0" || divisionID === 0) {
+      alert("Please select a Division before selecting items.");
       return;
     }
 
@@ -364,106 +405,118 @@ export default function PurchaseOrderForm() {
     setItemModalLoading(true);
 
     try {
-      const rbCode = Number(BasedOnID) === 2
-        ? PO_CONFIG.RB_ITEM_PICKER_INDENT
-        : PO_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const rbCode =
+        Number(BasedOnID) === 2 ? PO_CONFIG.RB_ITEM_PICKER_INDENT : PO_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PO_CONFIG.SP_RB_META,
-        JSon:    JSON.stringify([{ prmRBCode: rbCode }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       const rbRow = rbRes?.Table?.[0];
-      if (!rbRow) throw new Error('Could not load item picker configuration.');
+      if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
-      const gridColumns = buildGridColumns(colRes?.Links || [], {}, {
-        filterable: false, allEditable: false,
-      });
+      const gridColumns = buildGridColumns(
+        colRes?.Links || [],
+        {},
+        {
+          filterable: false,
+          allEditable: false,
+        }
+      );
       setItemModalColumns(gridColumns);
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PO_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([{
-          prmDivisionID: Number(divisionID),
-          prmYearID:     PO_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID:    DEFAULT_LOGIN_ID,
-          prmTranDate:   formatTranDate(TranDate),
-          prmConfigID:   Number(ConfigID ?? 0),
-          prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-          prmTranBook:   Number(BasedOnID) === 2 ? PO_CONFIG.INDENT_SOURCE_BOOK : PO_CONFIG.TRAN_BOOK,
-          prmFrmOption:  Number(BasedOnID) || 0,
-        }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        JSon: JSON.stringify([
+          {
+            prmDivisionID: Number(divisionID),
+            prmYearID: PO_CONFIG.CONFIG_YEAR_ID,
+            prmLoginID: DEFAULT_LOGIN_ID,
+            prmTranDate: formatTranDate(TranDate),
+            prmConfigID: Number(ConfigID ?? 0),
+            prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
+            prmTranBook:
+              Number(BasedOnID) === 2 ? PO_CONFIG.INDENT_SOURCE_BOOK : PO_CONFIG.TRAN_BOOK,
+            prmFrmOption: Number(BasedOnID) || 0,
+          },
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       setItemModalItems(rowRes?.Table || []);
     } catch (err) {
-      console.error('[PO] Item picker fetch failed:', err);
-      setItemModalError(err?.message || 'Failed to fetch items.');
+      console.error("[PO] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab('items');
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
 
-    const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
+      const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
 
-    if (!isIndentWise) {
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) return;
-      setChildRowsMap({});
-      setChildColumns([]);
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-      return;
-    }
+      if (!isIndentWise) {
+        const activeCols = await ensureItemColumns();
+        if (!activeCols?.length) return;
+        setChildRowsMap({});
+        setChildColumns([]);
+        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        return;
+      }
 
-    ensureItemColumns().catch(() => {});
+      ensureItemColumns().catch(() => {});
 
-    const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
-    setIsGridLoading(true);
-    try {
-      const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ObjType:   OBJ_TYPE.FUNCTION,
-          ObjName:   PO_CONFIG.SP_INDENT_SUMMARY,
-          JSon:      [{ prmJSon: cleanItems }],
-          p_ErrCode: -1,
-          p_ErrMsg:  '',
-        }),
-      });
-      const summaryRes = await summaryResponse.json();
+      const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
+      setIsGridLoading(true);
+      try {
+        const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: PO_CONFIG.SP_INDENT_SUMMARY,
+            JSon: [{ prmJSon: cleanItems }],
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          }),
+        });
+        const summaryRes = await summaryResponse.json();
 
-      const parents = summaryRes?.Table ?? [];
-      if (!parents.length) return;
+        const parents = summaryRes?.Table ?? [];
+        if (!parents.length) return;
 
-      const newChildRowsMap = {};
-      parents.forEach((parent) => {
-        const pid      = String(Math.round(Number(parent.ItemID)));
-        const children = cleanItems.filter(
-          (c) => String(Math.round(Number(c.ChildFKey))) === pid,
-        );
-        if (children.length > 0) newChildRowsMap[pid] = children;
-        addItemRow({ ...parent, id: pid });
-      });
+        const newChildRowsMap = {};
+        parents.forEach((parent) => {
+          const pid = String(Math.round(Number(parent.ItemID)));
+          const children = cleanItems.filter(
+            (c) => String(Math.round(Number(c.ChildFKey))) === pid
+          );
+          if (children.length > 0) newChildRowsMap[pid] = children;
+          addItemRow({ ...parent, id: pid });
+        });
 
-      setChildRowsMap((prev) => ({ ...prev, ...newChildRowsMap }));
-      setChildColumns(itemModalColumns.filter((c) => c.key !== 'cb'));
-    } catch (err) {
-      console.error('[PO] Indent summary fetch failed:', err);
-    } finally {
-      setIsGridLoading(false);
-    }
-  }, [ensureItemColumns, allColumns, addItemRow, itemModalColumns]);
+        setChildRowsMap((prev) => ({ ...prev, ...newChildRowsMap }));
+        setChildColumns(itemModalColumns.filter((c) => c.key !== "cb"));
+      } catch (err) {
+        console.error("[PO] Indent summary fetch failed:", err);
+      } finally {
+        setIsGridLoading(false);
+      }
+    },
+    [ensureItemColumns, allColumns, addItemRow, itemModalColumns]
+  );
 
   // ── Delete selected rows ───────────────────────────────────────────
   const handleDeleteSelected = useCallback(() => {
@@ -478,15 +531,21 @@ export default function PurchaseOrderForm() {
 
   const handleSave = useCallback(async () => {
     const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
+    headerColumns.forEach((col) => {
+      mstRow[col.ColName] = getColDefault(col.ColDataType);
+    });
     const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
+    Object.entries(hv).forEach(([k, v]) => {
+      if (k !== "id") mstRow[k] = v;
+    });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     mstRow.LoginID = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+      allColumns.forEach(({ key, colDataType }) => {
+        row[key] = getColDefault(colDataType);
+      });
       return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
     });
 
@@ -495,30 +554,30 @@ export default function PurchaseOrderForm() {
       .map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
 
     const payload = {
-      prmStrMstJSON:     JSON.stringify([mstRow]),
-      prmStrDetJSON:     JSON.stringify(detRows),
+      prmStrMstJSON: JSON.stringify([mstRow]),
+      prmStrDetJSON: JSON.stringify(detRows),
       prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
     };
 
-    console.log('%c[PO Save] Payload:',      'color:#f59e0b;font-weight:700', payload);
-    console.log('%c[PO Save] Master:',       'color:#6366f1;font-weight:600', [mstRow]);
-    console.log('%c[PO Save] Detail:',       'color:#22c55e;font-weight:600', detRows);
-    console.log('%c[PO Save] IndentDetail:', 'color:#ec4899;font-weight:600', indentDetailRows);
+    console.log("%c[PO Save] Payload:", "color:#f59e0b;font-weight:700", payload);
+    console.log("%c[PO Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
+    console.log("%c[PO Save] Detail:", "color:#22c55e;font-weight:600", detRows);
+    console.log("%c[PO Save] IndentDetail:", "color:#ec4899;font-weight:600", indentDetailRows);
 
     setIsSavingPO(true);
     try {
       const res = await fetch(`${API_BASE_URL_IMS}${PO_CONFIG.SAVE_ENDPOINT}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log('%c[PO Save] Response:', 'color:#22c55e;font-weight:700', result);
+      console.log("%c[PO Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert('Purchase Order saved successfully!');
+      alert("Purchase Order saved successfully!");
     } catch (err) {
-      console.error('[PO Save] Failed:', err);
-      alert(err?.message || 'Save failed. Please try again.');
+      console.error("[PO Save] Failed:", err);
+      alert(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSavingPO(false);
     }
@@ -530,7 +589,7 @@ export default function PurchaseOrderForm() {
   }, [handleSave]);
 
   const handleCancel = useCallback(() => {
-    if (!window.confirm('Discard changes and reset the form?')) return;
+    if (!window.confirm("Discard changes and reset the form?")) return;
 
     localStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
@@ -538,26 +597,40 @@ export default function PurchaseOrderForm() {
     sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
 
     headerValuesRef.current = {
-      TranCode: '', TranDate: todayISO, ConfigID: 0, DeliveryDate: null,
-      DivisionID: 0, SupplierID: 0, DeptID: 0,
-      CurrencyID: 0, CurrencyName: '', CurrencyRate: 0,
-      CreditDays: 0, BasedOnID: '0', Remarks: '', TranMstGenID: 0, CompanyID: 1,
-      YearID: PO_CONFIG.DIVISION_YEAR_ID, LoginID: 1, IDNumber: 0,
-      IsAmend: 0, AmendPOID: 0,
+      TranCode: "",
+      TranDate: todayISO,
+      ConfigID: 0,
+      DeliveryDate: null,
+      DivisionID: 0,
+      SupplierID: 0,
+      DeptID: 0,
+      CurrencyID: 0,
+      CurrencyName: "",
+      CurrencyRate: 0,
+      CreditDays: 0,
+      BasedOnID: "0",
+      Remarks: "",
+      TranMstGenID: 0,
+      CompanyID: 1,
+      YearID: PO_CONFIG.DIVISION_YEAR_ID,
+      LoginID: 1,
+      IDNumber: 0,
+      IsAmend: 0,
+      AmendPOID: 0,
     };
     setGridRows([]);
-    setCurrencyExternalValues({ CurrencyName: '', CurrencyRate: '' });
+    setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
 
-    queuedRowsRef.current       = [];
+    queuedRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
 
     clearPoTypes();
     clearSaveError();
 
     setIsAmend(false);
-    setAmendPOID('');
-    setActiveTab('items');
-    setApprovedFilter('all');
+    setAmendPOID("");
+    setActiveTab("items");
+    setApprovedFilter("all");
     setIsGridLoading(false);
     setItemSelectionCount(0);
 
@@ -576,9 +649,9 @@ export default function PurchaseOrderForm() {
     exitEditMode();
   }, [clearPoTypes, clearSaveError, exitEditMode, todayISO]);
 
-  const handleClose    = useCallback(() => navigate('/purchase-order'), [navigate]);
+  const handleClose = useCallback(() => navigate("/purchase-order"), [navigate]);
   const handleDocument = useCallback(() => {
-    console.log('[PO] Document F6 — reserved for document generation.');
+    console.log("[PO] Document F6 — reserved for document generation.");
   }, []);
 
   // ── Keyboard shortcuts — Alt+A Add | Alt+S Save | Alt+N Cancel | Alt+C Close ──
@@ -591,25 +664,25 @@ export default function PurchaseOrderForm() {
 
       const key = e.key.toLowerCase();
       switch (key) {
-        case 'a':
+        case "a":
           if (!isEditMode && !filterBusy) {
             e.preventDefault();
             enterEditModeWithFocus();
           }
           break;
-        case 's':
+        case "s":
           if (isEditMode && !isSavingPO) {
             e.preventDefault();
             handleSave();
           }
           break;
-        case 'n':
+        case "n":
           if (isEditMode) {
             e.preventDefault();
             handleCancel();
           }
           break;
-        case 'c':
+        case "c":
           e.preventDefault();
           handleClose();
           break;
@@ -618,8 +691,8 @@ export default function PurchaseOrderForm() {
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     isEditMode,
     filterBusy,
@@ -632,30 +705,49 @@ export default function PurchaseOrderForm() {
   ]);
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
-  const poExtraButtons = useMemo(() => [
-    {
-      key: 'document', label: 'Document F6', Icon: FileText, variant: 'secondary',
-      onClick: handleDocument,
-    },
-    { key: 'sep1', separator: true },
-    {
-      key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print',
-      onClick: handleSaveAndPrint, disabled: isSavingPO,
-    },
-    {
-      key: 'save', label: isSavingPO ? 'Saving…' : 'Save', Icon: Save, variant: 'save',
-      onClick: handleSave, disabled: isSavingPO, loading: isSavingPO,
-      accessKey: 's',
-      title: PO_SHORTCUT_CONFIG.s.title,
-    },
-    { key: 'sep2', separator: true },
-    {
-      key: 'close', label: 'Close', Icon: LogOut, variant: 'close',
-      onClick: handleClose, showAlways: true,
-      accessKey: 'c',
-      title: PO_SHORTCUT_CONFIG.c.title,
-    },
-  ], [handleDocument, handleSaveAndPrint, isSavingPO, handleSave, handleClose]);
+  const poExtraButtons = useMemo(
+    () => [
+      {
+        key: "document",
+        label: "Document F6",
+        Icon: FileText,
+        variant: "secondary",
+        onClick: handleDocument,
+      },
+      { key: "sep1", separator: true },
+      {
+        key: "saveprint",
+        label: "Save & Print",
+        Icon: Printer,
+        variant: "print",
+        onClick: handleSaveAndPrint,
+        disabled: isSavingPO,
+      },
+      {
+        key: "save",
+        label: isSavingPO ? "Saving…" : "Save",
+        Icon: Save,
+        variant: "save",
+        onClick: handleSave,
+        disabled: isSavingPO,
+        loading: isSavingPO,
+        accessKey: "s",
+        title: PO_SHORTCUT_CONFIG.s.title,
+      },
+      { key: "sep2", separator: true },
+      {
+        key: "close",
+        label: "Close",
+        Icon: LogOut,
+        variant: "close",
+        onClick: handleClose,
+        showAlways: true,
+        accessKey: "c",
+        title: PO_SHORTCUT_CONFIG.c.title,
+      },
+    ],
+    [handleDocument, handleSaveAndPrint, isSavingPO, handleSave, handleClose]
+  );
 
   const itemGridConfig = {
     columns,
@@ -665,13 +757,18 @@ export default function PurchaseOrderForm() {
 
   return (
     <div className="workspace-page po-page">
-
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
             <AlertCircle size={16} strokeWidth={2} />
             <span>{combinedError}</span>
-            <button type="button" onClick={() => { fetchHeaderMeta(); fetchDetailMeta(); }}>
+            <button
+              type="button"
+              onClick={() => {
+                fetchHeaderMeta();
+                fetchDetailMeta();
+              }}
+            >
               Retry
             </button>
           </div>
@@ -727,14 +824,13 @@ export default function PurchaseOrderForm() {
 
       {/* ── 3-tab grid section ───────────────────────────────────────── */}
       <section className="po-grid-section">
-
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
             {PO_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? 'grid-tab--active' : ''}`}
+                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
                 onClick={() => setActiveTab(t.id)}
               >
                 {t.label}
@@ -743,7 +839,7 @@ export default function PurchaseOrderForm() {
           </div>
 
           <div className="grid-tabbar__controls">
-            {activeTab === 'items' && (
+            {activeTab === "items" && (
               <button
                 ref={selectItemBtnRef}
                 type="button"
@@ -780,7 +876,7 @@ export default function PurchaseOrderForm() {
           </div>
         </div>
 
-        <div className={`po-tab-pane${activeTab === 'items' ? ' po-tab-pane--active' : ''}`}>
+        <div className={`po-tab-pane${activeTab === "items" ? " po-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -797,11 +893,15 @@ export default function PurchaseOrderForm() {
           />
         </div>
 
-        {activeTab === 'terms' && (
+        {activeTab === "terms" && (
           <div className="po-terms-pane">
             <table className="po-terms-table">
               <thead>
-                <tr>{TERMS_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr>
+                <tr>
+                  {TERMS_COLUMNS.map((c) => (
+                    <th key={c}>{c}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 <tr>
@@ -813,7 +913,6 @@ export default function PurchaseOrderForm() {
             </table>
           </div>
         )}
-
       </section>
 
       {/* ── Summary totals — live from grid rows ── */}

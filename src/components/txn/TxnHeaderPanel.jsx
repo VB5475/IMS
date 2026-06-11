@@ -13,12 +13,12 @@
 //   isAdding      — boolean — disables button while a row is being added
 //   onFilterChange — (colName, value) => void — live change notification
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { controlTypeMap } from '../../data/dummyData';
-import SearchSelect from '../ui/SearchSelect';
-import { Plus, Table2, ShoppingCart } from 'lucide-react';
-import './TxnHeaderPanel.css';
-import '../filters/enterprise-filter-modern.css';
+import React, { useState, useCallback, useEffect } from "react";
+import { controlTypeMap } from "../../data/dummyData";
+import SearchSelect from "../ui/SearchSelect";
+import { Plus, Table2, ShoppingCart } from "lucide-react";
+import "./TxnHeaderPanel.css";
+import "../filters/enterprise-filter-modern.css";
 
 // ── Single filter control ─────────────────────────────────────────────
 function FilterControl({ filter, value, options, onChange }) {
@@ -30,7 +30,7 @@ function FilterControl({ filter, value, options, onChange }) {
       return (
         <div className="tef-control">
           <span className="tef-label">{FilterCaption}</span>
-          <span className="tef-value">{value || '—'}</span>
+          <span className="tef-value">{value || "—"}</span>
         </div>
       );
 
@@ -43,7 +43,7 @@ function FilterControl({ filter, value, options, onChange }) {
           <input
             id={`tef-${FilterColName}`}
             type="text"
-            value={value || ''}
+            value={value || ""}
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
           />
@@ -59,7 +59,7 @@ function FilterControl({ filter, value, options, onChange }) {
           <input
             id={`tef-${FilterColName}`}
             type="date"
-            value={value || ''}
+            value={value || ""}
             onChange={handleChange}
           />
         </div>
@@ -73,12 +73,12 @@ function FilterControl({ filter, value, options, onChange }) {
           </label>
           <SearchSelect
             id={`tef-${FilterColName}`}
-            value={value || ''}
+            value={value || ""}
             onChange={(val) => onChange(FilterColName, val)}
             options={(options || []).map((opt) => {
               if (opt.value !== undefined) return { value: String(opt.value), label: opt.label };
-              const valKey = opt.FilterCtrlValueCol || 'IDNumber';
-              const labelKey = opt.FilterCtrlDisplayCol || 'Name';
+              const valKey = opt.FilterCtrlValueCol || "IDNumber";
+              const labelKey = opt.FilterCtrlDisplayCol || "Name";
               return { value: String(opt[valKey]), label: opt[labelKey] };
             })}
             placeholder={`-- Select ${FilterCaption} --`}
@@ -95,7 +95,7 @@ function FilterControl({ filter, value, options, onChange }) {
           </label>
           <textarea
             id={`tef-${FilterColName}`}
-            value={value || ''}
+            value={value || ""}
             onChange={handleChange}
             placeholder={`Enter ${FilterCaption}…`}
             rows={2}
@@ -107,7 +107,7 @@ function FilterControl({ filter, value, options, onChange }) {
       return (
         <div className="tef-control">
           <span className="tef-label">{FilterCaption}</span>
-          <span className="tef-value">{value || '—'}</span>
+          <span className="tef-value">{value || "—"}</span>
         </div>
       );
   }
@@ -115,12 +115,12 @@ function FilterControl({ filter, value, options, onChange }) {
 
 // ── Main component ────────────────────────────────────────────────────
 export default function TxnHeaderPanel({
-  title = '',
+  title = "",
   filters = [],
   onAddNew,
-  onOrderItem,              // legacy — kept for backward compat (TxnEntryPage)
-  onSecondaryAction,        // preferred generic prop (replaces onOrderItem for new callers)
-  secondaryBtnLabel = 'Order Item',
+  onOrderItem, // legacy — kept for backward compat (TxnEntryPage)
+  onSecondaryAction, // preferred generic prop (replaces onOrderItem for new callers)
+  secondaryBtnLabel = "Order Item",
   SecondaryBtnIcon = ShoppingCart,
   isAdding = false,
   onFilterChange = null,
@@ -142,12 +142,15 @@ export default function TxnHeaderPanel({
     setDropdownOptions(optMap);
   }, [filters]);
 
-  const handleChange = useCallback((colName, value) => {
-    console.log("see colName:", colName)
-    console.log("see value:", value)
-    setValues((prev) => ({ ...prev, [colName]: value }));
-    onFilterChange?.(colName, value);
-  }, [onFilterChange]);
+  const handleChange = useCallback(
+    (colName, value) => {
+      console.log("see colName:", colName);
+      console.log("see value:", value);
+      setValues((prev) => ({ ...prev, [colName]: value }));
+      onFilterChange?.(colName, value);
+    },
+    [onFilterChange]
+  );
 
   const handleAddNewClick = useCallback(() => {
     onAddNew?.(values);
@@ -157,7 +160,7 @@ export default function TxnHeaderPanel({
   const ActionButtons = (
     <div className="tef-control tef-action-wrap">
       <span className="tef-label">&nbsp;</span>
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
         {/* Secondary action button (Order Item / Indent Item / etc.) */}
         {secondaryHandler && (
           <button
@@ -195,7 +198,7 @@ export default function TxnHeaderPanel({
     </div>
   );
 
-  console.log("see filters:", filters)
+  console.log("see filters:", filters);
 
   return (
     <div className="tef-panel">
@@ -207,7 +210,7 @@ export default function TxnHeaderPanel({
           <div>
             <h2 className="fp-toolbar__title">{title}</h2>
             <span className="fp-toolbar__meta">
-              {filters.length} header field{filters.length !== 1 ? 's' : ''}
+              {filters.length} header field{filters.length !== 1 ? "s" : ""}
             </span>
           </div>
         </div>

@@ -115,7 +115,9 @@
   color: var(--sidebar-text);
   font-size: var(--font-size-base);
   font-weight: 400;
-  transition: background var(--transition), color var(--transition);
+  transition:
+    background var(--transition),
+    color var(--transition);
 }
 
 .ent-sidebar__link-icon {

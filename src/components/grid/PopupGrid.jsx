@@ -14,15 +14,15 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import './PopupGrid.css';
+} from "react";
+import "./PopupGrid.css";
 
-const DEFAULT_EXCLUDE = ['id', '_pgId'];
+const DEFAULT_EXCLUDE = ["id", "_pgId"];
 
 function humanizeKey(key) {
   return String(key)
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
     .trim();
 }
 
@@ -57,24 +57,25 @@ const PopupGrid = forwardRef(function PopupGrid(
     idKey = null,
     pageSize: defaultPageSize = 50,
     pageSizeOptions = [25, 50, 100],
-    emptyMessage = 'No records to display.',
+    emptyMessage = "No records to display.",
     onSelectionChange = null,
   },
-  ref,
+  ref
 ) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const rowsRef = useRef([]);
 
   const normalizedRows = useMemo(
-    () => rows.map((row, index) => ({
-      ...row,
-      _pgId: resolveRowId(row, index, idKey),
-    })),
-    [rows, idKey],
+    () =>
+      rows.map((row, index) => ({
+        ...row,
+        _pgId: resolveRowId(row, index, idKey),
+      })),
+    [rows, idKey]
   );
 
   useEffect(() => {
@@ -83,7 +84,7 @@ const PopupGrid = forwardRef(function PopupGrid(
 
   const columns = useMemo(
     () => deriveColumns(normalizedRows, excludeKeys, columnOrder, columnLabels),
-    [normalizedRows, excludeKeys, columnOrder, columnLabels],
+    [normalizedRows, excludeKeys, columnOrder, columnLabels]
   );
 
   const processedRows = useMemo(() => {
@@ -91,17 +92,17 @@ const PopupGrid = forwardRef(function PopupGrid(
     if (sortConfig.key) {
       const { key, direction } = sortConfig;
       data.sort((a, b) => {
-        const aVal = a[key] ?? '';
-        const bVal = b[key] ?? '';
+        const aVal = a[key] ?? "";
+        const bVal = b[key] ?? "";
         const aNum = Number(aVal);
         const bNum = Number(bVal);
         let cmp = 0;
-        if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aVal !== '' && bVal !== '') {
+        if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aVal !== "" && bVal !== "") {
           cmp = aNum - bNum;
         } else {
           cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
         }
-        return direction === 'asc' ? cmp : -cmp;
+        return direction === "asc" ? cmp : -cmp;
       });
     }
     return data;
@@ -125,14 +126,18 @@ const PopupGrid = forwardRef(function PopupGrid(
     onSelectionChange?.(selectedIds.size);
   }, [selectedIds, onSelectionChange]);
 
-  useImperativeHandle(ref, () => ({
-    getSelectedRows() {
-      return rowsRef.current.filter((r) => selectedIds.has(String(r._pgId)));
-    },
-    clearSelection() {
-      setSelectedIds(new Set());
-    },
-  }), [selectedIds]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      getSelectedRows() {
+        return rowsRef.current.filter((r) => selectedIds.has(String(r._pgId)));
+      },
+      clearSelection() {
+        setSelectedIds(new Set());
+      },
+    }),
+    [selectedIds]
+  );
 
   const handleSelectAll = useCallback(() => {
     const pageIds = displayRows.map((r) => String(r._pgId));
@@ -156,18 +161,18 @@ const PopupGrid = forwardRef(function PopupGrid(
   const handleSort = useCallback((key) => {
     setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   }, []);
 
   const formatCell = (value) => {
-    if (value == null || value === '') return '—';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (value == null || value === "") return "—";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
     return String(value);
   };
 
-  const allPageSelected = displayRows.length > 0
-    && displayRows.every((r) => selectedIds.has(String(r._pgId)));
+  const allPageSelected =
+    displayRows.length > 0 && displayRows.every((r) => selectedIds.has(String(r._pgId)));
 
   return (
     <div className="popup-grid">
@@ -192,7 +197,7 @@ const PopupGrid = forwardRef(function PopupGrid(
                   <span>{col.label}</span>
                   {sortConfig.key === col.key && (
                     <span className="popup-grid__sort" aria-hidden>
-                      {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                      {sortConfig.direction === "asc" ? "▲" : "▼"}
                     </span>
                   )}
                 </th>
@@ -213,7 +218,7 @@ const PopupGrid = forwardRef(function PopupGrid(
                 return (
                   <tr
                     key={rowId}
-                    className={isSelected ? 'popup-grid__row--selected' : ''}
+                    className={isSelected ? "popup-grid__row--selected" : ""}
                     onClick={() => handleSelectRow(rowId)}
                   >
                     <td
@@ -243,7 +248,8 @@ const PopupGrid = forwardRef(function PopupGrid(
       {processedRows.length > 0 && (
         <div className="popup-grid__footer">
           <span className="popup-grid__info">
-            Showing {startIdx + 1}–{Math.min(startIdx + pageSize, processedRows.length)} of {processedRows.length}
+            Showing {startIdx + 1}–{Math.min(startIdx + pageSize, processedRows.length)} of{" "}
+            {processedRows.length}
           </span>
           <div className="popup-grid__pager">
             <select
@@ -253,7 +259,9 @@ const PopupGrid = forwardRef(function PopupGrid(
               aria-label="Rows per page"
             >
               {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>{n} / page</option>
+                <option key={n} value={n}>
+                  {n} / page
+                </option>
               ))}
             </select>
             <button

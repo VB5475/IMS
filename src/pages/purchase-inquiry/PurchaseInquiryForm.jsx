@@ -16,23 +16,39 @@
 // Both the Items and Suppliers EntryGrid instances are always mounted (CSS
 // show/hide) so their row state is preserved when switching tabs.
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save, LogOut } from 'lucide-react';
-import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
-import EntryGrid from '../../components/grid/EntryGrid';
-import CollapsibleGrid from '../../components/grid/CollapsibleGrid';
-import ActionBar from '../../components/ui/ActionBar';
-import SupplierPickerModal from '../../components/purchase-inquiry/SupplierPickerModal';
-import OrderItemModal from '../../components/txn/OrderItemModal';
-import SearchSelect from '../../components/ui/SearchSelect';
-import { usePurchaseInquiry } from '../../hooks/usePurchaseInquiry';
-import { useApi } from '../../api/useApi';
-import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, getColDefault, OBJ_TYPE, DEFAULT_COMPANY_ID, DEFAULT_SESSION_ID } from '../../api/constants';
-import { getUserSession } from '../../session/userSession';
-import { buildGridColumns, buildDropdownOptionFromRow, isLockOnEditModeCol } from '../../utils/gridUtils';
-import { parseApiErrMsg } from '../../utils/apiResponse';
-import { usePageHeader } from '../../context/PageHeaderContext';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
+import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import EntryGrid from "../../components/grid/EntryGrid";
+import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
+import ActionBar from "../../components/ui/ActionBar";
+import SupplierPickerModal from "../../components/purchase-inquiry/SupplierPickerModal";
+import OrderItemModal from "../../components/txn/OrderItemModal";
+import SearchSelect from "../../components/ui/SearchSelect";
+import { usePurchaseInquiry } from "../../hooks/usePurchaseInquiry";
+import { useApi } from "../../api/useApi";
+import {
+  ENDPOINTS,
+  API_BASE_URL,
+  API_BASE_URL_IMS,
+  getColDefault,
+  OBJ_TYPE,
+  DEFAULT_COMPANY_ID,
+  DEFAULT_SESSION_ID,
+} from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
+import {
+  buildGridColumns,
+  buildDropdownOptionFromRow,
+  isLockOnEditModeCol,
+  syncHeaderFilterWithApiCol,
+  buildHeaderColMap,
+  resolveHeaderApiCol,
+} from "../../utils/gridUtils";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { usePageHeader } from "../../context/PageHeaderContext";
+import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import {
   PI_CONFIG,
   PI_HEADER_FILTERS,
@@ -43,8 +59,8 @@ import {
   PI_FILTER_CASCADE_RESETS,
   SUPPLIER_GRID_CONFIG,
   formatTranDate,
-} from './constants';
-import './PurchaseInquiryForm.css';
+} from "./constants";
+import "./PurchaseInquiryForm.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ─────────
 let _piTempId = -1;
@@ -55,24 +71,24 @@ function mapPickerToSupplierRow(item, srNo) {
   return {
     id: String(item.SupplierID ?? nextTempId()),
     SrNo: srNo,
-    SupplierName: item.SupplierName ?? '',
-    Address: item.SuppAddress ?? item.Address ?? '',
-    City: item.City ?? '',
-    MobileNo: item.ContactNo ?? item.MobileNo ?? '',
+    SupplierName: item.SupplierName ?? "",
+    Address: item.SuppAddress ?? item.Address ?? "",
+    City: item.City ?? "",
+    MobileNo: item.ContactNo ?? item.MobileNo ?? "",
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode: headerValues.TranCode ?? '',
-    TranDate: headerValues.TranDate ?? '',
-    DivisionID: String(headerValues.DivisionID ?? ''),
-    ConfigID: String(headerValues.ConfigID ?? ''),
-    ExpectedDate: headerValues.ExpectedDate ?? '',
-    DeptID: String(headerValues.DeptID ?? ''),
-    BasedOnID: String(headerValues.BasedOnID ?? '0'),
-    Remarks: headerValues.Remarks ?? '',
+    TranCode: headerValues.TranCode ?? "",
+    TranDate: headerValues.TranDate ?? "",
+    DivisionID: String(headerValues.DivisionID ?? ""),
+    ConfigID: String(headerValues.ConfigID ?? ""),
+    ExpectedDate: headerValues.ExpectedDate ?? "",
+    DeptID: String(headerValues.DeptID ?? ""),
+    BasedOnID: String(headerValues.BasedOnID ?? "0"),
+    Remarks: headerValues.Remarks ?? "",
   };
 }
 
@@ -89,17 +105,21 @@ function resolveEditLoadParams(recordId, listRecord) {
 
 function queryEditableFilterFields(panel) {
   if (!panel) return [];
-  return [...panel.querySelectorAll(
-    'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])',
-  )].filter((el) => el.offsetParent !== null);
+  return [
+    ...panel.querySelectorAll(
+      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+    ),
+  ].filter((el) => el.offsetParent !== null);
 }
 
 // Map an item picker row → items grid row (seeded from allColumns).
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
-  allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+  allColumns.forEach(({ key, colDataType }) => {
+    row[key] = getColDefault(colDataType);
+  });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== 'id' && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
   });
   return row;
 }
@@ -109,7 +129,7 @@ function mapPickerToItemRow(item, allColumns) {
 export default function PurchaseInquiryForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
-  const isNewRoute = location.pathname.endsWith('/new');
+  const isNewRoute = location.pathname.endsWith("/new");
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
@@ -125,15 +145,30 @@ export default function PurchaseInquiryForm() {
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, departmentOptions, inquiryTypeOptions,
-    fetchInquiryTypes, clearInquiryTypes,
+    headerColumns,
+    headerFetching,
+    headerError,
+    fetchHeaderMeta,
+    divisionOptions,
+    departmentOptions,
+    inquiryTypeOptions,
+    fetchInquiryTypes,
+    clearInquiryTypes,
     isLoadingInquiryTypes,
-    columns, allColumns, isFetching, metaError,
-    fetchDetailMeta, fetchGridColumns, fetchEditRecord,
+    columns,
+    allColumns,
+    isFetching,
+    metaError,
+    fetchDetailMeta,
+    fetchGridColumns,
+    fetchEditRecord,
     fetchUnlockedHeaderDropdowns,
-    fireCellEvent, eventColumns,
-    saveTxn, isSaving, saveError, clearSaveError,
+    fireCellEvent,
+    eventColumns,
+    saveTxn,
+    isSaving,
+    saveError,
+    clearSaveError,
   } = usePurchaseInquiry(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
@@ -145,7 +180,7 @@ export default function PurchaseInquiryForm() {
   // Computed first so both the ref and the filter panel share the same initial date.
   const todayISO = useMemo(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
   // TranDate seeded with todayISO so prmTranDate is correct on the first
@@ -153,9 +188,16 @@ export default function PurchaseInquiryForm() {
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
-    DivisionID: 0, DeptID: 0, BasedOnID: '0',
-    Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID,
+    TranCode: "",
+    TranDate: todayISO,
+    ConfigID: 0,
+    ExpectedDate: null,
+    DivisionID: 0,
+    DeptID: 0,
+    BasedOnID: "0",
+    Remarks: "",
+    CompanyID: 1,
+    YearID: PI_CONFIG.DIVISION_YEAR_ID,
     LoginID: session.loginId,
     UserID: session.userId,
     IDNumber: recordId,
@@ -163,7 +205,7 @@ export default function PurchaseInquiryForm() {
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { BasedOnID: '0', TranDate: todayISO };
+    return { BasedOnID: "0", TranDate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
@@ -183,13 +225,13 @@ export default function PurchaseInquiryForm() {
   }, []);
 
   const focusSelectItemButton = useCallback(() => {
-    setActiveTab('items');
+    setActiveTab("items");
     selectItemBtnRef.current?.focus();
   }, []);
 
   const enterEditModeWithFocus = useCallback(() => {
     setIsEditMode(true);
-    setActiveTab('items');
+    setActiveTab("items");
     window.requestAnimationFrame(() => {
       window.setTimeout(() => {
         if (!focusFirstEditableFilterField()) {
@@ -209,9 +251,16 @@ export default function PurchaseInquiryForm() {
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
-      DivisionID: 0, DeptID: 0, BasedOnID: '0',
-      Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID,
+      TranCode: "",
+      TranDate: todayISO,
+      ConfigID: 0,
+      ExpectedDate: null,
+      DivisionID: 0,
+      DeptID: 0,
+      BasedOnID: "0",
+      Remarks: "",
+      CompanyID: 1,
+      YearID: PI_CONFIG.DIVISION_YEAR_ID,
       LoginID: resetSession.loginId,
       UserID: resetSession.userId,
       IDNumber: 0,
@@ -223,8 +272,8 @@ export default function PurchaseInquiryForm() {
     clearInquiryTypes();
     clearSaveError();
 
-    setActiveTab('items');
-    setApprovedFilter('all');
+    setActiveTab("items");
+    setApprovedFilter("all");
     setIsGridLoading(false);
     setIndentRows([]);
     setItemSelectionCount(0);
@@ -253,22 +302,25 @@ export default function PurchaseInquiryForm() {
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
-      navigate('/purchase-inquiry');
+      navigate("/purchase-inquiry");
     } else {
       resetFormToInitialState();
     }
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   // ── Tab state ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('items');
+  const [activeTab, setActiveTab] = useState("items");
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [supplierSelectionCount, setSupplierSelectionCount] = useState(0);
-  const activeSelectionCount = activeTab === 'items' ? itemSelectionCount
-    : activeTab === 'suppliers' ? supplierSelectionCount
-      : 0;
+  const activeSelectionCount =
+    activeTab === "items"
+      ? itemSelectionCount
+      : activeTab === "suppliers"
+        ? supplierSelectionCount
+        : 0;
 
-  const [approvedFilter, setApprovedFilter] = useState('all');
+  const [approvedFilter, setApprovedFilter] = useState("all");
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [indentRows, setIndentRows] = useState([]);
 
@@ -290,12 +342,12 @@ export default function PurchaseInquiryForm() {
   const [childColumns, setChildColumns] = useState([]);
 
   usePageHeader({
-    title: isNewRoute ? 'New Purchase Inquiry' : 'Purchase Inquiry',
+    title: isNewRoute ? "New Purchase Inquiry" : "Purchase Inquiry",
     subtitle: isNewRoute
-      ? 'Fill in the header fields, then use Item Grid or Suppliers tabs.'
-      : `Inquiry #${recordId || routeId || '—'} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
+      ? "Fill in the header fields, then use Item Grid or Suppliers tabs."
+      : `Inquiry #${recordId || routeId || "—"} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
     showBack: true,
-    backTo: '/purchase-inquiry',
+    backTo: "/purchase-inquiry",
   });
 
   useEffect(() => {
@@ -312,7 +364,7 @@ export default function PurchaseInquiryForm() {
       const { master, headerValues, details } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
-        throw new Error('Inquiry record not found.');
+        throw new Error("Inquiry record not found.");
       }
 
       headerValuesRef.current = headerValues;
@@ -335,17 +387,12 @@ export default function PurchaseInquiryForm() {
         queuedRowsRef.current = details;
       }
     } catch (err) {
-      console.error('[PI] Edit record load failed:', err);
-      setRecordLoadError(err?.message || 'Failed to load inquiry record.');
+      console.error("[PI] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load inquiry record.");
     } finally {
       setRecordLoading(false);
     }
-  }, [
-    recordId,
-    listRecord,
-    fetchEditRecord,
-    fetchGridColumns,
-  ]);
+  }, [recordId, listRecord, fetchEditRecord, fetchGridColumns]);
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
@@ -389,39 +436,36 @@ export default function PurchaseInquiryForm() {
 
   // ── syncedFilters ─────────────────────────────────────────────────
   const syncedFilters = useMemo(() => {
-    const apiColMap = {};
-    headerColumns.forEach((col) => { apiColMap[col.ColName] = col; });
+    const apiColMap = buildHeaderColMap(headerColumns);
 
     const injectListOptions = (filter, baseFilter) => {
       switch (filter.FilterParameterID) {
-        case 'DivisionID': return { ...baseFilter, staticOptions: divisionOptions };
-        case 'ConfigID': return { ...baseFilter, staticOptions: inquiryTypeOptions };
-        case 'DeptID': return { ...baseFilter, staticOptions: departmentOptions };
-        default: return baseFilter;
+        case "DivisionID":
+          return { ...baseFilter, staticOptions: divisionOptions };
+        case "ConfigID":
+          return { ...baseFilter, staticOptions: inquiryTypeOptions };
+        case "DeptID":
+          return { ...baseFilter, staticOptions: departmentOptions };
+        default:
+          return baseFilter;
       }
     };
 
     const buildFilterDef = (filter) => {
-      const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
+      const apiCol = resolveHeaderApiCol(filter, apiColMap);
       const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
 
-      let def = {
-        ...filter,
-        lockOnEditMode,
-        ctrlValueCol: apiCol?.CtrlValueCol,
-        ctrlDisplayCol: apiCol?.CtrlDisplayCol,
-      };
+      let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
 
       if (apiCol) {
-        def.FilterColName = apiCol.ColName;
         def.FilterColCtrlType = apiCol.ColCtrlType ?? filter.FilterColCtrlType;
       }
 
       // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
       if (isEditRoute && loadedMasterRow) {
-        if (filter.FilterParameterID === 'BasedOnID') {
+        if (filter.FilterParameterID === "BasedOnID") {
           const basedOnVal = String(
-            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? '0',
+            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? "0"
           );
           if (lockOnEditMode || !isEditMode) {
             const match = PI_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
@@ -447,7 +491,7 @@ export default function PurchaseInquiryForm() {
       return injectListOptions(filter, def);
     };
 
-    if (headerColumns.length === 0) return PI_HEADER_FILTERS.map(buildFilterDef);
+    if (headerColumns.length === 0) return [];
     return PI_HEADER_FILTERS.map(buildFilterDef);
   }, [
     headerColumns,
@@ -462,37 +506,37 @@ export default function PurchaseInquiryForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      if (!isEditMode) tones[f.FilterColName] = 'view';
-      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = 'frozen';
-      else tones[f.FilterColName] = 'editable';
+      if (!isEditMode) tones[f.FilterColName] = "view";
+      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = "frozen";
+      else tones[f.FilterColName] = "editable";
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
 
   // ── Filter cascade ─────────────────────────────────────────────────
-  const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (colName === 'DivisionID') {
-      headerValuesRef.current.ConfigID = 0;
-      clearInquiryTypes();
-      if (val && val !== '0') await fetchInquiryTypes(val);
-    }
-  }, [fetchInquiryTypes, clearInquiryTypes]);
+      if (colName === "DivisionID") {
+        headerValuesRef.current.ConfigID = 0;
+        clearInquiryTypes();
+        if (val && val !== "0") await fetchInquiryTypes(val);
+      }
+    },
+    [fetchInquiryTypes, clearInquiryTypes]
+  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(
-        headerValuesRef.current?.DivisionID ?? 0,
-        {
-          existingRecordEdit: isEditRoute,
-          masterRow: loadedMasterRow,
-          fetchUnlockedDropdowns: isEditRoute ? isEditMode : true,
-        },
-      );
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0, {
+        existingRecordEdit: isEditRoute,
+        masterRow: loadedMasterRow,
+        fetchUnlockedDropdowns: isEditRoute ? isEditMode : true,
+      });
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -511,8 +555,8 @@ export default function PurchaseInquiryForm() {
     const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValuesRef.current;
     const divisionID = DivisionID ?? 0;
     const configID = ConfigID ?? 0;
-    if (!divisionID || divisionID === '0' || divisionID === 0) {
-      alert('Please select a Division before selecting items.');
+    if (!divisionID || divisionID === "0" || divisionID === 0) {
+      alert("Please select a Division before selecting items.");
       return;
     }
 
@@ -524,132 +568,142 @@ export default function PurchaseInquiryForm() {
 
     try {
       // Step 1 — choose RB code by BasedOnID
-      const rbCode = Number(BasedOnID) === 2
-        ? PI_CONFIG.RB_ITEM_PICKER_INDENT
-        : PI_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const rbCode =
+        Number(BasedOnID) === 2 ? PI_CONFIG.RB_ITEM_PICKER_INDENT : PI_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       // Step 2 — fetch RBID
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: rbCode }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       const rbRow = rbRes?.Table?.[0];
-      if (!rbRow) throw new Error('Could not load item picker configuration.');
+      if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       // Step 3 — fetch columns (read-only: skip dropdown options)
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
         prmLoginID: getUserSession().loginId,
       });
-      const gridColumns = buildGridColumns(colRes?.Links || [], {}, {
-        filterable: false,
-        allEditable: false,
-      });
+      const gridColumns = buildGridColumns(
+        colRes?.Links || [],
+        {},
+        {
+          filterable: false,
+          allEditable: false,
+        }
+      );
       setItemModalColumns(gridColumns);
 
       // Step 4 — fetch item rows
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([{
-          prmDivisionID: Number(divisionID),
-          prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID: getUserSession().loginId,
-          prmTranDate: formatTranDate(TranDate),
-          prmConfigID: Number(configID),
-          prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-          prmTranBook: PI_CONFIG.TRAN_BOOK,
-          prmFrmOption: Number(BasedOnID) || 0,
-        }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        JSon: JSON.stringify([
+          {
+            prmDivisionID: Number(divisionID),
+            prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
+            prmLoginID: getUserSession().loginId,
+            prmTranDate: formatTranDate(TranDate),
+            prmConfigID: Number(configID),
+            prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
+            prmTranBook: PI_CONFIG.TRAN_BOOK,
+            prmFrmOption: Number(BasedOnID) || 0,
+          },
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       setItemModalItems(rowRes?.Table || []);
     } catch (err) {
-      console.error('[PI] Item picker fetch failed:', err);
-      setItemModalError(err?.message || 'Failed to fetch items.');
+      console.error("[PI] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab('items');
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
 
-    const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
+      const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
 
-    if (!isIndentWise) {
-      // ── Direct mode ───────────────────────────────────────────────────
-      // Column definitions must be loaded before we can map rows.
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) return;
-      setChildRowsMap({});
-      setChildColumns([]);
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-      return;
-    }
+      if (!isIndentWise) {
+        // ── Direct mode ───────────────────────────────────────────────────
+        // Column definitions must be loaded before we can map rows.
+        const activeCols = await ensureItemColumns();
+        if (!activeCols?.length) return;
+        setChildRowsMap({});
+        setChildColumns([]);
+        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        return;
+      }
 
-    // ── Indent-wise mode ─────────────────────────────────────────────
-    // The summary API call must not be gated on column loading — fire it
-    // immediately.  Parent rows are spread directly onto the grid row so
-    // the display works even if allColumns hasn't resolved yet.
-    // Also kick off column loading in the background so the grid is
-    // properly configured by the time the user interacts with it.
-    ensureItemColumns().catch(() => { });
+      // ── Indent-wise mode ─────────────────────────────────────────────
+      // The summary API call must not be gated on column loading — fire it
+      // immediately.  Parent rows are spread directly onto the grid row so
+      // the display works even if allColumns hasn't resolved yet.
+      // Also kick off column loading in the background so the grid is
+      // properly configured by the time the user interacts with it.
+      ensureItemColumns().catch(() => {});
 
-    // Strip synthetic '_row_N' ids before sending to the API.
-    const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
+      // Strip synthetic '_row_N' ids before sending to the API.
+      const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
 
-    setIsGridLoading(true);
-    try {
-      const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: PI_CONFIG.SP_INDENT_SUMMARY,
-          JSon: [{ prmJSon: cleanItems }],
-          p_ErrCode: -1,
-          p_ErrMsg: '',
-        }),
-      });
-      const summaryRes = await summaryResponse.json();
+      setIsGridLoading(true);
+      try {
+        const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: PI_CONFIG.SP_INDENT_SUMMARY,
+            JSon: [{ prmJSon: cleanItems }],
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          }),
+        });
+        const summaryRes = await summaryResponse.json();
 
-      const parents = summaryRes?.Table ?? [];
-      if (!parents.length) return;
+        const parents = summaryRes?.Table ?? [];
+        if (!parents.length) return;
 
-      // Build childRowsMap: parent.ItemID → matching selected indent rows.
-      // Relationship: child.ChildFKey === parent.ItemID
-      const newChildRowsMap = {};
-      parents.forEach((parent) => {
-        const pid = String(Math.round(Number(parent.ItemID)));
-        const children = cleanItems.filter(
-          (c) => String(Math.round(Number(c.ChildFKey))) === pid,
-        );
-        if (children.length > 0) newChildRowsMap[pid] = children;
+        // Build childRowsMap: parent.ItemID → matching selected indent rows.
+        // Relationship: child.ChildFKey === parent.ItemID
+        const newChildRowsMap = {};
+        parents.forEach((parent) => {
+          const pid = String(Math.round(Number(parent.ItemID)));
+          const children = cleanItems.filter(
+            (c) => String(Math.round(Number(c.ChildFKey))) === pid
+          );
+          if (children.length > 0) newChildRowsMap[pid] = children;
 
-        // Spread all API fields directly so the row doesn't depend on
-        // allColumns being loaded yet; any grid column whose key matches
-        // a parent field will display the correct value automatically.
-        addItemRow({ ...parent, id: pid });
-      });
+          // Spread all API fields directly so the row doesn't depend on
+          // allColumns being loaded yet; any grid column whose key matches
+          // a parent field will display the correct value automatically.
+          addItemRow({ ...parent, id: pid });
+        });
 
-      setChildRowsMap((prev) => ({ ...prev, ...newChildRowsMap }));
-      setChildColumns(itemModalColumns.filter((c) => c.key !== 'cb'));
-    } catch (err) {
-      console.error('[PI] Indent summary fetch failed:', err);
-    } finally {
-      setIsGridLoading(false);
-    }
-  }, [ensureItemColumns, allColumns, addItemRow, itemModalColumns]);
+        setChildRowsMap((prev) => ({ ...prev, ...newChildRowsMap }));
+        setChildColumns(itemModalColumns.filter((c) => c.key !== "cb"));
+      } catch (err) {
+        console.error("[PI] Indent summary fetch failed:", err);
+      } finally {
+        setIsGridLoading(false);
+      }
+    },
+    [ensureItemColumns, allColumns, addItemRow, itemModalColumns]
+  );
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────
   const handleSelectSupplier = useCallback(async () => {
     const divisionID = headerValuesRef.current?.DivisionID ?? 0;
-    if (!divisionID || divisionID === '0' || divisionID === 0) {
-      alert('Please select a Division before selecting suppliers.');
+    if (!divisionID || divisionID === "0" || divisionID === 0) {
+      alert("Please select a Division before selecting suppliers.");
       return;
     }
     setSupplierModalOpen(true);
@@ -660,23 +714,26 @@ export default function PurchaseInquiryForm() {
       const response = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SUPPLIER_SP,
-        JSon: JSON.stringify([{
-          PrmDivisionId: Number(divisionID),
-          PrmLoginId: getUserSession().loginId,
-          PrmYearId: PI_CONFIG.CONFIG_YEAR_ID,
-          PrmPartyType: PI_CONFIG.SUPPLIER_PARTY_TYPE,
-        }]),
-        p_ErrCode: -1, p_ErrMsg: '',
+        JSon: JSON.stringify([
+          {
+            PrmDivisionId: Number(divisionID),
+            PrmLoginId: getUserSession().loginId,
+            PrmYearId: PI_CONFIG.CONFIG_YEAR_ID,
+            PrmPartyType: PI_CONFIG.SUPPLIER_PARTY_TYPE,
+          },
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
       setSupplierModalItems(
         (response?.Table || []).map((row, idx) => ({
           ...row,
           id: String(row.SupplierID ?? `sup_${idx}`),
-        })),
+        }))
       );
     } catch (err) {
-      console.error('[PI] Supplier fetch failed:', err);
-      setSupplierModalError(err?.message || 'Failed to fetch suppliers.');
+      console.error("[PI] Supplier fetch failed:", err);
+      setSupplierModalError(err?.message || "Failed to fetch suppliers.");
     } finally {
       setSupplierModalLoading(false);
     }
@@ -684,7 +741,7 @@ export default function PurchaseInquiryForm() {
 
   const handleInsertSuppliers = useCallback((selectedSuppliers) => {
     if (!selectedSuppliers?.length) return;
-    setActiveTab('suppliers');
+    setActiveTab("suppliers");
     const existing = supplierGridRef.current?.getRows?.() ?? [];
     const existingIds = new Set(existing.map((r) => String(r.SupplierID ?? r.id)));
     let nextSrNo = existing.length;
@@ -699,91 +756,106 @@ export default function PurchaseInquiryForm() {
 
   // ── Delete selected rows (active tab's grid) ───────────────────────
   const handleDeleteSelected = useCallback(() => {
-    const ref = activeTab === 'items' ? itemGridRef
-      : activeTab === 'suppliers' ? supplierGridRef
-        : null;
+    const ref =
+      activeTab === "items" ? itemGridRef : activeTab === "suppliers" ? supplierGridRef : null;
     if (!ref?.current) return;
     const selected = ref.current.getSelectedRows?.() ?? [];
     if (selected.length === 0) return;
     ref.current.removeRows?.(selected.map((r) => r.id));
-    if (activeTab === 'suppliers') {
+    if (activeTab === "suppliers") {
       const remaining = ref.current.getRows?.() ?? [];
       remaining.forEach((row, idx) => {
-        if (Object.prototype.hasOwnProperty.call(row, 'SrNo')) {
+        if (Object.prototype.hasOwnProperty.call(row, "SrNo")) {
           ref.current.updateRow?.(row.id, { SrNo: idx + 1 });
         }
       });
     }
   }, [activeTab]);
 
-  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
-    const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-    if (!result || !itemGridRef.current) return;
-    const responseRow = result?.Links?.[0];
-    if (!responseRow) return;
-    const errCode = responseRow.ErrCode;
-    if (errCode !== 1 && errCode !== 1.0) {
-      console.warn('[PI] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
-      return;
-    }
-    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
-    itemGridRef.current.updateRow?.(rowId, updatedFields);
-  }, [fireCellEvent]);
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.Links?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.ErrCode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[PI] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
 
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingPI, setIsSavingPI] = useState(false);
 
-  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
-    // ── Master ────────────────────────────────────────────────────────
-    const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
-    const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
-    const session = getUserSession();
-    mstRow.LoginID = session.loginId;
-    mstRow.UserID = session.userId;
+  const handleSave = useCallback(
+    async ({ skipPostSave = false } = {}) => {
+      // ── Master ────────────────────────────────────────────────────────
+      const mstRow = {};
+      headerColumns.forEach((col) => {
+        mstRow[col.ColName] = getColDefault(col.ColDataType);
+      });
+      const hv = headerValuesRef.current;
+      Object.entries(hv).forEach(([k, v]) => {
+        if (k !== "id") mstRow[k] = v;
+      });
+      const session = getUserSession();
+      mstRow.LoginID = session.loginId;
+      mstRow.UserID = session.userId;
 
-    // ── Detail ────────────────────────────────────────────────────────
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: session.loginId, UserID: session.userId };
-    });
+      // ── Detail ────────────────────────────────────────────────────────
+      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
+        const row = {};
+        allColumns.forEach(({ key, colDataType }) => {
+          row[key] = getColDefault(colDataType);
+        });
+        return { ...row, ...rest, LoginID: session.loginId, UserID: session.userId };
+      });
 
-    // ── IndentDetail ──────────────────────────────────────────────────
-    const indentDetailRows = Object.values(childRowsMap)
-      .flat()
-      .map(({ id: _id, ...rest }) => ({ ...rest, LoginID: session.loginId, UserID: session.userId }));
+      // ── IndentDetail ──────────────────────────────────────────────────
+      const indentDetailRows = Object.values(childRowsMap)
+        .flat()
+        .map(({ id: _id, ...rest }) => ({
+          ...rest,
+          LoginID: session.loginId,
+          UserID: session.userId,
+        }));
 
-    const payload = {
-      prmStrMstJSON: JSON.stringify([mstRow]),
-      prmStrDetJSON: JSON.stringify(detRows),
-      prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
-    };
+      const payload = {
+        prmStrMstJSON: JSON.stringify([mstRow]),
+        prmStrDetJSON: JSON.stringify(detRows),
+        prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
+      };
 
-    console.log('%c[PI Save] Payload:', 'color:#f59e0b;font-weight:700', payload);
-    console.log('%c[PI Save] Master:', 'color:#6366f1;font-weight:600', [mstRow]);
-    console.log('%c[PI Save] Detail:', 'color:#22c55e;font-weight:600', detRows);
-    console.log('%c[PI Save] IndentDetail:', 'color:#ec4899;font-weight:600', indentDetailRows);
+      console.log("%c[PI Save] Payload:", "color:#f59e0b;font-weight:700", payload);
+      console.log("%c[PI Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
+      console.log("%c[PI Save] Detail:", "color:#22c55e;font-weight:600", detRows);
+      console.log("%c[PI Save] IndentDetail:", "color:#ec4899;font-weight:600", indentDetailRows);
 
-    setIsSavingPI(true);
-    try {
-      const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
-      console.log('%c[PI Save] Response:', 'color:#22c55e;font-weight:700', result);
-      const { success, message } = parseApiErrMsg(result);
-      alert(message);
-      if (!success) return false;
+      setIsSavingPI(true);
+      try {
+        const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
+        console.log("%c[PI Save] Response:", "color:#22c55e;font-weight:700", result);
+        const { success, message } = parseApiErrMsg(result);
+        alert(message);
+        if (!success) return false;
 
-      if (!skipPostSave) completeSuccessfulSave();
-      return true;
-    } catch (err) {
-      console.error('[PI Save] Failed:', err);
-      alert(err?.message || 'Save failed. Please try again.');
-      return false;
-    } finally {
-      setIsSavingPI(false);
-    }
-  }, [headerColumns, allColumns, childRowsMap, postSave, completeSuccessfulSave]);
+        if (!skipPostSave) completeSuccessfulSave();
+        return true;
+      } catch (err) {
+        console.error("[PI Save] Failed:", err);
+        alert(err?.message || "Save failed. Please try again.");
+        return false;
+      } finally {
+        setIsSavingPI(false);
+      }
+    },
+    [headerColumns, allColumns, childRowsMap, postSave, completeSuccessfulSave]
+  );
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -793,7 +865,7 @@ export default function PurchaseInquiryForm() {
   }, [handleSave, completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => {
-    if (!window.confirm('Discard changes and reset the form?')) return;
+    if (!window.confirm("Discard changes and reset the form?")) return;
 
     if (isEditRoute) {
       exitEditMode();
@@ -808,102 +880,89 @@ export default function PurchaseInquiryForm() {
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
 
-  const handleClose = useCallback(() => navigate('/purchase-inquiry'), [navigate]);
+  const handleClose = useCallback(() => navigate("/purchase-inquiry"), [navigate]);
   const handleDocument = useCallback(() => {
-    console.log('[PI] Document F6 — reserved for document generation.');
+    console.log("[PI] Document F6 — reserved for document generation.");
   }, []);
 
-  const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
+  const itemGridConfig = {
+    columns,
+    pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
+  };
   const combinedError = metaError || headerError || recordLoadError;
   const filterPanelLoading = headerFetching || recordLoading;
+  const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy = filterPanelLoading || isLoadingInquiryTypes;
 
-  // Alt+A Add | Alt+S Save | Alt+N Cancel | Alt+C Close
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey) return;
-      if (itemModalOpen || supplierModalOpen) return;
-
-      const key = e.key.toLowerCase();
-      switch (key) {
-        case 'a':
-          if (!isEditMode && !filterBusy) {
-            e.preventDefault();
-            enterEditModeWithFocus();
-          }
-          break;
-        case 's':
-          if (isEditMode && !isSavingPI) {
-            e.preventDefault();
-            handleSave();
-          }
-          break;
-        case 'n':
-          if (isEditMode) {
-            e.preventDefault();
-            handleCancel();
-          }
-          break;
-        case 'c':
-          e.preventDefault();
-          handleClose();
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
+  useEntryFormKeyboard({
+    blocked: itemModalOpen || supplierModalOpen,
     isEditMode,
-    filterBusy,
-    isSavingPI,
-    itemModalOpen,
-    supplierModalOpen,
-    enterEditModeWithFocus,
-    handleSave,
-    handleCancel,
-    handleClose,
-  ]);
+    isSaving: isSavingPI,
+    addDisabled: filterBusy,
+    onAdd: enterEditModeWithFocus,
+    onSave: handleSave,
+    onCancel: handleCancel,
+    onClose: handleClose,
+  });
 
   // Extra buttons visible in the ActionBar while in edit mode
-  const piExtraButtons = useMemo(() => [
-    { key: 'document', label: 'Document F6', Icon: FileText, variant: 'secondary', onClick: handleDocument },
-    { key: 'sep1', separator: true },
-    { key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print', onClick: handleSaveAndPrint, disabled: isSavingPI },
-    {
-      key: 'save',
-      label: isSavingPI ? 'Saving…' : 'Save',
-      Icon: Save,
-      variant: 'save',
-      onClick: () => handleSave(),
-      disabled: isSavingPI,
-      loading: isSavingPI,
-      accessKey: 's',
-      title: 'Save (Alt+S)',
-    },
-    {
-      key: 'close',
-      label: 'Close',
-      Icon: LogOut,
-      variant: 'close',
-      onClick: handleClose,
-      showAlways: true,
-      accessKey: 'c',
-      title: 'Close (Alt+C)',
-    },
-  ], [handleDocument, handleSaveAndPrint, isSavingPI, handleSave, handleClose]);
+  const piExtraButtons = useMemo(
+    () => [
+      {
+        key: "document",
+        label: "Document F6",
+        Icon: FileText,
+        variant: "secondary",
+        onClick: handleDocument,
+      },
+      { key: "sep1", separator: true },
+      {
+        key: "saveprint",
+        label: "Save & Print",
+        Icon: Printer,
+        variant: "print",
+        onClick: handleSaveAndPrint,
+        disabled: isSavingPI,
+      },
+      {
+        key: "save",
+        label: isSavingPI ? "Saving…" : "Save",
+        Icon: Save,
+        variant: "save",
+        onClick: () => handleSave(),
+        disabled: isSavingPI,
+        loading: isSavingPI,
+        accessKey: "s",
+        title: "Save (Alt+S)",
+      },
+      {
+        key: "close",
+        label: "Close",
+        Icon: LogOut,
+        variant: "close",
+        onClick: handleClose,
+        showAlways: true,
+        accessKey: "c",
+        title: "Close (Alt+C)",
+      },
+    ],
+    [handleDocument, handleSaveAndPrint, isSavingPI, handleSave, handleClose]
+  );
 
   return (
     <div className="workspace-page pi-page">
-
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
             <AlertCircle size={16} strokeWidth={2} />
             <span>{combinedError}</span>
-            <button type="button" onClick={() => { fetchHeaderMeta(); fetchDetailMeta(); }}>
+            <button
+              type="button"
+              onClick={() => {
+                fetchHeaderMeta();
+                fetchDetailMeta();
+              }}
+            >
               Retry
             </button>
           </div>
@@ -917,7 +976,8 @@ export default function PurchaseInquiryForm() {
             cascadeResets={PI_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
             isSearching={filterPanelLoading}
-            disabled={filterPanelLoading}
+            isMetaLoading={!headerMetaReady || recordLoading}
+            disabled={filterPanelLoading || !headerMetaReady}
             fieldTones={filterFieldTones}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
@@ -925,14 +985,13 @@ export default function PurchaseInquiryForm() {
       </section>
 
       <section className="pi-grid-section">
-
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
             {PI_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? 'grid-tab--active' : ''}`}
+                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
                 onClick={() => setActiveTab(t.id)}
               >
                 {t.label}
@@ -941,7 +1000,7 @@ export default function PurchaseInquiryForm() {
           </div>
 
           <div className="grid-tabbar__controls">
-            {activeTab === 'items' && (
+            {activeTab === "items" && (
               <button
                 ref={selectItemBtnRef}
                 type="button"
@@ -955,7 +1014,7 @@ export default function PurchaseInquiryForm() {
               </button>
             )}
 
-            {activeTab === 'suppliers' && (
+            {activeTab === "suppliers" && (
               <button
                 type="button"
                 className="pi-tab-action-btn"
@@ -991,7 +1050,7 @@ export default function PurchaseInquiryForm() {
           </div>
         </div>
 
-        <div className={`pi-tab-pane${activeTab === 'items' ? ' pi-tab-pane--active' : ''}`}>
+        <div className={`pi-tab-pane${activeTab === "items" ? " pi-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -1009,7 +1068,7 @@ export default function PurchaseInquiryForm() {
           />
         </div>
 
-        <div className={`pi-tab-pane${activeTab === 'suppliers' ? ' pi-tab-pane--active' : ''}`}>
+        <div className={`pi-tab-pane${activeTab === "suppliers" ? " pi-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={supplierGridRef}
             config={SUPPLIER_GRID_CONFIG}
@@ -1020,11 +1079,15 @@ export default function PurchaseInquiryForm() {
           />
         </div>
 
-        {activeTab === 'terms' && (
+        {activeTab === "terms" && (
           <div className="pi-terms-pane">
             <table className="pi-terms-table">
               <thead>
-                <tr>{TERMS_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr>
+                <tr>
+                  {TERMS_COLUMNS.map((c) => (
+                    <th key={c}>{c}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 <tr>
@@ -1036,7 +1099,6 @@ export default function PurchaseInquiryForm() {
             </table>
           </div>
         )}
-
       </section>
 
       {/* <section className="pi-page__section">

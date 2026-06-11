@@ -5,17 +5,17 @@
 // Contains pure helper functions that are common to both hooks so they
 // are defined in one place and imported wherever needed.
 
-import { ENDPOINTS, CBO_MODE } from '../api/constants';
-import { getUserSession } from '../session/userSession';
+import { ENDPOINTS, CBO_MODE } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 
 // ── Column helpers ───────────────────────────────────────────────────
 
 /** API bit flags often arrive as 1/0, "true", or "Y" — not only boolean true. */
 export function isTruthyApiFlag(val) {
   if (val === true || val === 1) return true;
-  if (typeof val === 'string') {
+  if (typeof val === "string") {
     const s = val.trim().toLowerCase();
-    return s === 'true' || s === '1' || s === 'y' || s === 'yes';
+    return s === "true" || s === "1" || s === "y" || s === "yes";
   }
   return false;
 }
@@ -27,9 +27,12 @@ export function isTruthyApiFlag(val) {
  */
 export function deriveFilterType(ctrlType) {
   switch (ctrlType) {
-    case 2: return 'date';
-    case 4: return 'select';
-    default: return 'text';
+    case 2:
+      return "date";
+    case 4:
+      return "select";
+    default:
+      return "text";
   }
 }
 
@@ -40,7 +43,7 @@ export function deriveFilterType(ctrlType) {
  */
 export function getColumnWidth(apiCol) {
   // if (apiCol.ColumnWidth && apiCol.ColumnWidth > 0) return apiCol.ColumnWidth * 1.5;
-  const len = (apiCol.DisplayName || '').length;
+  const len = (apiCol.DisplayName || "").length;
   if (len <= 4) return 80;
   if (len <= 8) return 110;
   if (len <= 14) return 150;
@@ -57,8 +60,8 @@ export function getColumnWidth(apiCol) {
  * @returns {string}
  */
 export function formatParamValue(value, dataType) {
-  if (dataType === 'numeric') return `${value ?? ''}`;
-  return value != null && value !== '' ? String(value) : '0';
+  if (dataType === "numeric") return `${value ?? ""}`;
+  return value != null && value !== "" ? String(value) : "0";
 }
 
 // ── Dropdown fetcher ─────────────────────────────────────────────────
@@ -67,26 +70,56 @@ export function isLockOnEditModeCol(apiCol) {
   return isTruthyApiFlag(apiCol?.IsLockOnEditModeAllow);
 }
 
+/**
+ * Merge a static header filter stub with a GET_DETAIL_COL_DATA column.
+ * Match key: filter.FilterParameterID === apiCol.ColName.
+ */
+export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
+  const colName = apiCol?.ColName ?? filter.FilterColName ?? filter.FilterParameterID;
+  return {
+    ...filter,
+    ...patch,
+    FilterColName: colName,
+    FilterCaption: apiCol?.DisplayName ?? colName,
+    ctrlValueCol: apiCol?.CtrlValueCol,
+    ctrlDisplayCol: apiCol?.CtrlDisplayCol,
+  };
+}
+
+/** Build a ColName → column map from GET_DETAIL_COL_DATA Links. */
+export function buildHeaderColMap(headerColumns = []) {
+  const map = {};
+  headerColumns.forEach((col) => {
+    map[col.ColName] = col;
+  });
+  return map;
+}
+
+/** Resolve header column by FilterParameterID (ColName). */
+export function resolveHeaderApiCol(filter, apiColMap) {
+  return apiColMap[filter.FilterParameterID] ?? apiColMap[filter.FilterColName] ?? null;
+}
+
 /** Build a single { value, label } option from a master/detail row using column metadata. */
 export function buildDropdownOptionFromRow(apiCol, rowData) {
   if (!apiCol || !rowData) return [];
   const valueCol = apiCol.CtrlValueCol || apiCol.ColName;
   const displayCol = apiCol.CtrlDisplayCol || valueCol;
   const value = rowData[valueCol];
-  if (value == null || value === '') return [];
+  if (value == null || value === "") return [];
   const label = rowData[displayCol] ?? value;
-  return [{ value: String(value), label: String(label ?? '') }];
+  return [{ value: String(value), label: String(label ?? "") }];
 }
 
 /** Read the display text for a dropdown column from a grid row. */
 export function getRowDropdownDisplay(row, col) {
   const displayCol = col?.ctrlDisplayCol || col?.CtrlDisplayCol;
-  if (displayCol && row?.[displayCol] != null && row[displayCol] !== '') {
+  if (displayCol && row?.[displayCol] != null && row[displayCol] !== "") {
     return String(row[displayCol]);
   }
   const valueCol = col?.ctrlValueCol || col?.CtrlValueCol || col?.key;
   const value = row?.[valueCol ?? col?.key];
-  return value != null && value !== '' ? String(value) : '';
+  return value != null && value !== "" ? String(value) : "";
 }
 
 /**
@@ -98,7 +131,7 @@ export function getRowDropdownDisplay(row, col) {
  */
 export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {}) {
   const {
-    funcCode = '',
+    funcCode = "",
     divisionID = 0,
     existingRecordEdit = false,
     rowData = null,
@@ -113,9 +146,7 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
   await Promise.all(
     dropdownCols.map(async (col) => {
       if (existingRecordEdit && isLockOnEditModeCol(col)) {
-        colDropdownOptions[col.ColName] = rowData
-          ? buildDropdownOptionFromRow(col, rowData)
-          : [];
+        colDropdownOptions[col.ColName] = rowData ? buildDropdownOptionFromRow(col, rowData) : [];
         return;
       }
 
@@ -135,15 +166,15 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
         });
 
         colDropdownOptions[col.ColName] = (detailData?.Links || []).map((opt) => {
-          const valKey = opt.FilterCtrlValueCol || 'IDNumber';
-          const labelKey = opt.FilterCtrlDisplayCol || 'Name';
+          const valKey = opt.FilterCtrlValueCol || "IDNumber";
+          const labelKey = opt.FilterCtrlDisplayCol || "Name";
           return { value: String(opt[valKey]), label: opt[labelKey] };
         });
       } catch {
         console.warn(`[gridUtils] Failed dropdown for column: ${col.DisplayName}`);
         colDropdownOptions[col.ColName] = [];
       }
-    }),
+    })
   );
 
   return colDropdownOptions;
@@ -166,14 +197,12 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
   const { filterable = true, allEditable = false, existingRecordEdit = false } = opts;
 
   const dataColumns = apiColumns
-    .filter(col => col.IsVisible !== false)
-    .map(col => {
+    .filter((col) => col.IsVisible !== false)
+    .map((col) => {
       const lockOnEditMode = isLockOnEditModeCol(col);
       let isEditAllow;
       if (allEditable) {
-        isEditAllow = existingRecordEdit && lockOnEditMode
-          ? false
-          : true;
+        isEditAllow = existingRecordEdit && lockOnEditMode ? false : true;
       } else {
         isEditAllow = isTruthyApiFlag(col.IsEditAllow);
       }
@@ -199,7 +228,16 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
   dataColumns.sort((a, b) => (a.isFixed === b.isFixed ? 0 : a.isFixed ? -1 : 1));
 
   return [
-    { id: 'cb', name: '', key: 'cb', controlType: -1, width: 48, filterable: false, isFixed: true, isEditAllow: false },
+    {
+      id: "cb",
+      name: "",
+      key: "cb",
+      controlType: -1,
+      width: 48,
+      filterable: false,
+      isFixed: true,
+      isEditAllow: false,
+    },
     ...dataColumns,
   ];
 }

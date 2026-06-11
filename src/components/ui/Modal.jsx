@@ -22,35 +22,47 @@
 //   footer    — ReactNode (optional) — custom footer content
 //   children  — body content (any React component)
 
-import React, { useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
-import './modal.css';
+import React, { useEffect, useCallback } from "react";
+import { X } from "lucide-react";
+import "./modal.css";
 
 export default function Modal({
   isOpen = false,
   onClose,
-  title = '',
-  subtitle = '',
+  title = "",
+  subtitle = "",
   icon = null,
-  size = 'lg',
+  size = "lg",
   headerless = false,
-  variant = 'default',
+  variant = "default",
   footer = null,
   children,
 }) {
-  // Close on Escape key
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') onClose?.();
-  }, [onClose]);
+  // Close on Escape key — capture phase so open modals win over page-level Esc handlers.
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key !== "Escape") return;
+      if (
+        e.target.closest(".search-select--open") ||
+        e.target.closest(".search-select__dropdown")
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      onClose?.();
+    },
+    [onClose]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
     // Prevent body scroll while modal is open
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.body.style.overflow = "";
     };
   }, [isOpen, handleKeyDown]);
 
@@ -59,19 +71,24 @@ export default function Modal({
   return (
     <div
       className="modal-overlay"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
       role="dialog"
       aria-modal="true"
-      aria-label={title || 'Modal dialog'}
+      aria-label={title || "Modal dialog"}
     >
-      <div className={`modal-dialog modal-dialog--${size} ${headerless ? 'modal-dialog--headerless' : ''} ${variant === 'enterprise' ? 'modal-dialog--enterprise' : ''}`}>
-
+      <div
+        className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""}`}
+      >
         {/* Header — hidden when headerless */}
         {!headerless && (
           <div className="modal-header">
             <div className="modal-header-left">
               {icon && (
-                <span className={`modal-header-icon${variant === 'enterprise' ? ' modal-header-icon--enterprise' : ''}`}>
+                <span
+                  className={`modal-header-icon${variant === "enterprise" ? " modal-header-icon--enterprise" : ""}`}
+                >
                   {icon}
                 </span>
               )}
@@ -80,11 +97,7 @@ export default function Modal({
                 {subtitle && <div className="modal-subtitle">{subtitle}</div>}
               </div>
             </div>
-            <button
-              className="modal-close"
-              onClick={onClose}
-              aria-label="Close modal"
-            >
+            <button className="modal-close" onClick={onClose} aria-label="Close modal">
               <X size={16} strokeWidth={2.5} />
             </button>
           </div>
@@ -102,16 +115,10 @@ export default function Modal({
         )}
 
         {/* Body */}
-        <div className="modal-body">
-          {children}
-        </div>
+        <div className="modal-body">{children}</div>
 
         {/* Footer */}
-        {footer && (
-          <div className="modal-footer">
-            {footer}
-          </div>
-        )}
+        {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>
   );

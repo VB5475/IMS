@@ -3,10 +3,10 @@
 // Replaces native <select> with a custom dropdown that has
 // a search/filter input at the top.
 
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronDown, Search } from 'lucide-react';
-import './search-select.css';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { ChevronDown, Search } from "lucide-react";
+import "./search-select.css";
 
 /**
  * SearchSelect — A searchable select dropdown.
@@ -25,12 +25,12 @@ import './search-select.css';
  *   onBlur        — called when focus leaves the control (not while dropdown is open)
  */
 export default function SearchSelect({
-  value = '',
+  value = "",
   onChange,
   options = [],
-  placeholder = '-- Select --',
-  searchPlaceholder = 'Search...',
-  className = '',
+  placeholder = "-- Select --",
+  searchPlaceholder = "Search...",
+  className = "",
   id,
   ariaLabel,
   disabled = false,
@@ -38,7 +38,7 @@ export default function SearchSelect({
   onBlur,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [dropdownStyle, setDropdownStyle] = useState(null);
   const wrapperRef = useRef(null);
@@ -49,21 +49,17 @@ export default function SearchSelect({
 
   // Find the label for the currently selected value
   const selectedOption = options.find((o) => String(o.value) === String(value));
-  const displayLabel = selectedOption ? selectedOption.label : '';
+  const displayLabel = selectedOption ? selectedOption.label : "";
 
   // Filter options by search text
   const filteredOptions = search
-    ? options.filter((o) =>
-      o.label.toLowerCase().includes(search.toLowerCase())
-    )
+    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
     : options;
 
   // ── Reset focusedIndex when search changes or dropdown opens ────────────
   useEffect(() => {
     // Pre-highlight the already-selected item, or default to -1
-    const idx = filteredOptions.findIndex(
-      (o) => String(o.value) === String(value)
-    );
+    const idx = filteredOptions.findIndex((o) => String(o.value) === String(value));
     setFocusedIndex(idx);
   }, [search, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,7 +68,7 @@ export default function SearchSelect({
     if (focusedIndex < 0 || !optionsListRef.current) return;
     const item = optionsListRef.current.children[focusedIndex];
     if (item) {
-      item.scrollIntoView({ block: 'nearest' });
+      item.scrollIntoView({ block: "nearest" });
     }
   }, [focusedIndex]);
 
@@ -97,13 +93,13 @@ export default function SearchSelect({
     if (left < margin) left = margin;
 
     return {
-      position: 'fixed',
+      position: "fixed",
       left: `${left}px`,
       width: `${minWidth}px`,
       maxHeight: `${maxHeight}px`,
       ...(dropUp
-        ? { bottom: `${window.innerHeight - rect.top + gap}px`, top: 'auto' }
-        : { top: `${rect.bottom + gap}px`, bottom: 'auto' }),
+        ? { bottom: `${window.innerHeight - rect.top + gap}px`, top: "auto" }
+        : { top: `${rect.bottom + gap}px`, bottom: "auto" }),
       zIndex: 2147483647,
     };
   }, []);
@@ -113,19 +109,16 @@ export default function SearchSelect({
     if (!isOpen) return;
 
     function handleClickOutside(e) {
-      const inWrapper =
-        wrapperRef.current && wrapperRef.current.contains(e.target);
-      const inDropdown =
-        dropdownRef.current && dropdownRef.current.contains(e.target);
+      const inWrapper = wrapperRef.current && wrapperRef.current.contains(e.target);
+      const inDropdown = dropdownRef.current && dropdownRef.current.contains(e.target);
       if (!inWrapper && !inDropdown) {
         setIsOpen(false);
-        setSearch('');
+        setSearch("");
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside, true);
-    return () =>
-      document.removeEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
   }, [isOpen]);
 
   // ── Auto-focus search input when opened ─────────────────────────────────
@@ -151,11 +144,11 @@ export default function SearchSelect({
       setDropdownStyle(computeDropdownStyle());
     };
 
-    window.addEventListener('scroll', handleReposition, true);
-    window.addEventListener('resize', handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
     return () => {
-      window.removeEventListener('scroll', handleReposition, true);
-      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
     };
   }, [isOpen, computeDropdownStyle]);
 
@@ -171,7 +164,7 @@ export default function SearchSelect({
         setIsOpen(true);
       } else {
         setIsOpen(false);
-        setSearch('');
+        setSearch("");
       }
     },
     [disabled, isOpen, computeDropdownStyle]
@@ -181,7 +174,7 @@ export default function SearchSelect({
     (optValue) => {
       onChange(optValue);
       setIsOpen(false);
-      setSearch('');
+      setSearch("");
       requestAnimationFrame(() => triggerRef.current?.focus());
     },
     [onChange]
@@ -190,9 +183,9 @@ export default function SearchSelect({
   const handleClear = useCallback(
     (e) => {
       e.stopPropagation();
-      onChange('');
+      onChange("");
       setIsOpen(false);
-      setSearch('');
+      setSearch("");
       requestAnimationFrame(() => triggerRef.current?.focus());
     },
     [onChange]
@@ -208,7 +201,7 @@ export default function SearchSelect({
         onBlur(e);
       });
     },
-    [disabled, onBlur],
+    [disabled, onBlur]
   );
 
   // ── Keyboard navigation ──────────────────────────────────────────────────
@@ -217,21 +210,17 @@ export default function SearchSelect({
       if (!isOpen) return;
 
       switch (e.key) {
-        case 'ArrowDown': {
+        case "ArrowDown": {
           e.preventDefault();
-          setFocusedIndex((prev) =>
-            prev < filteredOptions.length - 1 ? prev + 1 : 0
-          );
+          setFocusedIndex((prev) => (prev < filteredOptions.length - 1 ? prev + 1 : 0));
           break;
         }
-        case 'ArrowUp': {
+        case "ArrowUp": {
           e.preventDefault();
-          setFocusedIndex((prev) =>
-            prev > 0 ? prev - 1 : filteredOptions.length - 1
-          );
+          setFocusedIndex((prev) => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
           break;
         }
-        case 'Enter': {
+        case "Enter": {
           e.preventDefault();
           if (focusedIndex >= 0 && filteredOptions[focusedIndex]) {
             handleSelect(filteredOptions[focusedIndex].value);
@@ -241,9 +230,9 @@ export default function SearchSelect({
           }
           break;
         }
-        case 'Escape': {
+        case "Escape": {
           setIsOpen(false);
-          setSearch('');
+          setSearch("");
           requestAnimationFrame(() => triggerRef.current?.focus());
           break;
         }
@@ -255,14 +244,14 @@ export default function SearchSelect({
   );
 
   const wrapperClass = [
-    'search-select',
-    compact ? 'search-select--compact' : '',
-    isOpen ? 'search-select--open' : '',
-    disabled ? 'search-select--disabled' : '',
+    "search-select",
+    compact ? "search-select--compact" : "",
+    isOpen ? "search-select--open" : "",
+    disabled ? "search-select--disabled" : "",
     className,
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   // ── Dropdown element (shared between portal and inline) ──────────────────
   const dropdownEl = isOpen ? (
@@ -296,12 +285,12 @@ export default function SearchSelect({
             <div
               key={opt.value}
               className={[
-                'search-select__option',
-                isSelected ? 'search-select__option--selected' : '',
-                isFocused ? 'search-select__option--focused' : '',
+                "search-select__option",
+                isSelected ? "search-select__option--selected" : "",
+                isFocused ? "search-select__option--focused" : "",
               ]
                 .filter(Boolean)
-                .join(' ')}
+                .join(" ")}
               onClick={() => handleSelect(opt.value)}
               onMouseEnter={() => setFocusedIndex(idx)}
               role="option"
@@ -348,8 +337,7 @@ export default function SearchSelect({
         title={displayLabel || placeholder}
       >
         <span
-          className={`search-select__value ${!displayLabel ? 'search-select__placeholder' : ''
-            }`}
+          className={`search-select__value ${!displayLabel ? "search-select__placeholder" : ""}`}
         >
           {displayLabel || placeholder}
         </span>

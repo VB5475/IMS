@@ -1,17 +1,23 @@
-import React from 'react';
-import { ClipboardList, CheckCircle2, Clock3 } from 'lucide-react';
-import './TaskBoardPanel.css';
+import React from "react";
+import { ClipboardList, CheckCircle2, Clock3 } from "lucide-react";
+import "./TaskBoardPanel.css";
 
 const TASKS = [
-  { id: 1, title: 'Review Q1 Performance', status: 'Pending', time: 'Today', tone: 'warning' },
-  { id: 2, title: 'Update HR Policies', status: 'Completed', time: 'Yesterday', tone: 'success' },
-  { id: 3, title: 'Client Onboarding — Tech Solutions', status: 'In Progress', time: 'Tomorrow', tone: 'info' },
+  { id: 1, title: "Review Q1 Performance", status: "Pending", time: "Today", tone: "warning" },
+  { id: 2, title: "Update HR Policies", status: "Completed", time: "Yesterday", tone: "success" },
+  {
+    id: 3,
+    title: "Client Onboarding — Tech Solutions",
+    status: "In Progress",
+    time: "Tomorrow",
+    tone: "info",
+  },
 ];
 
 const STATUS_ICON = {
   Completed: CheckCircle2,
   Pending: Clock3,
-  'In Progress': Clock3,
+  "In Progress": Clock3,
 };
 
 export default function TaskBoardPanel() {

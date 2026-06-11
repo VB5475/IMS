@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  flex: 1;                   /* stretches inside a flex column */
+  flex: 1; /* stretches inside a flex column */
 }
 
 /* ─── Card header ─────────────────────────────────────────────────── */
@@ -30,9 +30,11 @@
 
 /* subtle shimmer line at the very top of the header */
 .ng-card-header::after {
-  content: '';
+  content: "";
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 1px;
   background: linear-gradient(
     90deg,
@@ -159,9 +161,17 @@
   scrollbar-color: var(--border-dark) transparent;
 }
 
-.ng-table-wrapper::-webkit-scrollbar          { width: 8px; height: 8px; }
-.ng-table-wrapper::-webkit-scrollbar-track    { background: transparent; }
-.ng-table-wrapper::-webkit-scrollbar-thumb    { background: var(--border-dark); border-radius: 4px; }
+.ng-table-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.ng-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ng-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 4px;
+}
 
 /* ─── Table ───────────────────────────────────────────────────────── */
 .ng-table {
@@ -169,8 +179,8 @@
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.84rem;
-  font-family: 'Inter', system-ui, sans-serif;
-  table-layout: fixed;         /* enables word-wrap in first column */
+  font-family: "Inter", system-ui, sans-serif;
+  table-layout: fixed; /* enables word-wrap in first column */
 }
 
 /* ── Sticky header ── */
@@ -192,7 +202,9 @@
   vertical-align: middle;
 }
 
-.ng-table thead th:last-child { border-right: none; }
+.ng-table thead th:last-child {
+  border-right: none;
+}
 
 .ng-th-label {
   vertical-align: middle;
@@ -208,11 +220,13 @@
   color: #334155;
   font-weight: 400;
   vertical-align: middle;
-  white-space: nowrap;         /* default: single line */
+  white-space: nowrap; /* default: single line */
   line-height: 1.4;
 }
 
-.ng-table tbody td:last-child { border-right: none; }
+.ng-table tbody td:last-child {
+  border-right: none;
+}
 
 /* First column: allow wrapping (long names, etc.) */
 .ng-table tbody td:first-child {
@@ -222,13 +236,19 @@
 }
 
 /* Zebra striping */
-.ng-table tbody tr:nth-child(even) td { background: #f8fafc; }
+.ng-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
 
 /* Row hover */
-.ng-table tbody tr:hover td { background: var(--primary-lighter); }
+.ng-table tbody tr:hover td {
+  background: var(--primary-lighter);
+}
 
 /* Clickable row cursor */
-.ng-table tbody tr.ng-row--clickable { cursor: pointer; }
+.ng-table tbody tr.ng-row--clickable {
+  cursor: pointer;
+}
 
 /* ─── Link cell (isLink columns) ──────────────────────────────────── */
 .ng-link {
@@ -258,10 +278,22 @@
   font-weight: 700;
 }
 
-.ng-badge--danger  { background: #fee2e2; color: #b91c1c; }
-.ng-badge--warning { background: #fef3c7; color: #92400e; }
-.ng-badge--success { background: #d1fae5; color: #065f46; }
-.ng-badge--neutral { background: #f1f5f9; color: var(--text-muted); }
+.ng-badge--danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.ng-badge--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+.ng-badge--success {
+  background: #d1fae5;
+  color: #065f46;
+}
+.ng-badge--neutral {
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
 
 /* ─── Bottom pagination bar ───────────────────────────────────────── */
 .ng-bottom-panel {
@@ -321,16 +353,17 @@
   cursor: not-allowed;
 }
 
-
 /* ─── Inline filter icon (replaces button) ──────────────────────── */
 .ng-filter-icon {
   display: inline-flex;
   align-items: center;
   cursor: pointer;
-  color: #94a3b8;           /* muted by default — blends with header */
+  color: #94a3b8; /* muted by default — blends with header */
   margin-left: 5px;
   opacity: 0.55;
-  transition: opacity var(--transition), color var(--transition);
+  transition:
+    opacity var(--transition),
+    color var(--transition);
   vertical-align: middle;
   line-height: 0;
   /* no background, no border, no padding — pure icon */

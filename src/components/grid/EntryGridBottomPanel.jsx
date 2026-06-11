@@ -1,14 +1,9 @@
 // Bottom toolbar for EntryGrid — matches EnterpriseGrid / GridBottomPanel styling.
 
-import React from 'react';
-import { Download, Copy, Save } from 'lucide-react';
+import React from "react";
+import { Download, Copy, Save } from "lucide-react";
 
-export default function TxnEntryBottomPanel({
-  selectedCount,
-  onExportExcel,
-  onCopy,
-  onSave,
-}) {
+export default function TxnEntryBottomPanel({ selectedCount, onExportExcel, onCopy, onSave }) {
   return (
     <div className="grid-bottom-panel">
       <div className="bottom-panel-left">
