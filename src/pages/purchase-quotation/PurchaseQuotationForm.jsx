@@ -1,79 +1,76 @@
-// PurchaseInquiryForm.jsx
-// Purchase Inquiry entry form (add / edit).
+// PurchaseQuotationForm.jsx
+// Purchase Quotation entry form (add / edit).
 //
 // Layout (top → bottom):
 //   1. EnterpriseFilterPanel  — header fields only (no action buttons)
-//   2. pi-grid-section        — custom 3-tab wrapper
-//        • Item Grid tab  → EntryGrid (RB_PurInquiryDet)
+//   2. pq-grid-section        — 2-tab wrapper
+//        • Item Grid tab  → EntryGrid (RB_PurQtnDet)
 //                           button: Select Item
-//        • Suppliers tab  → EntryGrid (hardcoded SUPPLIER_GRID_CONFIG)
-//                           button: Select Supplier
 //        • Terms tab      → static terms table (no buttons)
 //        Fixed controls (always): Approved filter | Delete
-//   3. CollapsibleGrid        — Indent Details
-//   4. PIActionBar            — Save / Cancel / Close etc.
+//   3. QtnActionBar           — Save / Cancel / Close etc.
 //
-// Both the Items and Suppliers EntryGrid instances are always mounted (CSS
-// show/hide) so their row state is preserved when switching tabs.
+// Quotation item picker RB + prmFrmOption follow BasedOnID ('0' Direct | '2' Inquiry Based).
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save, LogOut } from 'lucide-react';
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from 'lucide-react';
 import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPanel';
 import EntryGrid from '../../components/grid/EntryGrid';
-import CollapsibleGrid from '../../components/grid/CollapsibleGrid';
 import ActionBar from '../../components/ui/ActionBar';
-import SupplierPickerModal from '../../components/purchase-inquiry/SupplierPickerModal';
 import OrderItemModal from '../../components/txn/OrderItemModal';
 import SearchSelect from '../../components/ui/SearchSelect';
-import { usePurchaseInquiry } from '../../hooks/usePurchaseInquiry';
+import { usePurchaseQuotation } from '../../hooks/usePurchaseQuotation';
 import { useApi } from '../../api/useApi';
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, getColDefault, OBJ_TYPE, DEFAULT_COMPANY_ID, DEFAULT_SESSION_ID } from '../../api/constants';
 import { getUserSession } from '../../session/userSession';
 import { buildGridColumns, buildDropdownOptionFromRow, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from '../../utils/gridUtils';
+import { controlTypeMap } from '../../data/dummyData';
 import { parseApiErrMsg } from '../../utils/apiResponse';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useEntryFormKeyboard } from '../../hooks/useEntryFormKeyboard';
 import {
-  PI_CONFIG,
-  PI_HEADER_FILTERS,
-  PI_GRID_TABS,
+  QTN_CONFIG,
+  QTN_HEADER_FILTERS,
+  QTN_GRID_TABS,
+  QTN_LIST_DROPDOWN_FIELDS,
+  QTN_READONLY_FIELDS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
-  INDENT_DETAILS_COLUMNS,
-  PI_FILTER_CASCADE_RESETS,
-  SUPPLIER_GRID_CONFIG,
+  QTN_FILTER_CASCADE_RESETS,
   formatTranDate,
 } from './constants';
-import './PurchaseInquiryForm.css';
+import './PurchaseQuotationForm.css';
 
 // ── Temp-ID generator (negative → never clash with real IDs) ─────────
-let _piTempId = -1;
-const nextTempId = () => _piTempId--;
+let _pqTempId = -1;
+const nextTempId = () => _pqTempId--;
 
-// Map a supplier picker row → supplier grid row (hardcoded column keys).
-function mapPickerToSupplierRow(item, srNo) {
-  return {
-    id: String(item.SupplierID ?? nextTempId()),
-    SrNo: srNo,
-    SupplierName: item.SupplierName ?? '',
-    Address: item.SuppAddress ?? item.Address ?? '',
-    City: item.City ?? '',
-    MobileNo: item.ContactNo ?? item.MobileNo ?? '',
-  };
-}
-
-function mapHeaderValuesToFilterValues(headerValues) {
+function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
   if (!headerValues) return null;
   return {
     TranCode: headerValues.TranCode ?? '',
     TranDate: headerValues.TranDate ?? '',
     DivisionID: String(headerValues.DivisionID ?? ''),
     ConfigID: String(headerValues.ConfigID ?? ''),
-    ExpectedDate: headerValues.ExpectedDate ?? '',
+    ExpiryDate: headerValues.ExpiryDate ?? '',
     DeptID: String(headerValues.DeptID ?? ''),
+    SupplierID: String(headerValues.SupplierID ?? ''),
+    CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ''),
+    CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : '',
     BasedOnID: String(headerValues.BasedOnID ?? '0'),
+    SupplierQuotNo: headerValues.SupplierQuotNo ?? '',
+    SupplierQuotDate: headerValues.SupplierQuotDate ?? '',
+    ContactPerson: headerValues.ContactPerson ?? '',
     Remarks: headerValues.Remarks ?? '',
+  };
+}
+
+function buildCurrencyPatchFromSupplier(supplier) {
+  if (!supplier) return { CurrencyID: '', CurrencyRate: '' };
+  return {
+    CurrencyID: supplier.CurrencyName ?? String(supplier.CurrencyID ?? ''),
+    CurrencyRate: supplier.CurrencyRate != null ? String(supplier.CurrencyRate) : '',
   };
 }
 
@@ -81,7 +78,7 @@ function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
     companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? PI_CONFIG.CONFIG_YEAR_ID,
+    yearId: listRecord?.YearID ?? session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
     loginId: listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
     idNumber: listRecord?.IDNUMBER ?? listRecord?.IDNumber ?? recordId,
@@ -107,7 +104,7 @@ function mapPickerToItemRow(item, allColumns) {
 
 // ── Component ────────────────────────────────────────────────────────
 
-export default function PurchaseInquiryForm() {
+export default function PurchaseQuotationForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith('/new');
@@ -117,7 +114,6 @@ export default function PurchaseInquiryForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
-  const supplierGridRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
@@ -127,15 +123,15 @@ export default function PurchaseInquiryForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, departmentOptions, inquiryTypeOptions,
-    fetchInquiryTypes, clearInquiryTypes,
-    isLoadingInquiryTypes,
+    divisionOptions, departmentOptions, quotationTypeOptions, supplierOptions,
+    fetchQuotationTypes, clearQuotationTypes,
+    fetchSupplierOptions, clearSuppliers, getSupplierRow,
+    isLoadingQuotationTypes, isLoadingSuppliers,
     columns, allColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns, fetchEditRecord,
     fetchUnlockedHeaderDropdowns,
     fireCellEvent, eventColumns,
-    saveTxn, isSaving, saveError, clearSaveError,
-  } = usePurchaseInquiry(API_BASE_URL);
+  } = usePurchaseQuotation(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -149,14 +145,13 @@ export default function PurchaseInquiryForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  // TranDate seeded with todayISO so prmTranDate is correct on the first
-  // "Select Item" click even before the user touches the date field.
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
-    DivisionID: 0, DeptID: 0, BasedOnID: '0',
-    Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID,
+    TranCode: '', TranDate: todayISO, ConfigID: 0, ExpiryDate: null,
+    DivisionID: 0, DeptID: 0, SupplierID: 0, CurrencyID: '', CurrencyRate: '',
+    BasedOnID: '0', SupplierQuotNo: '', SupplierQuotDate: null, ContactPerson: '',
+    Remarks: '', CompanyID: 1, YearID: QTN_CONFIG.DIVISION_YEAR_ID,
     LoginID: session.loginId,
     UserID: session.userId,
     IDNumber: recordId,
@@ -172,8 +167,6 @@ export default function PurchaseInquiryForm() {
   const [filterResetKey, setFilterResetKey] = useState(0);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
-  // Page starts in read-only mode. Clicking the "Add" footer button enters
-  // edit mode; "Cancel" (or the action-bar Cancel) returns to read-only.
   const [isEditMode, setIsEditMode] = useState(false);
 
   const focusFirstEditableFilterField = useCallback(() => {
@@ -203,16 +196,17 @@ export default function PurchaseInquiryForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   const resetFormToInitialState = useCallback(() => {
-    localStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
+    localStorage.removeItem(QTN_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(QTN_CONFIG.STORAGE_ENTRY_META);
+    sessionStorage.removeItem(QTN_CONFIG.STORAGE_HEADER_META);
+    sessionStorage.removeItem(QTN_CONFIG.STORAGE_ENTRY_META);
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      TranCode: '', TranDate: todayISO, ConfigID: 0, ExpectedDate: null,
-      DivisionID: 0, DeptID: 0, BasedOnID: '0',
-      Remarks: '', CompanyID: 1, YearID: PI_CONFIG.DIVISION_YEAR_ID,
+      TranCode: '', TranDate: todayISO, ConfigID: 0, ExpiryDate: null,
+      DivisionID: 0, DeptID: 0, SupplierID: 0, CurrencyID: '', CurrencyRate: '',
+      BasedOnID: '0', SupplierQuotNo: '', SupplierQuotDate: null, ContactPerson: '',
+      Remarks: '', CompanyID: 1, YearID: QTN_CONFIG.DIVISION_YEAR_ID,
       LoginID: resetSession.loginId,
       UserID: resetSession.userId,
       IDNumber: 0,
@@ -221,15 +215,13 @@ export default function PurchaseInquiryForm() {
     queuedRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
 
-    clearInquiryTypes();
-    clearSaveError();
+    clearQuotationTypes();
+    clearSuppliers();
 
     setActiveTab('items');
     setApprovedFilter('all');
     setIsGridLoading(false);
-    setIndentRows([]);
     setItemSelectionCount(0);
-    setSupplierSelectionCount(0);
 
     setItemModalOpen(false);
     setItemModalItems([]);
@@ -237,24 +229,15 @@ export default function PurchaseInquiryForm() {
     setItemModalLoading(false);
     setItemModalError(null);
 
-    setChildRowsMap({});
-    setChildColumns([]);
-
-    setSupplierModalOpen(false);
-    setSupplierModalItems([]);
-    setSupplierModalLoading(false);
-    setSupplierModalError(null);
-
     itemGridRef.current?.clearRows?.();
-    supplierGridRef.current?.clearRows?.();
 
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearInquiryTypes, clearSaveError, exitEditMode, todayISO]);
+  }, [clearQuotationTypes, clearSuppliers, exitEditMode, todayISO]);
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
-      navigate('/purchase-inquiry');
+      navigate('/purchase-quotation');
     } else {
       resetFormToInitialState();
     }
@@ -264,19 +247,10 @@ export default function PurchaseInquiryForm() {
   const [activeTab, setActiveTab] = useState('items');
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
-  const [supplierSelectionCount, setSupplierSelectionCount] = useState(0);
-  const activeSelectionCount = activeTab === 'items' ? itemSelectionCount
-    : activeTab === 'suppliers' ? supplierSelectionCount
-      : 0;
+  const activeSelectionCount = activeTab === 'items' ? itemSelectionCount : 0;
 
   const [approvedFilter, setApprovedFilter] = useState('all');
   const [isGridLoading, setIsGridLoading] = useState(false);
-  const [indentRows, setIndentRows] = useState([]);
-
-  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
-  const [supplierModalItems, setSupplierModalItems] = useState([]);
-  const [supplierModalLoading, setSupplierModalLoading] = useState(false);
-  const [supplierModalError, setSupplierModalError] = useState(null);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [itemModalItems, setItemModalItems] = useState([]);
@@ -284,19 +258,13 @@ export default function PurchaseInquiryForm() {
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
 
-  // ── Collapsible indent children (indent-wise mode only) ───────────────
-  // childRowsMap  — { [parentRowId: string]: selectedIndentRows[] }
-  // childColumns  — same column defs passed to InlineChildTable (picker cols)
-  const [childRowsMap, setChildRowsMap] = useState({});
-  const [childColumns, setChildColumns] = useState([]);
-
   usePageHeader({
-    title: isNewRoute ? 'New Purchase Inquiry' : 'Purchase Inquiry',
+    title: isNewRoute ? 'New Purchase Quotation' : 'Purchase Quotation',
     subtitle: isNewRoute
-      ? 'Fill in the header fields, then use Item Grid or Suppliers tabs.'
-      : `Inquiry #${recordId || routeId || '—'} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
+      ? 'Fill in the header fields, then use the Item Grid tab.'
+      : `Quotation #${recordId || routeId || '—'} — fill in the header fields, then use the Item Grid tab.`,
     showBack: true,
-    backTo: '/purchase-inquiry',
+    backTo: '/purchase-quotation',
   });
 
   useEffect(() => {
@@ -313,14 +281,14 @@ export default function PurchaseInquiryForm() {
       const { master, headerValues, details } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
-        throw new Error('Inquiry record not found.');
+        throw new Error('Quotation record not found.');
       }
 
       headerValuesRef.current = headerValues;
       setLoadedMasterRow(master);
       editRecordLoadedRef.current = true;
 
-      setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
+      setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues, master));
       setFilterResetKey((k) => k + 1);
 
       const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
@@ -336,17 +304,12 @@ export default function PurchaseInquiryForm() {
         queuedRowsRef.current = details;
       }
     } catch (err) {
-      console.error('[PI] Edit record load failed:', err);
-      setRecordLoadError(err?.message || 'Failed to load inquiry record.');
+      console.error('[PQ] Edit record load failed:', err);
+      setRecordLoadError(err?.message || 'Failed to load quotation record.');
     } finally {
       setRecordLoading(false);
     }
-  }, [
-    recordId,
-    listRecord,
-    fetchEditRecord,
-    fetchGridColumns,
-  ]);
+  }, [recordId, listRecord, fetchEditRecord, fetchGridColumns]);
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
@@ -395,8 +358,9 @@ export default function PurchaseInquiryForm() {
     const injectListOptions = (filter, baseFilter) => {
       switch (filter.FilterParameterID) {
         case 'DivisionID': return { ...baseFilter, staticOptions: divisionOptions };
-        case 'ConfigID': return { ...baseFilter, staticOptions: inquiryTypeOptions };
+        case 'ConfigID': return { ...baseFilter, staticOptions: quotationTypeOptions };
         case 'DeptID': return { ...baseFilter, staticOptions: departmentOptions };
+        case 'SupplierID': return { ...baseFilter, staticOptions: supplierOptions };
         default: return baseFilter;
       }
     };
@@ -404,12 +368,17 @@ export default function PurchaseInquiryForm() {
     const buildFilterDef = (filter) => {
       const apiCol = resolveHeaderApiCol(filter, apiColMap);
       const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
+      const forceListDropdown = QTN_LIST_DROPDOWN_FIELDS.has(filter.FilterParameterID);
 
       let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
 
       if (apiCol) {
-        def.FilterColCtrlType = apiCol.ColCtrlType ?? filter.FilterColCtrlType;
+        def.FilterColCtrlType = forceListDropdown
+          ? controlTypeMap.DROPDOWN
+          : (apiCol.ColCtrlType ?? filter.FilterColCtrlType);
       }
+
+      const isDropdownField = forceListDropdown || def.FilterColCtrlType === controlTypeMap.DROPDOWN;
 
       // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
       if (isEditRoute && loadedMasterRow) {
@@ -418,15 +387,15 @@ export default function PurchaseInquiryForm() {
             loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? '0',
           );
           if (lockOnEditMode || !isEditMode) {
-            const match = PI_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
+            const match = QTN_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
             def.staticOptions = [{ value: basedOnVal, label: match?.label ?? basedOnVal }];
           } else {
-            def.staticOptions = PI_CONFIG.BASED_ON_OPTIONS;
+            def.staticOptions = QTN_CONFIG.BASED_ON_OPTIONS;
           }
           return def;
         }
 
-        if (apiCol?.ColCtrlType === 4) {
+        if (isDropdownField) {
           if (lockOnEditMode || !isEditMode) {
             def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
           } else {
@@ -442,12 +411,13 @@ export default function PurchaseInquiryForm() {
     };
 
     if (headerColumns.length === 0) return [];
-    return PI_HEADER_FILTERS.map(buildFilterDef);
+    return QTN_HEADER_FILTERS.map(buildFilterDef);
   }, [
     headerColumns,
     divisionOptions,
-    inquiryTypeOptions,
+    quotationTypeOptions,
     departmentOptions,
+    supplierOptions,
     isEditRoute,
     loadedMasterRow,
     isEditMode,
@@ -456,7 +426,10 @@ export default function PurchaseInquiryForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      if (!isEditMode) tones[f.FilterColName] = 'view';
+      const alwaysReadOnly = QTN_READONLY_FIELDS.includes(f.FilterColName)
+        || QTN_READONLY_FIELDS.includes(f.FilterParameterID);
+      if (alwaysReadOnly) tones[f.FilterColName] = 'view';
+      else if (!isEditMode) tones[f.FilterColName] = 'view';
       else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = 'frozen';
       else tones[f.FilterColName] = 'editable';
     });
@@ -464,15 +437,38 @@ export default function PurchaseInquiryForm() {
   }, [syncedFilters, isEditMode, isEditRoute]);
 
   // ── Filter cascade ─────────────────────────────────────────────────
-  const handleFilterChange = useCallback(async (colName, val) => {
+  const handleFilterChange = useCallback((colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+
+    if (colName === 'SupplierID') {
+      if (!val || val === '0') {
+        headerValuesRef.current.CurrencyID = '';
+        headerValuesRef.current.CurrencyRate = '';
+        return buildCurrencyPatchFromSupplier(null);
+      }
+      const supplier = getSupplierRow(val);
+      if (supplier) {
+        headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
+        headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? '';
+        return buildCurrencyPatchFromSupplier(supplier);
+      }
+      return undefined;
+    }
 
     if (colName === 'DivisionID') {
       headerValuesRef.current.ConfigID = 0;
-      clearInquiryTypes();
-      if (val && val !== '0') await fetchInquiryTypes(val);
+      headerValuesRef.current.SupplierID = 0;
+      headerValuesRef.current.CurrencyID = '';
+      headerValuesRef.current.CurrencyRate = '';
+      clearQuotationTypes();
+      clearSuppliers();
+      if (val && val !== '0') {
+        void Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+      }
     }
-  }, [fetchInquiryTypes, clearInquiryTypes]);
+
+    return undefined;
+  }, [fetchQuotationTypes, fetchSupplierOptions, clearQuotationTypes, clearSuppliers, getSupplierRow]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -495,16 +491,12 @@ export default function PurchaseInquiryForm() {
   }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
 
   // ── Select Item (Items tab) ────────────────────────────────────────
-  // Flow:
-  //   1. Pick RB code by BasedOn ('0'→Direct, '2'→Indent wise)
-  //   2. Fetch RBID via Fn_Fetch_RBDetailByRBCode
-  //   3. Fetch grid columns via GetDetailColData (read-only, no dropdown fetch)
-  //   4. Fetch item rows via SP_ITEM_PICKER
-  //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
+  // RB code + prmFrmOption depend on BasedOnID ('0' Direct | '2' Inquiry Based).
   const handleSelectItem = useCallback(async () => {
     const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValuesRef.current;
     const divisionID = DivisionID ?? 0;
     const configID = ConfigID ?? 0;
+    const frmOption = Number(BasedOnID) || 0;
     if (!divisionID || divisionID === '0' || divisionID === 0) {
       alert('Please select a Division before selecting items.');
       return;
@@ -517,22 +509,19 @@ export default function PurchaseInquiryForm() {
     setItemModalLoading(true);
 
     try {
-      // Step 1 — choose RB code by BasedOnID
-      const rbCode = Number(BasedOnID) === 2
-        ? PI_CONFIG.RB_ITEM_PICKER_INDENT
-        : PI_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const rbCode = frmOption === 2
+        ? QTN_CONFIG.RB_ITEM_PICKER_INQUIRY
+        : QTN_CONFIG.RB_ITEM_PICKER_DIRECT;
 
-      // Step 2 — fetch RBID
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PI_CONFIG.SP_RB_META,
+        ObjName: QTN_CONFIG.SP_RB_META,
         JSon: JSON.stringify([{ prmRBCode: rbCode }]),
         p_ErrCode: -1, p_ErrMsg: '',
       });
       const rbRow = rbRes?.Table?.[0];
       if (!rbRow) throw new Error('Could not load item picker configuration.');
 
-      // Step 3 — fetch columns (read-only: skip dropdown options)
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
         prmLoginID: getUserSession().loginId,
@@ -543,25 +532,24 @@ export default function PurchaseInquiryForm() {
       });
       setItemModalColumns(gridColumns);
 
-      // Step 4 — fetch item rows
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PI_CONFIG.SP_ITEM_PICKER,
+        ObjName: QTN_CONFIG.SP_ITEM_PICKER,
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionID),
-          prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
+          prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
           prmLoginID: getUserSession().loginId,
           prmTranDate: formatTranDate(TranDate),
           prmConfigID: Number(configID),
           prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-          prmTranBook: PI_CONFIG.TRAN_BOOK,
-          prmFrmOption: Number(BasedOnID) || 0,
+          prmTranBook: QTN_CONFIG.TRAN_BOOK,
+          prmFrmOption: frmOption,
         }]),
         p_ErrCode: -1, p_ErrMsg: '',
       });
       setItemModalItems(rowRes?.Table || []);
     } catch (err) {
-      console.error('[PI] Item picker fetch failed:', err);
+      console.error('[PQ] Item picker fetch failed:', err);
       setItemModalError(err?.message || 'Failed to fetch items.');
     } finally {
       setItemModalLoading(false);
@@ -572,143 +560,19 @@ export default function PurchaseInquiryForm() {
     if (!selectedItems?.length) return;
     setActiveTab('items');
 
-    const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
+    const activeCols = await ensureItemColumns();
+    if (!activeCols?.length) return;
+    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+  }, [ensureItemColumns, allColumns, addItemRow]);
 
-    if (!isIndentWise) {
-      // ── Direct mode ───────────────────────────────────────────────────
-      // Column definitions must be loaded before we can map rows.
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) return;
-      setChildRowsMap({});
-      setChildColumns([]);
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-      return;
-    }
-
-    // ── Indent-wise mode ─────────────────────────────────────────────
-    // The summary API call must not be gated on column loading — fire it
-    // immediately.  Parent rows are spread directly onto the grid row so
-    // the display works even if allColumns hasn't resolved yet.
-    // Also kick off column loading in the background so the grid is
-    // properly configured by the time the user interacts with it.
-    ensureItemColumns().catch(() => { });
-
-    // Strip synthetic '_row_N' ids before sending to the API.
-    const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
-
-    setIsGridLoading(true);
-    try {
-      const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: PI_CONFIG.SP_INDENT_SUMMARY,
-          JSon: [{ prmJSon: cleanItems }],
-          p_ErrCode: -1,
-          p_ErrMsg: '',
-        }),
-      });
-      const summaryRes = await summaryResponse.json();
-
-      const parents = summaryRes?.Table ?? [];
-      if (!parents.length) return;
-
-      // Build childRowsMap: parent.ItemID → matching selected indent rows.
-      // Relationship: child.ChildFKey === parent.ItemID
-      const newChildRowsMap = {};
-      parents.forEach((parent) => {
-        const pid = String(Math.round(Number(parent.ItemID)));
-        const children = cleanItems.filter(
-          (c) => String(Math.round(Number(c.ChildFKey))) === pid,
-        );
-        if (children.length > 0) newChildRowsMap[pid] = children;
-
-        // Spread all API fields directly so the row doesn't depend on
-        // allColumns being loaded yet; any grid column whose key matches
-        // a parent field will display the correct value automatically.
-        addItemRow({ ...parent, id: pid });
-      });
-
-      setChildRowsMap((prev) => ({ ...prev, ...newChildRowsMap }));
-      setChildColumns(itemModalColumns.filter((c) => c.key !== 'cb'));
-    } catch (err) {
-      console.error('[PI] Indent summary fetch failed:', err);
-    } finally {
-      setIsGridLoading(false);
-    }
-  }, [ensureItemColumns, allColumns, addItemRow, itemModalColumns]);
-
-  // ── Select Supplier (Suppliers tab) ──────────────────────────────
-  const handleSelectSupplier = useCallback(async () => {
-    const divisionID = headerValuesRef.current?.DivisionID ?? 0;
-    if (!divisionID || divisionID === '0' || divisionID === 0) {
-      alert('Please select a Division before selecting suppliers.');
-      return;
-    }
-    setSupplierModalOpen(true);
-    setSupplierModalItems([]);
-    setSupplierModalError(null);
-    setSupplierModalLoading(true);
-    try {
-      const response = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PI_CONFIG.SUPPLIER_SP,
-        JSon: JSON.stringify([{
-          PrmDivisionId: Number(divisionID),
-          PrmLoginId: getUserSession().loginId,
-          PrmYearId: PI_CONFIG.CONFIG_YEAR_ID,
-          PrmPartyType: PI_CONFIG.SUPPLIER_PARTY_TYPE,
-        }]),
-        p_ErrCode: -1, p_ErrMsg: '',
-      });
-      setSupplierModalItems(
-        (response?.Table || []).map((row, idx) => ({
-          ...row,
-          id: String(row.SupplierID ?? `sup_${idx}`),
-        })),
-      );
-    } catch (err) {
-      console.error('[PI] Supplier fetch failed:', err);
-      setSupplierModalError(err?.message || 'Failed to fetch suppliers.');
-    } finally {
-      setSupplierModalLoading(false);
-    }
-  }, [getLive]);
-
-  const handleInsertSuppliers = useCallback((selectedSuppliers) => {
-    if (!selectedSuppliers?.length) return;
-    setActiveTab('suppliers');
-    const existing = supplierGridRef.current?.getRows?.() ?? [];
-    const existingIds = new Set(existing.map((r) => String(r.SupplierID ?? r.id)));
-    let nextSrNo = existing.length;
-    selectedSuppliers.forEach((item) => {
-      const sid = String(item.SupplierID ?? item.id);
-      if (existingIds.has(sid)) return;
-      existingIds.add(sid);
-      nextSrNo += 1;
-      supplierGridRef.current?.addRow(mapPickerToSupplierRow(item, nextSrNo));
-    });
-  }, []);
-
-  // ── Delete selected rows (active tab's grid) ───────────────────────
+  // ── Delete selected rows (items grid) ──────────────────────────────
   const handleDeleteSelected = useCallback(() => {
-    const ref = activeTab === 'items' ? itemGridRef
-      : activeTab === 'suppliers' ? supplierGridRef
-        : null;
+    const ref = itemGridRef;
     if (!ref?.current) return;
     const selected = ref.current.getSelectedRows?.() ?? [];
     if (selected.length === 0) return;
     ref.current.removeRows?.(selected.map((r) => r.id));
-    if (activeTab === 'suppliers') {
-      const remaining = ref.current.getRows?.() ?? [];
-      remaining.forEach((row, idx) => {
-        if (Object.prototype.hasOwnProperty.call(row, 'SrNo')) {
-          ref.current.updateRow?.(row.id, { SrNo: idx + 1 });
-        }
-      });
-    }
-  }, [activeTab]);
+  }, []);
 
   const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
     const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
@@ -717,7 +581,7 @@ export default function PurchaseInquiryForm() {
     if (!responseRow) return;
     const errCode = responseRow.ErrCode;
     if (errCode !== 1 && errCode !== 1.0) {
-      console.warn('[PI] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+      console.warn('[PQ] Cell-event error:', responseRow.ErrMsg ?? `ErrCode ${errCode}`);
       return;
     }
     const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
@@ -725,7 +589,7 @@ export default function PurchaseInquiryForm() {
   }, [fireCellEvent]);
 
   // ── Save / Cancel ──────────────────────────────────────────────────
-  const [isSavingPI, setIsSavingPI] = useState(false);
+  const [isSavingQtn, setIsSavingQtn] = useState(false);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     // ── Master ────────────────────────────────────────────────────────
@@ -733,37 +597,30 @@ export default function PurchaseInquiryForm() {
     headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
-    const session = getUserSession();
-    mstRow.LoginID = session.loginId;
-    mstRow.UserID = session.userId;
+    const userSession = getUserSession();
+    mstRow.LoginID = userSession.loginId;
+    mstRow.UserID = userSession.userId;
 
     // ── Detail ────────────────────────────────────────────────────────
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: session.loginId, UserID: session.userId };
+      return { ...row, ...rest, LoginID: userSession.loginId, UserID: userSession.userId };
     });
-
-    // ── IndentDetail ──────────────────────────────────────────────────
-    const indentDetailRows = Object.values(childRowsMap)
-      .flat()
-      .map(({ id: _id, ...rest }) => ({ ...rest, LoginID: session.loginId, UserID: session.userId }));
 
     const payload = {
       prmStrMstJSON: JSON.stringify([mstRow]),
       prmStrDetJSON: JSON.stringify(detRows),
-      prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
     };
 
-    console.log('%c[PI Save] Payload:', 'color:#f59e0b;font-weight:700', payload);
-    console.log('%c[PI Save] Master:', 'color:#6366f1;font-weight:600', [mstRow]);
-    console.log('%c[PI Save] Detail:', 'color:#22c55e;font-weight:600', detRows);
-    console.log('%c[PI Save] IndentDetail:', 'color:#ec4899;font-weight:600', indentDetailRows);
+    console.log('%c[PQ Save] Payload:', 'color:#f59e0b;font-weight:700', payload);
+    console.log('%c[PQ Save] Master:', 'color:#6366f1;font-weight:600', [mstRow]);
+    console.log('%c[PQ Save] Detail:', 'color:#22c55e;font-weight:600', detRows);
 
-    setIsSavingPI(true);
+    setIsSavingQtn(true);
     try {
-      const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
-      console.log('%c[PI Save] Response:', 'color:#22c55e;font-weight:700', result);
+      const result = await postSave(QTN_CONFIG.SAVE_ENDPOINT, payload);
+      console.log('%c[PQ Save] Response:', 'color:#22c55e;font-weight:700', result);
       const { success, message } = parseApiErrMsg(result);
       alert(message);
       if (!success) return false;
@@ -771,13 +628,13 @@ export default function PurchaseInquiryForm() {
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
-      console.error('[PI Save] Failed:', err);
+      console.error('[PQ Save] Failed:', err);
       alert(err?.message || 'Save failed. Please try again.');
       return false;
     } finally {
-      setIsSavingPI(false);
+      setIsSavingQtn(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, postSave, completeSuccessfulSave]);
+  }, [headerColumns, allColumns, postSave, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -791,9 +648,6 @@ export default function PurchaseInquiryForm() {
 
     if (isEditRoute) {
       exitEditMode();
-      setChildRowsMap({});
-      setChildColumns([]);
-      supplierGridRef.current?.clearRows?.();
       editRecordLoadedRef.current = false;
       loadEditRecord();
       return;
@@ -802,21 +656,21 @@ export default function PurchaseInquiryForm() {
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
 
-  const handleClose = useCallback(() => navigate('/purchase-inquiry'), [navigate]);
+  const handleClose = useCallback(() => navigate('/purchase-quotation'), [navigate]);
   const handleDocument = useCallback(() => {
-    console.log('[PI] Document F6 — reserved for document generation.');
+    console.log('[PQ] Document F6 — reserved for document generation.');
   }, []);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError || recordLoadError;
   const filterPanelLoading = headerFetching || recordLoading;
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
-  const filterBusy = filterPanelLoading || isLoadingInquiryTypes;
+  const filterBusy = filterPanelLoading || isLoadingQuotationTypes || isLoadingSuppliers;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || supplierModalOpen,
+    blocked: itemModalOpen,
     isEditMode,
-    isSaving: isSavingPI,
+    isSaving: isSavingQtn,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -825,18 +679,18 @@ export default function PurchaseInquiryForm() {
   });
 
   // Extra buttons visible in the ActionBar while in edit mode
-  const piExtraButtons = useMemo(() => [
+  const qtnExtraButtons = useMemo(() => [
     { key: 'document', label: 'Document F6', Icon: FileText, variant: 'secondary', onClick: handleDocument },
     { key: 'sep1', separator: true },
-    { key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print', onClick: handleSaveAndPrint, disabled: isSavingPI },
+    { key: 'saveprint', label: 'Save & Print', Icon: Printer, variant: 'print', onClick: handleSaveAndPrint, disabled: isSavingQtn },
     {
       key: 'save',
-      label: isSavingPI ? 'Saving…' : 'Save',
+      label: isSavingQtn ? 'Saving…' : 'Save',
       Icon: Save,
       variant: 'save',
       onClick: () => handleSave(),
-      disabled: isSavingPI,
-      loading: isSavingPI,
+      disabled: isSavingQtn,
+      loading: isSavingQtn,
       accessKey: 's',
       title: 'Save (Alt+S)',
     },
@@ -850,10 +704,10 @@ export default function PurchaseInquiryForm() {
       accessKey: 'c',
       title: 'Close (Alt+C)',
     },
-  ], [handleDocument, handleSaveAndPrint, isSavingPI, handleSave, handleClose]);
+  ], [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave, handleClose]);
 
   return (
-    <div className="workspace-page pi-page">
+    <div className="workspace-page pq-page">
 
       <section className="workspace-page__filters">
         {combinedError ? (
@@ -868,10 +722,10 @@ export default function PurchaseInquiryForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Purchase Inquiry Detail"
+            title="Purchase Quotation Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
-            cascadeResets={PI_FILTER_CASCADE_RESETS}
+            cascadeResets={QTN_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
             isSearching={filterPanelLoading}
             isMetaLoading={!headerMetaReady || recordLoading}
@@ -882,11 +736,11 @@ export default function PurchaseInquiryForm() {
         )}
       </section>
 
-      <section className="pi-grid-section">
+      <section className="pq-grid-section">
 
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {PI_GRID_TABS.map((t) => (
+            {QTN_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -903,7 +757,7 @@ export default function PurchaseInquiryForm() {
               <button
                 ref={selectItemBtnRef}
                 type="button"
-                className="pi-tab-action-btn"
+                className="pq-tab-action-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
                 title="Pick items from list (Tab here after header fields)"
@@ -913,21 +767,8 @@ export default function PurchaseInquiryForm() {
               </button>
             )}
 
-            {activeTab === 'suppliers' && (
-              <button
-                type="button"
-                className="pi-tab-action-btn"
-                onClick={handleSelectSupplier}
-                disabled={!isEditMode}
-                title="Pick suppliers from list"
-              >
-                <Truck size={12} strokeWidth={2.5} />
-                Select Supplier
-              </button>
-            )}
-
-            <div className="pi-tab-filter">
-              <span className="pi-tab-filter__label">Approved</span>
+            <div className="pq-tab-filter">
+              <span className="pq-tab-filter__label">Approved</span>
               <SearchSelect
                 value={approvedFilter}
                 onChange={setApprovedFilter}
@@ -938,7 +779,7 @@ export default function PurchaseInquiryForm() {
             </div>
             <button
               type="button"
-              className="pi-tab-delete-btn"
+              className="pq-tab-delete-btn"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || activeSelectionCount === 0}
               title="Delete selected rows"
@@ -949,7 +790,7 @@ export default function PurchaseInquiryForm() {
           </div>
         </div>
 
-        <div className={`pi-tab-pane${activeTab === 'items' ? ' pi-tab-pane--active' : ''}`}>
+        <div className={`pq-tab-pane${activeTab === 'items' ? ' pq-tab-pane--active' : ''}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -960,33 +801,19 @@ export default function PurchaseInquiryForm() {
             onSelectionChange={setItemSelectionCount}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
             existingRecordEdit={isEditRoute && isEditMode}
           />
         </div>
 
-        <div className={`pi-tab-pane${activeTab === 'suppliers' ? ' pi-tab-pane--active' : ''}`}>
-          <EntryGrid
-            ref={supplierGridRef}
-            config={SUPPLIER_GRID_CONFIG}
-            title=""
-            hideBottomPanel
-            emptyMessage="No suppliers added. Click Select Supplier above."
-            onSelectionChange={setSupplierSelectionCount}
-          />
-        </div>
-
         {activeTab === 'terms' && (
-          <div className="pi-terms-pane">
-            <table className="pi-terms-table">
+          <div className="pq-terms-pane">
+            <table className="pq-terms-table">
               <thead>
                 <tr>{TERMS_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr>
               </thead>
               <tbody>
                 <tr>
-                  <td colSpan={TERMS_COLUMNS.length} className="pi-terms-empty">
+                  <td colSpan={TERMS_COLUMNS.length} className="pq-terms-empty">
                     No terms &amp; conditions added.
                   </td>
                 </tr>
@@ -997,15 +824,6 @@ export default function PurchaseInquiryForm() {
 
       </section>
 
-      {/* <section className="pi-page__section">
-        <CollapsibleGrid
-          title="Indent Details"
-          subtitle="(Select one item row above to load its indent records)"
-          columns={INDENT_DETAILS_COLUMNS}
-          rows={indentRows}
-        />
-      </section> */}
-
       <ActionBar
         alignEnd
         isEditMode={isEditMode}
@@ -1013,16 +831,7 @@ export default function PurchaseInquiryForm() {
         onCancel={handleCancel}
         addAccessKey="a"
         cancelAccessKey="n"
-        extraButtons={piExtraButtons}
-      />
-
-      <SupplierPickerModal
-        isOpen={supplierModalOpen}
-        onClose={() => setSupplierModalOpen(false)}
-        items={supplierModalItems}
-        isLoading={supplierModalLoading}
-        error={supplierModalError}
-        onInsert={handleInsertSuppliers}
+        extraButtons={qtnExtraButtons}
       />
 
       <OrderItemModal

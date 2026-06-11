@@ -7,8 +7,10 @@ import ReportWorkspacePage from './pages/report-workspace/ReportWorkspacePage';
 import TxnEntryPage from './pages/txn-entry/TxnEntryPage';
 import PurchaseInquiryPage from './pages/purchase-inquiry/PurchaseInquiryPage';
 import PurchaseInquiryForm from './pages/purchase-inquiry/PurchaseInquiryForm';
-import PurchaseOrderPage   from './pages/purchase-order/PurchaseOrderPage';
-import PurchaseOrderForm   from './pages/purchase-order/PurchaseOrderForm';
+import PurchaseQuotationPage from './pages/purchase-quotation/PurchaseQuotationPage';
+import PurchaseQuotationForm from './pages/purchase-quotation/PurchaseQuotationForm';
+import PurchaseOrderPage from './pages/purchase-order/PurchaseOrderPage';
+import PurchaseOrderForm from './pages/purchase-order/PurchaseOrderForm';
 import { PageHeaderProvider } from './context/PageHeaderContext';
 import { UserProvider, useUser } from './context/UserContext';
 
@@ -37,10 +39,13 @@ function AppRoutes() {
           <Route index element={<EnterpriseDashboard />} />
           <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
           <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
-          <Route path="purchase-inquiry"     element={<PurchaseInquiryPage />} />
+          <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
           <Route path="purchase-inquiry/:id" element={<PurchaseInquiryForm />} />
-          <Route path="purchase-order"       element={<PurchaseOrderPage />} />
-          <Route path="purchase-order/:id"   element={<PurchaseOrderForm />} />
+          <Route path="purchase-order" element={<PurchaseOrderPage />} />
+          <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
+          <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
+          <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
+          <Route path="purchase-order/:id" element={<PurchaseOrderForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

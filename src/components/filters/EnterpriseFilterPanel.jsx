@@ -7,7 +7,9 @@ import { ENDPOINTS, CBO_MODE } from '../../api/constants';
 import { getUserSession } from '../../session/userSession';
 import { controlTypeMap } from '../../data/dummyData';
 import SearchSelect from '../ui/SearchSelect';
+import { bindFormKeyboardNav } from '../../utils/formKeyboardNav';
 import { AlertCircle, Search, Database, RotateCcw, X, Plus, ShoppingCart, FileSpreadsheet } from 'lucide-react';
+import Loader from '../ui/Loader';
 import './enterprise-filter-query.css';
 
 const COLS = 3;
@@ -223,6 +225,8 @@ export default function EnterpriseFilterPanel({
   divisionID = 0,
   onSearch,
   isSearching = false,
+  isMetaLoading = false,
+  metaLoadingText = 'Loading header fields…',
   onFiltersLoaded,
   staticFilters = null,
   actionLabel = 'Search',
@@ -238,6 +242,7 @@ export default function EnterpriseFilterPanel({
   fieldTones = null,
   panelRef = null,
   onLastFieldTabForward = null,
+  enableKeyboardNav = true,
   apiBaseUrl,
 }) {
   const { get } = useApi(apiBaseUrl);
@@ -255,10 +260,12 @@ export default function EnterpriseFilterPanel({
   const SecondaryIcon = OrderItemIcon || ShoppingCart;
   const runLabel = actionLabel === 'Search' && !isEntryMode ? 'Run Search' : actionLabel;
   const headerLabel = isEntryMode && title ? title : 'Query Builder';
-  const headerSubtitle = isEntryMode
-    ? `${filters.length} header field${filters.length !== 1 ? 's' : ''}`
-    : title;
   const HeaderIcon = isEntryMode ? FileSpreadsheet : Database;
+  const showEntryMetaLoader = isEntryMode && isMetaLoading;
+  const showDynamicLoader = !isEntryMode && isLoading;
+  const headerSubtitle = isEntryMode
+    ? (showEntryMetaLoader ? 'Loading header fields…' : `${filters.length} header field${filters.length !== 1 ? 's' : ''}`)
+    : title;
 
   useEffect(() => {
     if (staticFilters === null) return;
@@ -377,6 +384,12 @@ export default function EnterpriseFilterPanel({
   }, [panelRef, onLastFieldTabForward, filters, disabled, fieldTones]);
 
   useEffect(() => {
+    const root = panelRef?.current;
+    if (!root || disabled || !enableKeyboardNav) return undefined;
+    return bindFormKeyboardNav(root, { enabled: true });
+  }, [panelRef, disabled, enableKeyboardNav, filters, fieldTones]);
+
+  useEffect(() => {
     if (!externalValues) return;
     setValues((prev) => ({ ...prev, ...externalValues }));
   }, [externalValues]);
@@ -392,8 +405,17 @@ export default function EnterpriseFilterPanel({
       }
       return next;
     });
-    onFilterChange?.(colName, value);
-    cascadeResets?.[colName]?.forEach((field) => onFilterChange?.(field, ''));
+
+    const applyPatch = (patch) => {
+      if (patch && typeof patch === 'object' && !(patch instanceof Promise)) {
+        setValues((prev) => ({ ...prev, ...patch }));
+      }
+    };
+
+    applyPatch(onFilterChange?.(colName, value));
+    cascadeResets?.[colName]?.forEach((field) => {
+      applyPatch(onFilterChange?.(field, ''));
+    });
   }, [onFilterChange, cascadeResets]);
 
   const handleActionClick = useCallback(() => {
@@ -479,7 +501,7 @@ export default function EnterpriseFilterPanel({
           </div>
         </div>
 
-        {!isLoading && !errorMsg && (onSearch || onOrderItem) && (
+        {!showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem) && (
           <div className="efq-command__actions">
             {!isEntryMode && filters.length > 0 && (
               <span className="efq-badge">
@@ -517,7 +539,7 @@ export default function EnterpriseFilterPanel({
         )}
       </header>
 
-      {isLoading && (
+      {showDynamicLoader && (
         <div className="efq-loading" role="status" aria-label="Loading filters">
           <table className="efq-table">
             <tbody>
@@ -546,7 +568,13 @@ export default function EnterpriseFilterPanel({
         </div>
       )}
 
-      {!isLoading && errorMsg && (
+      {showEntryMetaLoader && (
+        <div className="efq-body efq-body--meta-loading" role="status" aria-label={metaLoadingText}>
+          <Loader text={metaLoadingText} />
+        </div>
+      )}
+
+      {!showDynamicLoader && !showEntryMetaLoader && errorMsg && (
         <div className="efq-error" role="alert">
           <AlertCircle size={16} strokeWidth={2} />
           <span>{errorMsg}</span>
@@ -556,7 +584,7 @@ export default function EnterpriseFilterPanel({
         </div>
       )}
 
-      {!isLoading && !errorMsg && filters.length > 0 && (
+      {!showDynamicLoader && !showEntryMetaLoader && !errorMsg && filters.length > 0 && (
         <>
           <div className="efq-body">
             <FilterTable
@@ -595,7 +623,7 @@ export default function EnterpriseFilterPanel({
         </>
       )}
 
-      {!isLoading && !errorMsg && filters.length === 0 && onSearch && (
+      {!showDynamicLoader && !showEntryMetaLoader && !errorMsg && filters.length === 0 && onSearch && (
         <div className="efq-empty-run">{ActionButton}</div>
       )}
     </div>

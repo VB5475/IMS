@@ -74,16 +74,16 @@ export const PI_CONFIG = {
 };
 
 // ── Header filter definitions — cascade order: Division → Inquiry Type → Indent ──
-// Kept here alongside PI_CONFIG so all PI-specific constants live together.
+// Field order + control types only; captions from GET_DETAIL_COL_DATA (DisplayName).
 export const PI_HEADER_FILTERS = [
-  { FilterParameterID: 'TranCode', FilterColName: 'TranCode', FilterCaption: 'Inquiry No.', FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: 'TranDate', FilterColName: 'TranDate', FilterCaption: 'Date', FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: 'DivisionID', FilterColName: 'DivisionID', FilterCaption: 'Division', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'ConfigID', FilterColName: 'ConfigID', FilterCaption: 'Inquiry Type', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'ExpectedDate', FilterColName: 'ExpectedDate', FilterCaption: 'Expected Date', FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: 'DeptID', FilterColName: 'DeptID', FilterCaption: 'Department', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: 'BasedOnID', FilterColName: 'BasedOnID', FilterCaption: 'Based On', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: PI_CONFIG.BASED_ON_OPTIONS },
-  { FilterParameterID: 'Remarks', FilterColName: 'Remarks', FilterCaption: 'Remark', FilterColCtrlType: controlTypeMap.TEXTAREA },
+  { FilterParameterID: 'TranCode', FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: 'TranDate', FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: 'DivisionID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'ConfigID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'ExpectedDate', FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: 'DeptID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'BasedOnID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: PI_CONFIG.BASED_ON_OPTIONS },
+  { FilterParameterID: 'Remarks', FilterColCtrlType: controlTypeMap.TEXTAREA },
 ];
 
 export const PI_GRID_TABS = [

@@ -38,18 +38,24 @@ export default function Modal({
   footer = null,
   children,
 }) {
-  // Close on Escape key
+  // Close on Escape key — capture phase so open modals win over page-level Esc handlers.
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') onClose?.();
+    if (e.key !== 'Escape') return;
+    if (e.target.closest('.search-select--open') || e.target.closest('.search-select__dropdown')) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    onClose?.();
   }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
     // Prevent body scroll while modal is open
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
       document.body.style.overflow = '';
     };
   }, [isOpen, handleKeyDown]);

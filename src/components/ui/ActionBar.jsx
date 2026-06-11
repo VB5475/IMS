@@ -1,11 +1,7 @@
 // ActionBar — Common sticky bottom action bar for all entry pages.
 //
-// Built-in pair (controlled by showAddCancel):
-//   • Read mode  → "Add" button     (calls onAdd)
-//   • Edit mode  → "Cancel" button  (calls onCancel)
-//
-// extraButtons — page-specific actions; set showAlways for read-mode buttons.
-// accessKey on buttons enables Alt+key shortcuts (browser-native + form handlers).
+// Keyboard shortcuts (Alt+A/S/N/C, Esc) are handled by useEntryFormKeyboard
+// on the page. Buttons keep accessKey for browser-native hints.
 
 import React from 'react';
 import { FilePlus, XCircle } from 'lucide-react';
@@ -88,7 +84,7 @@ export default function ActionBar({
               type="button"
               className="action-btn action-btn--cancel"
               onClick={onCancel}
-              title={`${cancelLabel} (Alt+${cancelAccessKey?.toUpperCase()})`}
+              title={`${cancelLabel} (Esc · Alt+${cancelAccessKey?.toUpperCase()})`}
               accessKey={cancelAccessKey}
             >
               <XCircle size={13} strokeWidth={2} />

@@ -5,6 +5,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import Modal from '../ui/Modal';
 import EntryGrid from '../grid/EntryGrid';
 import Loader from '../ui/Loader';
+import { usePickerModalKeyboard } from '../../hooks/useEntryFormKeyboard';
 import { Truck, CheckCheck, Users, AlertCircle } from 'lucide-react';
 import '../txn/OrderItemModal.css';
 
@@ -27,6 +28,8 @@ export default function SupplierPickerModal({
   onInsert,
 }) {
   const gridRef = useRef(null);
+  const cancelBtnRef = useRef(null);
+  const insertBtnRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
 
   useEffect(() => {
@@ -49,6 +52,30 @@ export default function SupplierPickerModal({
 
   const showGrid = !isLoading && !error && items.length > 0;
 
+  const {
+    handleInsertKeyDown,
+    handleCancelKeyDown,
+  } = usePickerModalKeyboard({
+    isOpen,
+    showActions: showGrid,
+    onClose,
+    onInsert: handleInsert,
+    canInsert: selectedCount > 0,
+    gridRef,
+    cancelBtnRef,
+    insertBtnRef,
+  });
+
+  useEffect(() => {
+    if (!isOpen || !showGrid) return undefined;
+    const timer = window.setTimeout(() => {
+      if (!gridRef.current?.focusFirstInteractiveCell?.()) {
+        cancelBtnRef.current?.focus();
+      }
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, showGrid, items.length]);
+
   const footer = showGrid ? (
     <div className="oim-footer">
       <div className="oim-footer__meta">
@@ -60,19 +87,29 @@ export default function SupplierPickerModal({
             </span>
           </>
         ) : (
-          <span className="oim-footer__hint">Select one or more suppliers to insert</span>
+          <span className="oim-footer__hint">Select rows (↑ to header checkbox) · Insert Alt+I</span>
         )}
       </div>
       <div className="oim-footer__actions">
-        <button type="button" className="oim-btn oim-btn--ghost" onClick={onClose}>
+        <button
+          ref={cancelBtnRef}
+          type="button"
+          className="oim-btn oim-btn--ghost"
+          onClick={onClose}
+          onKeyDown={handleCancelKeyDown}
+          title="Cancel (Esc)"
+        >
           Cancel
         </button>
         <button
+          ref={insertBtnRef}
           type="button"
           className="oim-btn oim-btn--primary"
           onClick={handleInsert}
+          onKeyDown={handleInsertKeyDown}
           disabled={selectedCount === 0}
-          title={selectedCount > 0 ? `Insert ${selectedCount} supplier(s)` : 'Select at least one supplier'}
+          title={selectedCount > 0 ? `Insert ${selectedCount} supplier(s) (Alt+I)` : 'Select at least one supplier'}
+          accessKey="i"
         >
           <CheckCheck size={14} strokeWidth={2.5} />
           Insert{selectedCount > 0 ? ` (${selectedCount})` : ''}

@@ -243,6 +243,15 @@
  overflow-x: auto;
 }
 
+.efq-body--meta-loading {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ min-height: 120px;
+ padding: 28px 16px;
+ background: #fff;
+}
+
 .efq-skeleton-cell {
  display: flex;
  align-items: center;

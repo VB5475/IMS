@@ -20,69 +20,24 @@ import OrderItemModal from '../../components/txn/OrderItemModal';
 import { useTxnEntry } from '../../hooks/useTxnEntry';
 import { useApi } from '../../api/useApi';
 import { controlTypeMap } from '../../data/dummyData';
+import { buildGridColumns, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from '../../utils/gridUtils';
 import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from '../../api/constants';
 import { getUserSession } from '../../session/userSession';
 import { TXN_CONFIG } from './constants';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import './TxnEntryPage.css';
 
-// ── Hardcoded header fields (mirrors the image: Sample Invoice Detail) ──
-// Shape matches what FilterPanel/FilterControl expects from the API.
-// FilterColCtrlType:  1=TextBox  2=Date  4=Dropdown
-// For Dropdown fields, leave staticOptions empty for now (wired later).
+// Field order + control types; captions from GET_DETAIL_COL_DATA (DisplayName).
+// FilterParameterID must match apiCol.ColName.
 const TXN_HEADER_FILTERS = [
-  {
-    FilterParameterID: 'TranCode',
-    FilterColName: 'TranCode',
-    FilterCaption: 'Tran Code',
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: 'TranDate',
-    FilterColName: 'TranDate',
-    FilterCaption: 'Tran Date',
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: 'Division',
-    FilterColName: 'DivisionID',
-    FilterCaption: 'Division',
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],   // populated from Fn_tbl_FetchUserWsDivision
-  },
-  {
-    FilterParameterID: 'InvoiceType',
-    FilterColName: 'InvoiceTypeID',
-    FilterCaption: 'Invoice Type',
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],   // populated from fn_tbl_ddl_Sal_Configuration
-  },
-  {
-    FilterParameterID: 'Supplier',
-    FilterColName: 'SupplierID',
-    FilterCaption: 'Supplier',
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],   // populated from Pr_Fetch_SupplierData_IMS
-  },
-  {
-    FilterParameterID: 'Currency',
-    FilterColName: 'CurrencyID',
-    FilterCaption: 'Currency',
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: 'CurrencyRate',
-    FilterColName: 'CurrencyRate',
-    FilterCaption: 'Currency Rate',
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: 'Department',
-    FilterColName: 'DepartmentID',
-    FilterCaption: 'Department',
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],   // populated from Pr_Fetch_DepartmentData_IMS
-  },
+  { FilterParameterID: 'TranCode', FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: 'TranDate', FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: 'DivisionID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'InvoiceTypeID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'SupplierID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: 'CurrencyID', FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: 'CurrencyRate', FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: 'DepartmentID', FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
 ];
 
 // ── Temp-ID generator (negative → never clash with real IDs) ─────────
@@ -108,27 +63,25 @@ export default function TxnEntryPage() {
   const syncedFilters = useMemo(() => {
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case 'Division': return { ...filter, staticOptions: divisionOptions };
-        case 'Department': return { ...filter, staticOptions: departmentOptions };
-        case 'Supplier': return { ...filter, staticOptions: supplierOptions };
-        case 'InvoiceType': return { ...filter, staticOptions: invoiceTypeOptions };
+        case 'DivisionID': return { ...filter, staticOptions: divisionOptions };
+        case 'DepartmentID': return { ...filter, staticOptions: departmentOptions };
+        case 'SupplierID': return { ...filter, staticOptions: supplierOptions };
+        case 'InvoiceTypeID': return { ...filter, staticOptions: invoiceTypeOptions };
         default: return filter;
       }
     };
 
-    if (headerColumns.length === 0) return TXN_HEADER_FILTERS.map(injectOptions);
+    if (headerColumns.length === 0) return [];
 
-    const apiColMap = {};
-    headerColumns.forEach(col => { apiColMap[col.ColName] = col; });
+    const apiColMap = buildHeaderColMap(headerColumns);
 
-    return TXN_HEADER_FILTERS.map(filter => {
+    return TXN_HEADER_FILTERS.map((filter) => {
       const withOpts = injectOptions(filter);
-      const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
+      const apiCol = resolveHeaderApiCol(filter, apiColMap);
       if (!apiCol) return withOpts;
       return {
-        ...withOpts,
-        FilterColName: apiCol.ColName,
-        FilterCaption: apiCol.DisplayName,
+        ...syncHeaderFilterWithApiCol(withOpts, apiCol),
+        FilterColCtrlType: apiCol.ColCtrlType ?? filter.FilterColCtrlType,
         staticOptions:
           withOpts?.staticOptions?.length > 0
             ? withOpts.staticOptions
@@ -328,6 +281,7 @@ export default function TxnEntryPage() {
   };
 
   const combinedError = metaError || headerError;
+  const headerMetaReady = headerColumns.length > 0 && !headerFetching;
 
   usePageHeader({
     title: 'Sample Invoice',
@@ -354,7 +308,9 @@ export default function TxnEntryPage() {
             onSearch={handleAddNew}
             onOrderItem={handleOrderItem}
             onFilterChange={handleFilterChange}
-            isSearching={isGridLoading || headerFetching}
+            isSearching={isGridLoading}
+            isMetaLoading={!headerMetaReady}
+            disabled={!headerMetaReady || isGridLoading}
             actionLabel="Add New"
             ActionIcon={Plus}
           />

@@ -27,6 +27,7 @@ import InlineChildTable from './InlineChildTable';
 import './EnterpriseGrid.css';
 import { isColumnFixed, isColumnEditable, getColumnCellClass, getColumnHeaderThemeClass } from './gridColumnClass';
 import { getRowDropdownDisplay } from '../../utils/gridUtils';
+import { focusFirstGridCell, handleGridKeyboardEvent } from '../../utils/gridKeyboardNav';
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -94,6 +95,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     childRowsMap = null,   // { [rowId: string]: rowData[] }
     childColumns = [],     // column defs for the inline sub-table
     existingRecordEdit = false, // true → lock columns flagged IsLockOnEditModeAllow
+    enableKeyboardNav = true,  // Excel-like Tab / Enter / arrow / Space navigation
   },
   ref,
 ) {
@@ -189,16 +191,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     focusFirstInteractiveCell() {
       const root = tableWrapperRef.current;
       if (!root) return false;
-      const target = root.querySelector(
-        'tbody input[type="checkbox"], tbody .cell-input:not([readonly]):not([disabled]), tbody .search-select__trigger:not([disabled])',
-      );
-      if (target) {
-        target.focus();
-        return true;
-      }
-      return false;
+      return focusFirstGridCell(root, readOnly, { includeHeaderRow: readOnly });
     },
-  }), [selectedIds]);
+  }), [selectedIds, readOnly]);
 
   // Notify parent when selection changes
   useEffect(() => {
@@ -523,6 +518,16 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     }
   }, [readOnly]);
 
+  const handleGridKeyDown = useCallback((e) => {
+    if (!enableKeyboardNav || !tableWrapperRef.current) return;
+    handleGridKeyboardEvent(e, {
+      root: tableWrapperRef.current,
+      readOnly,
+      includeHeaderRow: readOnly,
+      onToggleRow: handleSelectRow,
+    });
+  }, [enableKeyboardNav, readOnly, handleSelectRow]);
+
   const handleScroll = useCallback((e) => {
     const el = e.target;
     setScrollState({
@@ -574,6 +579,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             className={`table-wrapper ${scrollState.left ? 'scrolled-left' : ''} ${scrollState.right ? 'scrolled-right' : ''}`}
             ref={tableWrapperRef}
             onScroll={handleScroll}
+            onKeyDown={handleGridKeyDown}
           >
             <table className="erp-table">
               <thead>
@@ -621,56 +627,57 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                 </tr>
               </thead>
 
-          <tbody>
-            {displayRows.map(row => {
-              const rowId = String(row.id);
-              const hasChildren = enableCollapsible && childRowsMap && (childRowsMap[rowId]?.length > 0);
-              const isExpanded = hasChildren && expandedRows.has(rowId);
-              return (
-                <React.Fragment key={row.id}>
-                  <tr className={selectedIds.has(rowId) ? 'selected' : ''}>
-                    {columns.map(col => (
-                      <td
-                        key={`${row.id}-${col.id}`}
-                        className={cellClass(col)}
-                        style={cellStyle(col, 'body')}
-                        onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
+              <tbody>
+                {displayRows.map(row => {
+                  const rowId = String(row.id);
+                  const hasChildren = enableCollapsible && childRowsMap && (childRowsMap[rowId]?.length > 0);
+                  const isExpanded = hasChildren && expandedRows.has(rowId);
+                  return (
+                    <React.Fragment key={row.id}>
+                      <tr
+                        className={selectedIds.has(rowId) ? 'selected' : ''}
+                        data-eg-row-id={rowId}
                       >
-                        <div
-                          className="cell-wrapper"
-                          onKeyDown={(!readOnly && col.key !== 'cb') ? makeCellKeyDown(row, col) : undefined}
-                        >
-                          {col.key === 'cb' ? (
-                            <div className="cell-checkbox">
-                              {hasChildren && (
-                                <button
-                                  type="button"
-                                  className="eg-expand-toggle"
-                                  onClick={(e) => { e.stopPropagation(); toggleExpand(row.id); }}
-                                  title={isExpanded ? 'Collapse indent details' : 'Expand indent details'}
-                                  aria-expanded={isExpanded}
-                                >
-                                  {isExpanded
-                                    ? <ChevronDown  size={11} strokeWidth={2.5} />
-                                    : <ChevronRight size={11} strokeWidth={2.5} />}
-                                </button>
+                        {columns.map(col => (
+                          <td
+                            key={`${row.id}-${col.id}`}
+                            className={cellClass(col)}
+                            style={cellStyle(col, 'body')}
+                            onMouseDown={(e) => focusCellControl(e, col)}
+                            onClick={() => { if (col.key === 'cb') handleSelectRow(row.id); }}
+                          >
+                            <div className="cell-wrapper">
+                              {col.key === 'cb' ? (
+                                <div className="cell-checkbox">
+                                  {hasChildren && (
+                                    <button
+                                      type="button"
+                                      className="eg-expand-toggle"
+                                      onClick={(e) => { e.stopPropagation(); toggleExpand(row.id); }}
+                                      title={isExpanded ? 'Collapse indent details' : 'Expand indent details'}
+                                      aria-expanded={isExpanded}
+                                    >
+                                      {isExpanded
+                                        ? <ChevronDown size={11} strokeWidth={2.5} />
+                                        : <ChevronRight size={11} strokeWidth={2.5} />}
+                                    </button>
+                                  )}
+                                  <input
+                                    type="checkbox"
+                                    className="row-checkbox"
+                                    checked={selectedIds.has(rowId)}
+                                    onChange={() => handleSelectRow(row.id)}
+                                    onClick={e => e.stopPropagation()}
+                                    aria-label={`Select row ${row.id}`}
+                                  />
+                                </div>
+                              ) : (
+                                renderCell(row, col)
                               )}
-                              <input
-                                type="checkbox"
-                                className="row-checkbox"
-                                checked={selectedIds.has(rowId)}
-                                onChange={() => handleSelectRow(row.id)}
-                                onClick={e => e.stopPropagation()}
-                                aria-label={`Select row ${row.id}`}
-                              />
                             </div>
-                          ) : (
-                            renderCell(row, col)
-                          )}
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
+                          </td>
+                        ))}
+                      </tr>
 
                       {isExpanded && (
                         <tr className="eg-child-row">

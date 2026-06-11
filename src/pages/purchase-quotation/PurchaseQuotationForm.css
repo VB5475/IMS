@@ -1,0 +1,192 @@
+/* PurchaseQuotationForm.css */
+
+/* ── Page shell ── */
+.pq-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Match filter panel styling to the rest of the app */
+.pq-page .efq-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── grid section ── */
+.pq-grid-section {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 320px;
+
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(30, 74, 122, 0.08);
+  overflow: hidden;
+}
+
+/* Tab pane: hidden by default; fills remaining height when active */
+.pq-tab-pane {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pq-tab-pane--active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Strip duplicate border/shadow from the child EntryGrid */
+.pq-tab-pane .erp-grid-container {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Terms tab: plain scrollable pane */
+.pq-terms-pane {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px;
+  background: var(--surface);
+}
+
+/* ── Tab-bar action buttons (Select Item) ── */
+.pq-tab-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.pq-tab-action-btn:hover:not(:disabled) {
+  background: var(--primary-lighter);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.pq-tab-action-btn:active:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.pq-tab-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── "Approved" label + compact SearchSelect ── */
+.pq-tab-filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pq-tab-filter__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Delete button — danger semantic ── */
+.pq-tab-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--danger);
+  background: #fef2f2;
+  border: 1px solid rgba(217, 48, 37, 0.25);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.pq-tab-delete-btn:hover:not(:disabled) {
+  background: #fde8e8;
+  border-color: var(--danger);
+}
+
+.pq-tab-delete-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Terms & Conditions table ── */
+.pq-terms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 400px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pq-terms-table thead tr {
+  background: var(--col-base-header-bg);
+}
+
+.pq-terms-table th {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--col-base-header-text);
+  text-align: left;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.pq-terms-table th:last-child {
+  border-right: none;
+}
+
+.pq-terms-table td {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.pq-terms-table td:last-child {
+  border-right: none;
+}
+
+.pq-terms-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 12px;
+  border-right: none !important;
+}

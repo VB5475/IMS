@@ -67,6 +67,34 @@ export function isLockOnEditModeCol(apiCol) {
   return isTruthyApiFlag(apiCol?.IsLockOnEditModeAllow);
 }
 
+/**
+ * Merge a static header filter stub with a GET_DETAIL_COL_DATA column.
+ * Match key: filter.FilterParameterID === apiCol.ColName.
+ */
+export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
+  const colName = apiCol?.ColName ?? filter.FilterColName ?? filter.FilterParameterID;
+  return {
+    ...filter,
+    ...patch,
+    FilterColName: colName,
+    FilterCaption: apiCol?.DisplayName ?? colName,
+    ctrlValueCol: apiCol?.CtrlValueCol,
+    ctrlDisplayCol: apiCol?.CtrlDisplayCol,
+  };
+}
+
+/** Build a ColName → column map from GET_DETAIL_COL_DATA Links. */
+export function buildHeaderColMap(headerColumns = []) {
+  const map = {};
+  headerColumns.forEach((col) => { map[col.ColName] = col; });
+  return map;
+}
+
+/** Resolve header column by FilterParameterID (ColName). */
+export function resolveHeaderApiCol(filter, apiColMap) {
+  return apiColMap[filter.FilterParameterID] ?? apiColMap[filter.FilterColName] ?? null;
+}
+
 /** Build a single { value, label } option from a master/detail row using column metadata. */
 export function buildDropdownOptionFromRow(apiCol, rowData) {
   if (!apiCol || !rowData) return [];
