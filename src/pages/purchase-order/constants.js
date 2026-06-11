@@ -134,10 +134,7 @@ export const PO_SUMMARY_FIELDS = [
 
 export const PO_FILTER_INITIAL_VALUES = { BasedOnID: '0' };
 
-// ── Configurable keyboard shortcuts ─────────────────────────────────────────
-// Keys are single lowercase letters bound to Alt+<key>.
-// To override per-user, store overrides in localStorage('ims_shortcuts_po')
-// and merge with this config before passing to useKeyboardShortcuts.
+// ── Keyboard shortcut labels (used for ActionBar button titles) ──────────────
 export const PO_SHORTCUT_CONFIG = {
   a: { label: 'Add',    title: 'Add (Alt+A)'    },
   s: { label: 'Save',   title: 'Save (Alt+S)'   },

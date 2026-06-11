@@ -25,10 +25,9 @@ import EnterpriseFilterPanel from '../../components/filters/EnterpriseFilterPane
 import EntryGrid             from '../../components/grid/EntryGrid';
 import ActionBar             from '../../components/ui/ActionBar';
 import OrderItemModal        from '../../components/txn/OrderItemModal';
-import TxnSummaryPanel       from '../../components/txn/TxnSummaryPanel';
+import TxnSummaryPanel       from '../../components/summary/TxnSummaryPanel';
 import SearchSelect          from '../../components/ui/SearchSelect';
 import { usePurchaseOrder }  from '../../hooks/usePurchaseOrder';
-import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useApi }            from '../../api/useApi';
 import {
   ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, DEFAULT_LOGIN_ID, getColDefault, OBJ_TYPE,
@@ -582,17 +581,55 @@ export default function PurchaseOrderForm() {
     console.log('[PO] Document F6 — reserved for document generation.');
   }, []);
 
-  // ── Configurable keyboard shortcuts ───────────────────────────────
+  // ── Keyboard shortcuts — Alt+A Add | Alt+S Save | Alt+N Cancel | Alt+C Close ──
   const filterBusy = headerFetching || isLoadingPoTypes;
 
-  const shortcutConfig = useMemo(() => ({
-    a: { handler: enterEditModeWithFocus, enabled: !isEditMode && !filterBusy },
-    s: { handler: handleSave,            enabled: isEditMode && !isSavingPO   },
-    n: { handler: handleCancel,          enabled: isEditMode                   },
-    c: { handler: handleClose,           enabled: true                         },
-  }), [isEditMode, filterBusy, isSavingPO, enterEditModeWithFocus, handleSave, handleCancel, handleClose]);
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      if (itemModalOpen) return;
 
-  useKeyboardShortcuts(shortcutConfig, { disabled: itemModalOpen });
+      const key = e.key.toLowerCase();
+      switch (key) {
+        case 'a':
+          if (!isEditMode && !filterBusy) {
+            e.preventDefault();
+            enterEditModeWithFocus();
+          }
+          break;
+        case 's':
+          if (isEditMode && !isSavingPO) {
+            e.preventDefault();
+            handleSave();
+          }
+          break;
+        case 'n':
+          if (isEditMode) {
+            e.preventDefault();
+            handleCancel();
+          }
+          break;
+        case 'c':
+          e.preventDefault();
+          handleClose();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    isEditMode,
+    filterBusy,
+    isSavingPO,
+    itemModalOpen,
+    enterEditModeWithFocus,
+    handleSave,
+    handleCancel,
+    handleClose,
+  ]);
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const poExtraButtons = useMemo(() => [
