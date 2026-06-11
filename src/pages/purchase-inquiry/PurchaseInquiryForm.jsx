@@ -25,7 +25,6 @@ import CollapsibleGrid from '../../components/grid/CollapsibleGrid';
 import ActionBar from '../../components/ui/ActionBar';
 import SupplierPickerModal from '../../components/purchase-inquiry/SupplierPickerModal';
 import OrderItemModal from '../../components/txn/OrderItemModal';
-import TxnSummaryPanel from '../../components/txn/TxnSummaryPanel';
 import SearchSelect from '../../components/ui/SearchSelect';
 import { usePurchaseInquiry } from '../../hooks/usePurchaseInquiry';
 import { useApi } from '../../api/useApi';
@@ -43,7 +42,6 @@ import {
   INDENT_DETAILS_COLUMNS,
   PI_FILTER_CASCADE_RESETS,
   SUPPLIER_GRID_CONFIG,
-  PI_SUMMARY_FIELDS,
   formatTranDate,
 } from './constants';
 import './PurchaseInquiryForm.css';
@@ -118,7 +116,6 @@ export default function PurchaseInquiryForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
-  const summaryRef = useRef(null);
   const supplierGridRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
@@ -229,7 +226,6 @@ export default function PurchaseInquiryForm() {
     setActiveTab('items');
     setApprovedFilter('all');
     setIsGridLoading(false);
-    setGridRows([]);
     setIndentRows([]);
     setItemSelectionCount(0);
     setSupplierSelectionCount(0);
@@ -274,7 +270,6 @@ export default function PurchaseInquiryForm() {
 
   const [approvedFilter, setApprovedFilter] = useState('all');
   const [isGridLoading, setIsGridLoading] = useState(false);
-  const [gridRows, setGridRows] = useState([]);
   const [indentRows, setIndentRows] = useState([]);
 
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
@@ -744,7 +739,6 @@ export default function PurchaseInquiryForm() {
     headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== 'id') mstRow[k] = v; });
-    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     const session = getUserSession();
     mstRow.LoginID = session.loginId;
     mstRow.UserID = session.userId;
@@ -1006,7 +1000,6 @@ export default function PurchaseInquiryForm() {
             readOnly={isEditRoute && !isEditMode}
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             enableCollapsible={Object.keys(childRowsMap).length > 0}
@@ -1054,9 +1047,6 @@ export default function PurchaseInquiryForm() {
           rows={indentRows}
         />
       </section> */}
-
-      {/* ── Summary totals — live from grid rows ── */}
-      <TxnSummaryPanel ref={summaryRef} fields={PI_SUMMARY_FIELDS} rows={gridRows} />
 
       <ActionBar
         alignEnd
