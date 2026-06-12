@@ -144,7 +144,7 @@ function buildPoColumns(navigate) {
           aria-label={`Edit PO ${row.PONo ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/purchase-order/${row.POID}`, { state: { record: row } });
+            navigate(`/purchase-order/${row.POID}/edit`, { state: { record: row } });
           }}
         >
           <Pencil size={13} strokeWidth={2} />

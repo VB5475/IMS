@@ -373,13 +373,42 @@ export default function PurchaseOrderForm() {
       if (indentDetails.length > 0) {
         const newChildRowsMap = {};
         indentDetails.forEach((row) => {
-          const key = String(
-            Math.round(Number(row.ParentUKey ?? row.ChildFKey ?? row.ItemID ?? 0))
-          );
+          // DetailID matches the parent detail row's IDNumber/CompUniqueKey,
+          // which is what mapDetailRowsToGridRows assigns as the grid row id.
+          const key = String(row.DetailID ?? 0);
           if (!newChildRowsMap[key]) newChildRowsMap[key] = [];
           newChildRowsMap[key].push(row);
         });
         setChildRowsMap(newChildRowsMap);
+
+        // Fetch indent picker columns so the collapsible panel renders the same
+        // column headers as in the Add flow (RB_ITEM_PICKER_INDENT → buildGridColumns).
+        if (String(headerValues.BasedOnID) === "2") {
+          try {
+            const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+              ObjType: OBJ_TYPE.FUNCTION,
+              ObjName: PO_CONFIG.SP_RB_META,
+              JSon: JSON.stringify([{ prmRBCode: PO_CONFIG.RB_ITEM_PICKER_INDENT }]),
+              p_ErrCode: -1,
+              p_ErrMsg: "",
+            });
+            const rbRow = rbRes?.Table?.[0];
+            if (rbRow) {
+              const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+                prmMasterID: rbRow.RBID,
+                prmLoginID: DEFAULT_LOGIN_ID,
+              });
+              const pickerCols = buildGridColumns(colRes?.Links || [], {}, {
+                filterable: false,
+                allEditable: false,
+              });
+              setItemModalColumns(pickerCols);
+              setChildColumns(pickerCols.filter((c) => c.key !== "cb"));
+            }
+          } catch (pickerErr) {
+            console.warn("[PO] Could not load indent picker columns for edit view:", pickerErr);
+          }
+        }
       }
     } catch (err) {
       console.error("[PO] Edit record load failed:", err);
@@ -387,7 +416,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, getLive]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -601,8 +630,7 @@ export default function PurchaseOrderForm() {
             prmTranDate: formatTranDate(TranDate),
             prmConfigID: Number(ConfigID ?? 0),
             prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-            prmTranBook:
-              Number(BasedOnID) === 2 ? PO_CONFIG.INDENT_SOURCE_BOOK : PO_CONFIG.TRAN_BOOK,
+            prmTranBook: PO_CONFIG.TRAN_BOOK,
             prmFrmOption: Number(BasedOnID) || 0,
           },
         ]),

@@ -110,11 +110,8 @@ export const PO_CONFIG = {
       isEditAllow: false,
     },
   ],
-
+  
   INDENT_FRM_OPTION: 0,
-  // Item picker in indent mode sources from PI — use PURINQUIRY as prmTranBook
-  INDENT_SOURCE_BOOK: "PURINQUIRY",
-
   // Save endpoint (REST POST via API_BASE_URL_IMS)
   SAVE_ENDPOINT: "/API/PurPOSave/Post_RB_PurPOMst_Save",
 
