@@ -1,26 +1,96 @@
-/* CollapsibleGrid.css — shared collapsible table panel */
+/* CollapsibleGrid.css
+   Nested / child grid — Horizon Enterprise tokens (enterprise.css).
+   Visually subordinate to the parent EntryGrid: inset panel, lighter chrome,
+   readonly-blue column tint instead of parent grey/navy enterprise headers. */
 
-/* ── Panel shell ── */
 .cg-panel {
+  flex-shrink: 0;
+  box-sizing: border-box;
+
+  /* Child-grid tokens — sourced from enterprise.css (--cg-*), see .stitch/DESIGN.md */
+  --cg-panel-bg: var(--primary-lighter);
+  --cg-panel-border: var(--primary-light);
+  --cg-header-bg: var(--header-gradient);
+  --cg-header-text: var(--primary);
+  --cg-badge-bg: var(--surface);
+  --cg-badge-text: var(--accent);
+  --cg-badge-border: var(--field-view-border);
+  --cg-scroll-bg: var(--surface);
+  --cg-scroll-border: var(--border);
+}
+
+/* ── Standalone panel (section below a form) ── */
+.cg-panel--standalone {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
-  flex-shrink: 0;
 }
 
-/* ── Header button ── */
+/* ── Inline panel (nested under a parent grid row) ── */
+.cg-panel--inline {
+  display: flex;
+  align-items: stretch;
+  background: var(--cg-panel-bg);
+  border-top: 1px solid var(--cg-panel-border);
+  border-bottom: 1px solid var(--cg-panel-border);
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  width: var(--cg-viewport-width, 100%);
+  max-width: var(--cg-viewport-width, 100%);
+  overflow: hidden;
+}
+
+.cg-inline-marker {
+  width: 3px;
+  flex-shrink: 0;
+  background: var(--cg-stripe);
+  border-radius: 0 2px 2px 0;
+  margin: 6px 0 6px 10px;
+}
+
+.cg-inline-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 12px 8px 10px;
+}
+
+.cg-inline-meta {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.cg-inline-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cg-badge-text);
+  background: var(--cg-badge-bg);
+  border: 1px solid var(--cg-badge-border);
+  border-radius: var(--radius);
+  padding: 1px 8px;
+}
+
+/* ── Standalone collapse header (matches ng-card-header pattern) ── */
 .cg-header {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 14px;
-  background: var(--bg-tint);
+  padding: 8px 14px;
+  min-height: 36px;
+  background: var(--cg-header-bg);
   border: none;
   border-bottom: 1px solid transparent;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-family);
   text-align: left;
   transition: background var(--transition);
 }
@@ -41,92 +111,247 @@
 }
 
 .cg-header__title {
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cg-header-text);
 }
 
 .cg-header__sub {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
   font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .cg-header__badge {
   margin-left: auto;
-  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: var(--text-secondary);
-  background: var(--bg);
+  background: var(--surface);
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-/* ── Expanded body ── */
+/* ── Body + isolated horizontal scroll ── */
 .cg-body {
   padding: 10px;
-}
-
-.cg-grid-wrap {
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  max-width: 100%;
-}
-
-.cg-table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-}
-
-.cg-table thead tr {
-  background: var(--col-base-header-bg);
-}
-
-.cg-table th {
-  padding: 6px 11px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--col-base-header-text);
-  text-align: left;
-  border-right: 1px solid var(--border);
-  white-space: nowrap;
-  user-select: none;
-}
-
-.cg-table th:last-child {
-  border-right: none;
-}
-
-.cg-table td {
-  padding: 5px 11px;
-  color: var(--text);
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-
-.cg-table td:last-child {
-  border-right: none;
-}
-
-.cg-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.cg-table tbody tr:hover {
   background: var(--bg-tint);
 }
 
-.cg-empty {
-  text-align: center;
-  padding: 18px;
-  color: var(--text-muted);
-  font-style: italic;
-  font-size: 0.8rem;
+.cg-scroll-host {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--cg-scroll-border);
+  border-radius: var(--radius);
+  background: var(--cg-scroll-bg);
+  box-shadow: var(--shadow-sm);
+  -webkit-overflow-scrolling: touch;
+}
+
+.cg-scroll-host::-webkit-scrollbar {
+  height: 4px;
+}
+
+.cg-scroll-host::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 10px;
+}
+
+/* ── Nested EntryGrid — child tier (NOT parent enterprise chrome) ── */
+.cg-entry-grid.erp-grid-container {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.cg-entry-grid .grid-header,
+.cg-entry-grid .selection-bar {
+  display: none;
+}
+
+.cg-entry-grid .table-wrapper {
+  background: var(--surface);
+}
+
+.cg-entry-grid .erp-table {
+  font-size: var(--font-size-sm);
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Child headers: readonly-blue tint (parent uses grey base + navy fixed) */
+.cg-entry-grid .erp-table thead th {
+  background: var(--cg-child-head-bg) !important;
+  color: var(--cg-child-head-text) !important;
+  font-size: var(--font-size-xs) !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--cg-child-head-border) !important;
+  border-right: 1px solid var(--border) !important;
+  min-height: 24px;
+  box-shadow: none;
+}
+
+.cg-entry-grid .erp-table thead th .header-label {
+  color: var(--cg-child-head-text);
+}
+
+/* Pinned (IsFreezeReq) — accent blue; beats erp-grid-container--dense navy override */
+.cg-scroll-host .cg-entry-grid.erp-grid-container--dense .erp-table thead th.fixed-col,
+.cg-scroll-host .cg-entry-grid .erp-table thead th.fixed-col {
+  z-index: 30;
+  background: var(--cg-fixed-head-bg) !important;
+  color: var(--cg-fixed-head-text) !important;
+  border-bottom: 2px solid var(--cg-fixed-head-border) !important;
+  box-shadow: 2px 0 8px var(--cg-fixed-edge-shadow);
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table thead th.fixed-col .header-label,
+.cg-scroll-host .cg-entry-grid .erp-table thead th.fixed-header .header-label {
+  color: var(--cg-fixed-head-text) !important;
+}
+
+/* Lock-on-edit frozen — secondary blue (parent uses pale field-frozen) */
+.cg-scroll-host .cg-entry-grid.erp-grid-container--dense .erp-table thead th.frozen-header,
+.cg-scroll-host .cg-entry-grid .erp-table thead th.frozen-header {
+  background: var(--cg-frozen-head-bg) !important;
+  color: var(--cg-frozen-head-text) !important;
+  border-bottom: 2px solid var(--cg-frozen-head-border) !important;
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table thead th.frozen-header .header-label {
+  color: var(--cg-frozen-head-text) !important;
+}
+
+.cg-entry-grid .erp-table thead th.editable-col,
+.cg-entry-grid .erp-table thead th.readonly-col {
+  background: var(--cg-child-head-bg) !important;
+  color: var(--cg-child-head-text) !important;
+  border-bottom: 1px solid var(--cg-child-head-border) !important;
+}
+
+.cg-entry-grid .erp-table tbody td {
+  background: var(--cg-child-body-bg);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-size: var(--font-size-sm);
+  color: var(--text);
+}
+
+.cg-entry-grid .erp-table tbody tr:nth-child(even) td {
+  background: var(--cg-child-body-alt);
+}
+
+.cg-entry-grid .erp-table tbody tr:hover td {
+  background: var(--cg-child-hover) !important;
+}
+
+.cg-entry-grid .erp-table tbody tr.selected td {
+  background: var(--cg-child-selected) !important;
+}
+
+/* Pinned body cells — readonly tint (parent fixed body uses neutral grey) */
+.cg-scroll-host .cg-entry-grid .erp-table tbody td.fixed-col {
+  z-index: 10;
+  background: var(--cg-fixed-body-bg);
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody tr:nth-child(even) td.fixed-col {
+  background: var(--cg-fixed-body-alt);
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody tr:hover td.fixed-col {
+  background: var(--cg-fixed-hover) !important;
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody tr.selected td.fixed-col {
+  background: var(--cg-fixed-selected) !important;
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody td.fixed-col .cell-label {
+  color: var(--cg-fixed-text);
+  font-weight: 600;
+}
+
+/* Lock-on-edit frozen body */
+.cg-scroll-host .cg-entry-grid .erp-table tbody td.frozen-col {
+  background: var(--cg-frozen-body-bg);
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody tr:nth-child(even) td.frozen-col {
+  background: var(--cg-frozen-body-alt);
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody tr:hover td.frozen-col {
+  background: var(--cg-frozen-hover) !important;
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody tr.selected td.frozen-col {
+  background: var(--cg-frozen-selected) !important;
+}
+
+.cg-scroll-host .cg-entry-grid .erp-table tbody td.frozen-col .cell-label {
+  color: var(--cg-frozen-text);
+  font-weight: 600;
+}
+
+/* Last pinned column edge when child grid is scrolled horizontally */
+.cg-scroll-host .cg-entry-grid .erp-table th.fixed-col.last-fixed,
+.cg-scroll-host .cg-entry-grid .erp-table td.fixed-col.last-fixed {
+  border-right: 2px solid var(--cg-fixed-head-border);
+}
+
+.cg-scroll-host.scrolled-left .cg-entry-grid .erp-table th.fixed-col.last-fixed,
+.cg-scroll-host.scrolled-left .cg-entry-grid .erp-table td.fixed-col.last-fixed {
+  box-shadow: 4px 0 8px var(--cg-fixed-edge-shadow);
+}
+
+.cg-entry-grid .cell-wrapper {
+  font-size: var(--font-size-sm);
+  color: var(--text);
+}
+
+.cg-entry-grid .pagination-bar {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+}
+
+.cg-entry-grid .page-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius);
+}
+
+.cg-entry-grid .page-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.cg-entry-grid .page-size-select {
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }

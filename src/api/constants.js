@@ -63,11 +63,28 @@ export const COL_DATA_TYPE = {
  */
 export function getColDefault(colDataType) {
   if (!colDataType) return null;
-  const lower = colDataType.toLowerCase().trimStart();
-  if (lower.startsWith(COL_DATA_TYPE.NUMERIC)) return 0;
-  if (lower.startsWith(COL_DATA_TYPE.VARCHAR)) return "";
-  if (lower.startsWith(COL_DATA_TYPE.DATETIME)) return null;
+  const lower = String(colDataType).toLowerCase();
+  if (lower.includes(COL_DATA_TYPE.NUMERIC)) return 0;
+  if (lower.includes(COL_DATA_TYPE.VARCHAR)) return "";
+  if (lower.includes(COL_DATA_TYPE.DATETIME) || lower.includes("date")) return null;
   return null;
+}
+
+/**
+ * Build a save payload row: seed every column from GET_DETAIL_COL_DATA (incl. hidden),
+ * then overlay row values. Empty/null/"" uses getColDefault(ColDataType).
+ */
+export function buildSaveRowFromColumns(rest, columnDefs, extraFields = {}) {
+  const row = {};
+  columnDefs.forEach(({ key, colDataType }) => {
+    const raw = rest[key];
+    row[key] = raw != null && raw !== "" ? raw : getColDefault(colDataType);
+  });
+  Object.entries(rest).forEach(([k, v]) => {
+    if (k === "id" || k in row) return;
+    row[k] = v;
+  });
+  return { ...row, ...extraFields };
 }
 
 // ══════════════════════════════════════════════════════════════════════

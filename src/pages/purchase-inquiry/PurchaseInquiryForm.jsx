@@ -33,6 +33,7 @@ import {
   API_BASE_URL,
   API_BASE_URL_IMS,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
@@ -157,6 +158,7 @@ export default function PurchaseInquiryForm() {
     isLoadingInquiryTypes,
     columns,
     allColumns,
+    allIndentColumns,
     isFetching,
     metaError,
     fetchDetailMeta,
@@ -664,7 +666,7 @@ export default function PurchaseInquiryForm() {
       // 1. API_VALUES → aggregated parent item rows
       // 2. RB_PurInquiryIndtDet → RBID (localStorage) → GET_DETAIL_COL_DATA → child columns
       // 3. Attach selected indent rows from the picker under each parent row
-      ensureItemColumns().catch(() => {});
+      ensureItemColumns().catch(() => { });
 
       // Strip synthetic '_row_N' ids before sending to the API.
       const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
@@ -701,15 +703,7 @@ export default function PurchaseInquiryForm() {
         const indtMeta = { RBID: rbRow.RBID, SaveProcName: rbRow.SaveProcName };
         localStorage.setItem(PI_CONFIG.STORAGE_INDT_META, JSON.stringify(indtMeta));
 
-        const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-          prmMasterID: rbRow.RBID,
-          prmLoginID: getUserSession().loginId,
-        });
-        const indentChildColumns = buildGridColumns(
-          colRes?.Links || [],
-          {},
-          { filterable: false, allEditable: false }
-        );
+        const indentChildColumns = await fetchIndentDetailColumns();
 
         // Build childRowsMap: parent.ItemID → matching selected indent rows.
         // Relationship: child.ChildFKey === parent.ItemID
@@ -735,7 +729,7 @@ export default function PurchaseInquiryForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, getLive]
+    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns]
   );
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────
@@ -847,22 +841,51 @@ export default function PurchaseInquiryForm() {
       mstRow.UserID = session.userId;
 
       // ── Detail ────────────────────────────────────────────────────────
-      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-        const row = {};
-        allColumns.forEach(({ key, colDataType }) => {
-          row[key] = getColDefault(colDataType);
-        });
-        return { ...row, ...rest, LoginID: session.loginId, UserID: session.userId };
-      });
+      const sessionFields = { LoginID: session.loginId, UserID: session.userId };
+      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allColumns, sessionFields)
+      );
 
       // ── IndentDetail ──────────────────────────────────────────────────
-      const indentDetailRows = Object.values(childRowsMap)
-        .flat()
-        .map(({ id: _id, ...rest }) => ({
-          ...rest,
-          LoginID: session.loginId,
-          UserID: session.userId,
-        }));
+      const rawIndentRows = Object.values(childRowsMap).flat();
+      const hiddenIndentCols = allIndentColumns.filter(
+        (c) => !childColumns.some((vc) => vc.key === c.key)
+      );
+      const indentDetailRows = rawIndentRows.map(({ id: _id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
+      );
+
+      const sampleSaved = indentDetailRows[0] ?? null;
+      const hiddenTypeSamples = hiddenIndentCols.slice(0, 5).map((c) => ({
+        key: c.key,
+        colDataType: c.colDataType,
+        savedValue: sampleSaved?.[c.key],
+        savedValueType: sampleSaved ? typeof sampleSaved[c.key] : null,
+      }));
+      // #region agent log
+      fetch("http://127.0.0.1:7497/ingest/d422da4b-d5fd-4d9d-934b-e64eddfd62a9", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "164448" },
+        body: JSON.stringify({
+          sessionId: "164448",
+          runId: "post-fix",
+          hypothesisId: "A-E",
+          location: "PurchaseInquiryForm.jsx:handleSave:indentDetail",
+          message: "indent save column audit",
+          data: {
+            allIndentColumnsCount: allIndentColumns.length,
+            hiddenIndentColCount: hiddenIndentCols.length,
+            savedRowCount: indentDetailRows.length,
+            sampleSavedKeys: sampleSaved ? Object.keys(sampleSaved) : [],
+            stillMissingHidden: hiddenIndentCols
+              .filter((c) => sampleSaved == null || !(c.key in sampleSaved))
+              .map((c) => c.key),
+            hiddenTypeSamples,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
 
       const payload = {
         prmStrMstJSON: JSON.stringify([mstRow]),
@@ -893,7 +916,7 @@ export default function PurchaseInquiryForm() {
         setIsSavingPI(false);
       }
     },
-    [headerColumns, allColumns, childRowsMap, postSave, completeSuccessfulSave]
+    [headerColumns, allColumns, allIndentColumns, childColumns, childRowsMap, postSave, completeSuccessfulSave]
   );
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -1089,7 +1112,9 @@ export default function PurchaseInquiryForm() {
           </div>
         </div>
 
-        <div className={`pi-tab-pane${activeTab === "items" ? " pi-tab-pane--active" : ""}`}>
+        <div
+          className={`pi-tab-pane pi-tab-pane--items${activeTab === "items" ? " pi-tab-pane--active" : ""}`}
+        >
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -1104,6 +1129,7 @@ export default function PurchaseInquiryForm() {
             childRowsMap={childRowsMap}
             childColumns={childColumns}
             existingRecordEdit={isEditRoute && isEditMode}
+            containerClassName="pi-item-entry-grid"
           />
         </div>
 

@@ -177,6 +177,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   // ── Detail grid state ─────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
+  const [allIndentColumns, setAllIndentColumns] = useState([]);
   const [eventColumns, setEventColumns] = useState(() => new Set());
   const [isFetching, setIsFetching] = useState(false);
   const [metaError, setMetaError] = useState(null);
@@ -573,8 +574,15 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       PI_CONFIG.RB_INDT_DETAIL,
       PI_CONFIG.STORAGE_INDT_META
     );
+    setAllIndentColumns(
+      apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+    );
     return buildGridColumns(apiColumns, {}, { filterable: false, allEditable: false });
   }, [get]);
+
+  const clearIndentDetailMeta = useCallback(() => {
+    setAllIndentColumns([]);
+  }, []);
 
   const [isEventFiring, setIsEventFiring] = useState(false);
 
@@ -670,6 +678,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     isLoadingIndents,
     columns,
     allColumns,
+    allIndentColumns,
     eventColumns,
     isFetching,
     metaError,
@@ -677,6 +686,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     fetchGridColumns,
     fetchEditRecord,
     fetchIndentDetailColumns,
+    clearIndentDetailMeta,
     fireCellEvent,
     isEventFiring,
     saveTxn,
