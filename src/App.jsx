@@ -41,11 +41,13 @@ function AppRoutes() {
           <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
           <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
           <Route path="purchase-inquiry/:id" element={<PurchaseInquiryForm />} />
+          <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
           <Route path="purchase-order" element={<PurchaseOrderPage />} />
           <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
           <Route path="purchase-order/:id" element={<PurchaseOrderForm />} />
+          <Route path="purchase-order/:id/edit" element={<PurchaseOrderForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

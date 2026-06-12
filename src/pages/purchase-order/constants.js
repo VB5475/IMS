@@ -38,6 +38,11 @@ export const PO_CONFIG = {
   SP_UNIQUE_ID: "Pr_Gen_FetchLevyUniqueNo4Web",
   SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
 
+  // Edit flow — GetMasterDataFill procedures (mirrors PI pattern)
+  SP_MASTER_FILL: "fn_tbl_RB_PurPOMst",
+  SP_DETAIL_FILL: "fn_tbl_RB_PurPODet",
+  SP_INDT_DETAIL_FILL: "fn_tbl_RB_PurPOIndtDet",
+
   // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_RB_PurPODet_Event",
 

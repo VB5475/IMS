@@ -22,9 +22,11 @@ import {
   API_TIMEOUT,
   DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
+  DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { PO_CONFIG } from "../pages/purchase-order/constants";
-import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag } from "../utils/gridUtils";
+import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -35,6 +37,64 @@ export function formatPoTranDate(dateVal) {
     return `${String(now.getDate()).padStart(2, "0")}-${MONTHS[now.getMonth()]}-${now.getFullYear()}`;
   }
   return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
+}
+
+function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  return [
+    Number(companyId) || DEFAULT_COMPANY_ID,
+    Number(yearId) || PO_CONFIG.CONFIG_YEAR_ID,
+    Number(loginId) || getUserSession().loginId,
+    Number(sessionId) || DEFAULT_SESSION_ID,
+    Number(idNumber) || 0,
+  ].join(",");
+}
+
+function mapMasterRowToHeaderValues(master, params) {
+  const toDateInput = (value) => {
+    if (!value) return "";
+    if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0];
+  };
+
+  // API returns "Currency" (not "CurrencyName") for the currency display label
+  const currencyName = master.CurrencyName ?? master.Currency ?? "";
+
+  return {
+    TranCode: master.TranCode != null ? String(master.TranCode) : "",
+    TranDate: toDateInput(master.TranDate),
+    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
+    DeliveryDate: toDateInput(master.DeliveryDate) || null,
+    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
+    SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
+    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
+    CurrencyID: master.CurrencyID != null ? Number(master.CurrencyID) : 0,
+    CurrencyName: currencyName,
+    CurrencyRate: master.CurrencyRate != null ? Number(master.CurrencyRate) : 0,
+    CreditDays: master.CreditDays != null ? Number(master.CreditDays) : 0,
+    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
+    Remarks: master.Remarks ?? "",
+    TranMstGenID: master.TranMstGenID != null ? Number(master.TranMstGenID) : 0,
+    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
+    YearID: Number(master.Year_ID ?? params.yearId) || PO_CONFIG.CONFIG_YEAR_ID,
+    LoginID: Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
+    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
+    IDNumber: Number(master.IDNumber ?? master.POID ?? params.idNumber) || 0,
+    IsAmend: master.IsAmend != null ? Number(master.IsAmend) : 0,
+    AmendPOID: master.AmendPOID != null ? Number(master.AmendPOID) : 0,
+    UserID: getUserSession().userId,
+    // Identifiers required by save endpoint to locate the existing record
+    CompUniqueKey: master.CompUniqueKey ?? master.IDNumber ?? master.POID ?? params.idNumber ?? 0,
+    FuncCode: master.FuncCode ?? PO_CONFIG.RB_MASTER,
+  };
+}
+
+function mapDetailRowsToGridRows(rows) {
+  return (rows || []).map((row, index) => ({
+    ...row,
+    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+  }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
@@ -248,7 +308,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   }, [get]);
 
   // ── fetchHeaderMeta ─────────────────────────────────────────────────
-  const fetchHeaderMeta = useCallback(async () => {
+  const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
     setHeaderFetching(true);
     setHeaderError(null);
 
@@ -268,11 +328,29 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       localStorage.setItem(PO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
       console.log("%c[PO] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
 
-      const [colData, divisionData, supplierData, currencyData, deptData] = await Promise.all([
-        get(ENDPOINTS.GET_DETAIL_COL_DATA, {
-          prmMasterID: hdrMeta.RBID,
-          prmLoginID: DEFAULT_LOGIN_ID,
-        }),
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: hdrMeta.RBID,
+        prmLoginID: DEFAULT_LOGIN_ID,
+      });
+
+      setHeaderColumns(colData?.Links || []);
+      console.log(
+        "%c[PO] Header columns received:",
+        "color:#8b5cf6;font-weight:600",
+        (colData?.Links || []).length
+      );
+
+      // On edit route, skip expensive list dropdowns — they are re-fetched
+      // lazily when the user enters edit mode via fetchUnlockedHeaderDropdowns.
+      if (skipListDropdowns) {
+        setDivisionOptions([]);
+        setSupplierOptions([]);
+        setCurrencyOptions([]);
+        setDepartmentOptions([]);
+        return;
+      }
+
+      const [divisionData, supplierData, currencyData, deptData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PO_CONFIG.SP_DIVISIONS,
@@ -329,13 +407,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           return null;
         }),
       ]);
-
-      setHeaderColumns(colData?.Links || []);
-      console.log(
-        "%c[PO] Header columns received:",
-        "color:#8b5cf6;font-weight:600",
-        (colData?.Links || []).length
-      );
 
       setDivisionOptions(
         (divisionData?.Table || []).map((r) => ({
@@ -438,7 +509,11 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
 
   // ── fetchGridColumns ────────────────────────────────────────────────
   const fetchGridColumns = useCallback(
-    async (divisionID = 0) => {
+    async (divisionID = 0, editOpts = false) => {
+      const opts =
+        typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
+      const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+
       const apiColumns = rawDetailColumnsRef.current;
       const meta = rawDetailRbMetaRef.current;
 
@@ -451,10 +526,14 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
           funcCode: PO_CONFIG.RB_DETAIL,
           divisionID: Number(divisionID) || 0,
+          existingRecordEdit,
+          rowData: masterRow,
+          fetchUnlockedDropdowns,
         });
         const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
           filterable: false,
           allEditable: true,
+          existingRecordEdit,
         });
         setColumns(gridColumns);
         console.log(
@@ -545,6 +624,145 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     [get]
   );
 
+  // ── seedOptionsFromMaster — seed single-item dropdown options from master fill response ──
+  // Master fill returns DivisionName, SupplierName, ConfigName, DeptName, Currency.
+  // For non-editable fields (IsEditAllow: false) these are the only options ever needed.
+  // For editable fields, fetchUnlockedHeaderDropdowns replaces them with the full list.
+  const seedOptionsFromMaster = useCallback((master) => {
+    if (master.DivisionID != null && master.DivisionName) {
+      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    }
+    if (master.SupplierID != null && master.SupplierName) {
+      setSupplierOptions([{ value: String(master.SupplierID), label: master.SupplierName }]);
+      const sid = String(master.SupplierID);
+      supplierCurrencyMapRef.current[sid] = {
+        CurrencyID: master.CurrencyID ?? 0,
+        CurrencyName: master.Currency ?? master.CurrencyName ?? "",
+        CurrencyRate: master.CurrencyRate ?? 0,
+        CrDays: master.CreditDays ?? 0,
+      };
+    }
+    if (master.ConfigID != null && master.ConfigName) {
+      setPoTypeOptions([{ value: String(master.ConfigID), label: master.ConfigName }]);
+    }
+    if (master.DeptID != null && master.DeptName) {
+      setDepartmentOptions([{ value: String(master.DeptID), label: master.DeptName }]);
+    }
+  }, []);
+
+  // ── fetchUnlockedHeaderDropdowns — re-fetch editable dropdowns when entering edit mode ──
+  // Called when the user clicks Add on an existing record. Re-fetches dropdowns
+  // that were skipped on initial load (skipListDropdowns = true on edit route).
+  const fetchUnlockedHeaderDropdowns = useCallback(
+    async (divisionId) => {
+      if (!headerColumns.length) return;
+
+      // Only fetch dropdowns for fields that are actually editable (IsEditAllow) AND
+      // not locked in edit mode (IsLockOnEditModeAllow). Non-editable fields are
+      // auto-filled from the master record — no dropdown API call needed.
+      const isEditable = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
+
+      const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID" && isEditable(c));
+      const needsSupplier = headerColumns.some((c) => c.ColName === "SupplierID" && isEditable(c));
+      const needsConfig = headerColumns.some((c) => c.ColName === "ConfigID" && isEditable(c));
+      const needsDept = headerColumns.some((c) => c.ColName === "DeptID" && isEditable(c));
+
+      const tasks = [];
+
+      if (needsDivision || needsSupplier) {
+        tasks.push(
+          get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: 2,
+            ObjName: PO_CONFIG.SP_DIVISIONS,
+            JSon: JSON.stringify([{
+              prmUserID: DEFAULT_LOGIN_ID,
+              prmCompanyID: DEFAULT_COMPANY_ID,
+              prmYearID: PO_CONFIG.DIVISION_YEAR_ID,
+            }]),
+            p_ErrCode: -1, p_ErrMsg: "",
+          }).then((res) => setDivisionOptions(
+            (res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+          )).catch(() => {}),
+
+          get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: 2,
+            ObjName: PO_CONFIG.SUPPLIER_SP,
+            JSon: JSON.stringify([{
+              PrmDivisionId: 0,
+              PrmLoginId: DEFAULT_LOGIN_ID,
+              PrmYearId: PO_CONFIG.CONFIG_YEAR_ID,
+              PrmPartyType: PO_CONFIG.SUPPLIER_PARTY_TYPE,
+            }]),
+            p_ErrCode: -1, p_ErrMsg: "",
+          }).then((res) => {
+            const rows = res?.Table || [];
+            setSupplierOptions(rows.map((r) => ({
+              value: String(r.SupplierID ?? r.PartyID),
+              label: r.SupplierName ?? r.PartyName,
+            })));
+            supplierCurrencyMapRef.current = {};
+            rows.forEach((r) => {
+              const sid = String(r.SupplierID ?? r.PartyID);
+              supplierCurrencyMapRef.current[sid] = {
+                CurrencyID: r.CurrencyID ?? 0,
+                CurrencyName: r.CurrencyName ?? "",
+                CurrencyRate: r.CurrencyRate ?? 0,
+                CrDays: r.CrDays ?? 0,
+              };
+            });
+          }).catch(() => {})
+        );
+      }
+
+      if (needsConfig && divisionId) tasks.push(fetchPoTypes(divisionId));
+      if (needsDept) tasks.push(fetchDepartments());
+      await Promise.all(tasks);
+    },
+    [headerColumns, get, fetchPoTypes, fetchDepartments]
+  );
+
+  // ── fetchEditRecord — load master + detail rows for edit mode ────────
+  const fetchEditRecord = useCallback(
+    async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+      const prmParameters = buildMasterDataFillParams({
+        companyId,
+        yearId,
+        loginId,
+        sessionId,
+        idNumber,
+      });
+
+      const [mstRes, detRes, indtDetRes] = await Promise.all([
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: PO_CONFIG.SP_MASTER_FILL,
+          prmParameters,
+          prmFuncCode: PO_CONFIG.RB_MASTER,
+        }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: PO_CONFIG.SP_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: PO_CONFIG.RB_DETAIL,
+        }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: PO_CONFIG.SP_INDT_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: PO_CONFIG.RB_INDT_DETAIL,
+        }),
+      ]);
+
+      const master = mstRes?.Links?.[0] ?? null;
+      const params = { companyId, yearId, loginId, sessionId, idNumber };
+
+      return {
+        master,
+        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
+        details: mapDetailRowsToGridRows(detRes?.Links || []),
+        indentDetails: indtDetRes?.Links || [],
+      };
+    },
+    [get]
+  );
+
   const clearPoTypes = useCallback(() => setPoTypeOptions([]), []);
   const clearSaveError = useCallback(() => setSaveError(null), []);
 
@@ -587,6 +805,10 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     metaError,
     fetchDetailMeta,
     fetchGridColumns,
+    // edit flow
+    fetchEditRecord,
+    seedOptionsFromMaster,
+    fetchUnlockedHeaderDropdowns,
     // cell events
     fireCellEvent,
     isEventFiring,
