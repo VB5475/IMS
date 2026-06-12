@@ -31,6 +31,7 @@ const NAV_SECTIONS = [
       { to: "/purchase-inquiry", icon: ClipboardList, label: "Purchase Inquiry", end: false },
       { to: "/purchase-quotation", icon: FileText, label: "Purchase Quotation", end: false },
       { to: "/purchase-order", icon: ShoppingCart, label: "Purchase Order", end: false },
+      { to: "/purchase-indent", icon: ShoppingCart, label: "Purchase Indent", end: false },
     ],
   },
 ];

@@ -11,6 +11,8 @@ import PurchaseQuotationPage from "./pages/purchase-quotation/PurchaseQuotationP
 import PurchaseQuotationForm from "./pages/purchase-quotation/PurchaseQuotationForm";
 import PurchaseOrderPage from "./pages/purchase-order/PurchaseOrderPage";
 import PurchaseOrderForm from "./pages/purchase-order/PurchaseOrderForm";
+import PurchaseIndentPage from "./pages/purchase-indent/PurchaseIndentPage";
+import PurchaseIndentForm from "./pages/purchase-indent/PurchaseIndentForm";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
 
@@ -48,6 +50,10 @@ function AppRoutes() {
           <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
           <Route path="purchase-order/:id" element={<PurchaseOrderForm />} />
           <Route path="purchase-order/:id/edit" element={<PurchaseOrderForm />} />
+          <Route path="purchase-indent" element={<PurchaseIndentPage />} />
+          <Route path="purchase-indent/new" element={<PurchaseIndentForm />} />
+          <Route path="purchase-indent/:id" element={<PurchaseIndentForm />} />
+          <Route path="purchase-indent/:id/edit" element={<PurchaseIndentForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
