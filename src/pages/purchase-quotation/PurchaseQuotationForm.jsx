@@ -8,7 +8,8 @@
 //                           button: Select Item
 //        • Terms tab      → static terms table (no buttons)
 //        Fixed controls (always): Approved filter | Delete
-//   3. QtnActionBar           — Save / Cancel / Close etc.
+//   3. EnterpriseSummaryPanel — live totals computed from grid rows
+//   4. QtnActionBar           — Save / Cancel / Close etc.
 //
 // Quotation item picker RB + prmFrmOption follow BasedOnID ('0' Direct | '2' Inquiry Based).
 
@@ -16,6 +17,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import OrderItemModal from "../../components/txn/OrderItemModal";
@@ -27,6 +29,7 @@ import {
   API_BASE_URL,
   API_BASE_URL_IMS,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
@@ -39,6 +42,7 @@ import {
   syncHeaderFilterWithApiCol,
   buildHeaderColMap,
   resolveHeaderApiCol,
+  syncMasterSummaryFields,
 } from "../../utils/gridUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -46,6 +50,7 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import {
   QTN_CONFIG,
+  QTN_MASTER,
   QTN_HEADER_FILTERS,
   QTN_GRID_TABS,
   QTN_LIST_DROPDOWN_FIELDS,
@@ -53,6 +58,7 @@ import {
   APPROVED_OPTS,
   TERMS_COLUMNS,
   QTN_FILTER_CASCADE_RESETS,
+  QTN_ITEM_PICKER_CONTEXT_FIELDS,
   formatTranDate,
 } from "./constants";
 import "./PurchaseQuotationForm.css";
@@ -69,7 +75,6 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     DivisionID: String(headerValues.DivisionID ?? ""),
     ConfigID: String(headerValues.ConfigID ?? ""),
     ExpiryDate: headerValues.ExpiryDate ?? "",
-    DeptID: String(headerValues.DeptID ?? ""),
     SupplierID: String(headerValues.SupplierID ?? ""),
     CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ""),
     CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : "",
@@ -133,6 +138,7 @@ export default function PurchaseQuotationForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
+  const summaryRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
@@ -146,7 +152,6 @@ export default function PurchaseQuotationForm() {
     headerError,
     fetchHeaderMeta,
     divisionOptions,
-    departmentOptions,
     quotationTypeOptions,
     supplierOptions,
     fetchQuotationTypes,
@@ -188,7 +193,6 @@ export default function PurchaseQuotationForm() {
     ConfigID: 0,
     ExpiryDate: null,
     DivisionID: 0,
-    DeptID: 0,
     SupplierID: 0,
     CurrencyID: "",
     CurrencyRate: "",
@@ -255,7 +259,6 @@ export default function PurchaseQuotationForm() {
       ConfigID: 0,
       ExpiryDate: null,
       DivisionID: 0,
-      DeptID: 0,
       SupplierID: 0,
       CurrencyID: "",
       CurrencyRate: "",
@@ -289,6 +292,7 @@ export default function PurchaseQuotationForm() {
     setItemModalError(null);
 
     itemGridRef.current?.clearRows?.();
+    setGridRows([]);
 
     setFilterResetKey((k) => k + 1);
     exitEditMode();
@@ -306,6 +310,7 @@ export default function PurchaseQuotationForm() {
   const [activeTab, setActiveTab] = useState("items");
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
+  const [gridRows, setGridRows] = useState([]);
   const activeSelectionCount = activeTab === "items" ? itemSelectionCount : 0;
 
   const [approvedFilter, setApprovedFilter] = useState("all");
@@ -410,6 +415,68 @@ export default function PurchaseQuotationForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  /** Clear item EntryGrid + summary when item-picker API context changes */
+  const clearItemGridState = useCallback(() => {
+    itemGridRef.current?.clearRows?.();
+    setGridRows([]);
+    setItemSelectionCount(0);
+    queuedRowsRef.current = [];
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+  }, []);
+
+  // ── Filter cascade ─────────────────────────────────────────────────
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      if (QTN_ITEM_PICKER_CONTEXT_FIELDS.has(colName)) {
+        clearItemGridState();
+      }
+
+      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+
+      if (colName === "SupplierID") {
+        if (!val || val === "0") {
+          headerValuesRef.current.CurrencyID = "";
+          headerValuesRef.current.CurrencyRate = "";
+          return buildCurrencyPatchFromSupplier(null);
+        }
+        const supplier = getSupplierRow(val);
+        if (supplier) {
+          headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
+          headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
+          return buildCurrencyPatchFromSupplier(supplier);
+        }
+        return undefined;
+      }
+
+      if (colName === "DivisionID") {
+        headerValuesRef.current.ConfigID = 0;
+        headerValuesRef.current.SupplierID = 0;
+        headerValuesRef.current.CurrencyID = "";
+        headerValuesRef.current.CurrencyRate = "";
+        clearQuotationTypes();
+        clearSuppliers();
+        if (val && val !== "0") {
+          await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+        }
+        return buildCurrencyPatchFromSupplier(null);
+      }
+
+      return undefined;
+    },
+    [
+      fetchQuotationTypes,
+      fetchSupplierOptions,
+      clearQuotationTypes,
+      clearSuppliers,
+      getSupplierRow,
+      clearItemGridState,
+    ]
+  );
+
   // ── syncedFilters ─────────────────────────────────────────────────
   const syncedFilters = useMemo(() => {
     const apiColMap = buildHeaderColMap(headerColumns);
@@ -420,8 +487,6 @@ export default function PurchaseQuotationForm() {
           return { ...baseFilter, staticOptions: divisionOptions };
         case "ConfigID":
           return { ...baseFilter, staticOptions: quotationTypeOptions };
-        case "DeptID":
-          return { ...baseFilter, staticOptions: departmentOptions };
         case "SupplierID":
           return { ...baseFilter, staticOptions: supplierOptions };
         default:
@@ -476,17 +541,21 @@ export default function PurchaseQuotationForm() {
     };
 
     if (headerColumns.length === 0) return [];
-    return QTN_HEADER_FILTERS.map(buildFilterDef);
+    return QTN_MASTER.headerFields.map(buildFilterDef);
   }, [
     headerColumns,
     divisionOptions,
     quotationTypeOptions,
-    departmentOptions,
     supplierOptions,
     isEditRoute,
     loadedMasterRow,
     isEditMode,
   ]);
+
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(QTN_MASTER.summaryFields, headerColumns),
+    [headerColumns]
+  );
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -501,43 +570,6 @@ export default function PurchaseQuotationForm() {
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
-
-  // ── Filter cascade ─────────────────────────────────────────────────
-  const handleFilterChange = useCallback(
-    (colName, val) => {
-      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
-
-      if (colName === "SupplierID") {
-        if (!val || val === "0") {
-          headerValuesRef.current.CurrencyID = "";
-          headerValuesRef.current.CurrencyRate = "";
-          return buildCurrencyPatchFromSupplier(null);
-        }
-        const supplier = getSupplierRow(val);
-        if (supplier) {
-          headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
-          headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
-          return buildCurrencyPatchFromSupplier(supplier);
-        }
-        return undefined;
-      }
-
-      if (colName === "DivisionID") {
-        headerValuesRef.current.ConfigID = 0;
-        headerValuesRef.current.SupplierID = 0;
-        headerValuesRef.current.CurrencyID = "";
-        headerValuesRef.current.CurrencyRate = "";
-        clearQuotationTypes();
-        clearSuppliers();
-        if (val && val !== "0") {
-          void Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
-        }
-      }
-
-      return undefined;
-    },
-    [fetchQuotationTypes, fetchSupplierOptions, clearQuotationTypes, clearSuppliers, getSupplierRow]
-  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -681,18 +713,16 @@ export default function PurchaseQuotationForm() {
       Object.entries(hv).forEach(([k, v]) => {
         if (k !== "id") mstRow[k] = v;
       });
+      Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
       const userSession = getUserSession();
       mstRow.LoginID = userSession.loginId;
       mstRow.UserID = userSession.userId;
 
       // ── Detail ────────────────────────────────────────────────────────
-      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-        const row = {};
-        allColumns.forEach(({ key, colDataType }) => {
-          row[key] = getColDefault(colDataType);
-        });
-        return { ...row, ...rest, LoginID: userSession.loginId, UserID: userSession.userId };
-      });
+      const sessionFields = { LoginID: userSession.loginId, UserID: userSession.userId };
+      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allColumns, sessionFields)
+      );
 
       const payload = {
         prmStrMstJSON: JSON.stringify([mstRow]),
@@ -910,9 +940,10 @@ export default function PurchaseQuotationForm() {
             readOnly={isEditRoute && !isEditMode}
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
-            existingRecordEdit={isEditRoute && isEditMode}
+            existingRecordEdit={isEditRoute}
           />
         </div>
 
@@ -937,6 +968,8 @@ export default function PurchaseQuotationForm() {
           </div>
         )}
       </section>
+
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
 
       <ActionBar
         alignEnd

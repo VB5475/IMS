@@ -35,15 +35,15 @@ import {
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { buildGridColumns } from "../../utils/gridUtils";
+import { buildGridColumns, syncMasterSummaryFields } from "../../utils/gridUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import {
   PO_CONFIG,
+  PO_MASTER,
   PO_HEADER_FILTERS,
   PO_GRID_TABS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
-  PO_SUMMARY_FIELDS,
   PO_FILTER_CASCADE_RESETS,
   PO_SHORTCUT_CONFIG,
   formatTranDate,
@@ -298,6 +298,11 @@ export default function PurchaseOrderForm() {
       return { ...withOpts, FilterColName: apiCol.ColName };
     });
   }, [headerColumns, divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
+
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(PO_MASTER.summaryFields, headerColumns),
+    [headerColumns]
+  );
 
   // ── Filter change / cascade ────────────────────────────────────────
   const handleFilterChange = useCallback(
@@ -916,7 +921,7 @@ export default function PurchaseOrderForm() {
       </section>
 
       {/* ── Summary totals — live from grid rows ── */}
-      <EnterpriseSummaryPanel ref={summaryRef} fields={PO_SUMMARY_FIELDS} rows={gridRows} />
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
 
       <ActionBar
         alignEnd

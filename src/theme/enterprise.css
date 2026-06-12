@@ -119,6 +119,33 @@
   --field-frozen-border: #94b8d8;
   --field-frozen-text: #1e4a7a;
   --field-frozen-accent: #4682b4;
+
+  /* CollapsibleGrid child tier — Stitch-calibrated; subordinate to parent navy fixed */
+  --cg-stripe: var(--accent);
+  --cg-child-head-bg: var(--col-readonly-bg);
+  --cg-child-head-text: var(--col-readonly-text);
+  --cg-child-head-border: var(--col-readonly-border);
+  --cg-child-body-bg: var(--col-readonly-body);
+  --cg-child-body-alt: var(--field-frozen-bg);
+  --cg-child-hover: var(--primary-lighter);
+  --cg-child-selected: var(--col-base-selected);
+  --cg-fixed-head-bg: #0660a7;
+  --cg-fixed-head-text: #ffffff;
+  --cg-fixed-head-border: #045091;
+  --cg-fixed-body-bg: #e6f1fc;
+  --cg-fixed-body-alt: #d9eaf8;
+  --cg-fixed-hover: #c5dcf0;
+  --cg-fixed-selected: #b5d2eb;
+  --cg-fixed-text: #1a4572;
+  --cg-fixed-edge-shadow: rgba(6, 96, 167, 0.22);
+  --cg-frozen-head-bg: #226db4;
+  --cg-frozen-head-text: #ffffff;
+  --cg-frozen-head-border: #1a5c99;
+  --cg-frozen-body-bg: #ddeaf6;
+  --cg-frozen-body-alt: #d4e8f5;
+  --cg-frozen-hover: #c8e0f2;
+  --cg-frozen-selected: #b8d6ec;
+  --cg-frozen-text: #1a4572;
 }
 
 ::selection {

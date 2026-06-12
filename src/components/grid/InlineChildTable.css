@@ -9,6 +9,14 @@
   background: var(--primary-lighter, #eef2ff);
   border-top: 1px solid var(--primary-light, #c7d2fe);
   border-bottom: 1px solid var(--primary-light, #c7d2fe);
+  /* Stay pinned to the left viewport edge when the parent grid scrolls horizontally */
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  width: var(--ict-viewport-width, 100%);
+  max-width: var(--ict-viewport-width, 100%);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* ── Left accent stripe ── */
@@ -46,17 +54,30 @@
   letter-spacing: 0.01em;
 }
 
-/* ── Scroll container ── */
+/* ── Scroll container — independent horizontal scroll ── */
 .ict-scroll {
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: var(--radius, 5px);
   background: var(--surface, #fff);
+  max-width: 100%;
 }
 
-/* ── Table ── */
+.ict-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ict-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-dark, #cbd5e1);
+  border-radius: 4px;
+}
+
+/* ── Table — wider than viewport triggers .ict-scroll scroll, not parent grid ── */
 .ict-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 0.77rem;
 }
