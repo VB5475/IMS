@@ -1,13 +1,13 @@
-// EnterpriseSummaryPanel — reusable summary / totals bar for enterprise forms.
+// EnterpriseSummaryPanel — reusable summary / totals bar (Master summary section).
 //
-// Computes column totals from live detail grid rows and exposes them
-// via ref for injection into the Save API master row.
+// Part of the Master UI split — fields are synced in the page via syncMasterSummaryFields()
+// from GET_DETAIL_COL_DATA (SummaryParameterID = ColName, label = DisplayName).
+// Page-wise stubs live in each form's constants.js (e.g. PO_SUMMARY_FIELDS), same as header filters.
+// Core behaviour unchanged: sums detail grid rows by detKey; getSummary() returns
+// { [mstKey]: number } for the save master payload.
 //
 // Props:
-//   fields  — [{ detKey, label, mstKey? }]
-//             detKey  = column key in the detail grid rows
-//             label   = display label
-//             mstKey  = key to use in the master save payload (falls back to detKey)
+//   fields  — synced [{ detKey, mstKey, label, SummaryParameterID? }]
 //   rows    — current detail rows (pass from onRowsChange)
 //
 // Ref API:

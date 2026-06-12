@@ -33,7 +33,6 @@ export const QTN_CONFIG = {
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_QUOTATION_TYPES: "fn_tbl_ddl_Pur_Configuration",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_DEPARTMENTS: "Pr_Fetch_DepartmentData_IMS",
   SP_ITEM_PICKER: "Fn_Tbl_FetchInquiryItemDetail4Web",
   SP_GRID_EVENT: "fn_tbl_RB_PurQtnDet_Event",
 
@@ -60,7 +59,7 @@ export const QTN_CONFIG = {
 // Cascade order: Division → Quotation Type / Supplier.
 // Field order + control types only; captions from GET_DETAIL_COL_DATA (DisplayName).
 // FilterParameterID must match apiCol.ColName from RB_PurQtnMst.
-export const QTN_LIST_DROPDOWN_FIELDS = new Set(["DivisionID", "ConfigID", "DeptID", "SupplierID"]);
+export const QTN_LIST_DROPDOWN_FIELDS = new Set(["DivisionID", "ConfigID", "SupplierID"]);
 
 export const QTN_HEADER_FILTERS = [
   { FilterParameterID: "TranCode", FilterColCtrlType: controlTypeMap.TEXTBOX },
@@ -72,7 +71,6 @@ export const QTN_HEADER_FILTERS = [
   },
   { FilterParameterID: "ConfigID", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
   { FilterParameterID: "InquiryExpiryDate", FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: "DeptID", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
   {
     FilterParameterID: "SupplierID",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
@@ -107,6 +105,27 @@ export const APPROVED_OPTS = [
 ];
 
 export const TERMS_COLUMNS = ["Sr.No", "Terms Type", "Code", "Terms & Conditions"];
+
+// ── Summary field definitions ──
+// Field order + detKey only; captions from GET_DETAIL_COL_DATA (DisplayName).
+// SummaryParameterID must match apiCol.ColName from RB_PurQtnMst.
+// detKey must match detail grid column summed (fn_tbl_RB_PurQtnDet_Event).
+export const QTN_SUMMARY_FIELDS = [
+  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
+  { SummaryParameterID: "MstExpense", detKey: "Expense" },
+  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
+  { SummaryParameterID: "MstCGST", detKey: "CGST" },
+  { SummaryParameterID: "MstSGST", detKey: "SGST" },
+  { SummaryParameterID: "MstIGST", detKey: "IGST" },
+  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
+  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
+];
+
+/** Master config — headerFields + summaryFields share RB_PurQtnMst GET_DETAIL_COL_DATA */
+export const QTN_MASTER = {
+  headerFields: QTN_HEADER_FILTERS,
+  summaryFields: QTN_SUMMARY_FIELDS,
+};
 
 // Default value for "Based On" — Direct ('0').
 export const QTN_FILTER_INITIAL_VALUES = { BasedOnID: "0" };

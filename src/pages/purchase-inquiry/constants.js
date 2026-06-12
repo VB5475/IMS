@@ -7,6 +7,7 @@ export const PI_CONFIG = {
   // RB board codes
   RB_MASTER: "RB_PurInquiryMst",
   RB_DETAIL: "RB_PurInquiryDet",
+  RB_INDT_DETAIL: "RB_PurInquiryIndtDet",
 
   // Form identifiers
   FORM_TAG: "INQ",
@@ -27,6 +28,7 @@ export const PI_CONFIG = {
   // Edit flow — GetMasterDataFill procedures
   SP_MASTER_FILL: "fn_tbl_RB_PurInquiryMst",
   SP_DETAIL_FILL: "fn_tbl_RB_PurInquiryDet",
+  SP_INDT_FILL: "fn_tbl_RB_PurInquiryIndtDet",
 
   // SP / function names used in API calls
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
@@ -114,6 +116,7 @@ export const PI_CONFIG = {
   // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "piHeaderMeta",
   STORAGE_ENTRY_META: "piEntryMeta",
+  STORAGE_INDT_META: "piIndtMeta",
 
   // Inquiry list (FN_Fetch_Data)
   LIST_OBJ_TYPE: 2,
@@ -178,19 +181,24 @@ export const SUPPLIER_GRID_CONFIG = {
   pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25] },
 };
 
-// Summary fields — detKey sums detail rows; mstKey maps to master save payload.
-// Used by EnterpriseSummaryPanel (reactive live totals + getSummary() for Save API).
-// detKey must match the exact field name returned by fn_tbl_RB_PurInquiryDet_Event response.
-export const PI_SUMMARY_FIELDS = [
-  { detKey: "BaseAmount", label: "Base Amount", mstKey: "MstBaseAmount" },
-  { detKey: "Expense", label: "Expense", mstKey: "MstExpense" },
-  { detKey: "TaxableValue", label: "Taxable Value", mstKey: "MstTaxableValue" },
-  { detKey: "CGST", label: "CGST", mstKey: "MstCGST" },
-  { detKey: "SGST", label: "SGST", mstKey: "MstSGST" },
-  { detKey: "IGST", label: "IGST", mstKey: "MstIGST" },
-  { detKey: "RoundOff", label: "Round Off", mstKey: "MstRoundOff" },
-  { detKey: "NetBaseAmount", label: "Net Base Amount", mstKey: "MstNetBaseAmount" },
-];
+// Summary fields — field order + detKey only; captions from GET_DETAIL_COL_DATA.
+// SummaryParameterID must match apiCol.ColName from RB_PurInquiryMst.
+// export const PI_SUMMARY_FIELDS = [
+//   { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
+//   { SummaryParameterID: "MstExpense", detKey: "Expense" },
+//   { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
+//   { SummaryParameterID: "MstCGST", detKey: "CGST" },
+//   { SummaryParameterID: "MstSGST", detKey: "SGST" },
+//   { SummaryParameterID: "MstIGST", detKey: "IGST" },
+//   { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
+//   { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
+// ];
+
+/** Master config — headerFields + summaryFields share RB_PurInquiryMst GET_DETAIL_COL_DATA */
+export const PI_MASTER = {
+  headerFields: PI_HEADER_FILTERS,
+  // summaryFields: PI_SUMMARY_FIELDS,
+};
 
 // Formats a date value as "dd-Mon-yyyy" (e.g. "02-Jun-2026") for API params.
 const MONTH_ABBR = [

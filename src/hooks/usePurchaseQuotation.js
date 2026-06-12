@@ -1,7 +1,7 @@
 // usePurchaseQuotation.js — Header meta, detail grid, and filter dropdowns for Purchase Quotation
 // ─────────────────────────────────────────────────────────────────────
 // On mount:
-//   fetchHeaderMeta  → RB_PurQtnMst → GetDetailColData + Division + Department
+//   fetchHeaderMeta  → RB_PurQtnMst → GetDetailColData + Division
 //   fetchDetailMeta  → RB_PurQtnDet → GetDetailColData (columns only, no dropdowns)
 //
 // On first "Select Item":
@@ -53,7 +53,6 @@ function mapMasterRowToHeaderValues(master, params) {
     DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
     ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
     ExpiryDate: toDateInput(master.ExpiryDate) || null,
-    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
     SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
     CurrencyID: master.CurrencyID ?? "",
     CurrencyRate: master.CurrencyRate ?? "",
@@ -124,7 +123,6 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
   const [headerError, setHeaderError] = useState(null);
 
   const [divisionOptions, setDivisionOptions] = useState([]);
-  const [departmentOptions, setDepartmentOptions] = useState([]);
   const [quotationTypeOptions, setQuotationTypeOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
   const supplierRowsRef = useRef(new Map());
@@ -261,27 +259,6 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     }
   }, [get]);
 
-  const fetchDepartmentOptions = useCallback(async () => {
-    try {
-      const departmentData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.PROCEDURE,
-        ObjName: QTN_CONFIG.SP_DEPARTMENTS,
-        JSon: JSON.stringify([{ PrmDeptID: 0 }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      setDepartmentOptions(
-        (departmentData?.Table || []).map((r) => ({
-          value: String(r.DepartmentID),
-          label: r.DepartmentName,
-        }))
-      );
-    } catch (err) {
-      console.warn("[PQ] Department fetch failed:", err);
-      setDepartmentOptions([]);
-    }
-  }, [get]);
-
   const fetchHeaderMeta = useCallback(
     async ({ skipListDropdowns = false } = {}) => {
       setHeaderFetching(true);
@@ -311,11 +288,10 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
         if (skipListDropdowns) {
           setDivisionOptions([]);
-          setDepartmentOptions([]);
           return apiColumns;
         }
 
-        await Promise.all([fetchDivisionOptions(), fetchDepartmentOptions()]);
+        await fetchDivisionOptions();
 
         return apiColumns;
       } catch (err) {
@@ -326,7 +302,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         setHeaderFetching(false);
       }
     },
-    [get, fetchDivisionOptions, fetchDepartmentOptions]
+    [get, fetchDivisionOptions]
   );
 
   /**
@@ -340,9 +316,6 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       const needsDivision = headerColumns.some(
         (c) => c.ColName === "DivisionID" && !isLockOnEditModeCol(c)
       );
-      const needsDept = headerColumns.some(
-        (c) => c.ColName === "DeptID" && !isLockOnEditModeCol(c)
-      );
       const needsConfig = headerColumns.some(
         (c) => c.ColName === "ConfigID" && !isLockOnEditModeCol(c)
       );
@@ -352,18 +325,11 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
       const tasks = [];
       if (needsDivision) tasks.push(fetchDivisionOptions());
-      if (needsDept) tasks.push(fetchDepartmentOptions());
       if (needsConfig && divisionId) tasks.push(fetchQuotationTypes(divisionId));
       if (needsSupplier && divisionId) tasks.push(fetchSupplierOptions(divisionId));
       await Promise.all(tasks);
     },
-    [
-      headerColumns,
-      fetchDivisionOptions,
-      fetchDepartmentOptions,
-      fetchQuotationTypes,
-      fetchSupplierOptions,
-    ]
+    [headerColumns, fetchDivisionOptions, fetchQuotationTypes, fetchSupplierOptions]
   );
 
   const fetchDetailMeta = useCallback(async () => {
@@ -514,7 +480,6 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     fetchHeaderMeta,
     fetchUnlockedHeaderDropdowns,
     divisionOptions,
-    departmentOptions,
     quotationTypeOptions,
     supplierOptions,
     fetchQuotationTypes,

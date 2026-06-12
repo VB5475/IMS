@@ -24,7 +24,12 @@ import {
   DEFAULT_COMPANY_ID,
 } from "../api/constants";
 import { PO_CONFIG } from "../pages/purchase-order/constants";
-import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag } from "../utils/gridUtils";
+import {
+  fetchDropdownOptions,
+  buildGridColumns,
+  isTruthyApiFlag,
+  // mapApiColumnsToAllColumns,
+} from "../utils/gridUtils";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

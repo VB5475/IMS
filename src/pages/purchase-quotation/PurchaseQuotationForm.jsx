@@ -8,7 +8,8 @@
 //                           button: Select Item
 //        • Terms tab      → static terms table (no buttons)
 //        Fixed controls (always): Approved filter | Delete
-//   3. QtnActionBar           — Save / Cancel / Close etc.
+//   3. EnterpriseSummaryPanel — live totals computed from grid rows
+//   4. QtnActionBar           — Save / Cancel / Close etc.
 //
 // Quotation item picker RB + prmFrmOption follow BasedOnID ('0' Direct | '2' Inquiry Based).
 
@@ -16,6 +17,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import OrderItemModal from "../../components/txn/OrderItemModal";
@@ -39,6 +41,7 @@ import {
   syncHeaderFilterWithApiCol,
   buildHeaderColMap,
   resolveHeaderApiCol,
+  syncMasterSummaryFields,
 } from "../../utils/gridUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -46,6 +49,7 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import {
   QTN_CONFIG,
+  QTN_MASTER,
   QTN_HEADER_FILTERS,
   QTN_GRID_TABS,
   QTN_LIST_DROPDOWN_FIELDS,
@@ -69,7 +73,6 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     DivisionID: String(headerValues.DivisionID ?? ""),
     ConfigID: String(headerValues.ConfigID ?? ""),
     ExpiryDate: headerValues.ExpiryDate ?? "",
-    DeptID: String(headerValues.DeptID ?? ""),
     SupplierID: String(headerValues.SupplierID ?? ""),
     CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ""),
     CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : "",
@@ -133,6 +136,7 @@ export default function PurchaseQuotationForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
+  const summaryRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
@@ -146,7 +150,6 @@ export default function PurchaseQuotationForm() {
     headerError,
     fetchHeaderMeta,
     divisionOptions,
-    departmentOptions,
     quotationTypeOptions,
     supplierOptions,
     fetchQuotationTypes,
@@ -188,7 +191,6 @@ export default function PurchaseQuotationForm() {
     ConfigID: 0,
     ExpiryDate: null,
     DivisionID: 0,
-    DeptID: 0,
     SupplierID: 0,
     CurrencyID: "",
     CurrencyRate: "",
@@ -255,7 +257,6 @@ export default function PurchaseQuotationForm() {
       ConfigID: 0,
       ExpiryDate: null,
       DivisionID: 0,
-      DeptID: 0,
       SupplierID: 0,
       CurrencyID: "",
       CurrencyRate: "",
@@ -289,6 +290,7 @@ export default function PurchaseQuotationForm() {
     setItemModalError(null);
 
     itemGridRef.current?.clearRows?.();
+    setGridRows([]);
 
     setFilterResetKey((k) => k + 1);
     exitEditMode();
@@ -306,6 +308,7 @@ export default function PurchaseQuotationForm() {
   const [activeTab, setActiveTab] = useState("items");
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
+  const [gridRows, setGridRows] = useState([]);
   const activeSelectionCount = activeTab === "items" ? itemSelectionCount : 0;
 
   const [approvedFilter, setApprovedFilter] = useState("all");
@@ -420,8 +423,6 @@ export default function PurchaseQuotationForm() {
           return { ...baseFilter, staticOptions: divisionOptions };
         case "ConfigID":
           return { ...baseFilter, staticOptions: quotationTypeOptions };
-        case "DeptID":
-          return { ...baseFilter, staticOptions: departmentOptions };
         case "SupplierID":
           return { ...baseFilter, staticOptions: supplierOptions };
         default:
@@ -476,17 +477,21 @@ export default function PurchaseQuotationForm() {
     };
 
     if (headerColumns.length === 0) return [];
-    return QTN_HEADER_FILTERS.map(buildFilterDef);
+    return QTN_MASTER.headerFields.map(buildFilterDef);
   }, [
     headerColumns,
     divisionOptions,
     quotationTypeOptions,
-    departmentOptions,
     supplierOptions,
     isEditRoute,
     loadedMasterRow,
     isEditMode,
   ]);
+
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(QTN_MASTER.summaryFields, headerColumns),
+    [headerColumns]
+  );
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -681,6 +686,7 @@ export default function PurchaseQuotationForm() {
       Object.entries(hv).forEach(([k, v]) => {
         if (k !== "id") mstRow[k] = v;
       });
+      Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
       const userSession = getUserSession();
       mstRow.LoginID = userSession.loginId;
       mstRow.UserID = userSession.userId;
@@ -910,6 +916,7 @@ export default function PurchaseQuotationForm() {
             readOnly={isEditRoute && !isEditMode}
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             existingRecordEdit={isEditRoute && isEditMode}
@@ -937,6 +944,8 @@ export default function PurchaseQuotationForm() {
           </div>
         )}
       </section>
+
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
 
       <ActionBar
         alignEnd

@@ -208,6 +208,27 @@ export const PO_HEADER_FILTERS = [
   },
 ];
 
+// ── Summary field definitions ──
+// Field order + detKey only; captions from GET_DETAIL_COL_DATA (DisplayName).
+// SummaryParameterID must match apiCol.ColName from RB_PurPOMst.
+// detKey must match detail grid column summed (fn_tbl_RB_PurPODet_Event).
+export const PO_SUMMARY_FIELDS = [
+  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
+  { SummaryParameterID: "MstExpense", detKey: "Expense" },
+  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
+  { SummaryParameterID: "MstCGST", detKey: "CGST" },
+  { SummaryParameterID: "MstSGST", detKey: "SGST" },
+  { SummaryParameterID: "MstIGST", detKey: "IGST" },
+  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
+  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
+];
+
+/** Master config — headerFields + summaryFields from same GET_DETAIL_COL_DATA source */
+export const PO_MASTER = {
+  headerFields: PO_HEADER_FILTERS,
+  summaryFields: PO_SUMMARY_FIELDS,
+};
+
 export const PO_GRID_TABS = [
   { id: "items", label: "Item Grid" },
   { id: "terms", label: "Term And Conditions" },
@@ -229,20 +250,6 @@ export const INDENT_DETAILS_COLUMNS = [
   { key: "IndentQty", label: "Indent Qty", width: 100 },
   { key: "TranQty", label: "Tran Qty", width: 100 },
   { key: "Unit", label: "Unit", width: 80 },
-];
-
-// Summary fields — detKey maps detail row columns; mstKey maps master save payload keys.
-// Used by EnterpriseSummaryPanel (reactive live totals + getSummary() for Save API).
-// detKey must match the exact field name returned by fn_tbl_RB_PurPODet_Event response.
-export const PO_SUMMARY_FIELDS = [
-  { detKey: "BaseAmount", label: "Base Amount", mstKey: "MstBaseAmount" },
-  { detKey: "Expense", label: "Expense", mstKey: "MstExpense" },
-  { detKey: "TaxableValue", label: "Taxable Value", mstKey: "MstTaxableValue" },
-  { detKey: "CGST", label: "CGST", mstKey: "MstCGST" },
-  { detKey: "SGST", label: "SGST", mstKey: "MstSGST" },
-  { detKey: "IGST", label: "IGST", mstKey: "MstIGST" },
-  { detKey: "RoundOff", label: "Round Off", mstKey: "MstRoundOff" },
-  { detKey: "NetBaseAmount", label: "Net Base Amount", mstKey: "MstNetBaseAmount" },
 ];
 
 export const PO_FILTER_INITIAL_VALUES = { BasedOnID: "0" };

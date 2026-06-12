@@ -4,6 +4,9 @@
 //   fetchHeaderMeta  → RB_PurInquiryMst → GetDetailColData + Division + Department
 //   fetchDetailMeta  → RB_PurInquiryDet → GetDetailColData (columns only, no dropdowns)
 //
+// Edit route:
+//   fetchEditRecord  → GET_MASTER_DATA_FILL (master + detail + indent detail)
+//
 // On first "Add New" / supplier insert:
 //   fetchGridColumns → GET_FILTER_DETAIL dropdowns + buildGridColumns
 //
@@ -98,6 +101,23 @@ function mapDetailRowsToGridRows(rows) {
     ...row,
     id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
   }));
+}
+
+/** Group indent detail rows under each parent item grid row (edit load). */
+function mapIndentRowsToChildRowsMap(detailRows, indtRows) {
+  const childRowsMap = {};
+  if (!indtRows?.length || !detailRows?.length) return childRowsMap;
+
+  detailRows.forEach((parent) => {
+    const parentItemId = String(Math.round(Number(parent.ItemID)));
+    const children = indtRows.filter(
+      (c) => String(Math.round(Number(c.ChildFKey))) === parentItemId
+    );
+    if (children.length > 0) {
+      childRowsMap[String(parent.id)] = children;
+    }
+  });
+  return childRowsMap;
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
@@ -513,7 +533,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         idNumber,
       });
 
-      const [mstRes, detRes] = await Promise.all([
+      const [mstRes, detRes, indtRes] = await Promise.all([
         get(ENDPOINTS.GET_MASTER_DATA_FILL, {
           prmProcedure: PI_CONFIG.SP_MASTER_FILL,
           prmParameters,
@@ -524,19 +544,37 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           prmParameters,
           prmFuncCode: PI_CONFIG.RB_DETAIL,
         }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: PI_CONFIG.SP_INDT_FILL,
+          prmParameters,
+          prmFuncCode: PI_CONFIG.RB_INDT_DETAIL,
+        }),
       ]);
 
       const master = mstRes?.Links?.[0] ?? null;
       const params = { companyId, yearId, loginId, sessionId, idNumber };
+      const details = mapDetailRowsToGridRows(detRes?.Links || []);
+      const indentDetails = indtRes?.Links || [];
 
       return {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-        details: mapDetailRowsToGridRows(detRes?.Links || []),
+        details,
+        indentDetails,
+        childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
       };
     },
     [get]
   );
+
+  const fetchIndentDetailColumns = useCallback(async () => {
+    const { apiColumns } = await loadRbDetailGridMeta(
+      get,
+      PI_CONFIG.RB_INDT_DETAIL,
+      PI_CONFIG.STORAGE_INDT_META
+    );
+    return buildGridColumns(apiColumns, {}, { filterable: false, allEditable: false });
+  }, [get]);
 
   const [isEventFiring, setIsEventFiring] = useState(false);
 
@@ -638,6 +676,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     fetchDetailMeta,
     fetchGridColumns,
     fetchEditRecord,
+    fetchIndentDetailColumns,
     fireCellEvent,
     isEventFiring,
     saveTxn,

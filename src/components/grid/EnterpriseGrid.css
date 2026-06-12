@@ -1606,4 +1606,7 @@ textarea:focus-visible {
 .eg-child-cell {
   padding: 0 !important;
   border-bottom: 1px solid var(--border);
+  /* Prevent wide child content from expanding the parent table width */
+  overflow: hidden;
+  position: relative;
 }
