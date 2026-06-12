@@ -847,45 +847,11 @@ export default function PurchaseInquiryForm() {
       );
 
       // ── IndentDetail ──────────────────────────────────────────────────
-      const rawIndentRows = Object.values(childRowsMap).flat();
-      const hiddenIndentCols = allIndentColumns.filter(
-        (c) => !childColumns.some((vc) => vc.key === c.key)
-      );
-      const indentDetailRows = rawIndentRows.map(({ id: _id, ...rest }) =>
-        buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
-      );
-
-      const sampleSaved = indentDetailRows[0] ?? null;
-      const hiddenTypeSamples = hiddenIndentCols.slice(0, 5).map((c) => ({
-        key: c.key,
-        colDataType: c.colDataType,
-        savedValue: sampleSaved?.[c.key],
-        savedValueType: sampleSaved ? typeof sampleSaved[c.key] : null,
-      }));
-      // #region agent log
-      fetch("http://127.0.0.1:7497/ingest/d422da4b-d5fd-4d9d-934b-e64eddfd62a9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "164448" },
-        body: JSON.stringify({
-          sessionId: "164448",
-          runId: "post-fix",
-          hypothesisId: "A-E",
-          location: "PurchaseInquiryForm.jsx:handleSave:indentDetail",
-          message: "indent save column audit",
-          data: {
-            allIndentColumnsCount: allIndentColumns.length,
-            hiddenIndentColCount: hiddenIndentCols.length,
-            savedRowCount: indentDetailRows.length,
-            sampleSavedKeys: sampleSaved ? Object.keys(sampleSaved) : [],
-            stillMissingHidden: hiddenIndentCols
-              .filter((c) => sampleSaved == null || !(c.key in sampleSaved))
-              .map((c) => c.key),
-            hiddenTypeSamples,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
+      const indentDetailRows = Object.values(childRowsMap)
+        .flat()
+        .map(({ id: _id, ...rest }) =>
+          buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
+        );
 
       const payload = {
         prmStrMstJSON: JSON.stringify([mstRow]),
@@ -916,7 +882,7 @@ export default function PurchaseInquiryForm() {
         setIsSavingPI(false);
       }
     },
-    [headerColumns, allColumns, allIndentColumns, childColumns, childRowsMap, postSave, completeSuccessfulSave]
+    [headerColumns, allColumns, allIndentColumns, childRowsMap, postSave, completeSuccessfulSave]
   );
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -1128,7 +1094,7 @@ export default function PurchaseInquiryForm() {
             enableCollapsible={Object.keys(childRowsMap).length > 0}
             childRowsMap={childRowsMap}
             childColumns={childColumns}
-            existingRecordEdit={isEditRoute && isEditMode}
+            existingRecordEdit={isEditRoute}
             containerClassName="pi-item-entry-grid"
           />
         </div>
