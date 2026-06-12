@@ -175,6 +175,14 @@ export const PI_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID"],
 };
 
+/** Header fields mapped to Fn_Tbl_FetchPurchaseItemDetailTransWs4Web — grids clear when any changes */
+export const PI_ITEM_PICKER_CONTEXT_FIELDS = new Set([
+  "DivisionID",
+  "TranDate",
+  "ConfigID",
+  "BasedOnID",
+]);
+
 // Supplier grid config (used by the Suppliers tab EntryGrid)
 export const SUPPLIER_GRID_CONFIG = {
   columns: PI_CONFIG.SUPPLIER_GRID_COLUMNS,

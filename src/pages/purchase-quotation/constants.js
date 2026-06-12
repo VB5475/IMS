@@ -134,6 +134,15 @@ export const QTN_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID", "SupplierID", "CurrencyID", "CurrencyRate"],
 };
 
+/** Header fields mapped to Fn_Tbl_FetchInquiryItemDetail4Web — item grid clears when any changes */
+export const QTN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
+  "DivisionID",
+  "TranDate",
+  "ConfigID",
+  "SupplierID",
+  "BasedOnID",
+]);
+
 // Formats a date value as "dd-Mon-yyyy" (e.g. "02-Jun-2026") for API params.
 const MONTH_ABBR = [
   "Jan",

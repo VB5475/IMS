@@ -58,6 +58,7 @@ import {
   TERMS_COLUMNS,
   INDENT_DETAILS_COLUMNS,
   PI_FILTER_CASCADE_RESETS,
+  PI_ITEM_PICKER_CONTEXT_FIELDS,
   SUPPLIER_GRID_CONFIG,
   formatTranDate,
 } from "./constants";
@@ -165,6 +166,8 @@ export default function PurchaseInquiryForm() {
     fetchGridColumns,
     fetchEditRecord,
     fetchIndentDetailColumns,
+    clearIndentDetailMeta,
+    clearIndents,
     fetchUnlockedHeaderDropdowns,
     fireCellEvent,
     eventColumns,
@@ -532,18 +535,40 @@ export default function PurchaseInquiryForm() {
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
 
+  /** Clear item EntryGrid + collapsible child rows when item-picker API context changes */
+  const clearItemGridState = useCallback(() => {
+    itemGridRef.current?.clearRows?.();
+    setItemSelectionCount(0);
+    queuedRowsRef.current = [];
+    setChildRowsMap({});
+    setChildColumns([]);
+    clearIndentDetailMeta();
+    clearIndents();
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+  }, [clearIndentDetailMeta, clearIndents]);
+
   // ── Filter cascade ─────────────────────────────────────────────────
   const handleFilterChange = useCallback(
     async (colName, val) => {
+      if (PI_ITEM_PICKER_CONTEXT_FIELDS.has(colName)) {
+        clearItemGridState();
+      }
+
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
       if (colName === "DivisionID") {
         headerValuesRef.current.ConfigID = 0;
         clearInquiryTypes();
+        supplierGridRef.current?.clearRows?.();
+        setSupplierSelectionCount(0);
         if (val && val !== "0") await fetchInquiryTypes(val);
       }
     },
-    [fetchInquiryTypes, clearInquiryTypes]
+    [fetchInquiryTypes, clearInquiryTypes, clearItemGridState]
   );
 
   const ensureItemColumns = useCallback(async () => {

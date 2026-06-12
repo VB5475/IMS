@@ -29,6 +29,7 @@ import {
   API_BASE_URL,
   API_BASE_URL_IMS,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
@@ -57,6 +58,7 @@ import {
   APPROVED_OPTS,
   TERMS_COLUMNS,
   QTN_FILTER_CASCADE_RESETS,
+  QTN_ITEM_PICKER_CONTEXT_FIELDS,
   formatTranDate,
 } from "./constants";
 import "./PurchaseQuotationForm.css";
@@ -413,6 +415,68 @@ export default function PurchaseQuotationForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  /** Clear item EntryGrid + summary when item-picker API context changes */
+  const clearItemGridState = useCallback(() => {
+    itemGridRef.current?.clearRows?.();
+    setGridRows([]);
+    setItemSelectionCount(0);
+    queuedRowsRef.current = [];
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+  }, []);
+
+  // ── Filter cascade ─────────────────────────────────────────────────
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      if (QTN_ITEM_PICKER_CONTEXT_FIELDS.has(colName)) {
+        clearItemGridState();
+      }
+
+      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+
+      if (colName === "SupplierID") {
+        if (!val || val === "0") {
+          headerValuesRef.current.CurrencyID = "";
+          headerValuesRef.current.CurrencyRate = "";
+          return buildCurrencyPatchFromSupplier(null);
+        }
+        const supplier = getSupplierRow(val);
+        if (supplier) {
+          headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
+          headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
+          return buildCurrencyPatchFromSupplier(supplier);
+        }
+        return undefined;
+      }
+
+      if (colName === "DivisionID") {
+        headerValuesRef.current.ConfigID = 0;
+        headerValuesRef.current.SupplierID = 0;
+        headerValuesRef.current.CurrencyID = "";
+        headerValuesRef.current.CurrencyRate = "";
+        clearQuotationTypes();
+        clearSuppliers();
+        if (val && val !== "0") {
+          await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+        }
+        return buildCurrencyPatchFromSupplier(null);
+      }
+
+      return undefined;
+    },
+    [
+      fetchQuotationTypes,
+      fetchSupplierOptions,
+      clearQuotationTypes,
+      clearSuppliers,
+      getSupplierRow,
+      clearItemGridState,
+    ]
+  );
+
   // ── syncedFilters ─────────────────────────────────────────────────
   const syncedFilters = useMemo(() => {
     const apiColMap = buildHeaderColMap(headerColumns);
@@ -506,43 +570,6 @@ export default function PurchaseQuotationForm() {
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
-
-  // ── Filter cascade ─────────────────────────────────────────────────
-  const handleFilterChange = useCallback(
-    (colName, val) => {
-      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
-
-      if (colName === "SupplierID") {
-        if (!val || val === "0") {
-          headerValuesRef.current.CurrencyID = "";
-          headerValuesRef.current.CurrencyRate = "";
-          return buildCurrencyPatchFromSupplier(null);
-        }
-        const supplier = getSupplierRow(val);
-        if (supplier) {
-          headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
-          headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
-          return buildCurrencyPatchFromSupplier(supplier);
-        }
-        return undefined;
-      }
-
-      if (colName === "DivisionID") {
-        headerValuesRef.current.ConfigID = 0;
-        headerValuesRef.current.SupplierID = 0;
-        headerValuesRef.current.CurrencyID = "";
-        headerValuesRef.current.CurrencyRate = "";
-        clearQuotationTypes();
-        clearSuppliers();
-        if (val && val !== "0") {
-          void Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
-        }
-      }
-
-      return undefined;
-    },
-    [fetchQuotationTypes, fetchSupplierOptions, clearQuotationTypes, clearSuppliers, getSupplierRow]
-  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -692,13 +719,10 @@ export default function PurchaseQuotationForm() {
       mstRow.UserID = userSession.userId;
 
       // ── Detail ────────────────────────────────────────────────────────
-      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-        const row = {};
-        allColumns.forEach(({ key, colDataType }) => {
-          row[key] = getColDefault(colDataType);
-        });
-        return { ...row, ...rest, LoginID: userSession.loginId, UserID: userSession.userId };
-      });
+      const sessionFields = { LoginID: userSession.loginId, UserID: userSession.userId };
+      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allColumns, sessionFields)
+      );
 
       const payload = {
         prmStrMstJSON: JSON.stringify([mstRow]),
@@ -919,7 +943,7 @@ export default function PurchaseQuotationForm() {
             onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
-            existingRecordEdit={isEditRoute && isEditMode}
+            existingRecordEdit={isEditRoute}
           />
         </div>
 
