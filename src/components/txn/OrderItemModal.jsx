@@ -8,6 +8,7 @@ import Modal from "../ui/Modal";
 import EntryGrid from "../grid/EntryGrid";
 import Loader from "../ui/Loader";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { normalizePickerGridColumns } from "../../utils/dateFormat";
 import { ShoppingCart, CheckCheck, Package, AlertCircle } from "lucide-react";
 import "./OrderItemModal.css";
 
@@ -40,7 +41,7 @@ export default function OrderItemModal({
 
   const gridConfig = useMemo(
     () => ({
-      columns,
+      columns: normalizePickerGridColumns(columns),
       pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
     }),
     [columns]

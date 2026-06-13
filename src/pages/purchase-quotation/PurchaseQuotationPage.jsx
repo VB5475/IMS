@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Plus, Pencil } from "lucide-react";
+import { ClipboardList, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { QTN_CONFIG } from "./constants";
+import { QTN_CONFIG, formatTranDate } from "./constants";
 import "./PurchaseQuotationPage.css";
 
 const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
@@ -35,19 +35,30 @@ function formatListDate(value) {
   return `${dd}-${mon}-${d.getFullYear()}`;
 }
 
+/** Apr–Mar fiscal window for Fn_tbl_Pur_QtnMst_List (matches API sample). */
+function buildListDateRange() {
+  const now = new Date();
+  const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  return {
+    PrmFromDate: formatTranDate(`${fyStartYear}-04-01`),
+    PrmToDate: formatTranDate(`${fyStartYear + 1}-03-31`),
+  };
+}
+
 function buildListParams() {
-  const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: QTN_CONFIG.LIST_OBJ_TYPE,
     ObjName: QTN_CONFIG.SP_QUOTATION_LIST,
     JSon: JSON.stringify([
       {
-        prmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: QTN_CONFIG.LIST_DIVISION_ID,
-        prmFroDate: `${year}-01-01`,
-        prmToDate: `${year}-12-31`,
-        prmLoginID: getUserSession().loginId,
-        prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
+        ...buildListDateRange(),
+        PrmDivisionID: 0,
+        PrmSupplierID: 0,
+        PrmQuotationTypeID: 0,
+        PrmLoginID: session.loginId,
+        PrmCompanyID: session.companyId ?? DEFAULT_COMPANY_ID,
+        PrmYearID: session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
       },
     ]),
     p_ErrCode: -1,
@@ -55,19 +66,26 @@ function buildListParams() {
   };
 }
 
+function normalizeListRow(row) {
+  return {
+    ...row,
+    IDNUMBER: row.IDNUMBER ?? row.IDNumber,
+  };
+}
+
 function buildQuotationColumns(navigate) {
   return [
     {
-      key: "QuotationNo",
+      key: "Quot No",
       label: "Quotation No.",
-      width: "14%",
+      width: "13%",
       filterable: true,
       align: "left",
     },
     {
-      key: "QuotationDate",
+      key: "QuotDate",
       label: "Quotation Date",
-      width: "11%",
+      width: "10%",
       filterable: true,
       filterType: "date",
       render: (value) => formatListDate(value),
@@ -75,7 +93,7 @@ function buildQuotationColumns(navigate) {
     {
       key: "ExpiryDate",
       label: "Expiry Date",
-      width: "11%",
+      width: "10%",
       filterable: true,
       filterType: "date",
       render: (value) => formatListDate(value),
@@ -83,33 +101,40 @@ function buildQuotationColumns(navigate) {
     {
       key: "Division",
       label: "Division",
-      width: "12%",
+      width: "10%",
       filterable: true,
       align: "left",
     },
     {
-      key: "QuotationType",
+      key: "Quotation Type",
       label: "Quotation Type",
-      width: "13%",
+      width: "12%",
       filterable: true,
       align: "left",
     },
     {
       key: "SupplierName",
       label: "Supplier",
-      width: "15%",
+      width: "12%",
       filterable: true,
       align: "left",
     },
     {
-      key: "CreatedBy",
+      key: "InquiryNo",
+      label: "Inquiry No.",
+      width: "11%",
+      filterable: true,
+      align: "left",
+    },
+    {
+      key: "Created By",
       label: "Created By",
       width: "10%",
       filterable: true,
       align: "left",
     },
     {
-      key: "CreatedDate",
+      key: "Created Date",
       label: "Created Date",
       width: "10%",
       filterable: true,
@@ -125,8 +150,8 @@ function buildQuotationColumns(navigate) {
         <button
           type="button"
           className="pq-list__edit-btn"
-          title={`Edit quotation ${row.QuotationNo ?? ""}`}
-          aria-label={`Edit quotation ${row.QuotationNo ?? ""}`}
+          title={`Edit quotation ${row["Quot No"] ?? ""}`}
+          aria-label={`Edit quotation ${row["Quot No"] ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/purchase-quotation/${row.IDNUMBER}/edit`, { state: { record: row } });
@@ -162,7 +187,7 @@ export default function PurchaseQuotationPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(json?.Table ?? []);
+      setData((json?.Table ?? []).map(normalizeListRow));
     } catch (err) {
       console.error("[PurchaseQuotationPage] list fetch failed:", err);
       setError("Failed to load purchase quotations.");
@@ -184,7 +209,7 @@ export default function PurchaseQuotationPage() {
       <section className="pq-list-panel pq-list-panel--compact pq-list-panel--fill">
         <header className="pq-list-panel__header">
           <div className="pq-list-panel__title">
-            <FileText size={14} strokeWidth={2} />
+            <ClipboardList size={14} strokeWidth={2} />
             <span>Purchase Quotations</span>
           </div>
           <div className="pq-list-panel__toolbar">

@@ -110,6 +110,29 @@ function buildBootstrapParams(loginId) {
   };
 }
 
+function toDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+/** Pick the financial year row whose YearFrom–YearTo range contains the given date. */
+function findFinancialYearForDate(yearRows, date = new Date()) {
+  const today = toDateOnly(date);
+  if (!today || !Array.isArray(yearRows)) return null;
+
+  return (
+    yearRows.find((row) => {
+      const from = toDateOnly(row.YearFrom);
+      const to = toDateOnly(row.YearTo);
+      if (!from || !to) return false;
+      return today >= from && today <= to;
+    }) ?? null
+  );
+}
+
 function LoginSecurityStrip() {
   return (
     <div className="login-security-strip">
@@ -305,8 +328,9 @@ export default function LoginPage() {
       if (companyRows.length > 0) {
         setCompanyId(String(companyRows[0].CompanyID));
       }
-      if (yearRows.length > 0) {
-        setYearId(String(yearRows[0].YearID));
+      const activeYear = findFinancialYearForDate(yearRows);
+      if (activeYear?.YearID != null) {
+        setYearId(String(activeYear.YearID));
       }
     } catch (err) {
       console.error("[LoginPage] bootstrap fetch failed:", err);

@@ -38,6 +38,7 @@ import {
 } from "./gridColumnClass";
 import { getRowDropdownDisplay } from "../../utils/gridUtils";
 import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKeyboardNav";
+import { formatDateForDisplay, isDateColumnDef } from "../../utils/dateFormat";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -484,10 +485,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           </span>
         );
       }
-      if (col.controlType === 2) {
+      if (isDateColumnDef(col)) {
+        const displayValue = formatDateForDisplay(value);
         return (
-          <span className="cell-label" title={formatDateForInput(value)}>
-            {formatDateForInput(value) || "—"}
+          <span className="cell-label" title={displayValue}>
+            {displayValue || "—"}
           </span>
         );
       }
