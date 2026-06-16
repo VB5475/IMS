@@ -25,7 +25,7 @@ export const IND_CONFIG = {
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_INDENT_TYPES: "fn_tbl_ddl_Pur_Configuration",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_PICKER: "Fn_Tbl_FetchPurchaseItemDetailTransWs4Web",
+  SP_ITEM_PICKER: "fn_tbl_RB_PurIndtSelItem",
   SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
   // Grid cell-event SP (fires on Qty / Rate column blur → server recalculates Amount)
   SP_GRID_EVENT: "fn_tbl_RB_PurIndtDet_Event",
