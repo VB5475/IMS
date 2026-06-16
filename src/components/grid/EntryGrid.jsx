@@ -28,7 +28,7 @@ import React, {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import SearchSelect from "../ui/SearchSelect";
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
-import InlineChildTable from "./InlineChildTable";
+import CollapsibleGrid from "./CollapsibleGrid";
 import "./EnterpriseGrid.css";
 import {
   isColumnFixed,
@@ -112,6 +112,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     childColumns = [], // column defs for the inline sub-table
     existingRecordEdit = false, // true → lock columns flagged IsLockOnEditModeAllow
     enableKeyboardNav = true, // Excel-like Tab / Enter / arrow / Space navigation
+    containerClassName = "", // extra class on root container (nested / child grids)
+    hidePagination = false, // true → hide pagination bar (embedded child grids)
+    embedded = false, // true → nested in scroll host; parent owns overflow
   },
   ref
 ) {
@@ -629,7 +632,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   // ─────────────────────────────────────────────────────────────────
   return (
     <div
-      className={`erp-grid-container erp-grid-container--dense erp-grid-container--fill ${resizing ? "resizing" : ""}`}
+      className={`erp-grid-container erp-grid-container--dense ${embedded ? "erp-grid-container--embedded" : "erp-grid-container--fill"} ${enableCollapsible ? "erp-grid-container--collapsible-parent" : ""} ${containerClassName} ${resizing ? "resizing" : ""}`.trim()}
     >
       {tabs && tabs.length > 0 ? (
         <div className="grid-tabbar">
@@ -788,9 +791,12 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                       {isExpanded && (
                         <tr className="eg-child-row">
                           <td colSpan={columns.length} className="eg-child-cell">
-                            <InlineChildTable
+                            <CollapsibleGrid
+                              variant="inline"
                               columns={childColumns.filter((c) => c.key !== "cb")}
                               rows={childRowsMap[rowId]}
+                              defaultExpanded
+                              recordLabel="indent record"
                             />
                           </td>
                         </tr>
@@ -820,77 +826,79 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             </table>
           </div>
 
-          <div className="pagination-bar">
-            <div className="pagination-left">
-              Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> –{" "}
-              <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of{" "}
-              <strong>{processedRows.length}</strong> records
+          {!hidePagination && (
+            <div className="pagination-bar">
+              <div className="pagination-left">
+                Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> –{" "}
+                <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of{" "}
+                <strong>{processedRows.length}</strong> records
+              </div>
+              <div className="pagination-right">
+                <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Rows:</span>
+                <select
+                  className="page-size-select"
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                >
+                  {pageSizeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage(1)}
+                  disabled={safePage <= 1}
+                >
+                  «
+                </button>
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(
+                    (p) => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2)
+                  )
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span style={{ color: "var(--text-muted)", padding: "0 4px" }}>…</span>
+                      )}
+                      <button
+                        type="button"
+                        className={`page-btn ${p === safePage ? "active" : ""}`}
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                >
+                  ›
+                </button>
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage(totalPages)}
+                  disabled={safePage >= totalPages}
+                >
+                  »
+                </button>
+              </div>
             </div>
-            <div className="pagination-right">
-              <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Rows:</span>
-              <select
-                className="page-size-select"
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-              >
-                {pageSizeOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="page-btn"
-                onClick={() => setPage(1)}
-                disabled={safePage <= 1}
-              >
-                «
-              </button>
-              <button
-                type="button"
-                className="page-btn"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-              >
-                ‹
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(
-                  (p) => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2)
-                )
-                .map((p, idx, arr) => (
-                  <React.Fragment key={p}>
-                    {idx > 0 && arr[idx - 1] !== p - 1 && (
-                      <span style={{ color: "var(--text-muted)", padding: "0 4px" }}>…</span>
-                    )}
-                    <button
-                      type="button"
-                      className={`page-btn ${p === safePage ? "active" : ""}`}
-                      onClick={() => setPage(p)}
-                    >
-                      {p}
-                    </button>
-                  </React.Fragment>
-                ))}
-              <button
-                type="button"
-                className="page-btn"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-              >
-                ›
-              </button>
-              <button
-                type="button"
-                className="page-btn"
-                onClick={() => setPage(totalPages)}
-                disabled={safePage >= totalPages}
-              >
-                »
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Bottom toolbar — hidden in readOnly / embedded mode */}
           {!readOnly && !hideBottomPanel && (

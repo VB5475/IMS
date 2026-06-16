@@ -57,6 +57,42 @@
   box-shadow: none !important;
 }
 
+/* Item grid — separate horizontal scroll for parent rows vs collapsible child */
+.pi-tab-pane--items {
+  min-width: 0;
+}
+
+.pi-tab-pane--items .pi-item-entry-grid.erp-grid-container--collapsible-parent {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pi-tab-pane--items .pi-item-entry-grid .table-wrapper {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* Child indent grid scrolls inside .cg-scroll-host, pinned to parent viewport */
+.pi-tab-pane--items .cg-panel--inline {
+  width: var(--cg-viewport-width, 100%);
+  max-width: var(--cg-viewport-width, 100%);
+}
+
+.pi-tab-pane--items .cg-scroll-host {
+  width: 100%;
+  max-width: 100%;
+}
+
+.pi-tab-pane--items .cg-entry-grid .table-wrapper {
+  overflow: visible;
+}
+
+.pi-tab-pane--items .cg-entry-grid .erp-table {
+  width: max-content;
+  min-width: 100%;
+}
+
 /* Terms tab: plain scrollable pane */
 .pi-terms-pane {
   flex: 1;

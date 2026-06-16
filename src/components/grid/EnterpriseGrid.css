@@ -1478,6 +1478,26 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
+/* ===== EMBEDDED — nested child grid; scroll host owns overflow ===== */
+.erp-grid-container--embedded {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.erp-grid-container--embedded .table-wrapper {
+  overflow: visible;
+  flex: none;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+
 /* ===== FILL VIEWPORT — table flexes to window, footer pinned at bottom ===== */
 .erp-grid-container--fill {
   flex: 1;
@@ -1594,7 +1614,7 @@ textarea:focus-visible {
   border-color: var(--primary-light);
 }
 
-/* Row that holds the InlineChildTable — no hover highlight, no selection colour */
+/* Row that holds the CollapsibleGrid inline child — no hover highlight */
 .eg-child-row {
   background: transparent !important;
 }
@@ -1606,4 +1626,18 @@ textarea:focus-visible {
 .eg-child-cell {
   padding: 0 !important;
   border-bottom: 1px solid var(--border);
+  /* Prevent wide child content from expanding the parent table width */
+  overflow: hidden;
+  position: relative;
+}
+
+/* Parent grid scrolls via .table-wrapper; inline child scrolls via .cg-scroll-host */
+.erp-grid-container--collapsible-parent .table-wrapper {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.erp-grid-container--collapsible-parent .erp-table {
+  width: max-content;
+  min-width: 100%;
 }

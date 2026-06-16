@@ -100,6 +100,46 @@ export function resolveHeaderApiCol(filter, apiColMap) {
   return apiColMap[filter.FilterParameterID] ?? apiColMap[filter.FilterColName] ?? null;
 }
 
+/**
+ * Merge a static master summary stub with a GET_DETAIL_COL_DATA column.
+ * Match key: field.SummaryParameterID === apiCol.ColName.
+ * detKey = detail grid column to sum; mstKey = master save payload key (ColName).
+ */
+export function syncMasterSummaryFieldWithApiCol(field, apiCol, patch = {}) {
+  const paramId = field?.SummaryParameterID ?? field?.mstKey;
+  const mstKey = apiCol?.ColName ?? paramId;
+  return {
+    ...field,
+    ...patch,
+    SummaryParameterID: paramId,
+    mstKey,
+    label: apiCol?.DisplayName ?? field?.label ?? mstKey,
+  };
+}
+
+/** Resolve master summary column by SummaryParameterID (ColName). */
+export function resolveMasterSummaryApiCol(field, apiColMap) {
+  return apiColMap[field.SummaryParameterID] ?? apiColMap[field.mstKey] ?? null;
+}
+
+/**
+ * Sync page-wise summary field stubs with GET_DETAIL_COL_DATA master columns.
+ * Returns [] until headerColumns are loaded (same as header filter sync).
+ */
+export function syncMasterSummaryFields(summaryFields = [], headerColumns = []) {
+  if (!headerColumns.length) return [];
+
+  const apiColMap = buildHeaderColMap(headerColumns);
+
+  return summaryFields
+    .map((field) => {
+      const apiCol = resolveMasterSummaryApiCol(field, apiColMap);
+      if (apiCol?.IsVisible === false) return null;
+      return syncMasterSummaryFieldWithApiCol(field, apiCol);
+    })
+    .filter(Boolean);
+}
+
 /** Build a single { value, label } option from a master/detail row using column metadata. */
 export function buildDropdownOptionFromRow(apiCol, rowData) {
   if (!apiCol || !rowData) return [];
