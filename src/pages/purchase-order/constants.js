@@ -25,18 +25,26 @@ export const PO_CONFIG = {
   // RB codes for item picker modal
   RB_ITEM_PICKER_DIRECT: "RB_PurPOSelOnlyItem", // BasedOn = '0' (Direct)
   RB_ITEM_PICKER_INDENT: "RB_PurPOSelIndtItem", // BasedOn = '2' (Indent wise)
+  RB_ITEM_PICKER_QUOT: "RB_PurPOSelQuotItem", // BasedOn = '3' (Quotation)
 
   // SP / function names
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_PO_TYPES: "fn_tbl_ddl_Pur_Configuration",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_PICKER: "Fn_Tbl_FetchPurchaseItemDetailTransWs4Web",
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPOSelOnlyItem",   // BasedOn = '0' (Direct)
+  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurPOSelIndtItem",   // BasedOn = '2' (Indent wise)
+  SP_ITEM_PICKER_QUOT:   "fn_tbl_RB_PurPOSelQuotItem",   // BasedOn = '3' (Quotation)
   SP_INDENT_SUMMARY: "Fn_tbl_FetchIndentSummaryItem4PO",
   SP_CURRENCIES: "Fn_tbl_FetchCurrencyList",
   SP_SUPPLIER_INFO: "Fn_tbl_FetchSupplierCurrencyInfo",
   SP_EXISTING_POS: "Fn_tbl_FetchPurOrderListForAmend",
   SP_UNIQUE_ID: "Pr_Gen_FetchLevyUniqueNo4Web",
   SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
+
+  // Edit flow — GetMasterDataFill procedures (mirrors PI pattern)
+  SP_MASTER_FILL: "fn_tbl_RB_PurPOMst",
+  SP_DETAIL_FILL: "fn_tbl_RB_PurPODet",
+  SP_INDT_DETAIL_FILL: "fn_tbl_RB_PurPOIndtDet",
 
   // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_RB_PurPODet_Event",
@@ -105,11 +113,8 @@ export const PO_CONFIG = {
       isEditAllow: false,
     },
   ],
-
+  
   INDENT_FRM_OPTION: 0,
-  // Item picker in indent mode sources from PI — use PURINQUIRY as prmTranBook
-  INDENT_SOURCE_BOOK: "PURINQUIRY",
-
   // Save endpoint (REST POST via API_BASE_URL_IMS)
   SAVE_ENDPOINT: "/API/PurPOSave/Post_RB_PurPOMst_Save",
 
@@ -293,4 +298,30 @@ export function formatTranDate(dateVal) {
   if (isNaN(d.getTime())) return "0";
   const dd = String(d.getDate()).padStart(2, "0");
   return `${dd}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+}
+
+/** Header fields required before Select Item can be opened */
+export const PO_ITEM_PICKER_JSON_FIELDS = [
+  { headerKey: "DivisionID", label: "Division" },
+  { headerKey: "TranDate",   label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID",   label: "PO Type" },
+  { headerKey: "SupplierID", label: "Supplier" },
+  { headerKey: "BasedOnID",  label: "Based On", allowZero: true },
+];
+
+function isMissingPOPickerValue(field, value) {
+  if (field.isDate) return value == null || value === "" || formatTranDate(value) === "0";
+  if (value == null || value === "") return true;
+  if (field.allowZero) return false;
+  return Number(value) === 0 || value === "0";
+}
+
+/** Returns display labels of header fields that must be filled before Select Item. */
+export function getMissingItemPickerHeaderFields(headerValues) {
+  const missing = [];
+  PO_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
+    if (isMissingPOPickerValue(field, headerValues?.[field.headerKey]))
+      missing.push(field.label);
+  });
+  return missing;
 }

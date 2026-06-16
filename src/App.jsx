@@ -2,6 +2,10 @@ import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
+import PurchaseIndentPage from "./pages/purchase-indent/PurchaseIndentPage";
+import PurchaseIndentForm from "./pages/purchase-indent/PurchaseIndentForm";
+import PurchaseVoucherPage from "./pages/purchase-voucher/PurchaseVoucherPage";
+import PurchaseVoucherForm from "./pages/purchase-voucher/PurchaseVoucherForm";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
 
@@ -53,11 +57,21 @@ function AppRoutes() {
           <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
           <Route path="purchase-inquiry/:id" element={<PurchaseInquiryForm />} />
           <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
+          <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
           <Route path="purchase-order" element={<PurchaseOrderPage />} />
           <Route path="purchase-order/:id" element={<PurchaseOrderForm />} />
           <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
+          <Route path="purchase-order/:id/edit" element={<PurchaseOrderForm />} />
+          <Route path="purchase-indent" element={<PurchaseIndentPage />} />
+          <Route path="purchase-indent/new" element={<PurchaseIndentForm />} />
+          <Route path="purchase-indent/:id" element={<PurchaseIndentForm />} />
+          <Route path="purchase-indent/:id/edit" element={<PurchaseIndentForm />} />
+          <Route path="purchase-voucher" element={<PurchaseVoucherPage />} />
+          <Route path="purchase-voucher/new" element={<PurchaseVoucherForm />} />
+          <Route path="purchase-voucher/:id" element={<PurchaseVoucherForm />} />
+          <Route path="purchase-voucher/:id/edit" element={<PurchaseVoucherForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

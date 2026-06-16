@@ -1,61 +1,45 @@
-// PurchaseOrderPage.jsx
-// Purchase Order listing / landing page.
-// Mirrors PurchaseInquiryPage.jsx exactly — same grid, toolbar, navigation pattern.
-// Clicking Add New → /purchase-order/new (PurchaseOrderForm in new mode)
-// Clicking Edit   → /purchase-order/:id  (PurchaseOrderForm in edit mode)
+// PurchaseIndentPage.jsx
+// Purchase Indent listing / landing page.
+// Mirrors PurchaseOrderPage.jsx — same grid, toolbar, navigation pattern.
+// Clicking Add New → /purchase-indent/new  (PurchaseIndentForm in new mode)
+// Clicking Edit   → /purchase-indent/:id   (PurchaseIndentForm in edit mode)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Plus, Pencil } from "lucide-react";
+import { ClipboardList, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { PO_CONFIG } from "./constants";
-import "./PurchaseOrderPage.css";
+import { IND_CONFIG } from "./constants";
+import "./PurchaseIndentPage.css";
 
 const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 const MONTH_ABBR = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 function formatListDate(value) {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mon = MONTH_ABBR[d.getMonth()];
-  return `${dd}-${mon}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
   const year = new Date().getFullYear();
   return {
-    ObjType: PO_CONFIG.LIST_OBJ_TYPE,
-    ObjName: PO_CONFIG.SP_PO_LIST,
+    ObjType: IND_CONFIG.LIST_OBJ_TYPE,
+    ObjName: IND_CONFIG.SP_INDENT_LIST,
     JSon: JSON.stringify([
       {
         PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: PO_CONFIG.LIST_DIVISION_ID,
-        prmSupplierID: 0,
+        prmDivisionID: IND_CONFIG.LIST_DIVISION_ID,
         prmFromDate: `01-Jan-${year}`,
         prmToDate: `31-Dec-${year}`,
-        PrmRefTypeID: 0,
-        PrmBasedOn: 0,
-        PrmDepartmentId: 0,
-        PrmStatus: 0,
+        PrmDepartmentId: 0
       },
     ]),
     p_ErrCode: -1,
@@ -63,26 +47,26 @@ function buildListParams() {
   };
 }
 
-function buildPoColumns(navigate) {
+function buildIndentColumns(navigate) {
   return [
     {
-      key: "PONo",
-      label: "PO No.",
+      key: "IndentNo",
+      label: "Indent No.",
       width: "13%",
       filterable: true,
       align: "left",
     },
     {
-      key: "PODate",
-      label: "PO Date",
+      key: "IndentDate",
+      label: "Indent Date",
       width: "10%",
       filterable: true,
       filterType: "date",
       render: (value) => formatListDate(value),
     },
     {
-      key: "ExpectedDate",
-      label: "Expected Date",
+      key: "ExpiryDate",
+      label: "Expiry Date",
       width: "10%",
       filterable: true,
       filterType: "date",
@@ -91,35 +75,28 @@ function buildPoColumns(navigate) {
     {
       key: "Division",
       label: "Division",
-      width: "12%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "POType",
-      label: "PO Type",
       width: "13%",
       filterable: true,
       align: "left",
     },
     {
-      key: "SupplierName",
-      label: "Supplier",
-      width: "15%",
+      key: "IndentType",
+      label: "Indent Type",
+      width: "14%",
       filterable: true,
       align: "left",
     },
     {
-      key: "Currency",
-      label: "Currency",
-      width: "8%",
+      key: "Department",
+      label: "Department",
+      width: "13%",
       filterable: true,
       align: "left",
     },
     {
       key: "CreatedBy",
       label: "Created By",
-      width: "10%",
+      width: "12%",
       filterable: true,
       align: "left",
     },
@@ -134,17 +111,19 @@ function buildPoColumns(navigate) {
     {
       key: "_actions",
       label: "Edit",
-      width: "4%",
+      width: "5%",
       align: "center",
       render: (_value, row) => (
         <button
           type="button"
-          className="po-list__edit-btn"
-          title={`Edit PO ${row.PONo ?? ""}`}
-          aria-label={`Edit PO ${row.PONo ?? ""}`}
+          className="ind-list__edit-btn"
+          title={`Edit Indent ${row.IndentNo ?? ""}`}
+          aria-label={`Edit Indent ${row.IndentNo ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/purchase-order/${row.POID}/edit`, { state: { record: row } });
+            navigate(`/purchase-indent/${row.IndentID ?? row.IDNumber}/edit`, {
+              state: { record: row },
+            });
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -154,7 +133,7 @@ function buildPoColumns(navigate) {
   ];
 }
 
-export default function PurchaseOrderPage() {
+export default function PurchaseIndentPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -164,55 +143,55 @@ export default function PurchaseOrderPage() {
   const [pageSize, setPageSize] = useState(8);
 
   usePageHeader({
-    title: "Purchase Orders",
-    subtitle: "Browse purchase orders or create a new one.",
+    title: "Purchase Indents",
+    subtitle: "Browse purchase indents or create a new one.",
     showBack: true,
     backTo: "/",
   });
 
-  const columns = useMemo(() => buildPoColumns(navigate), [navigate]);
+  const columns = useMemo(() => buildIndentColumns(navigate), [navigate]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchIndents = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
       setData(json?.Table ?? []);
     } catch (err) {
-      console.error("[PurchaseOrderPage] list fetch failed:", err);
-      setError("Failed to load purchase orders.");
+      console.error("[PurchaseIndentPage] list fetch failed:", err);
+      setError("Failed to load purchase indents.");
     } finally {
       setLoading(false);
     }
   }, [get]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchIndents();
+  }, [fetchIndents]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/purchase-order/new");
+    navigate("/purchase-indent/new");
   }, [navigate]);
 
   return (
-    <div className="workspace-page po-list-page">
-      <section className="po-list-panel po-list-panel--compact po-list-panel--fill">
-        <header className="po-list-panel__header">
-          <div className="po-list-panel__title">
-            <ShoppingCart size={14} strokeWidth={2} />
-            <span>Purchase Orders</span>
+    <div className="workspace-page ind-list-page">
+      <section className="ind-list-panel ind-list-panel--fill">
+        <header className="ind-list-panel__header">
+          <div className="ind-list-panel__title">
+            <ClipboardList size={14} strokeWidth={2} />
+            <span>Purchase Indents</span>
           </div>
-          <div className="po-list-panel__toolbar">
-            <button type="button" className="po-list-panel__add-btn" onClick={handleAddNew}>
+          <div className="ind-list-panel__toolbar">
+            <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
               Add New
             </button>
-            <label htmlFor="po-list-page-size" className="po-list-panel__pagesize-label">
+            <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">
               Rows per page
             </label>
             <select
-              id="po-list-page-size"
-              className="ng-select po-list-panel__pagesize-select"
+              id="ind-list-page-size"
+              className="ng-select ind-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               aria-label="Rows per page"
@@ -232,11 +211,11 @@ export default function PurchaseOrderPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading purchase orders…"
+          loaderText="Loading purchase indents…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No purchase orders found."
+          emptyMessage="No purchase indents found."
           hideHeader
           fill
         />

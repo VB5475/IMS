@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FileText,
   ShoppingCart,
+  Receipt,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -31,6 +32,8 @@ const NAV_SECTIONS = [
       { to: "/purchase-inquiry", icon: ClipboardList, label: "Purchase Inquiry", end: false },
       { to: "/purchase-quotation", icon: FileText, label: "Purchase Quotation", end: false },
       { to: "/purchase-order", icon: ShoppingCart, label: "Purchase Order", end: false },
+      { to: "/purchase-indent", icon: ShoppingCart, label: "Purchase Indent", end: false },
+      { to: "/purchase-voucher", icon: Receipt, label: "Purchase Voucher", end: false },
     ],
   },
 ];
