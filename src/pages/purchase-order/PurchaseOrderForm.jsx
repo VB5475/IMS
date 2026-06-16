@@ -49,6 +49,7 @@ import {
   TERMS_COLUMNS,
   PO_FILTER_CASCADE_RESETS,
   PO_SHORTCUT_CONFIG,
+  PO_SUMMARY_FIELDS,
   formatTranDate,
 } from "./constants";
 import "./PurchaseOrderPage.css";
@@ -485,6 +486,17 @@ export default function PurchaseOrderForm() {
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
+
+  // ── syncedSummaryFields — enrich PO_SUMMARY_FIELDS with labels from header RB columns ──
+  const syncedSummaryFields = useMemo(() => {
+    const colMap = {};
+    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
+    return PO_SUMMARY_FIELDS.map((f) => ({
+      ...f,
+      mstKey: f.SummaryParameterID,
+      label: colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
+    }));
+  }, [headerColumns]);
 
   // ── Filter change / cascade ────────────────────────────────────────
   const handleFilterChange = useCallback(
