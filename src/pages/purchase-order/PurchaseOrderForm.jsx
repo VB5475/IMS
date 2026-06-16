@@ -604,8 +604,10 @@ export default function PurchaseOrderForm() {
     setItemModalLoading(true);
 
     try {
-      const rbCode =
-        Number(BasedOnID) === 2 ? PO_CONFIG.RB_ITEM_PICKER_INDENT : PO_CONFIG.RB_ITEM_PICKER_DIRECT;
+      let rbCode;
+      if (Number(BasedOnID) === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
+      else if (Number(BasedOnID) === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
+      else rbCode = PO_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,

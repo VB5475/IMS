@@ -25,6 +25,7 @@ export const PO_CONFIG = {
   // RB codes for item picker modal
   RB_ITEM_PICKER_DIRECT: "RB_PurPOSelOnlyItem", // BasedOn = '0' (Direct)
   RB_ITEM_PICKER_INDENT: "RB_PurPOSelIndtItem", // BasedOn = '2' (Indent wise)
+  RB_ITEM_PICKER_QUOT: "RB_PurPOSelQuotItem", // BasedOn = '3' (Quotation)
 
   // SP / function names
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",

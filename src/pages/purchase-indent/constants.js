@@ -45,7 +45,7 @@ export const IND_CONFIG = {
 
   // Listing — ⚠️ CONFIRM with DBA
   LIST_OBJ_TYPE: 2,
-  SP_INDENT_LIST: "fn_tbl_RB_PurIndtMst_List", // ⚠️ CONFIRM
+  SP_INDENT_LIST: "Fn_tbl_Pur_IndentMst_List",
   LIST_DIVISION_ID: 15,                          // ⚠️ CONFIRM
 };
 
