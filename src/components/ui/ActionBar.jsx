@@ -1,6 +1,6 @@
 // ActionBar — Common sticky bottom action bar for all entry pages.
 //
-// Keyboard shortcuts (Alt+A/S/N/C, Esc) are handled by useEntryFormKeyboard
+// Keyboard shortcuts (Alt+A/S/N/P/L/C, Esc) are handled by useEntryFormKeyboard
 // on the page. Buttons keep accessKey for browser-native hints.
 
 import React from "react";

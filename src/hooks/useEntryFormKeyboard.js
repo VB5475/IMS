@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from "react";
+import { FORM_SHORTCUT_KEYS } from "../constants/formShortcuts";
 
 /** Skip shortcuts while a SearchSelect dropdown is open. */
 export function shouldIgnoreKeyboardEvent(e) {
@@ -7,20 +8,15 @@ export function shouldIgnoreKeyboardEvent(e) {
   );
 }
 
-const DEFAULT_KEYS = {
-  add: "a",
-  save: "s",
-  cancel: "n",
-  close: "c",
-};
-
 /**
  * Entry-page keyboard shortcuts (Purchase Inquiry, Purchase Quotation, etc.)
  *
  * Alt+A  → Add / enter edit mode
  * Alt+S  → Save
  * Alt+N  → Cancel
- * Alt+C  → Close
+ * Alt+P  → Save & Print
+ * Alt+L  → Select item / supplier list (active tab)
+ * Alt+C  → Toggle collapsible row details
  * Esc    → Cancel (edit mode only)
  */
 export function useEntryFormKeyboard({
@@ -31,9 +27,11 @@ export function useEntryFormKeyboard({
   addDisabled = false,
   onAdd,
   onSave,
+  onSavePrint,
   onCancel,
-  onClose,
-  keys = DEFAULT_KEYS,
+  onSelectList,
+  onToggleCollapsible,
+  keys = FORM_SHORTCUT_KEYS,
 } = {}) {
   useEffect(() => {
     if (!enabled || blocked) return undefined;
@@ -72,10 +70,22 @@ export function useEntryFormKeyboard({
             onCancel();
           }
           break;
-        case keys.close:
-          if (onClose) {
+        case keys.savePrint:
+          if (isEditMode && !isSaving && onSavePrint) {
             e.preventDefault();
-            onClose();
+            onSavePrint();
+          }
+          break;
+        case keys.selectList:
+          if (isEditMode && onSelectList) {
+            e.preventDefault();
+            onSelectList();
+          }
+          break;
+        case keys.toggleCollapsible:
+          if (onToggleCollapsible) {
+            e.preventDefault();
+            onToggleCollapsible();
           }
           break;
         default:
@@ -93,12 +103,16 @@ export function useEntryFormKeyboard({
     addDisabled,
     onAdd,
     onSave,
+    onSavePrint,
     onCancel,
-    onClose,
+    onSelectList,
+    onToggleCollapsible,
     keys.add,
     keys.save,
     keys.cancel,
-    keys.close,
+    keys.savePrint,
+    keys.selectList,
+    keys.toggleCollapsible,
   ]);
 }
 

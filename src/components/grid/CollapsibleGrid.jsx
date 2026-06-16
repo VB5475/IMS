@@ -14,9 +14,11 @@ import React, {
   useCallback,
   useImperativeHandle,
   forwardRef,
+  lazy,
+  Suspense,
 } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import EntryGrid from "./EntryGrid";
+const EntryGrid = lazy(() => import("./EntryGrid"));
 import "./CollapsibleGrid.css";
 
 const DEFAULT_PAGINATION = { pageSize: 50, pageSizeOptions: [10, 25, 50, 100] };
@@ -213,29 +215,31 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
       onScroll={handleScroll}
       onWheel={handleWheel}
     >
-      <EntryGrid
-        ref={gridRef}
-        config={gridConfig}
-        title=""
-        readOnly={readOnly}
-        hideBottomPanel={hideBottomPanel}
-        hidePagination={resolvedHidePagination}
-        emptyMessage={resolvedEmptyMessage}
-        initialRows={initialRows}
-        onSave={onSave}
-        onCellEvent={onCellEvent}
-        eventColumns={eventColumns}
-        onSelectionChange={onSelectionChange}
-        onRowsChange={onRowsChange}
-        enableCollapsible={enableCollapsible}
-        childRowsMap={childRowsMap}
-        childColumns={childColumns}
-        existingRecordEdit={existingRecordEdit}
-        enableKeyboardNav={enableKeyboardNav}
-        containerClassName="cg-entry-grid"
-        embedded={isInline}
-        {...entryGridRest}
-      />
+      <Suspense fallback={null}>
+        <EntryGrid
+          ref={gridRef}
+          config={gridConfig}
+          title=""
+          readOnly={readOnly}
+          hideBottomPanel={hideBottomPanel}
+          hidePagination={resolvedHidePagination}
+          emptyMessage={resolvedEmptyMessage}
+          initialRows={initialRows}
+          onSave={onSave}
+          onCellEvent={onCellEvent}
+          eventColumns={eventColumns}
+          onSelectionChange={onSelectionChange}
+          onRowsChange={onRowsChange}
+          enableCollapsible={enableCollapsible}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          existingRecordEdit={existingRecordEdit}
+          enableKeyboardNav={enableKeyboardNav}
+          containerClassName="cg-entry-grid"
+          embedded={isInline}
+          {...entryGridRest}
+        />
+      </Suspense>
     </div>
   );
 

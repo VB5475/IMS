@@ -36,7 +36,7 @@ function resolveFieldElement(target) {
  * Returns a cleanup function.
  */
 export function bindFormKeyboardNav(root, { enabled = true } = {}) {
-  if (!root || !enabled) return () => {};
+  if (!root || !enabled) return () => { };
 
   const onKeyDown = (e) => {
     if (e.key !== "Enter" || e.altKey || e.ctrlKey || e.metaKey) return;

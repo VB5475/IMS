@@ -1,23 +1,27 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import AppShell from "./layout/AppShell";
-import LoginPage from "./pages/login/LoginPage";
-import EnterpriseDashboard from "./pages/dashboard/EnterpriseDashboard";
-import ReportWorkspacePage from "./pages/report-workspace/ReportWorkspacePage";
-import TxnEntryPage from "./pages/txn-entry/TxnEntryPage";
-import PurchaseInquiryPage from "./pages/purchase-inquiry/PurchaseInquiryPage";
-import PurchaseInquiryForm from "./pages/purchase-inquiry/PurchaseInquiryForm";
-import PurchaseQuotationPage from "./pages/purchase-quotation/PurchaseQuotationPage";
-import PurchaseQuotationForm from "./pages/purchase-quotation/PurchaseQuotationForm";
-import PurchaseOrderPage from "./pages/purchase-order/PurchaseOrderPage";
-import PurchaseOrderForm from "./pages/purchase-order/PurchaseOrderForm";
+import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
+
+const LoginPage = lazy(() => import("./pages/login/LoginPage"));
+const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
+const ReportWorkspacePage = lazy(() => import("./pages/report-workspace/ReportWorkspacePage"));
+const TxnEntryPage = lazy(() => import("./pages/txn-entry/TxnEntryPage"));
+const PurchaseInquiryPage = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryPage"));
+const PurchaseInquiryForm = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryForm"));
+const PurchaseQuotationPage = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationPage"));
+const PurchaseQuotationForm = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
+const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
+const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
 
 function AppLayout() {
   return (
     <AppShell>
-      <Outlet />
+      <Suspense fallback={<Loader text="Loading page…" />}>
+        <Outlet />
+      </Suspense>
     </AppShell>
   );
 }
@@ -33,7 +37,14 @@ function RequireAuth() {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          <Suspense fallback={<Loader text="Loading page…" />}>
+            <LoginPage />
+          </Suspense>
+        }
+      />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<EnterpriseDashboard />} />

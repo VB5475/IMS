@@ -498,6 +498,15 @@
   text-overflow: ellipsis;
 }
 
+.efq-cell__value--textarea {
+  display: block;
+  white-space: pre-wrap;
+  line-height: 1.35;
+  padding: 4px 4px;
+  min-height: 40px;
+  overflow: auto;
+}
+
 .efq-cell__select {
   width: 100%;
 }

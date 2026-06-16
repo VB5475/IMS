@@ -11,7 +11,7 @@
 //   fetchGridColumns → GET_FILTER_DETAIL dropdowns + buildGridColumns
 //
 // Cascading filters (page onFilterChange):
-//   Division → Inquiry Type → Indent
+//   Division → Inquiry Type
 
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "../api/useApi";
@@ -44,19 +44,6 @@ export function formatPiTranDate(dateVal) {
   }
   const dd = String(d.getDate()).padStart(2, "0");
   return `${dd}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
-}
-
-function uniqueIndentOptions(rows) {
-  const seen = new Set();
-  const opts = [];
-  for (const row of rows) {
-    const id = String(row.IndentID);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    opts.push({ value: id, label: row.IndentNo || id });
-  }
-  // return opts;
-  return rows;
 }
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
@@ -170,9 +157,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [inquiryTypeOptions, setInquiryTypeOptions] = useState([]);
-  const [indentOptions, setIndentOptions] = useState([]);
   const [isLoadingInquiryTypes, setIsLoadingInquiryTypes] = useState(false);
-  const [isLoadingIndents, setIsLoadingIndents] = useState(false);
 
   // ── Detail grid state ─────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
@@ -224,49 +209,6 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         return [];
       } finally {
         setIsLoadingInquiryTypes(false);
-      }
-    },
-    [get]
-  );
-
-  const fetchIndents = useCallback(
-    async ({ divisionId, configId, tranDate, supplierId = 0, frmOption = 0 }) => {
-      if (!divisionId || divisionId === "0" || !configId || configId === "0") {
-        setIndentOptions([]);
-        return [];
-      }
-
-      setIsLoadingIndents(true);
-      try {
-        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: PI_CONFIG.SP_INDENTS,
-          JSon: JSON.stringify([
-            {
-              prmDivisionID: Number(divisionId),
-              prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
-              prmLoginID: getUserSession().loginId,
-              prmTranDate: formatPiTranDate(tranDate),
-              prmConfigID: Number(configId),
-              prmSupplierID: Number(supplierId) || 0,
-              prmTranBook: PI_CONFIG.TRAN_BOOK,
-              prmFrmOption: Number(frmOption) || 0,
-            },
-          ]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        const opts = uniqueIndentOptions(res?.Table || []);
-        // console.log(see opts)
-        console.log("SEE OPTIONS:", res?.Table);
-        setIndentOptions(opts);
-        return opts;
-      } catch (err) {
-        console.warn("[PI] Indent fetch failed:", err);
-        setIndentOptions([]);
-        return [];
-      } finally {
-        setIsLoadingIndents(false);
       }
     },
     [get]
@@ -656,7 +598,6 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   );
 
   const clearInquiryTypes = useCallback(() => setInquiryTypeOptions([]), []);
-  const clearIndents = useCallback(() => setIndentOptions([]), []);
   const clearSaveError = useCallback(() => setSaveError(null), []);
 
   return {
@@ -669,13 +610,9 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     divisionOptions,
     departmentOptions,
     inquiryTypeOptions,
-    indentOptions,
     fetchInquiryTypes,
-    fetchIndents,
     clearInquiryTypes,
-    clearIndents,
     isLoadingInquiryTypes,
-    isLoadingIndents,
     columns,
     allColumns,
     allIndentColumns,

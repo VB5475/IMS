@@ -74,7 +74,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
           divisionID: filterValues?.DivisionID || 0,
         });
 
-        // ── Step C: Transform to GridForm column shape ───────────────
+        // ── Step C: Transform to grid column shape ───────────────
         const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
           filterable: true,
           allEditable: false,

@@ -33,7 +33,9 @@ export const QTN_CONFIG = {
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_QUOTATION_TYPES: "fn_tbl_ddl_Pur_Configuration",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_PICKER: "Fn_Tbl_FetchInquiryItemDetail4Web",
+  // Item picker row fetch — ObjName depends on BasedOn (Direct vs Inquiry Based)
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurQtnSelOnlyItem",
+  SP_ITEM_PICKER_INQUIRY: "fn_tbl_RB_PurQtnSelInqItem",
   SP_GRID_EVENT: "fn_tbl_RB_PurQtnDet_Event",
 
   // "Based On" dropdown options (hardcoded — not from API)
@@ -91,7 +93,7 @@ export const QTN_HEADER_FILTERS = [
 
 // Header fields that are always read-only (doc: Is ReadOnly = Yes), even in
 // edit mode. Currency is system-derived; the user never types into it.
-export const QTN_READONLY_FIELDS = ["CurrencyID"];
+export const QTN_READONLY_FIELDS = ["CurrencyID", "CurrencyRate"];
 
 export const QTN_GRID_TABS = [
   { id: "items", label: "Item Grid" },
@@ -134,7 +136,7 @@ export const QTN_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID", "SupplierID", "CurrencyID", "CurrencyRate"],
 };
 
-/** Header fields mapped to Fn_Tbl_FetchInquiryItemDetail4Web — item grid clears when any changes */
+/** Header fields mapped to item picker FN_FETCH_DATA JSON — item grid clears when any changes */
 export const QTN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
   "DivisionID",
   "TranDate",
@@ -165,4 +167,46 @@ export function formatTranDate(dateVal) {
   const dd = String(d.getDate()).padStart(2, "0");
   const mon = MONTH_ABBR[d.getMonth()];
   return `${dd}-${mon}-${d.getFullYear()}`;
+}
+
+/** User/header fields required in item picker FN_FETCH_DATA JSON (auto-filled keys omitted). */
+export const QTN_ITEM_PICKER_JSON_FIELDS = [
+  { headerKey: "DivisionID", label: "Division" },
+  { headerKey: "TranDate", label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID", label: "Quotation Type" },
+  { headerKey: "SupplierID", label: "Supplier" },
+  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
+];
+
+function isMissingItemPickerHeaderValue(field, value) {
+  if (field.isDate) {
+    return value == null || value === "" || formatTranDate(value) === "0";
+  }
+  if (value == null || value === "") return true;
+  if (field.allowZero) return false;
+  return Number(value) === 0 || value === "0";
+}
+
+/** Returns display labels of header fields that must be filled before Select Item. */
+export function getMissingItemPickerHeaderFields(headerValues) {
+  const missing = [];
+  QTN_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
+    if (isMissingItemPickerHeaderValue(field, headerValues?.[field.headerKey])) {
+      missing.push(field.label);
+    }
+  });
+  return missing;
+}
+
+export function buildItemPickerJsonPayload(headerValues, loginId) {
+  return {
+    prmDivisionID: Number(headerValues.DivisionID),
+    prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
+    prmLoginID: loginId,
+    prmTranDate: formatTranDate(headerValues.TranDate),
+    prmConfigID: Number(headerValues.ConfigID),
+    prmSupplierID: Number(headerValues.SupplierID ?? 0),
+    prmTranBook: QTN_CONFIG.TRAN_BOOK,
+    prmFrmOption: Number(headerValues.BasedOnID) || 0,
+  };
 }
