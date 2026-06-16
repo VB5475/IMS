@@ -377,6 +377,11 @@ export default function PurchaseIndentForm() {
         clearIndentTypes();
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") await fetchIndentTypes(val);
+        return;
+      }
+
+      if (colName === "ConfigID") {
+        itemGridRef.current?.clearRows?.();
       }
     },
     [fetchIndentTypes, clearIndentTypes]

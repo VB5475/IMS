@@ -526,6 +526,18 @@ export default function PurchaseOrderForm() {
         return;
       }
 
+      if (colName === "ConfigID") {
+        itemGridRef.current?.clearRows?.();
+        setChildRowsMap({});
+        return;
+      }
+
+      if (colName === "BasedOnID") {
+        itemGridRef.current?.clearRows?.();
+        setChildRowsMap({});
+        return;
+      }
+
       if (colName === "SupplierID") {
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});

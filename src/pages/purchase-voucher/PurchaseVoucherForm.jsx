@@ -423,6 +423,11 @@ export default function PurchaseVoucherForm() {
       return;
     }
 
+    if (colName === "ConfigID") {
+      itemGridRef.current?.clearRows?.();
+      return;
+    }
+
     if (colName === "BasedOnID") {
       itemGridRef.current?.clearRows?.();
     }
