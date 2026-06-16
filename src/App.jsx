@@ -2,10 +2,6 @@ import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
-import PurchaseIndentPage from "./pages/purchase-indent/PurchaseIndentPage";
-import PurchaseIndentForm from "./pages/purchase-indent/PurchaseIndentForm";
-import PurchaseVoucherPage from "./pages/purchase-voucher/PurchaseVoucherPage";
-import PurchaseVoucherForm from "./pages/purchase-voucher/PurchaseVoucherForm";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
 
@@ -19,6 +15,10 @@ const PurchaseQuotationPage = lazy(() => import("./pages/purchase-quotation/Purc
 const PurchaseQuotationForm = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
 const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
 const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
+const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
+const PurchaseIndentForm = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
+const PurchaseVoucherPage = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
+const PurchaseVoucherForm = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
 
 function AppLayout() {
   return (
