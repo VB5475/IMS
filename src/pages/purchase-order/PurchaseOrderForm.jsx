@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -39,6 +39,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
+import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -53,6 +54,7 @@ import {
   PO_SHORTCUT_CONFIG,
   PO_SUMMARY_FIELDS,
   formatTranDate,
+  getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./PurchaseOrderPage.css";
 
@@ -482,9 +484,11 @@ export default function PurchaseOrderForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      if (!isEditMode) tones[f.FilterColName] = "view";
-      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = "frozen";
-      else tones[f.FilterColName] = "editable";
+      let tone = "editable";
+      if (!isEditMode) tone = "view";
+      else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
+      tones[f.FilterColName] = tone;
+      if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
@@ -592,12 +596,14 @@ export default function PurchaseOrderForm() {
 
   // ── Select Item ────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
-    const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValuesRef.current;
-    const divisionID = DivisionID ?? 0;
-    if (!divisionID || divisionID === "0" || divisionID === 0) {
-      alert("Please select a Division before selecting items.");
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
       return;
     }
+    const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValues;
+    const divisionID = DivisionID ?? 0;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -610,6 +616,11 @@ export default function PurchaseOrderForm() {
       if (Number(BasedOnID) === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
       else if (Number(BasedOnID) === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
       else rbCode = PO_CONFIG.RB_ITEM_PICKER_DIRECT;
+
+      let spItemPicker;
+      if (Number(BasedOnID) === 2) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_INDENT;
+      else if (Number(BasedOnID) === 3) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_QUOT;
+      else spItemPicker = PO_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
@@ -637,7 +648,7 @@ export default function PurchaseOrderForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PO_CONFIG.SP_ITEM_PICKER,
+        ObjName: spItemPicker,
         JSon: JSON.stringify([
           {
             prmDivisionID: Number(divisionID),
@@ -728,6 +739,14 @@ export default function PurchaseOrderForm() {
     [ensureItemColumns, allColumns, addItemRow, itemModalColumns]
   );
 
+  const handleSelectListShortcut = useCallback(() => {
+    if (activeTab === "items") handleSelectItem();
+  }, [activeTab, handleSelectItem]);
+
+  const handleToggleCollapsible = useCallback(() => {
+    itemGridRef.current?.toggleFocusedRowCollapsible?.();
+  }, []);
+
   // ── Delete selected rows ───────────────────────────────────────────
   const handleDeleteSelected = useCallback(() => {
     if (!itemGridRef.current) return;
@@ -740,24 +759,40 @@ export default function PurchaseOrderForm() {
   const [isSavingPO, setIsSavingPO] = useState(false);
 
   const handleSave = useCallback(async () => {
+    const hv = headerValuesRef.current;
+
+    // ── Validation (header + detail + indent) ────────────────────────
+    const headerFieldNames = new Set(PO_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+    const headerErrors = validateApiColumns(hv, headerColsToValidate);
+
+    const itemRows = itemGridRef.current?.getRows?.() ?? [];
+    const detailErrors = validateGridRows(itemRows, columns);
+
+    const indentChildRows = Object.values(childRowsMap).flat();
+    const indentErrors = validateGridRows(indentChildRows, childColumns);
+
+    const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
+    if (allErrors.length > 0) {
+      alert(allErrors.join("\n"));
+      return;
+    }
+
     const mstRow = {};
     headerColumns.forEach((col) => {
       mstRow[col.ColName] = getColDefault(col.ColDataType);
     });
-    const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => {
-
-      
       if (k !== "id"){
         console.log(k)
         console.log(`${mstRow[k]}=${v}`)
       mstRow[k] = v
-      } 
+      }
     });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     mstRow.LoginID = DEFAULT_LOGIN_ID;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
+    const detRows = itemRows.map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => {
         row[key] = getColDefault(colDataType);
@@ -765,9 +800,7 @@ export default function PurchaseOrderForm() {
       return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
     });
 
-    const indentDetailRows = Object.values(childRowsMap)
-      .flat()
-      .map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
+    const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
 
     const payload = {
       prmStrMstJSON: JSON.stringify([mstRow]),
@@ -797,7 +830,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns]);
 
   const handleSaveAndPrint = useCallback(async () => {
     await handleSave();
@@ -867,52 +900,15 @@ export default function PurchaseOrderForm() {
     exitEditMode();
   }, [clearPoTypes, clearSaveError, exitEditMode, todayISO]);
 
-  const handleClose = useCallback(() => navigate("/purchase-order"), [navigate]);
   const handleDocument = useCallback(() => {
     console.log("[PO] Document F6 — reserved for document generation.");
   }, []);
 
-  // ── Keyboard shortcuts — Alt+A Add | Alt+S Save | Alt+N Cancel | Alt+C Close ──
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy = headerFetching || isLoadingPoTypes;
 
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey) return;
-      if (itemModalOpen) return;
-
-      const key = e.key.toLowerCase();
-      switch (key) {
-        case "a":
-          if (!isEditMode && !filterBusy) {
-            e.preventDefault();
-            enterEditModeWithFocus();
-          }
-          break;
-        case "s":
-          if (isEditMode && !isSavingPO) {
-            e.preventDefault();
-            handleSave();
-          }
-          break;
-        case "n":
-          if (isEditMode) {
-            e.preventDefault();
-            handleCancel();
-          }
-          break;
-        case "c":
-          e.preventDefault();
-          handleClose();
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
+  useEntryFormKeyboard({
+    blocked: itemModalOpen,
     isEditMode,
     isSaving: isSavingPO,
     addDisabled: filterBusy,
@@ -956,18 +952,8 @@ export default function PurchaseOrderForm() {
         accessKey: "s",
         title: FORM_SHORTCUT_TITLES.save,
       },
-      { key: "sep2", separator: true },
-      {
-        key: "close",
-        label: "Close",
-        Icon: LogOut,
-        variant: "close",
-        onClick: handleClose,
-        showAlways: true,
-        title: FORM_SHORTCUT_TITLES.close,
-      },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingPO, handleSave, handleClose]
+    [handleDocument, handleSaveAndPrint, isSavingPO, handleSave]
   );
 
   const itemGridConfig = {

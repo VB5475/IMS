@@ -138,3 +138,26 @@ export function formatIndentTranDate(dateVal) {
   if (isNaN(d.getTime())) return "0";
   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
+
+/** Header fields required before Select Item can be opened */
+export const IND_ITEM_PICKER_JSON_FIELDS = [
+  { headerKey: "DivisionID", label: "Division" },
+  { headerKey: "TranDate",   label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID",   label: "Indent Type" },
+];
+
+function isMissingINDPickerValue(field, value) {
+  if (field.isDate) return value == null || value === "" || formatIndentTranDate(value) === "0";
+  if (value == null || value === "") return true;
+  return Number(value) === 0 || value === "0";
+}
+
+/** Returns display labels of header fields that must be filled before Select Item. */
+export function getMissingItemPickerHeaderFields(headerValues) {
+  const missing = [];
+  IND_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
+    if (isMissingINDPickerValue(field, headerValues?.[field.headerKey]))
+      missing.push(field.label);
+  });
+  return missing;
+}

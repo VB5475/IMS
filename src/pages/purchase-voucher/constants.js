@@ -200,3 +200,29 @@ export function formatPVTranDate(dateVal) {
   if (isNaN(d.getTime())) return "0";
   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
+
+/** Header fields required before Select Item can be opened */
+export const PV_ITEM_PICKER_JSON_FIELDS = [
+  { headerKey: "DivisionID", label: "Division" },
+  { headerKey: "TranDate",   label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID",   label: "PR Type" },
+  { headerKey: "SupplierID", label: "Supplier" },
+  { headerKey: "BasedOnID",  label: "Based On", allowZero: true },
+];
+
+function isMissingPVPickerValue(field, value) {
+  if (field.isDate) return value == null || value === "" || formatPVTranDate(value) === "0";
+  if (value == null || value === "") return true;
+  if (field.allowZero) return false;
+  return Number(value) === 0 || value === "0";
+}
+
+/** Returns display labels of header fields that must be filled before Select Item. */
+export function getMissingItemPickerHeaderFields(headerValues) {
+  const missing = [];
+  PV_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
+    if (isMissingPVPickerValue(field, headerValues?.[field.headerKey]))
+      missing.push(field.label);
+  });
+  return missing;
+}

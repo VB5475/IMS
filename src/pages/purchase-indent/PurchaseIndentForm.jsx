@@ -14,13 +14,13 @@
 //                           buttons: Add New | Select Item | Delete
 //   3. ActionBar              — Add / Save / Cancel / Close (Alt shortcuts)
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save, LogOut } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
-import OrderItemModal from "../../components/txn/OrderItemModal";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
 import { useApi } from "../../api/useApi";
 import {
@@ -35,7 +35,10 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
+import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   IND_CONFIG,
   IND_HEADER_FILTERS,
@@ -43,6 +46,7 @@ import {
   IND_FILTER_CASCADE_RESETS,
   IND_SHORTCUT_CONFIG,
   formatIndentTranDate,
+  getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./PurchaseIndentPage.css";
 
@@ -354,9 +358,11 @@ export default function PurchaseIndentForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      if (!isEditMode) tones[f.FilterColName] = "view";
-      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = "frozen";
-      else tones[f.FilterColName] = "editable";
+      let tone = "editable";
+      if (!isEditMode) tone = "view";
+      else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
+      tones[f.FilterColName] = tone;
+      if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
@@ -409,12 +415,14 @@ export default function PurchaseIndentForm() {
 
   // ── Select Item ────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
-    const { DivisionID, ConfigID, TranDate } = headerValuesRef.current;
-    const divisionID = DivisionID ?? 0;
-    if (!divisionID || divisionID === "0" || divisionID === 0) {
-      alert("Please select a Division before selecting items.");
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
       return;
     }
+    const { DivisionID, ConfigID, TranDate } = headerValues;
+    const divisionID = DivisionID ?? 0;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -482,6 +490,14 @@ export default function PurchaseIndentForm() {
     [ensureItemColumns, allColumns, addItemRow]
   );
 
+  const handleSelectListShortcut = useCallback(() => {
+    if (activeTab === "items") handleSelectItem();
+  }, [activeTab, handleSelectItem]);
+
+  const handleToggleCollapsible = useCallback(() => {
+    itemGridRef.current?.toggleFocusedRowCollapsible?.();
+  }, []);
+
   // ── Delete selected rows ───────────────────────────────────────────
   const handleDeleteSelected = useCallback(() => {
     if (!itemGridRef.current) return;
@@ -494,6 +510,18 @@ export default function PurchaseIndentForm() {
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
   const handleSave = useCallback(async () => {
+    const headerErrors = validateApiColumns(headerValuesRef.current, headerColumns);
+    if (headerErrors.length > 0) {
+      alert(`Please fix the following:\n${headerErrors.join("\n")}`);
+      return;
+    }
+    const detailRows = itemGridRef.current?.getRows?.() ?? [];
+    const detailErrors = validateGridRows(detailRows, columns);
+    if (detailErrors.length > 0) {
+      alert(`Item grid errors:\n${detailErrors.join("\n")}`);
+      return;
+    }
+
     const mstRow = {};
     headerColumns.forEach((col) => {
       mstRow[col.ColName] = getColDefault(col.ColDataType);
@@ -538,7 +566,7 @@ export default function PurchaseIndentForm() {
     } finally {
       setIsSavingIndent(false);
     }
-  }, [headerColumns, allColumns]);
+  }, [headerColumns, allColumns, columns]);
 
   const handleSaveAndPrint = useCallback(async () => {
     await handleSave();
@@ -589,38 +617,22 @@ export default function PurchaseIndentForm() {
     exitEditMode();
   }, [clearIndentTypes, clearSaveError, exitEditMode, todayISO]);
 
-  const handleClose = useCallback(() => navigate("/purchase-indent"), [navigate]);
-
-  // ── Keyboard shortcuts — Alt+A Add | Alt+S Save | Alt+N Cancel | Alt+C Close ──
+  // ── Keyboard shortcuts ─────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy = headerFetching || isLoadingIndentTypes;
 
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey) return;
-      if (itemModalOpen) return;
-      const key = e.key.toLowerCase();
-      switch (key) {
-        case "a":
-          if (!isEditMode && !filterBusy) { e.preventDefault(); enterEditModeWithFocus(); }
-          break;
-        case "s":
-          if (isEditMode && !isSavingIndent) { e.preventDefault(); handleSave(); }
-          break;
-        case "n":
-          if (isEditMode) { e.preventDefault(); handleCancel(); }
-          break;
-        case "c":
-          e.preventDefault();
-          handleClose();
-          break;
-        default:
-          break;
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isEditMode, filterBusy, isSavingIndent, itemModalOpen, enterEditModeWithFocus, handleSave, handleCancel, handleClose]);
+  useEntryFormKeyboard({
+    blocked: itemModalOpen,
+    isEditMode,
+    isSaving: isSavingIndent,
+    addDisabled: filterBusy,
+    onAdd: enterEditModeWithFocus,
+    onSave: handleSave,
+    onSavePrint: handleSaveAndPrint,
+    onCancel: handleCancel,
+    onSelectList: handleSelectListShortcut,
+    onToggleCollapsible: handleToggleCollapsible,
+  });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const indExtraButtons = useMemo(
@@ -632,6 +644,7 @@ export default function PurchaseIndentForm() {
         variant: "print",
         onClick: handleSaveAndPrint,
         disabled: isSavingIndent,
+        title: FORM_SHORTCUT_TITLES.savePrint,
       },
       {
         key: "save",
@@ -642,21 +655,10 @@ export default function PurchaseIndentForm() {
         disabled: isSavingIndent,
         loading: isSavingIndent,
         accessKey: "s",
-        title: IND_SHORTCUT_CONFIG.s.title,
-      },
-      { key: "sep1", separator: true },
-      {
-        key: "close",
-        label: "Close",
-        Icon: LogOut,
-        variant: "close",
-        onClick: handleClose,
-        showAlways: true,
-        accessKey: "c",
-        title: IND_SHORTCUT_CONFIG.c.title,
+        title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSavingIndent, handleSave, handleClose]
+    [handleSaveAndPrint, isSavingIndent, handleSave]
   );
 
   const itemGridConfig = {
@@ -768,15 +770,17 @@ export default function PurchaseIndentForm() {
         extraButtons={indExtraButtons}
       />
 
-      <OrderItemModal
-        isOpen={itemModalOpen}
-        onClose={() => setItemModalOpen(false)}
-        items={itemModalItems}
-        columns={itemModalColumns}
-        isLoading={itemModalLoading}
-        error={itemModalError}
-        onInsert={handleInsertItems}
-      />
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={itemModalOpen}
+          onClose={() => setItemModalOpen(false)}
+          items={itemModalItems}
+          columns={itemModalColumns}
+          isLoading={itemModalLoading}
+          error={itemModalError}
+          onInsert={handleInsertItems}
+        />
+      </Suspense>
     </div>
   );
 }
