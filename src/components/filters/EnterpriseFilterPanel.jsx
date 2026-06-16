@@ -8,6 +8,10 @@ import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
 import SearchSelect from "../ui/SearchSelect";
 import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
+import { formatColumnDisplayValue, validateColumnValue } from "../../utils/columnValidation";
+import { parseNumberInput } from "../../utils/numberFormat";
+import GridNumberInput from "../grid/GridNumberInput";
+import { handleDateArrowKeys } from "../../utils/dateFormat";
 import {
   AlertCircle,
   Search,
@@ -68,6 +72,12 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
 
   const handleChange = (e) => onChange(FilterColName, e.target.value);
 
+  const handleBlurValidate = (nextValue) => {
+    if (readOnly || !filter.columnMeta) return;
+    const result = validateColumnValue(nextValue, filter.columnMeta);
+    if (!result.valid) alert(result.message);
+  };
+
   const labelEl = (
     <label className="efq-cell__label" htmlFor={`efq-${FilterColName}`} title={FilterCaption}>
       {FilterCaption}
@@ -79,7 +89,28 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
       case controlTypeMap.LABEL:
         return <span className="efq-cell__value">{value || "—"}</span>;
 
-      case controlTypeMap.TEXTBOX:
+      case controlTypeMap.TEXTBOX: {
+        if (readOnly) {
+          const display =
+            filter.columnMeta?.dataKind === "numeric"
+              ? formatColumnDisplayValue(value, filter.columnMeta)
+              : value || "";
+          return <span className="efq-cell__value">{display || "—"}</span>;
+        }
+        if (filter.columnMeta?.dataKind === "numeric") {
+          return (
+            <GridNumberInput
+              id={`efq-${FilterColName}`}
+              className="efq-cell__input"
+              value={value}
+              columnMeta={filter.columnMeta}
+              onChange={(next) => onChange(FilterColName, next)}
+              onBlur={(e) => handleBlurValidate(parseNumberInput(e.target.value))}
+              ariaLabel={FilterCaption}
+              disabled={isLoading}
+            />
+          );
+        }
         return (
           <input
             id={`efq-${FilterColName}`}
@@ -87,15 +118,25 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             className="efq-cell__input"
             value={value || ""}
             onChange={handleChange}
+            onBlur={(e) => handleBlurValidate(e.target.value)}
             placeholder={`Enter ${FilterCaption}…`}
             autoComplete="off"
-            readOnly={readOnly}
             disabled={isLoading}
-            tabIndex={readOnly ? -1 : 0}
+            tabIndex={0}
+            maxLength={
+              filter.columnMeta?.dataKind === "varchar" && filter.columnMeta?.maxLen != null
+                ? filter.columnMeta.maxLen
+                : undefined
+            }
           />
         );
+      }
 
       case controlTypeMap.DATE:
+        if (isView || isFrozen) {
+          const display = formatColumnDisplayValue(value, filter.columnMeta ?? filter);
+          return <span className="efq-cell__value">{display || "—"}</span>;
+        }
         return (
           <input
             id={`efq-${FilterColName}`}
@@ -103,6 +144,14 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             className="efq-cell__input efq-cell__input--date"
             value={value || ""}
             onChange={handleChange}
+            onKeyDown={(e) =>
+              handleDateArrowKeys(e, value || "", (next) => onChange(FilterColName, next), {
+                nativeInput: true,
+              })
+            }
+            onBlur={(e) => handleBlurValidate(e.target.value)}
+            min={filter.dateMin || undefined}
+            max={filter.dateMax || undefined}
             readOnly={readOnly}
             disabled={isLoading}
             tabIndex={readOnly ? -1 : 0}
@@ -131,17 +180,27 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
         );
 
       case controlTypeMap.TEXTAREA:
+        if (readOnly) {
+          return (
+            <span className="efq-cell__value efq-cell__value--textarea">{value || "—"}</span>
+          );
+        }
         return (
           <textarea
             id={`efq-${FilterColName}`}
             className="efq-cell__input efq-cell__input--textarea"
             value={value || ""}
             onChange={handleChange}
+            onBlur={(e) => handleBlurValidate(e.target.value)}
             placeholder={`Enter ${FilterCaption}…`}
             rows={2}
-            readOnly={readOnly}
             disabled={isLoading}
-            tabIndex={readOnly ? -1 : 0}
+            tabIndex={0}
+            maxLength={
+              filter.columnMeta?.dataKind === "varchar" && filter.columnMeta?.maxLen != null
+                ? filter.columnMeta.maxLen
+                : undefined
+            }
           />
         );
 

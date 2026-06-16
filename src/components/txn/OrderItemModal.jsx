@@ -3,11 +3,12 @@
 // (from GetDetailColData) and rows (from SP_ITEM_PICKER).
 // The user selects rows and clicks "Insert" to add them to the main item grid.
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import Modal from "../ui/Modal";
-import EntryGrid from "../grid/EntryGrid";
+const EntryGrid = lazy(() => import("../grid/EntryGrid"));
 import Loader from "../ui/Loader";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { normalizePickerGridColumns } from "../../utils/dateFormat";
 import { ShoppingCart, CheckCheck, Package, AlertCircle } from "lucide-react";
 import "./OrderItemModal.css";
 
@@ -40,7 +41,7 @@ export default function OrderItemModal({
 
   const gridConfig = useMemo(
     () => ({
-      columns,
+      columns: normalizePickerGridColumns(columns),
       pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
     }),
     [columns]
@@ -163,17 +164,25 @@ export default function OrderItemModal({
               )}
             </div>
 
-            <EntryGrid
-              key={String(isOpen)}
-              ref={gridRef}
-              config={gridConfig}
-              title=""
-              readOnly
-              initialRows={items}
-              hideBottomPanel
-              emptyMessage="No items found for the selected criteria."
-              onSelectionChange={setSelectedCount}
-            />
+            <Suspense
+              fallback={
+                <div className="oim-state">
+                  <Loader text="Loading grid…" />
+                </div>
+              }
+            >
+              <EntryGrid
+                key={String(isOpen)}
+                ref={gridRef}
+                config={gridConfig}
+                title=""
+                readOnly
+                initialRows={items}
+                hideBottomPanel
+                emptyMessage="No items found for the selected criteria."
+                onSelectionChange={setSelectedCount}
+              />
+            </Suspense>
           </div>
         )}
       </div>

@@ -16,13 +16,13 @@
 //   4. EnterpriseSummaryPanel — live totals computed from grid rows (reusable)
 //   5. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
-import OrderItemModal from "../../components/txn/OrderItemModal";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseOrder } from "../../hooks/usePurchaseOrder";
@@ -40,6 +40,8 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PO_CONFIG,
   PO_MASTER,
@@ -676,7 +678,7 @@ export default function PurchaseOrderForm() {
         return;
       }
 
-      ensureItemColumns().catch(() => {});
+      ensureItemColumns().catch(() => { });
 
       const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
       setIsGridLoading(true);
@@ -912,14 +914,15 @@ export default function PurchaseOrderForm() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     isEditMode,
-    filterBusy,
-    isSavingPO,
-    itemModalOpen,
-    enterEditModeWithFocus,
-    handleSave,
-    handleCancel,
-    handleClose,
-  ]);
+    isSaving: isSavingPO,
+    addDisabled: filterBusy,
+    onAdd: enterEditModeWithFocus,
+    onSave: handleSave,
+    onSavePrint: handleSaveAndPrint,
+    onCancel: handleCancel,
+    onSelectList: handleSelectListShortcut,
+    onToggleCollapsible: handleToggleCollapsible,
+  });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const poExtraButtons = useMemo(
@@ -939,6 +942,8 @@ export default function PurchaseOrderForm() {
         variant: "print",
         onClick: handleSaveAndPrint,
         disabled: isSavingPO,
+        accessKey: "p",
+        title: FORM_SHORTCUT_TITLES.savePrint,
       },
       {
         key: "save",
@@ -949,7 +954,7 @@ export default function PurchaseOrderForm() {
         disabled: isSavingPO,
         loading: isSavingPO,
         accessKey: "s",
-        title: PO_SHORTCUT_CONFIG.s.title,
+        title: FORM_SHORTCUT_TITLES.save,
       },
       { key: "sep2", separator: true },
       {
@@ -959,8 +964,7 @@ export default function PurchaseOrderForm() {
         variant: "close",
         onClick: handleClose,
         showAlways: true,
-        accessKey: "c",
-        title: PO_SHORTCUT_CONFIG.c.title,
+        title: FORM_SHORTCUT_TITLES.close,
       },
     ],
     [handleDocument, handleSaveAndPrint, isSavingPO, handleSave, handleClose]
@@ -1065,7 +1069,7 @@ export default function PurchaseOrderForm() {
                 className="po-tab-action-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
-                title="Pick items from list (Tab here after header fields)"
+                title={FORM_SHORTCUT_TITLES.selectList}
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
@@ -1149,15 +1153,17 @@ export default function PurchaseOrderForm() {
         extraButtons={poExtraButtons}
       />
 
-      <OrderItemModal
-        isOpen={itemModalOpen}
-        onClose={() => setItemModalOpen(false)}
-        items={itemModalItems}
-        columns={itemModalColumns}
-        isLoading={itemModalLoading}
-        error={itemModalError}
-        onInsert={handleInsertItems}
-      />
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={itemModalOpen}
+          onClose={() => setItemModalOpen(false)}
+          items={itemModalItems}
+          columns={itemModalColumns}
+          isLoading={itemModalLoading}
+          error={itemModalError}
+          onInsert={handleInsertItems}
+        />
+      </Suspense>
     </div>
   );
 }

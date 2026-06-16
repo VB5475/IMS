@@ -6,7 +6,3 @@
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
-
-.rw-page .erp-grid-container {
-  border-radius: var(--radius-lg);
-}

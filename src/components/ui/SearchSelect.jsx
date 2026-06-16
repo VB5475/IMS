@@ -1,28 +1,12 @@
-// SearchSelect.jsx — Reusable searchable dropdown component
-// ─────────────────────────────────────────────────────────
-// Replaces native <select> with a custom dropdown that has
-// a search/filter input at the top.
+// SearchSelect.jsx — Reusable searchable combobox (type-to-filter in the same field)
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import "./search-select.css";
 
 /**
- * SearchSelect — A searchable select dropdown.
- *
- * Props:
- *   value        — currently selected value (string)
- *   onChange      — (newValue) => void
- *   options       — [{ value, label }]
- *   placeholder   — text when nothing is selected
- *   searchPlaceholder — text inside the search input
- *   className     — additional CSS class on the wrapper
- *   id            — HTML id for accessibility
- *   ariaLabel     — aria-label for the trigger button
- *   disabled      — disables the control
- *   compact       — if true, uses compact sizing (for grid cells)
- *   onBlur        — called when focus leaves the control (not while dropdown is open)
+ * SearchSelect — combobox with inline typing and filtered dropdown options.
  */
 export default function SearchSelect({
   value = "",
@@ -38,44 +22,36 @@ export default function SearchSelect({
   onBlur,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [dropdownStyle, setDropdownStyle] = useState(null);
   const wrapperRef = useRef(null);
-  const triggerRef = useRef(null);
+  const inputRef = useRef(null);
   const dropdownRef = useRef(null);
-  const searchInputRef = useRef(null);
   const optionsListRef = useRef(null);
+  const skipBlurRef = useRef(false);
 
-  // Find the label for the currently selected value
   const selectedOption = options.find((o) => String(o.value) === String(value));
-  const displayLabel = selectedOption ? selectedOption.label : "";
+  const selectedLabel = selectedOption ? selectedOption.label : "";
 
-  // Filter options by search text
-  const filteredOptions = search
-    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+  const filteredOptions = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
     : options;
 
-  // ── Reset focusedIndex when search changes or dropdown opens ────────────
   useEffect(() => {
-    // Pre-highlight the already-selected item, or default to -1
     const idx = filteredOptions.findIndex((o) => String(o.value) === String(value));
     setFocusedIndex(idx);
-  }, [search, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Scroll focused option into view ────────────────────────────────────
   useEffect(() => {
     if (focusedIndex < 0 || !optionsListRef.current) return;
     const item = optionsListRef.current.children[focusedIndex];
-    if (item) {
-      item.scrollIntoView({ block: "nearest" });
-    }
+    if (item) item.scrollIntoView({ block: "nearest" });
   }, [focusedIndex]);
 
-  // ── Compute dropdown position from the trigger element ──────────────────
   const computeDropdownStyle = useCallback(() => {
-    if (!triggerRef.current) return null;
-    const rect = triggerRef.current.getBoundingClientRect();
+    if (!inputRef.current) return null;
+    const rect = inputRef.current.getBoundingClientRect();
     const minWidth = Math.max(rect.width, 200);
     const maxDropHeight = 280;
     const gap = 4;
@@ -104,34 +80,24 @@ export default function SearchSelect({
     };
   }, []);
 
-  // ── Close on outside click ───────────────────────────────────────────────
+  const closeDropdown = useCallback(() => {
+    setIsOpen(false);
+    setQuery("");
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
 
     function handleClickOutside(e) {
       const inWrapper = wrapperRef.current && wrapperRef.current.contains(e.target);
       const inDropdown = dropdownRef.current && dropdownRef.current.contains(e.target);
-      if (!inWrapper && !inDropdown) {
-        setIsOpen(false);
-        setSearch("");
-      }
+      if (!inWrapper && !inDropdown) closeDropdown();
     }
 
     document.addEventListener("mousedown", handleClickOutside, true);
     return () => document.removeEventListener("mousedown", handleClickOutside, true);
-  }, [isOpen]);
+  }, [isOpen, closeDropdown]);
 
-  // ── Auto-focus search input when opened ─────────────────────────────────
-  useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      const id = requestAnimationFrame(() => {
-        if (searchInputRef.current) searchInputRef.current.focus();
-      });
-      return () => cancelAnimationFrame(id);
-    }
-  }, [isOpen]);
-
-  // ── Reposition on scroll/resize while open (portal mode) ─────────────────
   useLayoutEffect(() => {
     if (!isOpen) return;
     setDropdownStyle(computeDropdownStyle());
@@ -140,9 +106,7 @@ export default function SearchSelect({
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleReposition = () => {
-      setDropdownStyle(computeDropdownStyle());
-    };
+    const handleReposition = () => setDropdownStyle(computeDropdownStyle());
 
     window.addEventListener("scroll", handleReposition, true);
     window.addEventListener("resize", handleReposition);
@@ -152,62 +116,106 @@ export default function SearchSelect({
     };
   }, [isOpen, computeDropdownStyle]);
 
-  // ── Toggle open/closed ───────────────────────────────────────────────────
-  const handleToggle = useCallback(
-    (e) => {
-      e.stopPropagation();
-
-      if (disabled) return;
-
-      if (!isOpen) {
-        setDropdownStyle(computeDropdownStyle());
-        setIsOpen(true);
-      } else {
-        setIsOpen(false);
-        setSearch("");
-      }
-    },
-    [disabled, isOpen, computeDropdownStyle]
-  );
+  const openDropdown = useCallback(() => {
+    if (disabled) return;
+    setDropdownStyle(computeDropdownStyle());
+    setQuery(selectedLabel);
+    setIsOpen(true);
+  }, [disabled, computeDropdownStyle, selectedLabel]);
 
   const handleSelect = useCallback(
     (optValue) => {
       onChange(optValue);
-      setIsOpen(false);
-      setSearch("");
-      requestAnimationFrame(() => triggerRef.current?.focus());
+      closeDropdown();
+      requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [onChange]
+    [onChange, closeDropdown]
   );
 
   const handleClear = useCallback(
     (e) => {
       e.stopPropagation();
+      e.preventDefault();
       onChange("");
-      setIsOpen(false);
-      setSearch("");
-      requestAnimationFrame(() => triggerRef.current?.focus());
+      closeDropdown();
+      requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [onChange]
+    [onChange, closeDropdown]
   );
 
-  const handleTriggerBlur = useCallback(
+  const handleInputFocus = useCallback(() => {
+    if (disabled) return;
+    openDropdown();
+  }, [disabled, openDropdown]);
+
+  const handleInputChange = useCallback(
     (e) => {
+      if (disabled) return;
+      const next = e.target.value;
+      setQuery(next);
+      setIsOpen(true);
+      setDropdownStyle(computeDropdownStyle());
+
+      if (!next) {
+        onChange("");
+        return;
+      }
+
+      const exact = options.find((o) => o.label.toLowerCase() === next.toLowerCase());
+      if (exact) onChange(exact.value);
+    },
+    [disabled, computeDropdownStyle, onChange, options]
+  );
+
+  const handleInputBlur = useCallback(
+    (e) => {
+      if (skipBlurRef.current) {
+        skipBlurRef.current = false;
+        return;
+      }
       if (!onBlur || disabled) return;
+
       requestAnimationFrame(() => {
         const active = document.activeElement;
         if (wrapperRef.current?.contains(active)) return;
         if (dropdownRef.current?.contains(active)) return;
+        closeDropdown();
         onBlur(e);
       });
     },
-    [disabled, onBlur]
+    [disabled, onBlur, closeDropdown]
   );
 
-  // ── Keyboard navigation ──────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e) => {
-      if (!isOpen) return;
+      if (disabled) return;
+
+      if (!isOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        e.preventDefault();
+        if (options.length === 0) return;
+        const currentIdx = options.findIndex((o) => String(o.value) === String(value));
+        let nextIdx = currentIdx;
+        if (e.key === "ArrowDown") {
+          nextIdx = currentIdx < options.length - 1 ? currentIdx + 1 : 0;
+          if (currentIdx === -1) nextIdx = 0;
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : options.length - 1;
+          if (currentIdx === -1) nextIdx = options.length - 1;
+        }
+        handleSelect(options[nextIdx].value);
+        return;
+      }
+
+      if (!isOpen) {
+        if (e.key === "Enter") {
+          const exact = options.find((o) => o.label.toLowerCase() === query.toLowerCase());
+          if (exact) {
+            e.preventDefault();
+            handleSelect(exact.value);
+          }
+        }
+        return;
+      }
 
       switch (e.key) {
         case "ArrowDown": {
@@ -225,22 +233,21 @@ export default function SearchSelect({
           if (focusedIndex >= 0 && filteredOptions[focusedIndex]) {
             handleSelect(filteredOptions[focusedIndex].value);
           } else if (filteredOptions.length === 1) {
-            // Fallback: if nothing is focused but only one result exists, select it
             handleSelect(filteredOptions[0].value);
           }
           break;
         }
         case "Escape": {
-          setIsOpen(false);
-          setSearch("");
-          requestAnimationFrame(() => triggerRef.current?.focus());
+          e.preventDefault();
+          closeDropdown();
+          requestAnimationFrame(() => inputRef.current?.focus());
           break;
         }
         default:
           break;
       }
     },
-    [isOpen, focusedIndex, filteredOptions, handleSelect]
+    [disabled, isOpen, openDropdown, query, options, filteredOptions, focusedIndex, handleSelect, closeDropdown]
   );
 
   const wrapperClass = [
@@ -253,30 +260,18 @@ export default function SearchSelect({
     .filter(Boolean)
     .join(" ");
 
-  // ── Dropdown element (shared between portal and inline) ──────────────────
+  const inputValue = isOpen ? query : selectedLabel || query;
+
   const dropdownEl = isOpen ? (
     <div
       ref={dropdownRef}
       className="search-select__dropdown search-select__dropdown--portal"
       role="listbox"
       style={dropdownStyle ?? undefined}
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={() => {
+        skipBlurRef.current = true;
+      }}
     >
-      {/* Search input */}
-      <div className="search-select__search-wrap">
-        <Search size={14} className="search-select__search-icon" />
-        <input
-          ref={searchInputRef}
-          type="text"
-          className="search-select__search"
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-      </div>
-
-      {/* Options list */}
       <div className="search-select__options" ref={optionsListRef}>
         {filteredOptions.map((opt, idx) => {
           const isSelected = String(opt.value) === String(value);
@@ -323,29 +318,33 @@ export default function SearchSelect({
 
   return (
     <div className={wrapperClass} ref={wrapperRef} id={id}>
-      {/* Trigger */}
-      <button
-        ref={triggerRef}
-        type="button"
-        className="search-select__trigger"
-        onClick={handleToggle}
-        onBlur={handleTriggerBlur}
-        aria-label={ariaLabel || placeholder}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        disabled={disabled}
-        title={displayLabel || placeholder}
-      >
-        <span
-          className={`search-select__value ${!displayLabel ? "search-select__placeholder" : ""}`}
-        >
-          {displayLabel || placeholder}
-        </span>
+      <div className="search-select__field">
+        <input
+          ref={inputRef}
+          type="text"
+          className={`search-select__trigger search-select__input${!inputValue && !isOpen ? " search-select__placeholder" : ""}`}
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onKeyDown={handleKeyDown}
+          placeholder={isOpen ? searchPlaceholder : placeholder}
+          aria-label={ariaLabel || placeholder}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          disabled={disabled}
+          autoComplete="off"
+          title={selectedLabel || placeholder}
+        />
         <span className="search-select__icons">
           {value && !disabled && (
             <span
               className="search-select__clear"
-              onClick={handleClear}
+              onMouseDown={(e) => {
+                skipBlurRef.current = true;
+                handleClear(e);
+              }}
               role="button"
               tabIndex={-1}
               aria-label="Clear selection"
@@ -355,9 +354,8 @@ export default function SearchSelect({
           )}
           <ChevronDown size={12} className="search-select__chevron" />
         </span>
-      </button>
+      </div>
 
-      {/* Dropdown portaled to body — escapes overflow:hidden / sticky ancestors */}
       {dropdownEl && createPortal(dropdownEl, document.body)}
     </div>
   );
