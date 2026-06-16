@@ -48,6 +48,7 @@ import {
   resolveHeaderApiCol,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import {
@@ -528,9 +529,12 @@ export default function PurchaseInquiryForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      if (!isEditMode) tones[f.FilterColName] = "view";
-      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = "frozen";
-      else tones[f.FilterColName] = "editable";
+      let tone = "editable";
+      if (!isEditMode) tone = "view";
+      else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
+
+      tones[f.FilterColName] = tone;
+      if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
@@ -852,12 +856,30 @@ export default function PurchaseInquiryForm() {
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      const hv = headerValuesRef.current;
+
+      // ── Validation (header + detail grids) ───────────────────────────
+      const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+      const headerErrors = validateApiColumns(hv, headerColsToValidate);
+
+      const itemRows = itemGridRef.current?.getRows?.() ?? [];
+      const detailErrors = validateGridRows(itemRows, columns);
+
+      const indentChildRows = Object.values(childRowsMap).flat();
+      const indentErrors = validateGridRows(indentChildRows, childColumns);
+
+      const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
+      if (allErrors.length > 0) {
+        alert(allErrors.join("\n"));
+        return false;
+      }
+
       // ── Master ────────────────────────────────────────────────────────
       const mstRow = {};
       headerColumns.forEach((col) => {
         mstRow[col.ColName] = getColDefault(col.ColDataType);
       });
-      const hv = headerValuesRef.current;
       Object.entries(hv).forEach(([k, v]) => {
         if (k !== "id") mstRow[k] = v;
       });
@@ -867,16 +889,14 @@ export default function PurchaseInquiryForm() {
 
       // ── Detail ────────────────────────────────────────────────────────
       const sessionFields = { LoginID: session.loginId, UserID: session.userId };
-      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      const detRows = itemRows.map(({ id, ...rest }) =>
         buildSaveRowFromColumns(rest, allColumns, sessionFields)
       );
 
       // ── IndentDetail ──────────────────────────────────────────────────
-      const indentDetailRows = Object.values(childRowsMap)
-        .flat()
-        .map(({ id: _id, ...rest }) =>
-          buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
-        );
+      const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
+      );
 
       const payload = {
         prmStrMstJSON: JSON.stringify([mstRow]),
@@ -907,7 +927,7 @@ export default function PurchaseInquiryForm() {
         setIsSavingPI(false);
       }
     },
-    [headerColumns, allColumns, allIndentColumns, childRowsMap, postSave, completeSuccessfulSave]
+    [headerColumns, allColumns, allIndentColumns, childRowsMap, childColumns, columns, postSave, completeSuccessfulSave]
   );
 
   const handleSaveAndPrint = useCallback(async () => {

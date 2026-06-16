@@ -29,7 +29,9 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import SearchSelect from "../ui/SearchSelect";
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
 import CollapsibleGrid from "./CollapsibleGrid";
-import "./EnterpriseGrid.css";
+import GridDatePicker from "./GridDatePicker";
+import GridNumberInput from "./GridNumberInput";
+import "./EntryGrid.css";
 import {
   isColumnFixed,
   isColumnEditable,
@@ -38,28 +40,21 @@ import {
 } from "./gridColumnClass";
 import { getRowDropdownDisplay } from "../../utils/gridUtils";
 import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKeyboardNav";
-import { formatDateForDisplay, isDateColumnDef } from "../../utils/dateFormat";
+import {
+  formatColumnDisplayValue,
+  getDateInputConstraints,
+  isNumericColumnDef,
+  resolveColumnMeta,
+  validateColumnValue,
+} from "../../utils/columnValidation";
+import { parseNumberInput } from "../../utils/numberFormat";
+import { isDateColumnDef } from "../../utils/dateFormat";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
   if (typeof w === "number") return w;
   if (typeof w === "string") return parseInt(w, 10) || 0;
   return 0;
-}
-
-function formatDateForInput(isoString) {
-  if (!isoString) return "";
-  if (typeof isoString === "string" && isoString.includes("T")) {
-    return isoString.split("T")[0];
-  }
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return "";
-  return d.toISOString().split("T")[0];
-}
-
-function parseDateFromInput(dateString) {
-  if (!dateString) return "";
-  return `${dateString}T00:00:00`;
 }
 
 function downloadCSV(filename, csvContent) {
@@ -154,6 +149,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // Always-current snapshot of rows for cell-event handlers
   const rowsRef = useRef([]);
+  const lastValidCellValuesRef = useRef(new Map());
   const tableWrapperRef = useRef(null);
 
   // Stable ref so onRowsChange never causes extra effect re-runs
@@ -357,6 +353,30 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     );
   }, []);
 
+  const validateAndCommitCell = useCallback(
+    (row, col, liveValue) => {
+      const cellKey = `${row.id}:${col.key}`;
+      const result = validateColumnValue(liveValue, col);
+      if (!result.valid) {
+        alert(result.message);
+        const previous = lastValidCellValuesRef.current.get(cellKey);
+        handleCellChange(row.id, col.key, previous ?? row[col.key]);
+        return false;
+      }
+      lastValidCellValuesRef.current.set(cellKey, liveValue);
+      handleCellChange(row.id, col.key, liveValue);
+      return true;
+    },
+    [handleCellChange]
+  );
+
+  const makeCellFocus = useCallback((row, col) => {
+    return () => {
+      const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
+      lastValidCellValuesRef.current.set(`${row.id}:${col.key}`, currentRow[col.key]);
+    };
+  }, []);
+
   // ── Sort handler ──────────────────────────────────────────────────
   const handleSort = useCallback((key) => {
     setSortConfig((prev) => ({
@@ -449,31 +469,41 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   const makeCellBlur = useCallback(
     (row, col) => {
-      if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
+      const firesEvent = onCellEvent && activeEventColumns.has(col.key);
       return (e) => {
+        const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
         const liveValue =
-          col.controlType === 2 ? parseDateFromInput(e.target.value) : e.target.value;
-        fireCellEventForColumn(row, col, liveValue);
+          col.controlType === 2
+            ? currentRow[col.key]
+            : isNumericColumnDef(col)
+              ? parseNumberInput(e.target.value)
+              : e.target.value;
+        if (!validateAndCommitCell(currentRow, col, liveValue)) return;
+        if (firesEvent) fireCellEventForColumn(currentRow, col, liveValue);
       };
     },
-    [onCellEvent, activeEventColumns, fireCellEventForColumn]
+    [onCellEvent, activeEventColumns, fireCellEventForColumn, validateAndCommitCell]
   );
 
   const makeSearchSelectBlur = useCallback(
     (row, col) => {
-      if (!onCellEvent || !activeEventColumns.has(col.key)) return undefined;
+      const firesEvent = onCellEvent && activeEventColumns.has(col.key);
       return () => {
         const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
-        fireCellEventForColumn(row, col, currentRow[col.key]);
+        const liveValue = currentRow[col.key];
+        if (!validateAndCommitCell(currentRow, col, liveValue)) return;
+        if (firesEvent) fireCellEventForColumn(currentRow, col, liveValue);
       };
     },
-    [onCellEvent, activeEventColumns, fireCellEventForColumn]
+    [onCellEvent, activeEventColumns, fireCellEventForColumn, validateAndCommitCell]
   );
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
     const value = row[col.key] ?? "";
     const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
+    const columnMeta = resolveColumnMeta(col);
+    const displayValue = formatColumnDisplayValue(value, col);
 
     // ── Read-only mode: always render as label ──
     if (cellReadOnly) {
@@ -485,8 +515,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           </span>
         );
       }
-      if (isDateColumnDef(col)) {
-        const displayValue = formatDateForDisplay(value);
+      if (isNumericColumnDef(col) || isDateColumnDef(col)) {
         return (
           <span className="cell-label" title={displayValue}>
             {displayValue || "—"}
@@ -508,33 +537,53 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       "aria-label": `${col.name} for row ${row.id}`,
     };
 
+    const dateConstraints =
+      columnMeta?.dataKind === "date" ? getDateInputConstraints(columnMeta) : null;
+
     switch (col.controlType) {
       case 0:
         return (
-          <span className="cell-label" title={String(value)}>
-            {value}
+          <span className="cell-label" title={displayValue || String(value)}>
+            {displayValue || value}
           </span>
         );
 
-      case 1:
+      case 1: {
+        if (isNumericColumnDef(col)) {
+          return (
+            <GridNumberInput
+              value={value}
+              columnMeta={columnMeta}
+              onChange={(next) => handleCellChange(row.id, col.key, next)}
+              onFocus={makeCellFocus(row, col)}
+              onBlur={makeCellBlur(row, col)}
+              ariaLabel={`${col.name} for row ${row.id}`}
+            />
+          );
+        }
         return (
           <input
             className="cell-input"
             type="text"
             {...commonProps}
+            maxLength={columnMeta?.dataKind === "varchar" && columnMeta?.maxLen != null ? columnMeta.maxLen : undefined}
+            onFocus={makeCellFocus(row, col)}
             onBlur={makeCellBlur(row, col)}
           />
         );
+      }
 
       case 2:
         return (
-          <input
-            className="cell-input"
-            type="date"
-            {...commonProps}
-            value={formatDateForInput(value)}
-            onChange={(e) => handleCellChange(row.id, col.key, parseDateFromInput(e.target.value))}
+          <GridDatePicker
+            value={value}
+            inputFormat={columnMeta?.inputFormat ?? ""}
+            minDate={dateConstraints?.min}
+            maxDate={dateConstraints?.max}
+            onChange={(stored) => handleCellChange(row.id, col.key, stored)}
+            onFocus={makeCellFocus(row, col)}
             onBlur={makeCellBlur(row, col)}
+            ariaLabel={`${col.name} for row ${row.id}`}
           />
         );
 
@@ -549,7 +598,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             value={String(value)}
             onChange={(val) => {
               handleCellChange(row.id, col.key, val);
-              fireCellEventForColumn(row, col, val);
+              const currentRow = { ...row, [col.key]: val };
+              if (validateColumnValue(val, col).valid) {
+                fireCellEventForColumn(currentRow, col, val);
+              }
             }}
             onBlur={makeSearchSelectBlur(row, col)}
             options={opts}
@@ -568,13 +620,15 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             className="cell-textarea"
             {...commonProps}
             rows={Math.max(1, Math.min(lineCount, 6))}
+            maxLength={columnMeta?.dataKind === "varchar" && columnMeta?.maxLen != null ? columnMeta.maxLen : undefined}
+            onFocus={makeCellFocus(row, col)}
             onBlur={makeCellBlur(row, col)}
           />
         );
       }
 
       default:
-        return <span className="cell-label">{value}</span>;
+        return <span className="cell-label">{displayValue || value}</span>;
     }
   };
 

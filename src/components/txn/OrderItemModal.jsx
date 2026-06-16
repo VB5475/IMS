@@ -3,9 +3,9 @@
 // (from GetDetailColData) and rows (from SP_ITEM_PICKER).
 // The user selects rows and clicks "Insert" to add them to the main item grid.
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import Modal from "../ui/Modal";
-import EntryGrid from "../grid/EntryGrid";
+const EntryGrid = lazy(() => import("../grid/EntryGrid"));
 import Loader from "../ui/Loader";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { normalizePickerGridColumns } from "../../utils/dateFormat";

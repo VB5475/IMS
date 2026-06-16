@@ -7,6 +7,8 @@
 
 import { ENDPOINTS, CBO_MODE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
+import { buildColumnMeta, formatColumnDisplayValue, getDateInputConstraints, isNumericColumnDef } from "./columnValidation";
+import { isDateColumnDef } from "./dateFormat";
 
 // ── Column helpers ───────────────────────────────────────────────────
 
@@ -76,6 +78,10 @@ export function isLockOnEditModeCol(apiCol) {
  */
 export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
   const colName = apiCol?.ColName ?? filter.FilterColName ?? filter.FilterParameterID;
+  const columnMeta = apiCol ? buildColumnMeta(apiCol) : null;
+  const dateConstraints =
+    columnMeta?.dataKind === "date" ? getDateInputConstraints(columnMeta) : null;
+
   return {
     ...filter,
     ...patch,
@@ -83,6 +89,9 @@ export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
     FilterCaption: apiCol?.DisplayName ?? colName,
     ctrlValueCol: apiCol?.CtrlValueCol,
     ctrlDisplayCol: apiCol?.CtrlDisplayCol,
+    columnMeta,
+    dateMin: dateConstraints?.min ?? null,
+    dateMax: dateConstraints?.max ?? null,
   };
 }
 
@@ -223,7 +232,7 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
 // ── Column transformer ───────────────────────────────────────────────
 
 /**
- * Converts raw API columns into the shape expected by GridForm,
+ * Converts raw API columns into the shared internal grid column shape,
  * sorts fixed columns first, then prepends the checkbox column.
  *
  * @param {object[]} apiColumns         - raw column list from GET_DETAIL_COL_DATA
@@ -231,7 +240,7 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
  * @param {object}  [opts]
  * @param {boolean} [opts.filterable=true]      - false for entry grids
  * @param {boolean} [opts.allEditable=false]    - true for entry grids
- * @returns {object[]}  gridColumns ready for GridForm
+ * @returns {object[]}  gridColumns for EntryGrid or conversion via toEnterpriseDataGridColumns
  */
 export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
   const { filterable = true, allEditable = false, existingRecordEdit = false } = opts;
@@ -253,6 +262,7 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
         key: col.ColName,
         controlType: col.ColCtrlType,
         colDataType: col.ColDataType || null,
+        columnMeta: buildColumnMeta(col),
         width: getColumnWidth(col),
         filterable,
         filterType: deriveFilterType(col.ColCtrlType),
@@ -280,4 +290,45 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
     },
     ...dataColumns,
   ];
+}
+
+/**
+ * Maps internal grid columns (from buildGridColumns) to EnterpriseDataGrid column defs.
+ * Drops the selection checkbox column — not used by the read-only list grid.
+ *
+ * @param {object[]} gridColumns
+ * @returns {object[]}
+ */
+export function toEnterpriseDataGridColumns(gridColumns) {
+  if (!Array.isArray(gridColumns)) return [];
+
+  return gridColumns
+    .filter((col) => col.key !== "cb")
+    .map((col) => {
+      const isDate = isDateColumnDef(col);
+      let filterType = col.filterType || "text";
+      if (filterType === "select") filterType = "list";
+
+      const width =
+        typeof col.width === "number" ? `${col.width}px` : col.width || undefined;
+
+      const mapped = {
+        key: col.key,
+        label: col.name || col.label || col.key,
+        width,
+        filterable: col.filterable !== false,
+        filterType,
+        dropdownOptions: col.dropdownOptions,
+        align: "left",
+      };
+
+      if (isDate) {
+        mapped.filterType = "date";
+        mapped.render = (value) => formatColumnDisplayValue(value, col) || "—";
+      } else if (isNumericColumnDef(col)) {
+        mapped.render = (value) => formatColumnDisplayValue(value, col) || "—";
+      }
+
+      return mapped;
+    });
 }

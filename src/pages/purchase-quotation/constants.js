@@ -91,7 +91,7 @@ export const QTN_HEADER_FILTERS = [
 
 // Header fields that are always read-only (doc: Is ReadOnly = Yes), even in
 // edit mode. Currency is system-derived; the user never types into it.
-export const QTN_READONLY_FIELDS = ["CurrencyID"];
+export const QTN_READONLY_FIELDS = ["CurrencyID", "CurrencyRate"];
 
 export const QTN_GRID_TABS = [
   { id: "items", label: "Item Grid" },

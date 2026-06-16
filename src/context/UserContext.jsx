@@ -14,8 +14,8 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [user, setUser] = useState(() => getUserSession());
 
-  const login = useCallback((authRow, { companyId, yearId }) => {
-    const next = buildSessionFromAuthRow(authRow, { companyId, yearId });
+  const login = useCallback((authRow, { companyId, yearId, company, year }) => {
+    const next = buildSessionFromAuthRow(authRow, { companyId, yearId, company, year });
     setUserSession(next);
     setUser(next);
     return next;
@@ -35,6 +35,8 @@ export function UserProvider({ children }) {
       userName: user.userName,
       companyId: user.companyId,
       yearId: user.yearId,
+      company: user.company,
+      year: user.year,
       login,
       logout,
     }),

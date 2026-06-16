@@ -1,4 +1,41 @@
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import { COL_DATA_TYPE } from "../api/constants";
+
+dayjs.extend(customParseFormat);
+
+const DEFAULT_DATE_DISPLAY_FORMAT = "DD/MM/YYYY";
+const DEFAULT_DATE_PICKER_FORMAT = "dd/MM/yyyy";
+
+/** Convert API InputFormat tokens (dd-MMM-yy) to dayjs format tokens. */
+export function inputFormatToDayjs(format) {
+  if (!format || String(format).trim() === "") return DEFAULT_DATE_DISPLAY_FORMAT;
+  return String(format)
+    .replace(/yyyy/gi, "YYYY")
+    .replace(/yy/gi, "YY")
+    .replace(/MMM/g, "MMM")
+    .replace(/dd/gi, "DD")
+    .replace(/mm/g, "MM");
+}
+
+/**
+ * Convert API InputFormat to react-datepicker dateFormat tokens.
+ * Default is dd/MM/yyyy when InputFormat is empty.
+ */
+export function inputFormatToDatePicker(format) {
+  if (!format || String(format).trim() === "") return DEFAULT_DATE_PICKER_FORMAT;
+  const protectedFmt = String(format).replace(/MMM/g, "\u0001MMM\u0001");
+  return protectedFmt.replace(/mm/g, "MM").replace(/\u0001MMM\u0001/g, "MMM");
+}
+
+/** Store a Date as the grid/API value (ISO date + T00:00:00). */
+export function dateToStoredValue(date) {
+  if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}T00:00:00`;
+}
 
 /**
  * True when ColDataType from GET_DETAIL_COL_DATA represents a date/datetime column.
@@ -71,20 +108,20 @@ export function parseFlexibleDate(value) {
 }
 
 /**
- * Format a date for read-only UI display (dd/mm/yyyy).
+ * Format a date for read-only UI display using InputFormat (dayjs).
+ * Default format is dd/mm/yyyy when InputFormat is empty.
  * Accepts ISO strings, timestamps, and other parseable values.
  * Returns "" for empty input; falls back to the raw string when unparseable.
  * @param {unknown} value
+ * @param {string} [inputFormat] - API InputFormat e.g. "dd-MMM-yy"
  * @returns {string}
  */
-export function formatDateForDisplay(value) {
+export function formatDateForDisplay(value, inputFormat = "") {
   if (value == null || value === "") return "";
 
   const date = parseFlexibleDate(value);
   if (!date) return String(value);
 
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  const fmt = inputFormatToDayjs(inputFormat);
+  return dayjs(date).format(fmt);
 }

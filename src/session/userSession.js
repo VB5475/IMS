@@ -9,6 +9,8 @@ export const DEFAULT_USER_SESSION = {
   userName: "Administrator",
   companyId: 1,
   yearId: 1,
+  company: null,
+  year: null,
   userGroupId: null,
   desgId: null,
   departmentId: null,
@@ -65,7 +67,7 @@ export function clearUserSession() {
 }
 
 /** Map auth API row + login selections into session fields. */
-export function buildSessionFromAuthRow(row, { companyId, yearId }) {
+export function buildSessionFromAuthRow(row, { companyId, yearId, company, year }) {
   return {
     isAuthenticated: true,
     loginId: Number(row.LoginID) || DEFAULT_USER_SESSION.loginId,
@@ -73,6 +75,8 @@ export function buildSessionFromAuthRow(row, { companyId, yearId }) {
     userName: row.UserName ?? DEFAULT_USER_SESSION.userName,
     companyId: Number(companyId) || DEFAULT_USER_SESSION.companyId,
     yearId: Number(yearId) || DEFAULT_USER_SESSION.yearId,
+    company: company ?? null,
+    year: year ?? null,
     userGroupId: row.UserGroupID ?? null,
     desgId: row.DesgID ?? null,
     departmentId: row.DepartmentID ?? null,

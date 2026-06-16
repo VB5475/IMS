@@ -46,6 +46,7 @@ import {
 } from "../../utils/gridUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import {
@@ -563,10 +564,13 @@ export default function PurchaseQuotationForm() {
       const alwaysReadOnly =
         QTN_READONLY_FIELDS.includes(f.FilterColName) ||
         QTN_READONLY_FIELDS.includes(f.FilterParameterID);
-      if (alwaysReadOnly) tones[f.FilterColName] = "view";
-      else if (!isEditMode) tones[f.FilterColName] = "view";
-      else if (isEditRoute && f.lockOnEditMode) tones[f.FilterColName] = "frozen";
-      else tones[f.FilterColName] = "editable";
+
+      let tone = "editable";
+      if (alwaysReadOnly || !isEditMode) tone = "view";
+      else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
+
+      tones[f.FilterColName] = tone;
+      if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
@@ -704,12 +708,27 @@ export default function PurchaseQuotationForm() {
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      const hv = headerValuesRef.current;
+
+      // ── Validation (header + detail grid) ────────────────────────────
+      const headerFieldNames = new Set(QTN_HEADER_FILTERS.map((f) => f.FilterParameterID));
+      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+      const headerErrors = validateApiColumns(hv, headerColsToValidate);
+
+      const itemRows = itemGridRef.current?.getRows?.() ?? [];
+      const detailErrors = validateGridRows(itemRows, columns);
+
+      const allErrors = [...headerErrors, ...detailErrors];
+      if (allErrors.length > 0) {
+        alert(allErrors.join("\n"));
+        return false;
+      }
+
       // ── Master ────────────────────────────────────────────────────────
       const mstRow = {};
       headerColumns.forEach((col) => {
         mstRow[col.ColName] = getColDefault(col.ColDataType);
       });
-      const hv = headerValuesRef.current;
       Object.entries(hv).forEach(([k, v]) => {
         if (k !== "id") mstRow[k] = v;
       });
@@ -720,7 +739,7 @@ export default function PurchaseQuotationForm() {
 
       // ── Detail ────────────────────────────────────────────────────────
       const sessionFields = { LoginID: userSession.loginId, UserID: userSession.userId };
-      const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      const detRows = itemRows.map(({ id, ...rest }) =>
         buildSaveRowFromColumns(rest, allColumns, sessionFields)
       );
 
@@ -751,7 +770,7 @@ export default function PurchaseQuotationForm() {
         setIsSavingQtn(false);
       }
     },
-    [headerColumns, allColumns, postSave, completeSuccessfulSave]
+    [headerColumns, allColumns, columns, postSave, completeSuccessfulSave]
   );
 
   const handleSaveAndPrint = useCallback(async () => {

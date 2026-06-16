@@ -9,19 +9,9 @@ import {
   Eye,
   EyeOff,
   LogIn,
-  LayoutTemplate,
-  Layers,
-  LayoutDashboard,
-  Shield,
   BarChart3,
   Users,
   FileStack,
-  ClipboardList,
-  FileSpreadsheet,
-  TrendingUp,
-  Server,
-  KeyRound,
-  Quote,
 } from "lucide-react";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../../api/constants";
@@ -29,77 +19,6 @@ import { useUser } from "../../context/UserContext";
 import { LOGIN_CONFIG } from "./constants";
 import Loader from "../../components/ui/Loader";
 import "./LoginPage.css";
-
-const DESIGN_TABS = [
-  { id: "horizon", label: "Horizon", Icon: Layers, desc: "Split workspace · flagship ERP" },
-  {
-    id: "meridian",
-    label: "Meridian",
-    Icon: LayoutDashboard,
-    desc: "Product preview · value-first split",
-  },
-  { id: "citadel", label: "Citadel", Icon: Shield, desc: "Trust center · security-led sign-in" },
-];
-
-function LoginProductPreview() {
-  return (
-    <div className="login-preview">
-      <div className="login-preview__header">
-        <span className="login-preview__eyebrow">Inside Horizon</span>
-        <h2>Your operations hub, before you sign in</h2>
-        <p>A quick look at the modules waiting in your workspace.</p>
-      </div>
-
-      <div className="login-preview__frame">
-        <div className="login-preview__sidebar">
-          <span className="login-preview__nav login-preview__nav--active">Dashboard</span>
-          <span className="login-preview__nav">Purchase Inquiry</span>
-          <span className="login-preview__nav">Invoices</span>
-          <span className="login-preview__nav">Reports</span>
-        </div>
-        <div className="login-preview__main">
-          <div className="login-preview__kpis">
-            <div className="login-preview__kpi">
-              <TrendingUp size={14} />
-              <strong>128</strong>
-              <span>Open POs</span>
-            </div>
-            <div className="login-preview__kpi">
-              <ClipboardList size={14} />
-              <strong>24</strong>
-              <span>Inquiries</span>
-            </div>
-            <div className="login-preview__kpi">
-              <FileSpreadsheet size={14} />
-              <strong>₹4.2Cr</strong>
-              <span>Pipeline</span>
-            </div>
-          </div>
-          <div className="login-preview__chart">
-            <div className="login-preview__bar" style={{ height: "42%" }} />
-            <div className="login-preview__bar" style={{ height: "68%" }} />
-            <div className="login-preview__bar" style={{ height: "55%" }} />
-            <div className="login-preview__bar" style={{ height: "82%" }} />
-            <div className="login-preview__bar" style={{ height: "61%" }} />
-            <div className="login-preview__bar" style={{ height: "74%" }} />
-          </div>
-        </div>
-      </div>
-
-      <ul className="login-preview__bullets">
-        <li>
-          <CheckCircle2 size={14} /> Real-time inventory &amp; procurement
-        </li>
-        <li>
-          <CheckCircle2 size={14} /> Division-wise access controls
-        </li>
-        <li>
-          <CheckCircle2 size={14} /> Audit-ready transaction history
-        </li>
-      </ul>
-    </div>
-  );
-}
 
 function buildBootstrapParams(loginId) {
   return {
@@ -130,22 +49,6 @@ function findFinancialYearForDate(yearRows, date = new Date()) {
       if (!from || !to) return false;
       return today >= from && today <= to;
     }) ?? null
-  );
-}
-
-function LoginSecurityStrip() {
-  return (
-    <div className="login-security-strip">
-      <span>
-        <ShieldCheck size={13} /> Encrypted session
-      </span>
-      <span>
-        <KeyRound size={13} /> Role-based access
-      </span>
-      <span>
-        <Server size={13} /> On-premise ready
-      </span>
-    </div>
   );
 }
 
@@ -291,7 +194,6 @@ export default function LoginPage() {
   const { get } = useApi(API_BASE_URL);
   const { login, isAuthenticated } = useUser();
 
-  const [design, setDesign] = useState("horizon");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -371,7 +273,10 @@ export default function LoginPage() {
         return;
       }
 
-      login(authRow, { companyId, yearId });
+      const company = companies.find((row) => String(row.CompanyID) === companyId) ?? null;
+      const year = years.find((row) => String(row.YearID) === yearId) ?? null;
+
+      login(authRow, { companyId, yearId, company, year });
       navigate("/", { replace: true });
     } catch (err) {
       console.error("[LoginPage] authentication failed:", err);
@@ -400,36 +305,11 @@ export default function LoginPage() {
     onSubmit: handleSubmit,
   };
 
-  const activeTab = DESIGN_TABS.find((t) => t.id === design);
-
   return (
-    <main className={`login-page login-page--${design}`}>
+    <main className="login-page">
       <LoginAmbient />
 
-      <div className="login-theme-bar">
-        <div className="login-theme-bar__label">
-          <LayoutTemplate size={14} />
-          Style preview
-        </div>
-        <div className="login-theme-tabs" role="tablist" aria-label="Login design style">
-          {DESIGN_TABS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={design === id}
-              className={`login-theme-tab${design === id ? " login-theme-tab--active" : ""}`}
-              onClick={() => setDesign(id)}
-            >
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
-        </div>
-        {activeTab && <p className="login-theme-bar__hint">{activeTab.desc}</p>}
-      </div>
-
-      <section className="login-hero login-hero--horizon">
+      <section className="login-hero">
         <div className="login-hero__shine" aria-hidden="true" />
         <div className="login-hero__content">
           <div className="login-hero__brand">
@@ -490,39 +370,13 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="login-hero login-hero--meridian">
-        <LoginProductPreview />
-      </section>
-
       <section className="login-panel">
         <div className="login-panel__inner">
-          <div className="login-citadel-aside">
-            <blockquote className="login-testimonial">
-              <Quote size={18} className="login-testimonial__icon" />
-              <p>
-                Horizon cut our purchase inquiry cycle from days to hours. Finance and operations
-                finally share one source of truth.
-              </p>
-              <footer>
-                <strong>Operations Director</strong>
-                <span>Manufacturing · Multi-division ERP</span>
-              </footer>
-            </blockquote>
-          </div>
-
           <div className="login-card-wrap">
             <div className="login-card">
-              <div className="login-card__accent" aria-hidden="true" />
-
-              <LoginSecurityStrip />
-
               <div className="login-card__header">
                 <div className="login-card__logo">
                   <Box size={20} strokeWidth={1.5} />
-                </div>
-                <div className="login-card__brand-text">
-                  <span className="login-card__brand-name">Horizon Enterprise</span>
-                  <span className="login-card__brand-sub">Inventory Management System</span>
                 </div>
                 <h3>Sign in to workspace</h3>
                 <p>Select company and financial year, then enter your credentials.</p>

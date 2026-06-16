@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
-import EnterpriseGrid from "../../components/grid/EnterpriseGrid";
+import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import Loader from "../../components/ui/Loader";
 import { useGridSearch } from "../../hooks/useGridSearch";
 import { gridMeta } from "../../data/dummyData";
+import { toEnterpriseDataGridColumns } from "../../utils/gridUtils";
 import { AlertCircle, Search } from "lucide-react";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { API_BASE_URL_OLD } from "../../api/constants";
 import "./ReportWorkspacePage.css";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export default function ReportWorkspacePage() {
   const [hasFilters, setHasFilters] = useState(null);
@@ -24,10 +27,14 @@ export default function ReportWorkspacePage() {
     masterDetail,
     fetchMasterDetail,
     handleSearch,
-    saveSelectedRows,
   } = useGridSearch(API_BASE_URL_OLD);
 
   const reportTitle = masterDetail?.ReportDashBoardName || "Report";
+
+  const dataGridColumns = useMemo(
+    () => toEnterpriseDataGridColumns(columns),
+    [columns]
+  );
 
   usePageHeader({
     title: reportTitle,
@@ -58,27 +65,27 @@ export default function ReportWorkspacePage() {
       </section>
 
       <section className="workspace-page__grid">
-        {searchError && (
+        {searchError && !hasSearched && (
           <div className="workspace-error">
             <AlertCircle size={16} strokeWidth={2} />
             <span>{searchError}</span>
           </div>
         )}
 
-        {isSearching && <Loader text="Loading Data..." />}
+        {isSearching && !hasSearched && <Loader text="Loading data…" />}
 
-        {hasSearched && columns.length > 0 ? (
-          <EnterpriseGrid
-            config={{
-              columns,
-              pagination: {
-                pageSize: 25,
-                pageSizeOptions: [10, 25, 50, 100],
-              },
-            }}
-            initialData={rows}
-            title={gridMeta.title}
-            onSave={saveSelectedRows}
+        {hasSearched && dataGridColumns.length > 0 ? (
+          <EnterpriseDataGrid
+            title={reportTitle || gridMeta.title}
+            columns={dataGridColumns}
+            data={rows}
+            loading={isSearching}
+            error={searchError}
+            loaderText="Loading data…"
+            defaultPageSize={25}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            emptyMessage="No records match the current filters."
+            fill
           />
         ) : (
           !isSearching &&
