@@ -116,6 +116,35 @@ export function parseFlexibleDate(value) {
  * @param {string} [inputFormat] - API InputFormat e.g. "dd-MMM-yy"
  * @returns {string}
  */
+/** Shift a stored/API date value by a number of days; returns stored format. */
+export function shiftStoredDate(value, days) {
+  const base = parseFlexibleDate(value) ?? new Date();
+  const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+  return dateToStoredValue(next);
+}
+
+/** Shift a native date input value (yyyy-mm-dd) by days. */
+export function shiftNativeDateInputValue(value, days) {
+  const base = parseFlexibleDate(value) ?? new Date();
+  const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+  const y = next.getFullYear();
+  const m = String(next.getMonth() + 1).padStart(2, "0");
+  const d = String(next.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** ArrowUp / ArrowDown on date fields — returns true when handled. */
+export function handleDateArrowKeys(e, currentValue, onChange, { nativeInput = false } = {}) {
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+  e.preventDefault();
+  const delta = e.key === "ArrowUp" ? -1 : 1;
+  const next = nativeInput
+    ? shiftNativeDateInputValue(currentValue, delta)
+    : shiftStoredDate(currentValue, delta);
+  onChange(next);
+  return true;
+}
+
 export function formatDateForDisplay(value, inputFormat = "") {
   if (value == null || value === "") return "";
 

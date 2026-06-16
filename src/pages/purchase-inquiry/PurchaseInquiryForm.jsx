@@ -11,20 +11,20 @@
 //        • Terms tab      → static terms table (no buttons)
 //        Fixed controls (always): Approved filter | Delete
 //   3. CollapsibleGrid        — Indent Details
-//   4. PIActionBar            — Save / Cancel / Close etc.
+//   4. PIActionBar            — Save / Cancel etc.
 //
 // Both the Items and Suppliers EntryGrid instances are always mounted (CSS
 // show/hide) so their row state is preserved when switching tabs.
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
+import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import SupplierPickerModal from "../../components/purchase-inquiry/SupplierPickerModal";
-import OrderItemModal from "../../components/txn/OrderItemModal";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseInquiry } from "../../hooks/usePurchaseInquiry";
 import { useApi } from "../../api/useApi";
@@ -51,6 +51,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PI_CONFIG,
   PI_HEADER_FILTERS,
@@ -61,7 +62,8 @@ import {
   PI_FILTER_CASCADE_RESETS,
   PI_ITEM_PICKER_CONTEXT_FIELDS,
   SUPPLIER_GRID_CONFIG,
-  formatTranDate,
+  buildItemPickerJsonPayload,
+  getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./PurchaseInquiryForm.css";
 
@@ -168,7 +170,6 @@ export default function PurchaseInquiryForm() {
     fetchEditRecord,
     fetchIndentDetailColumns,
     clearIndentDetailMeta,
-    clearIndents,
     fetchUnlockedHeaderDropdowns,
     fireCellEvent,
     eventColumns,
@@ -547,13 +548,12 @@ export default function PurchaseInquiryForm() {
     setChildRowsMap({});
     setChildColumns([]);
     clearIndentDetailMeta();
-    clearIndents();
     setItemModalOpen(false);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalLoading(false);
     setItemModalError(null);
-  }, [clearIndentDetailMeta, clearIndents]);
+  }, [clearIndentDetailMeta]);
 
   // ── Filter cascade ─────────────────────────────────────────────────
   const handleFilterChange = useCallback(
@@ -597,16 +597,18 @@ export default function PurchaseInquiryForm() {
   //   1. Pick RB code by BasedOn ('0'→Direct, '2'→Indent wise)
   //   2. Fetch RBID via Fn_Fetch_RBDetailByRBCode
   //   3. Fetch grid columns via GetDetailColData (read-only, no dropdown fetch)
-  //   4. Fetch item rows via SP_ITEM_PICKER
+  //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INDENT (by BasedOn)
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
   const handleSelectItem = useCallback(async () => {
-    const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValuesRef.current;
-    const divisionID = DivisionID ?? 0;
-    const configID = ConfigID ?? 0;
-    if (!divisionID || divisionID === "0" || divisionID === 0) {
-      alert("Please select a Division before selecting items.");
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
       return;
     }
+
+    const { BasedOnID } = headerValues;
+    const loginId = getUserSession().loginId;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -615,9 +617,14 @@ export default function PurchaseInquiryForm() {
     setItemModalLoading(true);
 
     try {
-      // Step 1 — choose RB code by BasedOnID
-      const rbCode =
-        Number(BasedOnID) === 2 ? PI_CONFIG.RB_ITEM_PICKER_INDENT : PI_CONFIG.RB_ITEM_PICKER_DIRECT;
+      // Step 1 — choose RB code + row-fetch SP by BasedOnID
+      const isIndentWise = Number(BasedOnID) === 2;
+      const rbCode = isIndentWise
+        ? PI_CONFIG.RB_ITEM_PICKER_INDENT
+        : PI_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const itemPickerSp = isIndentWise
+        ? PI_CONFIG.SP_ITEM_PICKER_INDENT
+        : PI_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       // Step 2 — fetch RBID
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -645,22 +652,11 @@ export default function PurchaseInquiryForm() {
       );
       setItemModalColumns(gridColumns);
 
-      // Step 4 — fetch item rows
+      // Step 4 — fetch item rows (all JSON params validated before this call)
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PI_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([
-          {
-            prmDivisionID: Number(divisionID),
-            prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
-            prmLoginID: getUserSession().loginId,
-            prmTranDate: formatTranDate(TranDate),
-            prmConfigID: Number(configID),
-            prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-            prmTranBook: PI_CONFIG.TRAN_BOOK,
-            prmFrmOption: Number(BasedOnID) || 0,
-          },
-        ]),
+        ObjName: itemPickerSp,
+        JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -953,9 +949,17 @@ export default function PurchaseInquiryForm() {
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
 
-  const handleClose = useCallback(() => navigate("/purchase-inquiry"), [navigate]);
   const handleDocument = useCallback(() => {
     console.log("[PI] Document F6 — reserved for document generation.");
+  }, []);
+
+  const handleSelectListShortcut = useCallback(() => {
+    if (activeTab === "items") handleSelectItem();
+    else if (activeTab === "suppliers") handleSelectSupplier();
+  }, [activeTab, handleSelectItem, handleSelectSupplier]);
+
+  const handleToggleCollapsible = useCallback(() => {
+    itemGridRef.current?.toggleFocusedRowCollapsible?.();
   }, []);
 
   const itemGridConfig = {
@@ -974,8 +978,10 @@ export default function PurchaseInquiryForm() {
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
+    onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
-    onClose: handleClose,
+    onSelectList: handleSelectListShortcut,
+    onToggleCollapsible: handleToggleCollapsible,
   });
 
   // Extra buttons visible in the ActionBar while in edit mode
@@ -996,6 +1002,8 @@ export default function PurchaseInquiryForm() {
         variant: "print",
         onClick: handleSaveAndPrint,
         disabled: isSavingPI,
+        accessKey: "p",
+        title: FORM_SHORTCUT_TITLES.savePrint,
       },
       {
         key: "save",
@@ -1006,20 +1014,10 @@ export default function PurchaseInquiryForm() {
         disabled: isSavingPI,
         loading: isSavingPI,
         accessKey: "s",
-        title: "Save (Alt+S)",
-      },
-      {
-        key: "close",
-        label: "Close",
-        Icon: LogOut,
-        variant: "close",
-        onClick: handleClose,
-        showAlways: true,
-        accessKey: "c",
-        title: "Close (Alt+C)",
+        title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingPI, handleSave, handleClose]
+    [handleDocument, handleSaveAndPrint, isSavingPI, handleSave]
   );
 
   return (
@@ -1080,7 +1078,7 @@ export default function PurchaseInquiryForm() {
                 className="pi-tab-action-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
-                title="Pick items from list (Tab here after header fields)"
+                title={FORM_SHORTCUT_TITLES.selectList}
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
@@ -1093,7 +1091,7 @@ export default function PurchaseInquiryForm() {
                 className="pi-tab-action-btn"
                 onClick={handleSelectSupplier}
                 disabled={!isEditMode}
-                title="Pick suppliers from list"
+                title={FORM_SHORTCUT_TITLES.selectList}
               >
                 <Truck size={12} strokeWidth={2.5} />
                 Select Supplier
@@ -1205,15 +1203,17 @@ export default function PurchaseInquiryForm() {
         onInsert={handleInsertSuppliers}
       />
 
-      <OrderItemModal
-        isOpen={itemModalOpen}
-        onClose={() => setItemModalOpen(false)}
-        items={itemModalItems}
-        columns={itemModalColumns}
-        isLoading={itemModalLoading}
-        error={itemModalError}
-        onInsert={handleInsertItems}
-      />
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={itemModalOpen}
+          onClose={() => setItemModalOpen(false)}
+          items={itemModalItems}
+          columns={itemModalColumns}
+          isLoading={itemModalLoading}
+          error={itemModalError}
+          onInsert={handleInsertItems}
+        />
+      </Suspense>
     </div>
   );
 }

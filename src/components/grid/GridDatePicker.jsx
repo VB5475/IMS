@@ -3,6 +3,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
   dateToStoredValue,
+  handleDateArrowKeys,
   inputFormatToDatePicker,
   parseFlexibleDate,
 } from "../../utils/dateFormat";
@@ -29,11 +30,19 @@ export default function GridDatePicker({
     [onChange]
   );
 
+  const handleKeyDown = useCallback(
+    (e) => {
+      handleDateArrowKeys(e, value, onChange);
+    },
+    [value, onChange]
+  );
+
   return (
     <div className="eg-datepicker-wrapper">
       <DatePicker
         selected={selected}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         dateFormat={dateFormat}
         minDate={min ?? undefined}
         maxDate={max ?? undefined}

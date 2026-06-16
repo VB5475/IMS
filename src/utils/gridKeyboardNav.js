@@ -4,7 +4,7 @@
  * Tab / Shift+Tab  → next / previous editable cell (wraps rows)
  * Enter / Shift+Enter → cell below / above (same column)
  * Arrow keys       → move between cells (respects text cursor at boundaries)
- * Space            → toggle row checkbox when focused on a row selector
+ * F2 / Space       → focus cell editor when the cell wrapper is focused
  */
 
 export const GRID_FOCUSABLE_SELECTOR = [
@@ -20,6 +20,23 @@ function isDropdownOpen(target) {
   );
 }
 
+function focusCellEditorFromTarget(target) {
+  const td = target?.closest?.("tbody td");
+  if (!td) return false;
+  const focusable = td.querySelector(
+    "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+  );
+  if (!focusable || focusable === document.activeElement) return false;
+  focusable.focus();
+  if (
+    focusable instanceof HTMLInputElement &&
+    (focusable.type === "text" || focusable.type === "number")
+  ) {
+    focusable.select();
+  }
+  return true;
+}
+
 function getDataRows(root) {
   return [...root.querySelectorAll("tbody tr")].filter(
     (tr) => !tr.classList.contains("eg-child-row") && !tr.querySelector("td[colspan]")
@@ -33,8 +50,8 @@ function getCellTarget(td, readOnly) {
   if (readOnly) return null;
   return td.querySelector(
     "input.cell-input:not([disabled]):not([readonly]), " +
-      "textarea.cell-textarea:not([disabled]):not([readonly]), " +
-      ".search-select__trigger:not([disabled])"
+    "textarea.cell-textarea:not([disabled]):not([readonly]), " +
+    ".search-select__trigger:not([disabled])"
   );
 }
 
@@ -178,22 +195,36 @@ export function handleGridKeyboardEvent(
 
   const { key, shiftKey } = e;
 
+  if (key === "F2") {
+    if (focusCellEditorFromTarget(e.target)) {
+      e.preventDefault();
+      return true;
+    }
+    return false;
+  }
+
   if (key === " " && e.target instanceof HTMLInputElement && e.target.type === "checkbox") {
     return false;
   }
 
-  if (key === " " && onToggleRow) {
+  if (key === " ") {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
       return false;
     }
     if (e.target.closest(".search-select__trigger")) {
       return false;
     }
-    const rowId = getRowIdFromTarget(e.target);
-    if (rowId) {
+    if (focusCellEditorFromTarget(e.target)) {
       e.preventDefault();
-      onToggleRow(rowId);
       return true;
+    }
+    if (onToggleRow) {
+      const rowId = getRowIdFromTarget(e.target);
+      if (rowId) {
+        e.preventDefault();
+        onToggleRow(rowId);
+        return true;
+      }
     }
   }
 

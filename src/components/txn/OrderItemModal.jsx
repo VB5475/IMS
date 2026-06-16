@@ -164,17 +164,25 @@ export default function OrderItemModal({
               )}
             </div>
 
-            <EntryGrid
-              key={String(isOpen)}
-              ref={gridRef}
-              config={gridConfig}
-              title=""
-              readOnly
-              initialRows={items}
-              hideBottomPanel
-              emptyMessage="No items found for the selected criteria."
-              onSelectionChange={setSelectedCount}
-            />
+            <Suspense
+              fallback={
+                <div className="oim-state">
+                  <Loader text="Loading grid…" />
+                </div>
+              }
+            >
+              <EntryGrid
+                key={String(isOpen)}
+                ref={gridRef}
+                config={gridConfig}
+                title=""
+                readOnly
+                initialRows={items}
+                hideBottomPanel
+                emptyMessage="No items found for the selected criteria."
+                onSelectionChange={setSelectedCount}
+              />
+            </Suspense>
           </div>
         )}
       </div>

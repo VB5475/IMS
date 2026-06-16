@@ -11,12 +11,12 @@
 // GridForm (mode="entry") is hidden until the first "Add New" click.
 // Row-state lives inside GridForm; parent pushes rows via gridRef.current.addRow().
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { AlertCircle, Plus } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
-import OrderItemModal from "../../components/txn/OrderItemModal";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useTxnEntry } from "../../hooks/useTxnEntry";
 import { useApi } from "../../api/useApi";
 import { controlTypeMap } from "../../data/dummyData";
@@ -434,14 +434,16 @@ export default function TxnEntryPage() {
         </section>
       )}
 
-      <OrderItemModal
-        isOpen={orderModalOpen}
-        onClose={() => setOrderModalOpen(false)}
-        items={orderItems}
-        isLoading={orderItemsLoading}
-        error={orderItemsError}
-        onInsert={handleInsertOrderItems}
-      />
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={orderModalOpen}
+          onClose={() => setOrderModalOpen(false)}
+          items={orderItems}
+          isLoading={orderItemsLoading}
+          error={orderItemsError}
+          onInsert={handleInsertOrderItems}
+        />
+      </Suspense>
     </div>
   );
 }

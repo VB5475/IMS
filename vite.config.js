@@ -17,13 +17,13 @@ export default defineConfig(({ mode }) => ({
 
     rolldownOptions: {
       output: {
-        codeSplitting: {
-          groups: [
-            { name: "vendor-react", test: /node_modules\/react(-dom)?\// },
-            { name: "vendor-router", test: /node_modules\/react-router(-dom)?\// },
-            { name: "vendor-icons", test: /node_modules\/lucide-react\// },
-            { name: "vendor-docx", test: /node_modules\/(docx|html-to-docx)\// },
-          ],
+        manualChunks(id) {
+          if (id.includes("react-datepicker")) return "vendor-datepicker";
+          if (id.includes("dayjs")) return "vendor-dayjs";
+          if (/node_modules\/react(-dom)?\//.test(id)) return "vendor-react";
+          if (/node_modules\/react-router(-dom)?\//.test(id)) return "vendor-router";
+          if (id.includes("lucide-react")) return "vendor-icons";
+          if (/node_modules\/(docx|html-to-docx)\//.test(id)) return "vendor-docx";
         },
       },
     },

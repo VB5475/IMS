@@ -33,10 +33,11 @@ export const PI_CONFIG = {
   // SP / function names used in API calls
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_INQUIRY_TYPES: "fn_tbl_ddl_Pur_Configuration",
-  SP_INDENTS: "Fn_Tbl_FetchPurchaseItemDetailTransWs4Web",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
   SP_DEPARTMENTS: "Pr_Fetch_DepartmentData_IMS",
-  SP_ITEM_PICKER: "Fn_Tbl_FetchPurchaseItemDetailTransWs4Web",
+  // Item picker row fetch — ObjName depends on BasedOn (Direct vs Indent wise)
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurInqSelOnlyItem",
+  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurInqSelIndtItem",
   SP_GRID_EVENT: "fn_tbl_RB_PurInquiryDet_Event",
 
   // Called when Indent wise is selected and user clicks Insert in the item picker.
@@ -124,7 +125,7 @@ export const PI_CONFIG = {
   LIST_DIVISION_ID: 15,
 };
 
-// ── Header filter definitions — cascade order: Division → Inquiry Type → Indent ──
+// ── Header filter definitions — cascade order: Division → Inquiry Type ──
 // Field order + control types only; captions from GET_DETAIL_COL_DATA (DisplayName).
 export const PI_HEADER_FILTERS = [
   { FilterParameterID: "TranCode", FilterColCtrlType: controlTypeMap.TEXTBOX },
@@ -175,13 +176,54 @@ export const PI_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID"],
 };
 
-/** Header fields mapped to Fn_Tbl_FetchPurchaseItemDetailTransWs4Web — grids clear when any changes */
+/** Header fields mapped to item picker FN_FETCH_DATA JSON — grids clear when any changes */
 export const PI_ITEM_PICKER_CONTEXT_FIELDS = new Set([
   "DivisionID",
   "TranDate",
   "ConfigID",
   "BasedOnID",
 ]);
+
+/** User/header fields required in item picker FN_FETCH_DATA JSON (auto-filled keys omitted). */
+export const PI_ITEM_PICKER_JSON_FIELDS = [
+  { headerKey: "DivisionID", label: "Division" },
+  { headerKey: "TranDate", label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID", label: "Inquiry Type" },
+  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
+];
+
+function isMissingItemPickerHeaderValue(field, value) {
+  if (field.isDate) {
+    return value == null || value === "" || formatTranDate(value) === "0";
+  }
+  if (value == null || value === "") return true;
+  if (field.allowZero) return false;
+  return Number(value) === 0 || value === "0";
+}
+
+/** Returns display labels of header fields that must be filled before Select Item. */
+export function getMissingItemPickerHeaderFields(headerValues) {
+  const missing = [];
+  PI_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
+    if (isMissingItemPickerHeaderValue(field, headerValues?.[field.headerKey])) {
+      missing.push(field.label);
+    }
+  });
+  return missing;
+}
+
+export function buildItemPickerJsonPayload(headerValues, loginId) {
+  return {
+    prmDivisionID: Number(headerValues.DivisionID),
+    prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
+    prmLoginID: loginId,
+    prmTranDate: formatTranDate(headerValues.TranDate),
+    prmConfigID: Number(headerValues.ConfigID),
+    prmSupplierID: Number(headerValues.SupplierID ?? 0),
+    prmTranBook: PI_CONFIG.TRAN_BOOK,
+    prmFrmOption: Number(headerValues.BasedOnID) || 0,
+  };
+}
 
 // Supplier grid config (used by the Suppliers tab EntryGrid)
 export const SUPPLIER_GRID_CONFIG = {

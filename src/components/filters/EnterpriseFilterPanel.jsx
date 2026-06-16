@@ -11,6 +11,7 @@ import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
 import { formatColumnDisplayValue, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
 import GridNumberInput from "../grid/GridNumberInput";
+import { handleDateArrowKeys } from "../../utils/dateFormat";
 import {
   AlertCircle,
   Search,
@@ -143,6 +144,11 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             className="efq-cell__input efq-cell__input--date"
             value={value || ""}
             onChange={handleChange}
+            onKeyDown={(e) =>
+              handleDateArrowKeys(e, value || "", (next) => onChange(FilterColName, next), {
+                nativeInput: true,
+              })
+            }
             onBlur={(e) => handleBlurValidate(e.target.value)}
             min={filter.dateMin || undefined}
             max={filter.dateMax || undefined}

@@ -1755,3 +1755,25 @@ textarea:focus-visible {
   width: max-content;
   min-width: 100%;
 }
+
+/* Compact loader while lazy cell editors load */
+.eg-cell-lazy-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  width: 100%;
+}
+
+.eg-cell-lazy-fallback .loader-wrap {
+  padding: 4px 8px;
+}
+
+.eg-cell-lazy-fallback .loader-spin {
+  width: 16px;
+  height: 16px;
+}
+
+.eg-child-cell > .loader-wrap {
+  padding: 16px 20px;
+}

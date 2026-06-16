@@ -9,18 +9,18 @@
 //        • Terms tab      → static terms table (no buttons)
 //        Fixed controls (always): Approved filter | Delete
 //   3. EnterpriseSummaryPanel — live totals computed from grid rows
-//   4. QtnActionBar           — Save / Cancel / Close etc.
+//   4. QtnActionBar           — Save / Cancel etc.
 //
 // Quotation item picker RB + prmFrmOption follow BasedOnID ('0' Direct | '2' Inquiry Based).
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save, LogOut } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
-import OrderItemModal from "../../components/txn/OrderItemModal";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseQuotation } from "../../hooks/usePurchaseQuotation";
 import { useApi } from "../../api/useApi";
@@ -49,6 +49,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   QTN_CONFIG,
   QTN_MASTER,
@@ -60,7 +61,8 @@ import {
   TERMS_COLUMNS,
   QTN_FILTER_CASCADE_RESETS,
   QTN_ITEM_PICKER_CONTEXT_FIELDS,
-  formatTranDate,
+  buildItemPickerJsonPayload,
+  getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./PurchaseQuotationForm.css";
 
@@ -164,7 +166,6 @@ export default function PurchaseQuotationForm() {
     isLoadingSuppliers,
     columns,
     allColumns,
-    isFetching,
     metaError,
     fetchDetailMeta,
     fetchGridColumns,
@@ -217,6 +218,7 @@ export default function PurchaseQuotationForm() {
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
   // initialValues, resetting all filter field values visually on Cancel.
   const [filterResetKey, setFilterResetKey] = useState(0);
+  const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -291,6 +293,8 @@ export default function PurchaseQuotationForm() {
     setItemModalColumns([]);
     setItemModalLoading(false);
     setItemModalError(null);
+
+    setCurrencyExternalValues({ CurrencyID: "", CurrencyRate: "" });
 
     itemGridRef.current?.clearRows?.();
     setGridRows([]);
@@ -442,13 +446,16 @@ export default function PurchaseQuotationForm() {
         if (!val || val === "0") {
           headerValuesRef.current.CurrencyID = "";
           headerValuesRef.current.CurrencyRate = "";
+          setCurrencyExternalValues({ CurrencyID: "", CurrencyRate: "" });
           return buildCurrencyPatchFromSupplier(null);
         }
         const supplier = getSupplierRow(val);
         if (supplier) {
           headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
           headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
-          return buildCurrencyPatchFromSupplier(supplier);
+          const patch = buildCurrencyPatchFromSupplier(supplier);
+          setCurrencyExternalValues(patch);
+          return patch;
         }
         return undefined;
       }
@@ -458,6 +465,7 @@ export default function PurchaseQuotationForm() {
         headerValuesRef.current.SupplierID = 0;
         headerValuesRef.current.CurrencyID = "";
         headerValuesRef.current.CurrencyRate = "";
+        setCurrencyExternalValues({ CurrencyID: "", CurrencyRate: "" });
         clearQuotationTypes();
         clearSuppliers();
         if (val && val !== "0") {
@@ -593,16 +601,22 @@ export default function PurchaseQuotationForm() {
   }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
 
   // ── Select Item (Items tab) ────────────────────────────────────────
-  // RB code + prmFrmOption depend on BasedOnID ('0' Direct | '2' Inquiry Based).
+  // Flow:
+  //   1. Pick RB code + row-fetch SP by BasedOn ('0' Direct | '2' Inquiry Based)
+  //   2. Fetch RBID via Fn_Fetch_RBDetailByRBCode
+  //   3. Fetch grid columns via GetDetailColData
+  //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INQUIRY
   const handleSelectItem = useCallback(async () => {
-    const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValuesRef.current;
-    const divisionID = DivisionID ?? 0;
-    const configID = ConfigID ?? 0;
-    const frmOption = Number(BasedOnID) || 0;
-    if (!divisionID || divisionID === "0" || divisionID === 0) {
-      alert("Please select a Division before selecting items.");
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
       return;
     }
+
+    const { BasedOnID } = headerValues;
+    const loginId = getUserSession().loginId;
+    const isInquiryBased = Number(BasedOnID) === 2;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -611,8 +625,12 @@ export default function PurchaseQuotationForm() {
     setItemModalLoading(true);
 
     try {
-      const rbCode =
-        frmOption === 2 ? QTN_CONFIG.RB_ITEM_PICKER_INQUIRY : QTN_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const rbCode = isInquiryBased
+        ? QTN_CONFIG.RB_ITEM_PICKER_INQUIRY
+        : QTN_CONFIG.RB_ITEM_PICKER_DIRECT;
+      const itemPickerSp = isInquiryBased
+        ? QTN_CONFIG.SP_ITEM_PICKER_INQUIRY
+        : QTN_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
@@ -626,7 +644,7 @@ export default function PurchaseQuotationForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
-        prmLoginID: getUserSession().loginId,
+        prmLoginID: loginId,
       });
       const gridColumns = buildGridColumns(
         colRes?.Links || [],
@@ -640,19 +658,8 @@ export default function PurchaseQuotationForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: QTN_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([
-          {
-            prmDivisionID: Number(divisionID),
-            prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
-            prmLoginID: getUserSession().loginId,
-            prmTranDate: formatTranDate(TranDate),
-            prmConfigID: Number(configID),
-            prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-            prmTranBook: QTN_CONFIG.TRAN_BOOK,
-            prmFrmOption: frmOption,
-          },
-        ]),
+        ObjName: itemPickerSp,
+        JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -793,9 +800,16 @@ export default function PurchaseQuotationForm() {
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
 
-  const handleClose = useCallback(() => navigate("/purchase-quotation"), [navigate]);
   const handleDocument = useCallback(() => {
     console.log("[PQ] Document F6 — reserved for document generation.");
+  }, []);
+
+  const handleSelectListShortcut = useCallback(() => {
+    if (activeTab === "items") handleSelectItem();
+  }, [activeTab, handleSelectItem]);
+
+  const handleToggleCollapsible = useCallback(() => {
+    itemGridRef.current?.toggleFocusedRowCollapsible?.();
   }, []);
 
   const itemGridConfig = {
@@ -814,8 +828,10 @@ export default function PurchaseQuotationForm() {
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
+    onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
-    onClose: handleClose,
+    onSelectList: handleSelectListShortcut,
+    onToggleCollapsible: handleToggleCollapsible,
   });
 
   // Extra buttons visible in the ActionBar while in edit mode
@@ -836,6 +852,8 @@ export default function PurchaseQuotationForm() {
         variant: "print",
         onClick: handleSaveAndPrint,
         disabled: isSavingQtn,
+        accessKey: "p",
+        title: FORM_SHORTCUT_TITLES.savePrint,
       },
       {
         key: "save",
@@ -846,20 +864,10 @@ export default function PurchaseQuotationForm() {
         disabled: isSavingQtn,
         loading: isSavingQtn,
         accessKey: "s",
-        title: "Save (Alt+S)",
-      },
-      {
-        key: "close",
-        label: "Close",
-        Icon: LogOut,
-        variant: "close",
-        onClick: handleClose,
-        showAlways: true,
-        accessKey: "c",
-        title: "Close (Alt+C)",
+        title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave, handleClose]
+    [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave]
   );
 
   return (
@@ -892,6 +900,7 @@ export default function PurchaseQuotationForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterPanelLoading || !headerMetaReady}
             fieldTones={filterFieldTones}
+            externalValues={currencyExternalValues}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}
@@ -920,7 +929,7 @@ export default function PurchaseQuotationForm() {
                 className="pq-tab-action-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
-                title="Pick items from list (Tab here after header fields)"
+                title={FORM_SHORTCUT_TITLES.selectList}
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
@@ -1000,15 +1009,17 @@ export default function PurchaseQuotationForm() {
         extraButtons={qtnExtraButtons}
       />
 
-      <OrderItemModal
-        isOpen={itemModalOpen}
-        onClose={() => setItemModalOpen(false)}
-        items={itemModalItems}
-        columns={itemModalColumns}
-        isLoading={itemModalLoading}
-        error={itemModalError}
-        onInsert={handleInsertItems}
-      />
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={itemModalOpen}
+          onClose={() => setItemModalOpen(false)}
+          items={itemModalItems}
+          columns={itemModalColumns}
+          isLoading={itemModalLoading}
+          error={itemModalError}
+          onInsert={handleInsertItems}
+        />
+      </Suspense>
     </div>
   );
 }
