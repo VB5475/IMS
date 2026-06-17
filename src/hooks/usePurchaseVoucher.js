@@ -9,7 +9,6 @@
 // PV-specific vs PO:
 //   fetchPVTypes(divisionId)             — cascade: Division → PR Type
 //   fetchCostCenters(divisionId, date)   — Cost Center dropdown
-//   fetchCrDaysCriteria(...)             — Credit Days Criteria dropdown
 //   No amend, no 3rd detail table (simpler than PO)
 
 import { useState, useCallback, useRef } from "react";
@@ -53,11 +52,9 @@ function mapMasterRowToHeaderValues(master, params) {
     SupplierID:            master.SupplierID != null ? Number(master.SupplierID) : 0,
     CurrencyID:            master.CurrencyID != null ? Number(master.CurrencyID) : 0,
     CurrencyRate:          master.CurrencyRate != null ? Number(master.CurrencyRate) : 0,
-    CreditDays:            master.CreditDays != null ? Number(master.CreditDays) : 0,
     BillNo:                master.BillNo ?? "",
     BillDate:              toDateInput(master.BillDate) || null,
     CostCenterID:          master.CostCenterID != null ? Number(master.CostCenterID) : 0,
-    CreditDaysCriteriaID:  master.CreditDaysCriteriaID != null ? Number(master.CreditDaysCriteriaID) : 0,
     CreditStartDate:       toDateInput(master.CreditStartDate) || null,
     Narration:             master.Narration ?? "",
     Remarks:               master.Remarks ?? "",
@@ -121,7 +118,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [costCenterOptions, setCostCenterOptions] = useState([]);
-  const [crDaysCriteriaOptions, setCrDaysCriteriaOptions] = useState([]);
 
   const [isLoadingPvTypes, setIsLoadingPvTypes] = useState(false);
 
@@ -206,8 +202,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const opts = (res?.Table || []).map((r) => ({
-        value: String(r.CostCenterID ?? r.AccountId),
-        label: r.CostCenterName ?? r.AccountName ?? String(r.CostCenterID),
+        value: String(r.CostCenterID ?? r.CostCenterId ?? r.AccountId),
+        label: r.CostCenterAc,
       }));
       setCostCenterOptions(opts);
       return opts;
@@ -218,31 +214,21 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     }
   }, [get]);
 
-  // ── fetchCrDaysCriteria ─────────────────────────────────────────────
-  const fetchCrDaysCriteria = useCallback(async (divisionId, tranDate, configId, supplierId) => {
+  // ── fetchLocations ──────────────────────────────────────────────────
+  const fetchLocations = useCallback(async () => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: PV_CONFIG.SP_CR_DAYS_CRITERIA,
-        JSon: JSON.stringify([{
-          prmDivisionId: Number(divisionId) || 0,
-          prmYearId: PV_CONFIG.CONFIG_YEAR_ID,
-          prmLoginId: DEFAULT_LOGIN_ID,
-          prmTranDate: tranDate || "",
-          prmConfigID: Number(configId) || 0,
-          prmSupplierID: Number(supplierId) || 0,
-        }]),
+        ObjName: PV_CONFIG.SP_LOCATION,
+        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID, prmLocationType: "" }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.IDNumber ?? r.ID),
-        label: r.Criteria ?? String(r.ID),
+      return (res?.Table || []).map((r) => ({
+        value: String(r.LocationID ?? r.LocID),
+        label: r.LocationName ?? r.LocName ?? r.Location ?? String(r.LocationID ?? r.LocID),
       }));
-      setCrDaysCriteriaOptions(opts);
-      return opts;
     } catch (err) {
-      console.warn("[PV] Cr Days Criteria fetch failed:", err);
-      setCrDaysCriteriaOptions([]);
+      console.warn("[PV] Location fetch failed:", err);
       return [];
     }
   }, [get]);
@@ -370,6 +356,11 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         rowData: masterRow,
         fetchUnlockedDropdowns,
       });
+      const hasLocationCol = apiColumns.some((c) => c.ColName === "LocationID" && c.ColCtrlType === 4);
+      if (hasLocationCol) {
+        const locOpts = await fetchLocations();
+        if (locOpts.length) colDropdownOptions["LocationID"] = locOpts;
+      }
       const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, { filterable: false, allEditable: true, existingRecordEdit });
       setColumns(gridColumns);
       console.log("%c[PV] Grid columns built:", "color:#22c55e;font-weight:600", gridColumns.length);
@@ -378,7 +369,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       console.error("[PV] fetchGridColumns failed:", err);
       return [];
     }
-  }, [get]);
+  }, [get, fetchLocations]);
 
   // ── fireCellEvent ───────────────────────────────────────────────────
   const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
@@ -410,7 +401,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         CurrencyID:   master.CurrencyID ?? 0,
         CurrencyName: master.CurrencyName ?? master.Currency ?? "",
         CurrencyRate: master.CurrencyRate ?? 0,
-        CrDays:       master.CreditDays ?? 0,
       };
     }
     if (master.ConfigID != null && master.ConfigName) {
@@ -418,9 +408,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     }
     if (master.CostCenterID != null && master.CostCenterName) {
       setCostCenterOptions([{ value: String(master.CostCenterID), label: master.CostCenterName }]);
-    }
-    if (master.CreditDaysCriteriaID != null && master.CreditDaysCriteriaName) {
-      setCrDaysCriteriaOptions([{ value: String(master.CreditDaysCriteriaID), label: master.CreditDaysCriteriaName }]);
     }
   }, []);
 
@@ -432,7 +419,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     const needsSupplier  = headerColumns.some((c) => c.ColName === "SupplierID" && isEditable(c));
     const needsConfig    = headerColumns.some((c) => c.ColName === "ConfigID" && isEditable(c));
     const needsCostCenter = headerColumns.some((c) => c.ColName === "CostCenterID" && isEditable(c));
-    const needsCrCriteria = headerColumns.some((c) => c.ColName === "CreditDaysCriteriaID" && isEditable(c));
 
     const tasks = [];
     if (needsDivision || needsSupplier) {
@@ -462,9 +448,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     }
     if (needsConfig && divisionId) tasks.push(fetchPVTypes(divisionId));
     if (needsCostCenter) tasks.push(fetchCostCenters(divisionId, tranDate));
-    if (needsCrCriteria) tasks.push(fetchCrDaysCriteria(divisionId, tranDate, configId, supplierId));
     await Promise.all(tasks);
-  }, [headerColumns, get, fetchPVTypes, fetchCostCenters, fetchCrDaysCriteria]);
+  }, [headerColumns, get, fetchPVTypes, fetchCostCenters]);
 
   // ── fetchEditRecord ─────────────────────────────────────────────────
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
@@ -497,11 +482,11 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   return {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, pvTypeOptions, supplierOptions, currencyOptions,
-    costCenterOptions, crDaysCriteriaOptions,
+    costCenterOptions,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,
-    fetchCostCenters, fetchCrDaysCriteria,
+    fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fireCellEvent,

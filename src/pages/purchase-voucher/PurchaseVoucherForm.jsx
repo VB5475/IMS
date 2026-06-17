@@ -3,18 +3,19 @@
 // Mirrors PurchaseIndentForm.jsx — same three-phase load, edit-mode gate, item grid.
 //
 // PV-specific vs Indent:
-//   Added: Supplier, Currency, CurrencyRate, CreditDays, BillNo, BillDate,
-//          CostCenter, CreditDaysCriteria, CreditStartDate, Narration
+//   Added: Supplier, Currency, CurrencyRate, BillNo, BillDate,
+//          CostCenter, CreditStartDate, Narration
 //   3 item picker modes: GRN Base (0) | PO Base (1) | Direct (2)
 //   Cascade: DivisionID → clear ConfigID + SupplierID + grid
-//            SupplierID → auto-fill Currency + CrDays + clear grid
+//            SupplierID → auto-fill Currency + clear grid
 //            BasedOnID  → clear grid
 //
 // Layout (top → bottom):
-//   1. EnterpriseFilterPanel — header fields
-//   2. pv-grid-section       — single-tab Item Grid
+//   1. EnterpriseFilterPanel  — header fields
+//   2. pv-grid-section        — single-tab Item Grid
 //        buttons: Select Item | Delete
-//   3. ActionBar             — Add / Save / Cancel / Close (Alt shortcuts)
+//   3. EnterpriseSummaryPanel — live totals computed from grid rows
+//   4. ActionBar              — Add / Save / Cancel / Close (Alt shortcuts)
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -22,6 +23,7 @@ import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { usePurchaseVoucher } from "../../hooks/usePurchaseVoucher";
 import { useApi } from "../../api/useApi";
@@ -47,6 +49,7 @@ import {
   PV_GRID_TABS,
   PV_FILTER_CASCADE_RESETS,
   PV_SHORTCUT_CONFIG,
+  PV_SUMMARY_FIELDS,
   formatPVTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -78,11 +81,9 @@ function mapHeaderValuesToFilterValues(headerValues) {
     SupplierID:           String(headerValues.SupplierID ?? ""),
     CurrencyName:         headerValues.CurrencyName ?? headerValues.Currency ?? "",
     CurrencyRate:         String(headerValues.CurrencyRate ?? ""),
-    CreditDays:           String(headerValues.CreditDays ?? ""),
     BillNo:               headerValues.BillNo ?? "",
     BillDate:             headerValues.BillDate ?? "",
     CostCenterID:         String(headerValues.CostCenterID ?? ""),
-    CreditDaysCriteriaID: String(headerValues.CreditDaysCriteriaID ?? ""),
     CreditStartDate:      headerValues.CreditStartDate ?? "",
     Narration:            headerValues.Narration ?? "",
     Remarks:              headerValues.Remarks ?? "",
@@ -119,6 +120,7 @@ export default function PurchaseVoucherForm() {
   const navigate    = useNavigate();
 
   const itemGridRef       = useRef(null);
+  const summaryRef        = useRef(null);
   const filterPanelRef    = useRef(null);
   const selectItemBtnRef  = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
@@ -128,11 +130,11 @@ export default function PurchaseVoucherForm() {
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, pvTypeOptions, supplierOptions,
-    costCenterOptions, crDaysCriteriaOptions,
+    costCenterOptions,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,
-    fetchCostCenters, fetchCrDaysCriteria,
+    fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fireCellEvent,
@@ -160,11 +162,9 @@ export default function PurchaseVoucherForm() {
     SupplierID:           0,
     CurrencyID:           0,
     CurrencyRate:         0,
-    CreditDays:           0,
     BillNo:               "",
     BillDate:             null,
     CostCenterID:         0,
-    CreditDaysCriteriaID: 0,
     CreditStartDate:      todayISO,
     Narration:            "",
     Remarks:              "",
@@ -186,6 +186,7 @@ export default function PurchaseVoucherForm() {
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading]   = useState(false);
+  const [gridRows, setGridRows]             = useState([]);
 
   // Item picker modal
   const [itemModalOpen, setItemModalOpen]     = useState(false);
@@ -336,7 +337,6 @@ export default function PurchaseVoucherForm() {
         case "ConfigID":             return { ...filter, staticOptions: pvTypeOptions };
         case "SupplierID":           return { ...filter, staticOptions: supplierOptions };
         case "CostCenterID":         return { ...filter, staticOptions: costCenterOptions };
-        case "CreditDaysCriteriaID": return { ...filter, staticOptions: crDaysCriteriaOptions };
         default:                     return filter;
       }
     };
@@ -352,7 +352,17 @@ export default function PurchaseVoucherForm() {
       if (!apiCol) return withOpts;
       return { ...withOpts, FilterColName: apiCol.ColName, lockOnEditMode: isLockOnEditModeCol(apiCol) };
     });
-  }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions, crDaysCriteriaOptions]);
+  }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
+
+  const syncedSummaryFields = useMemo(() => {
+    const colMap = {};
+    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
+    return PV_SUMMARY_FIELDS.map((f) => ({
+      ...f,
+      mstKey: f.SummaryParameterID,
+      label: colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
+    }));
+  }, [headerColumns]);
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -390,7 +400,6 @@ export default function PurchaseVoucherForm() {
           headerValuesRef.current.CurrencyID   = cached.CurrencyID;
           headerValuesRef.current.CurrencyName = cached.CurrencyName;
           headerValuesRef.current.CurrencyRate  = cached.CurrencyRate;
-          headerValuesRef.current.CreditDays    = cached.CrDays;
           setCurrencyExternalValues({
             CurrencyName: cached.CurrencyName ?? "",
             CurrencyRate: String(cached.CurrencyRate ?? ""),
@@ -400,24 +409,16 @@ export default function PurchaseVoucherForm() {
           if (info) {
             headerValuesRef.current.CurrencyID  = info.CurrencyID;
             headerValuesRef.current.CurrencyRate = info.CurrencyRate;
-            headerValuesRef.current.CreditDays   = info.CrDays;
             setCurrencyExternalValues({
               CurrencyName: "",
               CurrencyRate: String(info.CurrencyRate ?? ""),
             });
           }
         }
-        await fetchCrDaysCriteria(
-          headerValuesRef.current.DivisionID,
-          headerValuesRef.current.TranDate,
-          headerValuesRef.current.ConfigID,
-          val,
-        );
       } else {
         headerValuesRef.current.CurrencyID   = 0;
         headerValuesRef.current.CurrencyName = "";
         headerValuesRef.current.CurrencyRate  = 0;
-        headerValuesRef.current.CreditDays    = 0;
         setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
       }
       return;
@@ -431,7 +432,7 @@ export default function PurchaseVoucherForm() {
     if (colName === "BasedOnID") {
       itemGridRef.current?.clearRows?.();
     }
-  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters, fetchCrDaysCriteria]);
+  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -501,9 +502,14 @@ export default function PurchaseVoucherForm() {
       const gridColumns = buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false });
       setItemModalColumns(gridColumns);
 
+      let spItemPicker;
+      if (Number(BasedOnID) === 0)      spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
+      else if (Number(BasedOnID) === 1) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_PO;
+      else                              spItemPicker = PV_CONFIG.SP_ITEM_PICKER_DIRECT;
+
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PV_CONFIG.SP_ITEM_PICKER,
+        ObjName: spItemPicker,
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionID),
           prmYearID:     PV_CONFIG.CONFIG_YEAR_ID,
@@ -569,6 +575,7 @@ export default function PurchaseVoucherForm() {
     headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
+    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     mstRow.LoginID = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
@@ -619,8 +626,8 @@ export default function PurchaseVoucherForm() {
     headerValuesRef.current = {
       TranCode: "", TranDate: todayISO, DivisionID: 0, ConfigID: 0,
       BasedOnID: "2", SupplierID: 0, CurrencyID: 0, CurrencyRate: 0,
-      CreditDays: 0, BillNo: "", BillDate: null,
-      CostCenterID: 0, CreditDaysCriteriaID: 0, CreditStartDate: todayISO,
+      BillNo: "", BillDate: null,
+      CostCenterID: 0, CreditStartDate: todayISO,
       Narration: "", Remarks: "", TranMstGenID: 0,
       CompanyID: DEFAULT_COMPANY_ID, YearID: PV_CONFIG.DIVISION_YEAR_ID,
       LoginID: DEFAULT_LOGIN_ID, IDNumber: 0, FuncCode: PV_CONFIG.RB_MASTER,
@@ -633,6 +640,7 @@ export default function PurchaseVoucherForm() {
     setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
     setActiveTab("items");
     setIsGridLoading(false);
+    setGridRows([]);
     setItemSelectionCount(0);
     setItemModalOpen(false);
     setItemModalItems([]);
@@ -756,6 +764,7 @@ export default function PurchaseVoucherForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
@@ -763,6 +772,8 @@ export default function PurchaseVoucherForm() {
           />
         </div>
       </section>
+
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
 
       <ActionBar
         alignEnd

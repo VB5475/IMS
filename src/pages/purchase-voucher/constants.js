@@ -30,10 +30,12 @@ export const PV_CONFIG = {
   SP_RB_META:          "Fn_Fetch_RBDetailByRBCode",
   SP_PV_TYPES:         "fn_tbl_ddl_Pur_Configuration",
   SP_DIVISIONS:        "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_PICKER:      "Fn_Tbl_FetchPurchaseVoucherItemDetail4Web",
+  SP_ITEM_PICKER_GRN:    "fn_tbl_RB_PurPVSelGRNDet",    // BasedOn = '0' (GRN Base)
+  SP_ITEM_PICKER_PO:     "fn_tbl_RB_PurPVSelPODet",     // BasedOn = '1' (PO Base)
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPVSelOnlyItem",  // BasedOn = '2' (Direct)
   SP_SUPPLIER_INFO:    "Fn_tbl_FetchSupplierCurrencyInfo",
   SP_COST_CENTER:      "Fn_tbl_Fas_FetchCostCenterAc",
-  SP_CR_DAYS_CRITERIA: "FN_tbl_CrDaysCriteria",
+  SP_LOCATION:         "Fn_Gen_FetchLocationMaster",
   SP_DEPT:             "Pr_Fetch_DepartmentData_IMS",
 
   // Grid cell-event SP (fires on qty / rate column blur)
@@ -66,8 +68,8 @@ export const PV_CONFIG = {
 // ── Header filter definitions ─────────────────────────────────────────────────
 // Field order per MRD Section 3:
 //   TranCode → TranDate → DivisionID → ConfigID → BasedOnID →
-//   SupplierID → CurrencyID → CurrencyRate → CreditDays →
-//   BillNo → BillDate → CostCenterID → CreditDaysCriteriaID →
+//   SupplierID → CurrencyID → CurrencyRate →
+//   BillNo → BillDate → CostCenterID →
 //   CreditStartDate → Narration → Remarks
 export const PV_HEADER_FILTERS = [
   {
@@ -123,12 +125,6 @@ export const PV_HEADER_FILTERS = [
     FilterColCtrlType: controlTypeMap.LABEL,
   },
   {
-    FilterParameterID: "CreditDays",
-    FilterColName: "CreditDays",
-    FilterCaption: "Cr. Days",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
     FilterParameterID: "BillNo",
     FilterColName: "BillNo",
     FilterCaption: "Bill No.",
@@ -144,13 +140,6 @@ export const PV_HEADER_FILTERS = [
     FilterParameterID: "CostCenterID",
     FilterColName: "CostCenterID",
     FilterCaption: "Cost Center",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "CreditDaysCriteriaID",
-    FilterColName: "CreditDaysCriteriaID",
-    FilterCaption: "Cr. Days Criteria",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: [],
   },
@@ -181,6 +170,26 @@ export const PV_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 export const PV_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID", "SupplierID"],
 };
+
+export const PV_SUMMARY_FIELDS = [
+  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows ──
+  { SummaryParameterID: "MstBaseAmount",       detKey: "BaseAmount" },
+  { SummaryParameterID: "MstExpense",          detKey: "Expense" },
+  { SummaryParameterID: "MstTaxableValue",     detKey: "TaxableValue" },
+  { SummaryParameterID: "MstCGST",             detKey: "CGST" },
+  { SummaryParameterID: "MstSGST",             detKey: "SGST" },
+  { SummaryParameterID: "MstIGST",             detKey: "IGST" },
+  { SummaryParameterID: "MstRoundOff",         detKey: "RoundOff" },
+  { SummaryParameterID: "MstNetBaseAmount",    detKey: "NetBaseAmount" },
+  // ── TDS section (ColSeqNo 17-22, 31) — detKey confirmed pending backend ──
+  { SummaryParameterID: "NOPID",               detKey: "NOPID" },
+  { SummaryParameterID: "TDSApplicableAmount", detKey: "TDSApplicableAmount" },
+  { SummaryParameterID: "TDSTypeID",           detKey: "TDSTypeID" },
+  { SummaryParameterID: "TDSPercentage",       detKey: "TDSPercentage" },
+  { SummaryParameterID: "TDSAmount",           detKey: "TDSAmount" },
+  { SummaryParameterID: "PendingTDSAmount",    detKey: "PendingTDSAmount" },
+  { SummaryParameterID: "NetPayable",          detKey: "NetPayable" },
+];
 
 export const PV_SHORTCUT_CONFIG = {
   a: { label: "Add",    title: "Add (Alt+A)" },
