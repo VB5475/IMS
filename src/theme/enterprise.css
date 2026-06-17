@@ -166,3 +166,29 @@
   background: var(--border);
   border-radius: 10px;
 }
+
+/* Required field marker — IsMandatory from GET_DETAIL_COL_DATA */
+.field-caption {
+  display: inline-flex;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.field-required-mark {
+  color: var(--danger, #d93025);
+  font-weight: 700;
+  font-size: 1em;
+  line-height: 1;
+  margin-left: 1px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: relative;
+  top: 0.01em;
+}
+
+.efq-cell__label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}

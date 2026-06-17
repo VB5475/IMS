@@ -40,6 +40,7 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -814,11 +815,14 @@ export default function PurchaseOrderForm() {
 
     const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
 
-    const payload = {
-      prmStrMstJSON: JSON.stringify([mstRow]),
-      prmStrDetJSON: JSON.stringify(detRows),
-      prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
-    };
+    const payload = await withSaveContextFields(
+      {
+        prmStrMstJSON: JSON.stringify([mstRow]),
+        prmStrDetJSON: JSON.stringify(detRows),
+        prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
+      },
+      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+    );
 
     console.log("%c[PO Save] Payload:", "color:#f59e0b;font-weight:700", payload);
     console.log("%c[PO Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
@@ -842,7 +846,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, columns, childColumns]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute]);
 
   const handleSaveAndPrint = useCallback(async () => {
     await handleSave();

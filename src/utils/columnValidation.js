@@ -74,6 +74,11 @@ export function resolveColumnMeta(col) {
   return buildColumnMeta(col);
 }
 
+/** True when GET_DETAIL_COL_DATA marks the column as mandatory (IsMandatory). */
+export function isColumnMandatory(colOrMeta) {
+  return Boolean(resolveColumnMeta(colOrMeta)?.isMandatory);
+}
+
 function isEmptyValue(value) {
   return value == null || value === "";
 }
