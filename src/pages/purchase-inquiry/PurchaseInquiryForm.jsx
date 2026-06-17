@@ -49,6 +49,7 @@ import {
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -894,11 +895,14 @@ export default function PurchaseInquiryForm() {
         buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
       );
 
-      const payload = {
-        prmStrMstJSON: JSON.stringify([mstRow]),
-        prmStrDetJSON: JSON.stringify(detRows),
-        prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
-      };
+      const payload = await withSaveContextFields(
+        {
+          prmStrMstJSON: JSON.stringify([mstRow]),
+          prmStrDetJSON: JSON.stringify(detRows),
+          prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
+        },
+        { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      );
 
       console.log("%c[PI Save] Payload:", "color:#f59e0b;font-weight:700", payload);
       console.log("%c[PI Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
@@ -923,7 +927,7 @@ export default function PurchaseInquiryForm() {
         setIsSavingPI(false);
       }
     },
-    [headerColumns, allColumns, allIndentColumns, childRowsMap, childColumns, columns, postSave, completeSuccessfulSave]
+    [headerColumns, allColumns, allIndentColumns, childRowsMap, childColumns, columns, postSave, completeSuccessfulSave, isEditRoute]
   );
 
   const handleSaveAndPrint = useCallback(async () => {

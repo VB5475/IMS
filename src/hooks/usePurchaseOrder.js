@@ -27,6 +27,7 @@ import {
 import { getUserSession } from "../session/userSession";
 import { PO_CONFIG } from "../pages/purchase-order/constants";
 import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
+import { withSaveContextFields } from "../utils/savePayload";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -565,17 +566,20 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         }
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-        const body = {
-          PrmStrMstRBName: PO_CONFIG.RB_MASTER,
-          prmStrMstJSON: JSON.stringify([headerValues]),
-          prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-          prmstrDetailSaveProcName: detMeta?.SaveProcName,
-          PrmStrDetRBName: PO_CONFIG.RB_DETAIL,
-          prmStrDetJSON: JSON.stringify(cleanedRows),
-          GenIDNumber: genIDNumber,
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        };
+        const body = await withSaveContextFields(
+          {
+            PrmStrMstRBName: PO_CONFIG.RB_MASTER,
+            prmStrMstJSON: JSON.stringify([headerValues]),
+            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+            prmstrDetailSaveProcName: detMeta?.SaveProcName,
+            PrmStrDetRBName: PO_CONFIG.RB_DETAIL,
+            prmStrDetJSON: JSON.stringify(cleanedRows),
+            GenIDNumber: genIDNumber,
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          },
+          { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
+        );
 
         const result = await axios.post(`${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`, body, {
           timeout: API_TIMEOUT,

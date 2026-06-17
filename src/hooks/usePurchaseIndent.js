@@ -25,6 +25,7 @@ import {
 import { getUserSession } from "../session/userSession";
 import { IND_CONFIG } from "../pages/purchase-indent/constants";
 import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
+import { withSaveContextFields } from "../utils/savePayload";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -450,16 +451,20 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         }
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-        const body = {
-          PrmStrMstRBName: IND_CONFIG.RB_MASTER,
-          prmStrMstJSON: JSON.stringify([headerValues]),
-          prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-          prmstrDetailSaveProcName: detMeta?.SaveProcName,
-          PrmStrDetRBName: IND_CONFIG.RB_DETAIL,
-          prmStrDetJSON: JSON.stringify(cleanedRows),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        };
+        const isEdit = Number(headerValues.TranMstGenID) > 0 || Number(headerValues.IDNumber) > 0;
+        const body = await withSaveContextFields(
+          {
+            PrmStrMstRBName: IND_CONFIG.RB_MASTER,
+            prmStrMstJSON: JSON.stringify([headerValues]),
+            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+            prmstrDetailSaveProcName: detMeta?.SaveProcName,
+            PrmStrDetRBName: IND_CONFIG.RB_DETAIL,
+            prmStrDetJSON: JSON.stringify(cleanedRows),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          },
+          { divisionId: headerValues.DivisionID, isEdit }
+        );
 
         const result = await axios.post(`${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`, body, {
           timeout: API_TIMEOUT,

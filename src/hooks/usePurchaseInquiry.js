@@ -24,6 +24,7 @@ import {
   OBJ_TYPE,
 } from "../api/constants";
 import { parseApiErrMsg } from "../utils/apiResponse";
+import { withSaveContextFields } from "../utils/savePayload";
 import { PI_CONFIG } from "../pages/purchase-inquiry/constants";
 import {
   fetchDropdownOptions,
@@ -568,17 +569,20 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         }
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-        const body = {
-          PrmStrMstRBName: PI_CONFIG.RB_MASTER,
-          prmStrMstJSON: JSON.stringify([headerValues]),
-          prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-          prmstrDetailSaveProcName: detMeta?.SaveProcName,
-          PrmStrDetRBName: PI_CONFIG.RB_DETAIL,
-          prmStrDetJSON: JSON.stringify(cleanedRows),
-          GenIDNumber: genIDNumber,
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        };
+        const body = await withSaveContextFields(
+          {
+            PrmStrMstRBName: PI_CONFIG.RB_MASTER,
+            prmStrMstJSON: JSON.stringify([headerValues]),
+            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+            prmstrDetailSaveProcName: detMeta?.SaveProcName,
+            PrmStrDetRBName: PI_CONFIG.RB_DETAIL,
+            prmStrDetJSON: JSON.stringify(cleanedRows),
+            GenIDNumber: genIDNumber,
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          },
+          { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
+        );
 
         const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);
 

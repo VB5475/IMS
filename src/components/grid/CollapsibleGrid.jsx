@@ -19,6 +19,7 @@ import React, {
 } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 const EntryGrid = lazy(() => import("./EntryGrid"));
+import { buildColumnMeta } from "../../utils/columnValidation";
 import "./CollapsibleGrid.css";
 
 const DEFAULT_PAGINATION = { pageSize: 50, pageSizeOptions: [10, 25, 50, 100] };
@@ -28,6 +29,9 @@ const INLINE_PAGINATION = { pageSize: 100, pageSizeOptions: [25, 50, 100] };
 function normalizeColumns(columns = []) {
   return columns.map((col, index) => {
     if (col.key && (col.name || col.controlType != null)) {
+      const columnMeta =
+        col.columnMeta ??
+        (col.ColName != null || col.IsMandatory != null ? buildColumnMeta(col) : null);
       return {
         isEditAllow: false,
         isFixed: false,
@@ -35,16 +39,22 @@ function normalizeColumns(columns = []) {
         ...col,
         id: col.id ?? col.key,
         name: col.name ?? col.label ?? col.key,
+        columnMeta,
       };
     }
+    const key = col.key ?? col.id ?? `col_${index}`;
+    const columnMeta =
+      col.columnMeta ??
+      (col.ColName != null || col.IsMandatory != null ? buildColumnMeta(col) : null);
     return {
-      id: col.key ?? col.id ?? `col_${index}`,
-      key: col.key ?? col.id ?? `col_${index}`,
+      id: key,
+      key,
       name: col.label ?? col.name ?? col.key ?? `Col ${index + 1}`,
       width: col.width ?? 120,
       controlType: col.controlType ?? 0,
       isEditAllow: col.isEditAllow ?? false,
       isFixed: col.isFixed ?? false,
+      columnMeta,
     };
   });
 }
