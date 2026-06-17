@@ -47,6 +47,7 @@ import {
 import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -77,13 +78,13 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     TranDate: headerValues.TranDate ?? "",
     DivisionID: String(headerValues.DivisionID ?? ""),
     ConfigID: String(headerValues.ConfigID ?? ""),
-    ExpiryDate: headerValues.ExpiryDate ?? "",
+    InquiryExpiryDate: headerValues.InquiryExpiryDate ?? "",
     SupplierID: String(headerValues.SupplierID ?? ""),
     CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ""),
     CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : "",
     BasedOnID: String(headerValues.BasedOnID ?? "0"),
-    SupplierQuotNo: headerValues.SupplierQuotNo ?? "",
-    SupplierQuotDate: headerValues.SupplierQuotDate ?? "",
+    SuppQuotNo: headerValues.SuppQuotNo ?? "",
+    SuppQuotDate: headerValues.SuppQuotDate ?? "",
     ContactPerson: headerValues.ContactPerson ?? "",
     Remarks: headerValues.Remarks ?? "",
   };
@@ -193,14 +194,14 @@ export default function PurchaseQuotationForm() {
     TranCode: "",
     TranDate: todayISO,
     ConfigID: 0,
-    ExpiryDate: null,
+    InquiryExpiryDate: null,
     DivisionID: 0,
     SupplierID: 0,
     CurrencyID: "",
     CurrencyRate: "",
     BasedOnID: "0",
-    SupplierQuotNo: "",
-    SupplierQuotDate: null,
+    SuppQuotNo: "",
+    SuppQuotDate: null,
     ContactPerson: "",
     Remarks: "",
     CompanyID: 1,
@@ -260,14 +261,14 @@ export default function PurchaseQuotationForm() {
       TranCode: "",
       TranDate: todayISO,
       ConfigID: 0,
-      ExpiryDate: null,
+      InquiryExpiryDate: null,
       DivisionID: 0,
       SupplierID: 0,
       CurrencyID: "",
       CurrencyRate: "",
       BasedOnID: "0",
-      SupplierQuotNo: "",
-      SupplierQuotDate: null,
+      SuppQuotNo: "",
+      SuppQuotDate: null,
       ContactPerson: "",
       Remarks: "",
       CompanyID: 1,
@@ -750,10 +751,13 @@ export default function PurchaseQuotationForm() {
         buildSaveRowFromColumns(rest, allColumns, sessionFields)
       );
 
-      const payload = {
-        prmStrMstJSON: JSON.stringify([mstRow]),
-        prmStrDetJSON: JSON.stringify(detRows),
-      };
+      const payload = await withSaveContextFields(
+        {
+          prmStrMstJSON: JSON.stringify([mstRow]),
+          prmStrDetJSON: JSON.stringify(detRows),
+        },
+        { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      );
 
       console.log("%c[PQ Save] Payload:", "color:#f59e0b;font-weight:700", payload);
       console.log("%c[PQ Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
@@ -777,7 +781,7 @@ export default function PurchaseQuotationForm() {
         setIsSavingQtn(false);
       }
     },
-    [headerColumns, allColumns, columns, postSave, completeSuccessfulSave]
+    [headerColumns, allColumns, columns, postSave, completeSuccessfulSave, isEditRoute]
   );
 
   const handleSaveAndPrint = useCallback(async () => {

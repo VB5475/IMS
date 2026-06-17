@@ -54,12 +54,14 @@ import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKey
 import {
   formatColumnDisplayValue,
   getDateInputConstraints,
+  isColumnMandatory,
   isNumericColumnDef,
   resolveColumnMeta,
   validateColumnValue,
 } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
 import { isDateColumnDef } from "../../utils/dateFormat";
+import RequiredFieldMark from "../ui/RequiredFieldMark";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -790,7 +792,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                               onClick={() => handleSort(col.key)}
                               style={{ cursor: "pointer" }}
                             >
-                              {col.name}
+                              <span className="field-caption">
+                                <span>{col.name}</span>
+                                {isColumnMandatory(col) && <RequiredFieldMark />}
+                              </span>
                               {sortConfig.key === col.key && (
                                 <span className="sort-icon">
                                   {sortConfig.direction === "asc" ? "▲" : "▼"}

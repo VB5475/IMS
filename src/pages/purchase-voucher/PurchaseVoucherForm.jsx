@@ -40,6 +40,7 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -584,10 +585,13 @@ export default function PurchaseVoucherForm() {
       return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
     });
 
-    const payload = {
-      prmStrMstJSON: JSON.stringify([mstRow]),
-      prmStrDetJSON: JSON.stringify(detRows),
-    };
+    const payload = await withSaveContextFields(
+      {
+        prmStrMstJSON: JSON.stringify([mstRow]),
+        prmStrDetJSON: JSON.stringify(detRows),
+      },
+      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+    );
 
     console.log("%c[PV Save] Payload:", "color:#f59e0b;font-weight:700", payload);
     console.log("%c[PV Save] Master:",  "color:#6366f1;font-weight:600", [mstRow]);
@@ -610,7 +614,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setIsSavingPV(false);
     }
-  }, [headerColumns, allColumns, columns]);
+  }, [headerColumns, allColumns, columns, isEditRoute]);
 
   const handleSaveAndPrint = useCallback(async () => {
     await handleSave();

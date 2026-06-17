@@ -8,9 +8,10 @@ import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
 import SearchSelect from "../ui/SearchSelect";
 import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
-import { formatColumnDisplayValue, validateColumnValue } from "../../utils/columnValidation";
+import { formatColumnDisplayValue, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
 import GridNumberInput from "../grid/GridNumberInput";
+import RequiredFieldMark from "../ui/RequiredFieldMark";
 import { handleDateArrowKeys } from "../../utils/dateFormat";
 import {
   AlertCircle,
@@ -78,9 +79,14 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
     if (!result.valid) alert(result.message);
   };
 
+  const isRequired = isColumnMandatory(filter);
+
   const labelEl = (
     <label className="efq-cell__label" htmlFor={`efq-${FilterColName}`} title={FilterCaption}>
-      {FilterCaption}
+      <span className="field-caption">
+        <span className="efq-cell__label-text">{FilterCaption}</span>
+        {isRequired && <RequiredFieldMark />}
+      </span>
     </label>
   );
 
@@ -220,7 +226,12 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
         className={`efq-cell${isTextarea ? " efq-cell--stacked" : ""}${tone !== "editable" ? ` efq-cell--tone-${tone}` : ""}`}
       >
         {FilterColCtrlType === controlTypeMap.LABEL ? (
-          <span className="efq-cell__label">{FilterCaption}</span>
+          <span className="efq-cell__label">
+            <span className="field-caption">
+              <span className="efq-cell__label-text">{FilterCaption}</span>
+              {isRequired && <RequiredFieldMark />}
+            </span>
+          </span>
         ) : (
           labelEl
         )}

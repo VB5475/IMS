@@ -883,6 +883,15 @@
   line-height: 1.3;
 }
 
+.header-label .field-caption {
+  display: inline-flex;
+  align-items: flex-start;
+}
+
+/* .header-label .field-required-mark {
+  top: 0.01em;
+} */
+
 .header-actions {
   display: flex;
   align-items: center;
