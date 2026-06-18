@@ -38,7 +38,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -49,11 +49,12 @@ import {
   PV_HEADER_FILTERS,
   PV_GRID_TABS,
   PV_FILTER_CASCADE_RESETS,
-  PV_SHORTCUT_CONFIG,
   PV_SUMMARY_FIELDS,
+  PV_MULTI_PASTE_COLUMNS,
   formatPVTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
+import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseVoucherPage.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
@@ -185,6 +186,9 @@ export default function PurchaseVoucherForm() {
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab]           = useState("items");
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
+  const [basedOnId, setBasedOnId]           = useState("2");
+  const [pasteNotice, setPasteNotice]       = useState(null);
+  const pasteNoticeTimerRef                 = useRef(null);
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading]   = useState(false);
   const [gridRows, setGridRows]             = useState([]);
@@ -344,14 +348,18 @@ export default function PurchaseVoucherForm() {
 
     if (headerColumns.length === 0) return PV_HEADER_FILTERS.map(injectOptions);
 
-    const apiColMap = {};
-    headerColumns.forEach((col) => { apiColMap[col.ColName] = col; });
+    const apiColMap = buildHeaderColMap(headerColumns);
 
     return PV_HEADER_FILTERS.map((filter) => {
       const withOpts = injectOptions(filter);
-      const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
+      const apiCol = resolveHeaderApiCol(filter, apiColMap);
       if (!apiCol) return withOpts;
-      return { ...withOpts, FilterColName: apiCol.ColName, lockOnEditMode: isLockOnEditModeCol(apiCol) };
+      const lockOnEditMode = isLockOnEditModeCol(apiCol);
+      const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
+      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
+        ? controlTypeMap.LABEL
+        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
+      return def;
     });
   }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
 
@@ -431,9 +439,21 @@ export default function PurchaseVoucherForm() {
     }
 
     if (colName === "BasedOnID") {
+      setBasedOnId(String(val));
       itemGridRef.current?.clearRows?.();
     }
   }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters]);
+
+  // ── Multi-value paste — Sr. No replication (Direct mode only) ─────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+    if (pasteNoticeTimerRef.current) clearTimeout(pasteNoticeTimerRef.current);
+    setPasteNotice(`${values.length} row${values.length !== 1 ? "s" : ""} added from pasted serial numbers.`);
+    pasteNoticeTimerRef.current = setTimeout(() => setPasteNotice(null), 4000);
+  }, [addItemRow]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -560,16 +580,17 @@ export default function PurchaseVoucherForm() {
   const [isSavingPV, setIsSavingPV] = useState(false);
 
   const handleSave = useCallback(async () => {
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColumns);
-    if (headerErrors.length > 0) {
-      alert(`Please fix the following:\n${headerErrors.join("\n")}`);
-      return;
-    }
+    const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(detailRows, columns);
-    if (detailErrors.length > 0) {
-      alert(`Item grid errors:\n${detailErrors.join("\n")}`);
-      return;
+
+    const allErrors = [...headerErrors, ...detailErrors];
+    if (allErrors.length > 0) {
+      alert(allErrors.join("\n"));
+      return false;
     }
 
     const mstRow = {};
@@ -617,7 +638,8 @@ export default function PurchaseVoucherForm() {
   }, [headerColumns, allColumns, columns, isEditRoute]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    await handleSave();
+    const saved = await handleSave();
+    if (!saved) return;
     window.print();
   }, [handleSave]);
 
@@ -735,6 +757,12 @@ export default function PurchaseVoucherForm() {
           </div>
 
           <div className="grid-tabbar__controls">
+            {pasteNotice && (
+              <span className="pv-paste-notice" role="status" aria-live="polite">
+                ✓ {pasteNotice}
+              </span>
+            )}
+
             <button
               ref={selectItemBtnRef}
               type="button"
@@ -773,6 +801,8 @@ export default function PurchaseVoucherForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={basedOnId === "2" ? PV_MULTI_PASTE_COLUMNS : null}
+            onMultiValuePaste={basedOnId === "2" ? handleMultiValuePaste : null}
           />
         </div>
       </section>

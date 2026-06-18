@@ -35,8 +35,7 @@ export const PV_CONFIG = {
   SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPVSelOnlyItem",  // BasedOn = '2' (Direct)
   SP_SUPPLIER_INFO:    "Fn_tbl_FetchSupplierCurrencyInfo",
   SP_COST_CENTER:      "Fn_tbl_Fas_FetchCostCenterAc",
-  SP_LOCATION:         "Fn_Gen_FetchLocationMaster",
-  SP_DEPT:             "Pr_Fetch_DepartmentData_IMS",
+SP_DEPT:             "Pr_Fetch_DepartmentData_IMS",
 
   // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_RB_PurPVDet_Event",
@@ -195,7 +194,6 @@ export const PV_SHORTCUT_CONFIG = {
   a: { label: "Add",    title: "Add (Alt+A)" },
   s: { label: "Save",   title: "Save (Alt+S)" },
   n: { label: "Cancel", title: "Cancel (Alt+N)" },
-  c: { label: "Close",  title: "Close (Alt+C)" },
 };
 
 const MONTH_ABBR = [
@@ -209,6 +207,12 @@ export function formatPVTranDate(dateVal) {
   if (isNaN(d.getTime())) return "0";
   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
+
+/**
+ * Columns that support multi-value paste (Serial Number replication) in Direct mode.
+ * Reuse pattern: each module exports its own Set with the relevant column key(s).
+ */
+export const PV_MULTI_PASTE_COLUMNS = new Set(["BatchNoSrNo"]);
 
 /** Header fields required before Select Item can be opened */
 export const PV_ITEM_PICKER_JSON_FIELDS = [

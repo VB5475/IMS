@@ -214,25 +214,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     }
   }, [get]);
 
-  // ── fetchLocations ──────────────────────────────────────────────────
-  const fetchLocations = useCallback(async () => {
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: PV_CONFIG.SP_LOCATION,
-        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID, prmLocationType: "" }]),
-        p_ErrCode: -1, p_ErrMsg: "",
-      });
-      return (res?.Table || []).map((r) => ({
-        value: String(r.LocationID ?? r.LocID),
-        label: r.LocationName ?? r.LocName ?? r.Location ?? String(r.LocationID ?? r.LocID),
-      }));
-    } catch (err) {
-      console.warn("[PV] Location fetch failed:", err);
-      return [];
-    }
-  }, [get]);
-
   // ── fetchHeaderMeta ─────────────────────────────────────────────────
   const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
     setHeaderFetching(true);
@@ -356,11 +337,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         rowData: masterRow,
         fetchUnlockedDropdowns,
       });
-      const hasLocationCol = apiColumns.some((c) => c.ColName === "LocationID" && c.ColCtrlType === 4);
-      if (hasLocationCol) {
-        const locOpts = await fetchLocations();
-        if (locOpts.length) colDropdownOptions["LocationID"] = locOpts;
-      }
       const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, { filterable: false, allEditable: true, existingRecordEdit });
       setColumns(gridColumns);
       console.log("%c[PV] Grid columns built:", "color:#22c55e;font-weight:600", gridColumns.length);
@@ -369,7 +345,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       console.error("[PV] fetchGridColumns failed:", err);
       return [];
     }
-  }, [get, fetchLocations]);
+  }, [get]);
 
   // ── fireCellEvent ───────────────────────────────────────────────────
   const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
