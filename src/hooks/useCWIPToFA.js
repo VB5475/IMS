@@ -28,7 +28,6 @@ import {
   buildGridColumns,
   isTruthyApiFlag,
   isLockOnEditModeCol,
-  buildDropdownOptionFromRow,
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
@@ -116,13 +115,10 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   const [headerFetching,  setHeaderFetching]  = useState(false);
   const [headerError,     setHeaderError]     = useState(null);
 
-  const [divisionOptions,       setDivisionOptions]       = useState([]);
-  const [locationOptions,       setLocationOptions]       = useState([]);
-  const [costCenterOptions,     setCostCenterOptions]     = useState([]);
-  // Dynamically fetched via GET_FILTER_DETAIL on the header RBID — covers CWIPAccID
-  // and any other account-type dropdowns in the master. { [ColName]: [{value,label}] }
-  const [headerDropdownOptions, setHeaderDropdownOptions] = useState({});
-  const headerRbMetaRef = useRef(null);
+  const [divisionOptions,   setDivisionOptions]   = useState([]);
+  const [locationOptions,   setLocationOptions]   = useState([]);
+  const [cWIPAccOptions,    setCWIPAccOptions]    = useState([]);
+  const [costCenterOptions, setCostCenterOptions] = useState([]);
 
   // ── Detail grid state ──────────────────────────────────────────────────────
   const [columns,    setColumns]    = useState([]);
@@ -209,7 +205,6 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       if (!tableRow) throw new Error("No C2F header RB metadata returned from server.");
 
       const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
-      headerRbMetaRef.current = hdrMeta;
       localStorage.setItem(C2F_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — fetch header column definitions (master field metadata — dynamic)
@@ -226,13 +221,8 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         return;
       }
 
-      // Phase 3 — Division + header account dropdowns (GET_FILTER_DETAIL) in parallel
-      // Manually managed: DivisionID, LocationID, CostCenterAccID, ConvTypeID
-      const MANUAL_HDR_DROPDOWNS = new Set(["DivisionID", "LocationID", "CostCenterAccID", "ConvTypeID"]);
-      const hdrDropdownCols = hdrApiColumns.filter(
-        (c) => c.ColCtrlType === 4 && !MANUAL_HDR_DROPDOWNS.has(c.ColName)
-      );
-      const [divisionData, hdrDropdownOpts] = await Promise.all([
+      // Phase 3 — Division + CWIP A/C in parallel (same direct-SP pattern as Division)
+      const [divisionData, cWIPAccData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: C2F_CONFIG.SP_DIVISIONS,
@@ -243,14 +233,33 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[C2F] Division fetch failed:", err); return null; }),
-        fetchDropdownOptions(get, hdrDropdownCols, hdrMeta.RBID, { funcCode: C2F_CONFIG.RB_MASTER }).catch(() => ({})),
+
+        // ⚠️ SP_CWIP_ACC: confirm SP name with DBA — no call made until set
+        C2F_CONFIG.SP_CWIP_ACC
+          ? get(ENDPOINTS.FN_FETCH_DATA, {
+              ObjType: 2,
+              ObjName: C2F_CONFIG.SP_CWIP_ACC,
+              JSon: JSON.stringify([{
+                PrmCompanyID: DEFAULT_COMPANY_ID,
+                PrmLoginID:   DEFAULT_LOGIN_ID,
+                PrmYearID:    C2F_CONFIG.CONFIG_YEAR_ID,
+              }]),
+              p_ErrCode: -1, p_ErrMsg: "",
+            }).catch((err) => { console.warn("[C2F] CWIP A/C fetch failed:", err); return null; })
+          : Promise.resolve(null),
       ]);
 
       setDivisionOptions(
         (divisionData?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
       );
-      setHeaderDropdownOptions(hdrDropdownOpts || {});
-      console.log("%c[C2F] Header dropdown options fetched:", "color:#8b5cf6;font-weight:600", Object.keys(hdrDropdownOpts || {}));
+      setCWIPAccOptions(
+        (cWIPAccData?.Table || []).map((r) => ({
+          value: String(r.CWIPAccID ?? r.AccountID ?? r.AccID),
+          label: r.CWIPAccName ?? r.AccountName ?? r.AccName ?? String(r.CWIPAccID ?? r.AccountID),
+        }))
+      );
+      console.log("%c[C2F] Header dropdowns loaded:", "color:#8b5cf6;font-weight:600",
+        { divisions: divisionData?.Table?.length ?? 0, cwipAcc: cWIPAccData?.Table?.length ?? 0 });
     } catch (err) {
       console.error("[C2F] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load C2F header configuration.");
@@ -351,6 +360,9 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     if (master.LocationID != null && master.LocationName) {
       setLocationOptions([{ value: String(master.LocationID), label: master.LocationName }]);
     }
+    if (master.CWIPAccID != null && master.CWIPAccName) {
+      setCWIPAccOptions([{ value: String(master.CWIPAccID), label: master.CWIPAccName }]);
+    }
     if (master.CostCenterAccID != null && master.CostCenterName) {
       setCostCenterOptions([{ value: String(master.CostCenterAccID), label: master.CostCenterName }]);
     }
@@ -416,7 +428,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   return {
     // Header
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, locationOptions, costCenterOptions, headerDropdownOptions,
+    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
     fetchLocations, clearLocations,
     fetchCostCenters,
     // Detail grid

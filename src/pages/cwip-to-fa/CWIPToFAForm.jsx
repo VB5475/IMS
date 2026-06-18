@@ -10,7 +10,7 @@
 //   No SupplierID, BasedOnID, EnterpriseSummaryPanel
 //   PutToUseInstDate — required second date field
 //   LocationID       — cascade from Division (fetchLocations)
-//   CWIPAccID        — header account dropdown, options from headerDropdownOptions (GET_FILTER_DETAIL on master RBID)
+//   CWIPAccID        — fetched via C2F_CONFIG.SP_CWIP_ACC (direct SP, same pattern as Division)
 //   ConvTypeID       — hardcoded 2-option dropdown, clears grid on change
 //   NetTotal         — computed client-side: sum of grid Amount column
 //   Cascade: DivisionID → clear LocationID + grid; LocationID → clear grid; ConvTypeID → clear grid
@@ -126,7 +126,7 @@ export default function CWIPToFAForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, locationOptions, costCenterOptions, headerDropdownOptions,
+    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
     fetchLocations, clearLocations,
     fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,
@@ -320,8 +320,7 @@ export default function CWIPToFAForm() {
       switch (filter.FilterParameterID) {
         case "DivisionID":      return { ...filter, staticOptions: divisionOptions };
         case "LocationID":      return { ...filter, staticOptions: locationOptions };
-        // CWIPAccID: options fetched dynamically via GET_FILTER_DETAIL on header RBID
-        case "CWIPAccID":       return { ...filter, staticOptions: headerDropdownOptions["CWIPAccID"] ?? [] };
+        case "CWIPAccID":       return { ...filter, staticOptions: cWIPAccOptions };
         case "CostCenterAccID": return { ...filter, staticOptions: costCenterOptions };
         case "ConvTypeID":      return { ...filter, staticOptions: C2F_CONFIG.CONV_TYPE_OPTIONS };
         default:                return filter;
@@ -346,7 +345,7 @@ export default function CWIPToFAForm() {
       def.FilterColCtrlType = withOpts.FilterColCtrlType;
       return def;
     });
-  }, [headerColumns, divisionOptions, locationOptions, costCenterOptions, headerDropdownOptions]);
+  }, [headerColumns, divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions]);
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
