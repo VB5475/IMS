@@ -11,9 +11,10 @@
 //   PutToUseInstDate — required second date field
 //   LocationID       — cascade from Division (fetchLocations)
 //   CWIPAccID        — fetched via C2F_CONFIG.SP_CWIP_ACC (direct SP, same pattern as Division)
-//   ConvTypeID       — hardcoded 2-option dropdown, clears grid on change
+//   ConvTypeID       — internal field, fixed to C2F_CONFIG.CONV_TYPE_ID, not rendered in UI
+//   ConversionFactor — numeric textbox (ColSeqNo 7, between LocationID and CWIPAccID)
 //   NetTotal         — computed client-side: sum of grid Amount column
-//   Cascade: DivisionID → clear LocationID + grid; LocationID → clear grid; ConvTypeID → clear grid
+//   Cascade: DivisionID → clear LocationID + grid; LocationID → clear grid
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -148,15 +149,16 @@ export default function CWIPToFAForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranNo:           "",
-    TranDate:         todayISO,
-    PutToUseInstDate: null,
-    DivisionID:       0,
-    LocationID:       0,
-    CWIPAccID:        0,
-    CostCenterAccID:  0,
-    ConvTypeID:       "1",
-    NetTotal:         0,
+    TranNo:            "",
+    TranDate:          todayISO,
+    PutToUseInstDate:  null,
+    DivisionID:        0,
+    LocationID:        0,
+    ConversionFactor:  0,
+    CWIPAccID:         0,
+    CostCenterAccID:   0,
+    ConvTypeID:        C2F_CONFIG.CONV_TYPE_ID,
+    NetTotal:          0,
     Remark:           "",
     TranMstGenID:     0,
     CompanyID:        DEFAULT_COMPANY_ID,
@@ -168,7 +170,7 @@ export default function CWIPToFAForm() {
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { TranDate: todayISO, ConvTypeID: "1" };
+    return { TranDate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey,      setFilterResetKey]      = useState(0);
@@ -322,7 +324,6 @@ export default function CWIPToFAForm() {
         case "LocationID":      return { ...filter, staticOptions: locationOptions };
         case "CWIPAccID":       return { ...filter, staticOptions: cWIPAccOptions };
         case "CostCenterAccID": return { ...filter, staticOptions: costCenterOptions };
-        case "ConvTypeID":      return { ...filter, staticOptions: C2F_CONFIG.CONV_TYPE_OPTIONS };
         default:                return filter;
       }
     };
@@ -392,10 +393,6 @@ export default function CWIPToFAForm() {
       return;
     }
 
-    if (colName === "ConvTypeID") {
-      if (!confirmGridClear("Conversion Type")) return;
-      itemGridRef.current?.clearRows?.();
-    }
   }, [confirmGridClear, clearLocations, fetchLocations, fetchCostCenters]);
 
   const ensureItemColumns = useCallback(async () => {
@@ -445,7 +442,7 @@ export default function CWIPToFAForm() {
       return;
     }
 
-    const { DivisionID, LocationID, CWIPAccID, TranDate, PutToUseInstDate, ConvTypeID } = headerValues;
+    const { DivisionID, LocationID, CWIPAccID, TranDate, PutToUseInstDate } = headerValues;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -480,7 +477,7 @@ export default function CWIPToFAForm() {
           prmLoginID:     DEFAULT_LOGIN_ID,
           prmTranDate:    formatC2FTranDate(TranDate),
           prmPutToUseDate: formatC2FTranDate(PutToUseInstDate),
-          prmConvTypeID:  Number(ConvTypeID  ?? 1),
+          prmConvTypeID:  C2F_CONFIG.CONV_TYPE_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -587,8 +584,9 @@ export default function CWIPToFAForm() {
 
     headerValuesRef.current = {
       TranNo: "", TranDate: todayISO, PutToUseInstDate: null,
-      DivisionID: 0, LocationID: 0, CWIPAccID: 0, CostCenterAccID: 0,
-      ConvTypeID: "1", NetTotal: 0, Remark: "",
+      DivisionID: 0, LocationID: 0, ConversionFactor: 0,
+      CWIPAccID: 0, CostCenterAccID: 0,
+      ConvTypeID: C2F_CONFIG.CONV_TYPE_ID, NetTotal: 0, Remark: "",
       TranMstGenID: 0,
       CompanyID: DEFAULT_COMPANY_ID, YearID: C2F_CONFIG.CONFIG_YEAR_ID,
       LoginID: DEFAULT_LOGIN_ID, IDNumber: 0, FuncCode: C2F_CONFIG.RB_MASTER,

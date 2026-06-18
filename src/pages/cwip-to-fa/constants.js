@@ -43,11 +43,9 @@ export const C2F_CONFIG = {
   STORAGE_HEADER_META: "c2fHeaderMeta",
   STORAGE_ENTRY_META:  "c2fEntryMeta",
 
-  // Conversion Type dropdown — hardcoded per MRD
-  CONV_TYPE_OPTIONS: [
-    { value: "1", label: "Purchase Voucher" },
-    { value: "2", label: "Inventory" },
-  ],
+  // ConvTypeID is an internal field (API: IsVisible=false, IsEditAllow=false).
+  // Sent in save payload as a fixed constant — not shown in UI.
+  CONV_TYPE_ID: 1,
 };
 
 // ── Header filter definitions ─────────────────────────────────────────────────
@@ -58,8 +56,8 @@ export const C2F_HEADER_FILTERS = [
   {
     FilterParameterID: "TranNo",
     FilterColName:     "TranNo",
-    FilterCaption:     "Tran No",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
+    FilterCaption:     "Tran Code",
+    FilterColCtrlType: controlTypeMap.LABEL,
   },
   {
     FilterParameterID: "TranDate",
@@ -88,6 +86,12 @@ export const C2F_HEADER_FILTERS = [
     staticOptions:     [],
   },
   {
+    FilterParameterID: "ConversionFactor",
+    FilterColName:     "ConversionFactor",
+    FilterCaption:     "Conversion Factor",
+    FilterColCtrlType: controlTypeMap.TEXTBOX,
+  },
+  {
     FilterParameterID: "CWIPAccID",
     FilterColName:     "CWIPAccID",
     FilterCaption:     "CWIP A/C",
@@ -100,13 +104,6 @@ export const C2F_HEADER_FILTERS = [
     FilterCaption:     "Cost Center",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions:     [],
-  },
-  {
-    FilterParameterID: "ConvTypeID",
-    FilterColName:     "ConvTypeID",
-    FilterCaption:     "Conversion Type",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions:     C2F_CONFIG.CONV_TYPE_OPTIONS,
   },
   {
     FilterParameterID: "NetTotal",
