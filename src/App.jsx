@@ -19,6 +19,8 @@ const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIn
 const PurchaseIndentForm = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
 const PurchaseVoucherPage = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
 const PurchaseVoucherForm = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
+const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
+const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 
 function AppLayout() {
   return (
@@ -72,6 +74,10 @@ function AppRoutes() {
           <Route path="purchase-voucher/new" element={<PurchaseVoucherForm />} />
           <Route path="purchase-voucher/:id" element={<PurchaseVoucherForm />} />
           <Route path="purchase-voucher/:id/edit" element={<PurchaseVoucherForm />} />
+          <Route path="cwip-to-fa" element={<CWIPToFAPage />} />
+          <Route path="cwip-to-fa/new" element={<CWIPToFAForm />} />
+          <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
+          <Route path="cwip-to-fa/:id/edit" element={<CWIPToFAForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
