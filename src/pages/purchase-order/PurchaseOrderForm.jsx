@@ -38,7 +38,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -52,11 +52,11 @@ import {
   APPROVED_OPTS,
   TERMS_COLUMNS,
   PO_FILTER_CASCADE_RESETS,
-  PO_SHORTCUT_CONFIG,
   PO_SUMMARY_FIELDS,
   formatTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
+import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseOrderPage.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
@@ -464,20 +464,18 @@ export default function PurchaseOrderForm() {
 
     if (headerColumns.length === 0) return PO_HEADER_FILTERS.map(injectOptions);
 
-    const apiColMap = {};
-    headerColumns.forEach((col) => {
-      apiColMap[col.ColName] = col;
-    });
+    const apiColMap = buildHeaderColMap(headerColumns);
 
     return PO_HEADER_FILTERS.map((filter) => {
       const withOpts = injectOptions(filter);
-      const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
+      const apiCol = resolveHeaderApiCol(filter, apiColMap);
       if (!apiCol) return withOpts;
-      return {
-        ...withOpts,
-        FilterColName: apiCol.ColName,
-        lockOnEditMode: isLockOnEditModeCol(apiCol),
-      };
+      const lockOnEditMode = isLockOnEditModeCol(apiCol);
+      const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
+      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
+        ? controlTypeMap.LABEL
+        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
+      return def;
     });
   }, [headerColumns, divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
 
@@ -788,7 +786,7 @@ export default function PurchaseOrderForm() {
     const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
     if (allErrors.length > 0) {
       alert(allErrors.join("\n"));
-      return;
+      return false;
     }
 
     const mstRow = {};
@@ -849,7 +847,8 @@ export default function PurchaseOrderForm() {
   }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    await handleSave();
+    const saved = await handleSave();
+    if (!saved) return;
     window.print();
   }, [handleSave]);
 
