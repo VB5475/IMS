@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Receipt,
   Layers,
+  Tag,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -41,6 +42,12 @@ const NAV_SECTIONS = [
     label: "Assets",
     items: [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { to: "/admin/main-group-master", icon: Tag, label: "Main Group Master", end: false },
     ],
   },
 ];
