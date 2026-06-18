@@ -34,10 +34,10 @@ export const C2F_CONFIG = {
   // Save endpoint (REST POST)
   SAVE_ENDPOINT: "/API/AccCWIP2FASave/Post_RB_AstCWIP2FAMst_Save",
 
-  // Listing  ⚠️ LIST_DIVISION_ID and SP_LIST: CONFIRM with DBA
+  // Listing — SP and params confirmed by DBA
   LIST_OBJ_TYPE:    2,
   SP_LIST:          "Fn_tbl_RB_AstCWIP2FAMst_List",
-  LIST_DIVISION_ID: 15,
+  LIST_DIVISION_ID: 0,
 
   // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "c2fHeaderMeta",
