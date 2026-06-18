@@ -340,11 +340,10 @@ export default function CWIPToFAForm() {
       if (!apiCol) return withOpts;
       const lockOnEditMode = isLockOnEditModeCol(apiCol);
       const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-      // Preserve LABEL control type (NetTotal) even if API returns a different ctrl type
-      def.FilterColCtrlType =
-        withOpts.FilterColCtrlType === controlTypeMap.LABEL
-          ? controlTypeMap.LABEL
-          : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
+      // Always keep the static control type — API ColCtrlType is unreliable for header
+      // fields (C2F returns 0/LABEL for all columns). Static C2F_HEADER_FILTERS is the
+      // source of truth for rendering; API provides only behaviour flags.
+      def.FilterColCtrlType = withOpts.FilterColCtrlType;
       return def;
     });
   }, [headerColumns, divisionOptions, locationOptions, costCenterOptions, headerDropdownOptions]);
