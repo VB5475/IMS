@@ -471,13 +471,12 @@ export default function CWIPToFAForm() {
       });
       setItemModalColumns(buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false }));
 
-      // Note: prmLocatinID is intentional typo — matches backend SP signature per MRD
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: C2F_CONFIG.SP_ITEM_PICKER,
         JSon: JSON.stringify([{
           prmDivisionID:  Number(DivisionID  ?? 0),
-          prmLocatinID:   Number(LocationID  ?? 0),
+          prmLocationID:  Number(LocationID  ?? 0),
           prmCWIPAcID:    Number(CWIPAccID   ?? 0),
           prmYearID:      C2F_CONFIG.CONFIG_YEAR_ID,
           prmLoginID:     DEFAULT_LOGIN_ID,
