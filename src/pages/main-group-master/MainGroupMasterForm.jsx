@@ -9,6 +9,23 @@ import {
 import { withSaveContextFields } from "../../utils/savePayload";
 import { MGM_CONFIG } from "./constants";
 
+// API ColName → formValues key (only where they differ)
+const COL_NAME_MAP = {
+  UsedInAutoItemCodeGeneration: "UsedCodeInCodeGeneration",
+};
+function formKey(colName) { return COL_NAME_MAP[colName] || colName; }
+
+// Corrected display labels (some API DisplayNames have backend typos)
+const DISPLAY_OVERRIDES = {
+  MainGroupShortCode:           "Main Group Short Code",
+  MainGroupShortName:           "Main Group Short Name",
+  UsedInAutoItemCodeGeneration: "Used in Code Generation",
+};
+function getLabel(field) { return DISPLAY_OVERRIDES[field.ColName] || field.DisplayName; }
+
+// Fields locked during edit mode regardless of API IsLockOnEditModeAllow (all false in API)
+const LOCK_ON_EDIT = new Set(["ItemTypeID", "MainGroupCode", "FixedAssetAccountID"]);
+
 function buildEmpty() {
   return {
     IDNumber:                 0,
@@ -29,6 +46,7 @@ function buildEmpty() {
 
 export default function MainGroupMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
+  fieldDefs = [], defsLoading = false, defsError = null,
   itemTypeOptions = [], fixedAssetAccOptions = [],
   fetchEditRecord, seedOptionsFromMaster,
 }) {
@@ -71,35 +89,110 @@ export default function MainGroupMasterForm({
       .finally(() => setRecordLoading(false));
   }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster]);
 
-  // Field change — handles cascade for MainGroupShortCode auto-fill
-  const handleChange = useCallback((field, value) => {
+  // Visible fields sorted by ColSeqNo from GetDetailColData response
+  const visibleFields = useMemo(() =>
+    fieldDefs
+      .filter((f) => f.IsVisible && f.ColSeqNo < 100)
+      .sort((a, b) => a.ColSeqNo - b.ColSeqNo),
+  [fieldDefs]);
+
+  // Dropdown options lookup keyed by ColName
+  const optionsMap = useMemo(() => ({
+    ItemTypeID:          itemTypeOptions,
+    FixedAssetAccountID: fixedAssetAccOptions,
+  }), [itemTypeOptions, fixedAssetAccOptions]);
+
+  // Returns true if this field should be non-interactive
+  function isLocked(field) {
+    if (!isEditMode) return true;
+    if (isAddMode)   return false;
+    return LOCK_ON_EDIT.has(field.ColName);
+  }
+
+  // Field value change — includes cascade for MainGroupShortCode auto-fill
+  const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === "UsedCodeInCodeGeneration") {
+      const next = { ...prev, [key]: value };
+      if (key === "UsedCodeInCodeGeneration") {
         next.MainGroupShortCode = value ? (next.MainGroupCode || "") : "";
       }
       return next;
     });
   }, []);
 
-  // Returns true if the field should be non-editable
-  const isLocked = (lockOnEditMode = false) => {
-    if (!isEditMode) return true;
-    if (isAddMode)   return false;
-    return lockOnEditMode;
-  };
+  // Render the right control based on ColCtrlType from API
+  function renderControl(field) {
+    const key    = formKey(field.ColName);
+    const locked = isLocked(field);
 
-  // Save
+    // MainGroupShortCode — always read-only, auto-filled from UsedCodeInCodeGeneration
+    if (field.ColName === "MainGroupShortCode") {
+      return (
+        <span className="mgm-form-value">{formValues[key] || "—"}</span>
+      );
+    }
+
+    // UsedInAutoItemCodeGeneration — API says ColCtrlType 1 (textbox) but renders as checkbox
+    if (field.ColName === "UsedInAutoItemCodeGeneration") {
+      return (
+        <div className="mgm-form-control--checkbox">
+          <input
+            type="checkbox"
+            className="mgm-form-checkbox"
+            checked={!!formValues[key]}
+            onChange={(e) => handleChange(key, e.target.checked)}
+            disabled={locked}
+          />
+          <span className="mgm-form-checkbox-label">
+            {formValues[key] ? "Yes" : "No"}
+          </span>
+        </div>
+      );
+    }
+
+    // ColCtrlType 4 — Dropdown
+    if (field.ColCtrlType === 4) {
+      return (
+        <SearchSelect
+          value={formValues[key] ? String(formValues[key]) : ""}
+          onChange={(val) => handleChange(key, Number(val) || 0)}
+          options={optionsMap[field.ColName] || []}
+          placeholder="Select..."
+          disabled={locked}
+        />
+      );
+    }
+
+    // ColCtrlType 1 — TextBox (default)
+    return (
+      <input
+        className="mgm-form-input"
+        type="text"
+        value={formValues[key] || ""}
+        onChange={(e) => handleChange(key, e.target.value)}
+        placeholder={`Enter ${getLabel(field)}...`}
+        readOnly={locked}
+      />
+    );
+  }
+
+  // Save — validation driven by IsMandatory from API
   const handleSave = useCallback(async () => {
-    const missing = [];
-    if (!formValues.ItemTypeID || formValues.ItemTypeID === 0) missing.push("Item Type");
-    if (!formValues.MainGroupCode?.trim())                     missing.push("Main Group Code");
-    if (!formValues.MainGroupName?.trim())                     missing.push("Main Group Name");
-    if (!formValues.MainGroupShortName?.trim())                missing.push("Main Group Short Name");
+    const missing = visibleFields
+      .filter((f) => {
+        if (!f.IsMandatory) return false;
+        if (f.ColName === "MainGroupShortCode")           return false; // auto-fill
+        if (f.ColName === "UsedInAutoItemCodeGeneration") return false; // checkbox false is valid
+        const val = formValues[formKey(f.ColName)];
+        return f.ColCtrlType === 4 ? (!val || val === 0) : !String(val || "").trim();
+      })
+      .map(getLabel);
+
     if (missing.length > 0) {
       alert(`Please fill in required fields:\n${missing.join("\n")}`);
       return;
     }
+
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -126,7 +219,7 @@ export default function MainGroupMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [formValues, isAddMode, onSaved]);
+  }, [visibleFields, formValues, isAddMode, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isEditMode && !window.confirm("Discard changes?")) return;
@@ -164,6 +257,9 @@ export default function MainGroupMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
+  const isLoading    = defsLoading || recordLoading;
+  const combinedErr  = defsError   || recordLoadError;
+
   return (
     <Modal
       isOpen={isOpen}
@@ -175,110 +271,31 @@ export default function MainGroupMasterForm({
       variant="enterprise"
       footer={footer}
     >
-      {recordLoading ? (
+      {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
-      ) : recordLoadError ? (
+      ) : combinedErr ? (
         <div className="master-modal-error">
-          <AlertCircle size={14} strokeWidth={2} /> {recordLoadError}
+          <AlertCircle size={14} strokeWidth={2} /> {combinedErr}
         </div>
       ) : (
         <>
           <div className="mgm-form">
-
-            <div className="mgm-form-row">
-              <span className="mgm-form-label mgm-form-label--required">Item Type</span>
-              <div className="mgm-form-control">
-                <SearchSelect
-                  value={formValues.ItemTypeID ? String(formValues.ItemTypeID) : ""}
-                  onChange={(val) => handleChange("ItemTypeID", Number(val) || 0)}
-                  options={itemTypeOptions}
-                  placeholder="Select..."
-                  disabled={isLocked(true)}
-                />
-              </div>
-            </div>
-
-            <div className="mgm-form-row">
-              <span className="mgm-form-label mgm-form-label--required">Main Group Code</span>
-              <div className="mgm-form-control">
-                <input
-                  className="mgm-form-input"
-                  type="text"
-                  value={formValues.MainGroupCode}
-                  onChange={(e) => handleChange("MainGroupCode", e.target.value)}
-                  placeholder="Enter Main Group Code..."
-                  readOnly={isLocked(true)}
-                />
-              </div>
-            </div>
-
-            <div className="mgm-form-row">
-              <span className="mgm-form-label mgm-form-label--required">Main Group Name</span>
-              <div className="mgm-form-control">
-                <input
-                  className="mgm-form-input"
-                  type="text"
-                  value={formValues.MainGroupName}
-                  onChange={(e) => handleChange("MainGroupName", e.target.value)}
-                  placeholder="Enter Main Group Name..."
-                  readOnly={isLocked(false)}
-                />
-              </div>
-            </div>
-
-            <div className="mgm-form-row">
-              <span className="mgm-form-label mgm-form-label--required">Main Group Short Name</span>
-              <div className="mgm-form-control">
-                <input
-                  className="mgm-form-input"
-                  type="text"
-                  value={formValues.MainGroupShortName}
-                  onChange={(e) => handleChange("MainGroupShortName", e.target.value)}
-                  placeholder="Enter Main Group Short Name..."
-                  readOnly={isLocked(false)}
-                />
-              </div>
-            </div>
-
-            <div className="mgm-form-row">
-              <span className="mgm-form-label">Used in Code Generation</span>
-              <div className="mgm-form-control mgm-form-control--checkbox">
-                <input
-                  type="checkbox"
-                  className="mgm-form-checkbox"
-                  checked={!!formValues.UsedCodeInCodeGeneration}
-                  onChange={(e) => handleChange("UsedCodeInCodeGeneration", e.target.checked)}
-                  disabled={isLocked(false)}
-                />
-                <span className="mgm-form-checkbox-label">
-                  {formValues.UsedCodeInCodeGeneration ? "Yes" : "No"}
+            {visibleFields.map((field) => (
+              <div
+                key={field.ColName}
+                className={[
+                  "mgm-form-row",
+                  field.ColName === "MainGroupShortCode" ? "mgm-form-row--view" : "",
+                ].join(" ").trim()}
+              >
+                <span className={`mgm-form-label${field.IsMandatory && field.ColName !== "MainGroupShortCode" && field.ColName !== "UsedInAutoItemCodeGeneration" ? " mgm-form-label--required" : ""}`}>
+                  {getLabel(field)}
                 </span>
+                <div className={`mgm-form-control${field.ColName === "UsedInAutoItemCodeGeneration" ? " mgm-form-control--checkbox" : ""}`}>
+                  {renderControl(field)}
+                </div>
               </div>
-            </div>
-
-            {/* Always read-only — auto-filled from UsedCodeInCodeGeneration */}
-            <div className="mgm-form-row mgm-form-row--view">
-              <span className="mgm-form-label">Main Group Short Code</span>
-              <div className="mgm-form-control">
-                <span className="mgm-form-value">
-                  {formValues.MainGroupShortCode || "—"}
-                </span>
-              </div>
-            </div>
-
-            <div className="mgm-form-row">
-              <span className="mgm-form-label">Fixed Assets Account</span>
-              <div className="mgm-form-control">
-                <SearchSelect
-                  value={formValues.FixedAssetAccountID ? String(formValues.FixedAssetAccountID) : ""}
-                  onChange={(val) => handleChange("FixedAssetAccountID", Number(val) || 0)}
-                  options={fixedAssetAccOptions}
-                  placeholder="Select..."
-                  disabled={isLocked(true)}
-                />
-              </div>
-            </div>
-
+            ))}
           </div>
 
           {saveError && (

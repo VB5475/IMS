@@ -63,9 +63,10 @@ function buildMGMColumns(onEdit) {
 export default function MainGroupMasterPage() {
   const { get } = useApi(API_BASE_URL);
 
-  // Dropdown options fetched once — passed down to form
+  // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
   const {
     fetchHeaderMeta,
+    headerColumns: fieldDefs, headerFetching, headerError,
     itemTypeOptions, fixedAssetAccOptions,
     fetchEditRecord, seedOptionsFromMaster,
   } = useMainGroupMaster();
@@ -172,6 +173,9 @@ export default function MainGroupMasterPage() {
         recordId={editRecordId}
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
+        fieldDefs={fieldDefs}
+        defsLoading={headerFetching}
+        defsError={headerError}
         itemTypeOptions={itemTypeOptions}
         fixedAssetAccOptions={fixedAssetAccOptions}
         fetchEditRecord={fetchEditRecord}
