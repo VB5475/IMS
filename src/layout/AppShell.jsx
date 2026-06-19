@@ -9,6 +9,7 @@ import {
   Receipt,
   Layers,
   Tag,
+  MapPin,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -47,7 +48,8 @@ const NAV_SECTIONS = [
   {
     label: "Admin",
     items: [
-      { to: "/admin/main-group-master", icon: Tag, label: "Main Group Master", end: false },
+      { to: "/admin/main-group-master",         icon: Tag,    label: "Main Group Master", end: false },
+      { to: "/admin/company/location-master",   icon: MapPin, label: "Location Master",   end: false },
     ],
   },
 ];
