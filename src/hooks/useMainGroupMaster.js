@@ -90,8 +90,8 @@ export function useMainGroupMaster() {
       );
       setFixedAssetAccOptions(
         (fixedAssetData?.Table || []).map((r) => ({
-          value: r.FixedAssetAccountID ?? r.AccountID ?? r.AccID ?? r.IDNumber ?? r.ID,
-          label: String(r.FixedAssetAccountName ?? r.AccountName ?? r.AccName ?? r.Name ?? ""),
+          value: r.FixedAssetAccountID ?? r.AccountID ?? r.AccID ?? r.IDNUMBER ?? r.ID,
+          label: String(r.FixedAssetAccountName ?? r.AccountName ?? r.ACNAME ?? r.Name ?? ""),
         })).filter((o) => o.value != null)
       );
     } catch (err) {

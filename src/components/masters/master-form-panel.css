@@ -123,8 +123,8 @@
 
 .mfp-row {
   display: flex;
-  align-items: stretch;     /* label bg fills full row height via align-self:stretch */
-  min-height: 52px;         /* comfortable ERP row height */
+  align-items: stretch;     /* label bg fills the full row height */
+  /* No fixed min-height — row auto-sizes to the control inside it */
   transition: background 0.1s ease;
 }
 
@@ -156,10 +156,9 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .mfp-row__label {
-  /* Widened to 230px so even the longest standard ERP labels fit on one line */
   flex: 0 0 230px;
   box-sizing: border-box;
-  padding: 0 14px 0 22px;
+  padding: 6px 14px 6px 22px;   /* vertical padding matches control padding */
   /* Color system */
   background: var(--field-frozen-label-bg, #dbe8f5);
   color: var(--primary);
@@ -223,10 +222,10 @@
 .mfp-row__control {
   flex: 1;
   min-width: 0;
-  padding: 8px 18px 8px 16px;
+  padding: 6px 16px 6px 12px;   /* tight vertical padding — row height = input + 12px */
   display: flex;
-  align-items: center;    /* keeps input vertically centered even if row grows */
-  align-self: center;     /* don't stretch — stay centered if row is taller */
+  align-items: center;
+  align-self: center;
 }
 
 /* ── Read-only value text ── */
@@ -249,7 +248,7 @@
 /* ── Text input ── */
 .mfp-input {
   width: 100%;
-  height: 36px;             /* slightly taller for master form comfort */
+  height: 30px;             /* matches IMS standard control height */
   padding: 0 10px;
   background: #fff;
   border: 1px solid var(--border-dark, #c3c6d0);
@@ -326,7 +325,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CARD FOOTER — Save / Cancel actions
+   CARD FOOTER — optional slot (not used; actions live in screen-bottom ActionBar)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .mfp-footer {
@@ -334,9 +333,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 10px 18px;
-  background: var(--field-frozen-label-bg, #dbe8f5);   /* matches label column tone */
-  border-top: 1.5px solid var(--field-frozen-border, #94b8d8);
+  padding: 8px 16px;
+  background: var(--field-frozen-label-bg, #dbe8f5);
+  border-top: 1px solid var(--field-frozen-border, #94b8d8);
 }
 
 /* ── Meta loading skeleton ── */
