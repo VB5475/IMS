@@ -1,0 +1,174 @@
+/* GoodsReceivedNoteForm.css */
+
+.grn-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.grn-page .efq-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.grn-page .efq-panel .efq-cell--tone-view .efq-cell__label {
+  background: var(--field-view-label-bg);
+  border-left: 3px solid var(--field-view-accent);
+  color: var(--field-view-text);
+}
+
+.grn-page .efq-panel .efq-cell--tone-view .efq-cell__control,
+.grn-page .efq-panel .efq-table__cell--tone-view {
+  background: var(--field-view-bg);
+}
+
+.grn-page .efq-panel .efq-cell--tone-view .efq-cell__input,
+.grn-page .efq-panel .efq-cell--tone-view .efq-cell__value {
+  background: var(--field-view-bg);
+  border-color: var(--field-view-border);
+  color: var(--field-view-text);
+}
+
+.grn-page .efq-panel .efq-cell--tone-view .efq-cell__control .search-select__trigger {
+  background: var(--field-view-bg) !important;
+  border-color: var(--field-view-border) !important;
+  color: var(--field-view-text) !important;
+}
+
+.grn-page .efq-panel .efq-cell--tone-frozen .efq-cell__label {
+  background: var(--field-frozen-label-bg);
+  border-left: 3px solid var(--field-frozen-accent);
+  color: var(--field-frozen-text);
+}
+
+.grn-page .efq-panel .efq-cell--tone-frozen .efq-cell__control,
+.grn-page .efq-panel .efq-table__cell--tone-frozen {
+  background: var(--field-frozen-bg);
+}
+
+.grn-page .efq-panel .efq-cell--tone-frozen .efq-cell__input,
+.grn-page .efq-panel .efq-cell--tone-frozen .efq-cell__value {
+  background: var(--field-frozen-bg);
+  border-color: var(--field-frozen-border);
+  color: var(--field-frozen-text);
+}
+
+.grn-page .efq-panel .efq-cell--tone-frozen .efq-cell__control .search-select__trigger,
+.grn-page .efq-panel .efq-cell__select--tone-frozen .search-select__trigger {
+  background: var(--field-frozen-bg) !important;
+  border-color: var(--field-frozen-border) !important;
+  color: var(--field-frozen-text) !important;
+}
+
+.grn-grid-section {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 320px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(30, 74, 122, 0.08);
+  overflow: hidden;
+}
+
+.grn-tab-pane {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.grn-tab-pane--active {
+  display: flex;
+  flex-direction: column;
+}
+
+.grn-tab-pane .erp-grid-container {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.grn-sub-panel {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 12px 12px;
+}
+
+.grn-tab-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.grn-tab-action-btn:hover:not(:disabled) {
+  background: var(--primary-lighter);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.grn-tab-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.grn-tab-filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.grn-tab-filter__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.grn-tab-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--danger);
+  background: #fef2f2;
+  border: 1px solid rgba(217, 48, 37, 0.25);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.grn-tab-delete-btn:hover:not(:disabled) {
+  background: #fde8e8;
+  border-color: var(--danger);
+}
+
+.grn-tab-delete-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

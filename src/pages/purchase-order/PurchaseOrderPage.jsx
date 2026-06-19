@@ -1,44 +1,20 @@
 // PurchaseOrderPage.jsx
 // Purchase Order listing / landing page.
-// Mirrors PurchaseInquiryPage.jsx exactly — same grid, toolbar, navigation pattern.
 // Clicking Add New → /purchase-order/new (PurchaseOrderForm in new mode)
-// Clicking Edit   → /purchase-order/:id  (PurchaseOrderForm in edit mode)
+// Clicking Edit   → /purchase-order/:id/edit (PurchaseOrderForm in edit mode)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Plus, Pencil } from "lucide-react";
+import { ShoppingCart, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { PO_CONFIG } from "./constants";
 import "./PurchaseOrderPage.css";
 
 const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
-
-const MONTH_ABBR = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-function formatListDate(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mon = MONTH_ABBR[d.getMonth()];
-  return `${dd}-${mon}-${d.getFullYear()}`;
-}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -63,97 +39,6 @@ function buildListParams() {
   };
 }
 
-function buildPoColumns(navigate) {
-  return [
-    {
-      key: "PONo",
-      label: "PO No.",
-      width: "13%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "PODate",
-      label: "PO Date",
-      width: "10%",
-      filterable: true,
-      filterType: "date",
-      render: (value) => formatListDate(value),
-    },
-    {
-      key: "ExpectedDate",
-      label: "Expected Date",
-      width: "10%",
-      filterable: true,
-      filterType: "date",
-      render: (value) => formatListDate(value),
-    },
-    {
-      key: "Division",
-      label: "Division",
-      width: "12%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "POType",
-      label: "PO Type",
-      width: "13%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "SupplierName",
-      label: "Supplier",
-      width: "15%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "Currency",
-      label: "Currency",
-      width: "8%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "CreatedBy",
-      label: "Created By",
-      width: "10%",
-      filterable: true,
-      align: "left",
-    },
-    {
-      key: "CreatedDate",
-      label: "Created Date",
-      width: "10%",
-      filterable: true,
-      filterType: "date",
-      render: (value) => formatListDate(value),
-    },
-    {
-      key: "_actions",
-      label: "Edit",
-      width: "4%",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="po-list__edit-btn"
-          title={`Edit PO ${row.PONo ?? ""}`}
-          aria-label={`Edit PO ${row.PONo ?? ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/purchase-order/${row.POID}/edit`, { state: { record: row } });
-          }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
-  ];
-}
-
 export default function PurchaseOrderPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
@@ -170,14 +55,22 @@ export default function PurchaseOrderPage() {
     backTo: "/",
   });
 
-  const columns = useMemo(() => buildPoColumns(navigate), [navigate]);
+  const columns = useMemo(
+    () =>
+      buildListPageColumns(data, {
+        navigate,
+        basePath: "/purchase-order",
+        editBtnClass: "po-list__edit-btn",
+      }),
+    [data, navigate]
+  );
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(json?.Table ?? []);
+      setData(normalizeListRows(json?.Table ?? []));
     } catch (err) {
       console.error("[PurchaseOrderPage] list fetch failed:", err);
       setError("Failed to load purchase orders.");

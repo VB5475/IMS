@@ -1,0 +1,126 @@
+// Shared constants across purchase module pages (PO, PI, PQ, GRN, Indent, PV).
+
+/** SP / API names reused by every purchase transaction module. */
+export const PURCHASE_API = {
+  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
+  SP_CONFIG_TYPES: "fn_tbl_ddl_Pur_Configuration",
+  SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
+  SUPPLIER_PARTY_TYPE: "S",
+  SUPPLIER_SP: "Fn_tbl_FetchCustomerSupplierTranWs4Web",
+  CONFIG_YEAR_ID: 2,
+  DIVISION_YEAR_ID: 2,
+  LIST_OBJ_TYPE: 2,
+};
+
+/** Reusable "Based On" option entries — compose per-module lists in constants. */
+export const BASED_ON = {
+  DIRECT: { value: "0", label: "Direct" },
+  PO_BASE: { value: "1", label: "PO base" },
+  INDENT_WISE: { value: "2", label: "Indent wise" },
+  INDENT_BASE: { value: "3", label: "Indent base" },
+  QUOTATION: { value: "3", label: "Quotation" },
+  INQUIRY_BASED: { value: "2", label: "Inquiry Based" },
+  GRN_BASE: { value: "0", label: "GRN Base" },
+  PO_BASE_PV: { value: "1", label: "PO Base" },
+};
+
+export const APPROVED_FILTER_OPTS = [
+  { value: "all", label: "All" },
+  { value: "approved", label: "Approved" },
+  { value: "pending", label: "Pending" },
+];
+
+export const TERMS_COLUMNS = ["Sr.No", "Terms Type", "Code", "Terms & Conditions"];
+
+export const INDENT_DETAILS_COLUMNS = [
+  { key: "SrNo", label: "Sr.No", width: 70 },
+  { key: "IndentNo", label: "Indent No.", width: 120 },
+  { key: "IndentDate", label: "Indent Date", width: 110 },
+  { key: "ItemName", label: "Item Name", width: 190 },
+  { key: "IndentQty", label: "Indent Qty", width: 100 },
+  { key: "TranQty", label: "Tran Qty", width: 100 },
+  { key: "Unit", label: "Unit", width: 80 },
+];
+
+/** GST summary fields — SummaryParameterID matches RB master ColName. */
+export const PURCHASE_GST_SUMMARY_FIELDS = [
+  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
+  { SummaryParameterID: "MstExpense", detKey: "Expense" },
+  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
+  { SummaryParameterID: "MstCGST", detKey: "CGST" },
+  { SummaryParameterID: "MstSGST", detKey: "SGST" },
+  { SummaryParameterID: "MstIGST", detKey: "IGST" },
+  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
+  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
+];
+
+export const CURRENCY_READONLY_FIELDS = ["CurrencyID", "CurrencyRate"];
+
+export const DEFAULT_BASED_ON_FILTER_VALUES = { BasedOnID: "0" };
+
+/** Division change → clear config type (common cascade). */
+export const DIVISION_CONFIG_CASCADE_RESET = { DivisionID: ["ConfigID"] };
+
+/** Read-only supplier picker grid columns (Inquiry / PO suppliers tab). */
+export const PURCHASE_SUPPLIER_GRID_COLUMNS = [
+  {
+    id: "cb",
+    name: "",
+    key: "cb",
+    controlType: -1,
+    width: 48,
+    isFixed: true,
+    isEditAllow: false,
+  },
+  {
+    id: "SrNo",
+    name: "Sr.No",
+    key: "SrNo",
+    controlType: 0,
+    width: 70,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "SupplierName",
+    name: "Supplier Name",
+    key: "SupplierName",
+    controlType: 0,
+    width: 200,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "Address",
+    name: "Address",
+    key: "Address",
+    controlType: 0,
+    width: 220,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "City",
+    name: "City",
+    key: "City",
+    controlType: 0,
+    width: 120,
+    isFixed: false,
+    isEditAllow: false,
+  },
+  {
+    id: "MobileNo",
+    name: "Mobile No.",
+    key: "MobileNo",
+    controlType: 0,
+    width: 110,
+    isFixed: false,
+    isEditAllow: false,
+  },
+];
+
+export const PURCHASE_SUPPLIER_GRID_CONFIG = {
+  columns: PURCHASE_SUPPLIER_GRID_COLUMNS,
+  pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25] },
+};

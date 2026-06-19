@@ -49,7 +49,13 @@ import {
   getColumnCellClass,
   getColumnHeaderThemeClass,
 } from "./gridColumnClass";
-import { getRowDropdownDisplay } from "../../utils/gridUtils";
+import {
+  mergeRowDropdownOptions,
+  normalizeDropdownOptions,
+  resolveDropdownLabel,
+  resolveRowCellValue,
+  syncEditGridDropdownValues,
+} from "../../utils/gridUtils";
 import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKeyboardNav";
 import {
   formatColumnDisplayValue,
@@ -186,6 +192,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     onRowsChangeRef.current?.(rows);
   }, [rows]);
 
+  const syncRowsForDropdowns = useCallback(
+    (rawRows) => {
+      const dataColumns = columns.filter((c) => c.key !== "cb");
+      return syncEditGridDropdownValues(rawRows, dataColumns);
+    },
+    [columns]
+  );
+
   // Load initialRows when provided (readOnly mode)
   useEffect(() => {
     if (initialRows && Array.isArray(initialRows) && initialRows.length > 0) {
@@ -193,9 +207,19 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       // fields the API response contains (e.g. ItemID=0 on every row would
       // cause all rows to share the same id and appear selected together).
       const withIds = initialRows.map((r, i) => ({ ...r, id: `_row_${i}` }));
-      setRows(withIds);
+      setRows(syncRowsForDropdowns(withIds));
     }
-  }, [initialRows]);
+  }, [initialRows, syncRowsForDropdowns]);
+
+  // Re-sync dropdown cell values when column metadata / options arrive after rows.
+  useEffect(() => {
+    const hasDropdowns = columns.some((c) => c.controlType === 4 && c.key !== "cb");
+    if (!hasDropdowns) return;
+    setRows((prev) => {
+      if (!prev.length) return prev;
+      return syncEditGridDropdownValues(prev, columns);
+    });
+  }, [columns]);
 
   // ── Imperative handle ─────────────────────────────────────────
   useImperativeHandle(
@@ -234,7 +258,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           ...r,
           id: String(r.id ?? r.CompUniqueKey ?? r.IDNumber ?? `_row_${i}`),
         }));
-        setRows(withIds);
+        setRows(syncRowsForDropdowns(withIds));
         setSelectedIds(new Set());
         setExpandedRows(new Set());
       },
@@ -255,7 +279,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         return true;
       },
     }),
-    [selectedIds, readOnly, enableCollapsible, childRowsMap, toggleExpand]
+    [selectedIds, readOnly, enableCollapsible, childRowsMap, toggleExpand, syncRowsForDropdowns]
   );
 
   // Notify parent when selection changes
@@ -314,20 +338,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ── Dropdown label helper ─────────────────────────────────────────
   const getDropdownLabel = useCallback((col, rawValue, row = null) => {
-    const rowDisplay = row ? getRowDropdownDisplay(row, col) : "";
-    if (rowDisplay) return rowDisplay;
-    if (col.controlType !== 4 || !col.dropdownOptions) return rawValue;
-    const opts = col.dropdownOptions.map((opt) => {
-      if (typeof opt === "string") return { value: opt, label: opt };
-      if (opt && typeof opt === "object") {
-        if (opt.value !== undefined)
-          return { value: String(opt.value), label: opt.label || String(opt.value) };
-        return { value: String(opt.IDNumber ?? opt), label: opt.Name ?? String(opt) };
-      }
-      return { value: String(opt), label: String(opt) };
-    });
-    const found = opts.find((o) => String(o.value) === String(rawValue));
-    return found ? found.label : rawValue;
+    return resolveDropdownLabel(col, row, rawValue);
   }, []);
 
   // ── Sort ──────────────────────────────────────────────────────────
@@ -534,7 +545,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
-    const value = row[col.key] ?? "";
+    const value =
+      col.controlType === 4 ? resolveRowCellValue(row, col) : (row[col.key] ?? "");
     const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
     const columnMeta = resolveColumnMeta(col);
     const displayValue = formatColumnDisplayValue(value, col);
@@ -542,10 +554,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     // ── Read-only mode: always render as label ──
     if (cellReadOnly) {
       if (col.controlType === 4) {
-        // Show the display label for dropdown values
+        const label = getDropdownLabel(col, value, row);
         return (
-          <span className="cell-label" title={String(getDropdownLabel(col, value, row))}>
-            {getDropdownLabel(col, value, row) || "—"}
+          <span className="cell-label" title={String(label)}>
+            {label || "—"}
           </span>
         );
       }
@@ -641,11 +653,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         );
 
       case 4: {
-        const opts = (col.dropdownOptions || []).map((opt) => {
-          if (typeof opt === "string") return { value: opt, label: opt };
-          if (opt.value !== undefined) return opt;
-          return { value: String(opt.IDNumber ?? opt), label: opt.Name ?? String(opt) };
-        });
+        const baseOpts = normalizeDropdownOptions(col.dropdownOptions);
+        const opts = mergeRowDropdownOptions(col, row, baseOpts);
         return (
           <Suspense fallback={gridCellLazyFallback}>
             <SearchSelect

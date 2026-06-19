@@ -1,33 +1,40 @@
-// PurchaseIndentPage.jsx
-// Purchase Indent listing / landing page.
-// Clicking Add New → /purchase-indent/new  (PurchaseIndentForm in new mode)
-// Clicking Edit   → /purchase-indent/:id/edit (PurchaseIndentForm in edit mode)
-
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { IND_CONFIG } from "./constants";
-import "./PurchaseIndentPage.css";
+import { GRN_CONFIG, formatTranDate } from "./constants";
+import "./GoodsReceivedNotePage.css";
 
 const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
-function buildListParams() {
-  const year = new Date().getFullYear();
+function buildListDateRange() {
+  const now = new Date();
+  const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   return {
-    ObjType: IND_CONFIG.LIST_OBJ_TYPE,
-    ObjName: IND_CONFIG.SP_INDENT_LIST,
+    PrmFromDate: formatTranDate(`${fyStartYear}-04-01`),
+    PrmToDate: formatTranDate(`${fyStartYear + 1}-03-31`),
+  };
+}
+
+function buildListParams() {
+  const session = getUserSession();
+  return {
+    ObjType: GRN_CONFIG.LIST_OBJ_TYPE,
+    ObjName: GRN_CONFIG.SP_GRN_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: IND_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: `01-Jan-${year}`,
-        prmToDate: `31-Dec-${year}`,
-        PrmDepartmentId: 0,
+        ...buildListDateRange(),
+        PrmDivisionID: 0,
+        PrmSupplierID: 0,
+        PrmGRNTypeID: 0,
+        PrmLoginID: session.loginId,
+        PrmCompanyID: session.companyId ?? DEFAULT_COMPANY_ID,
+        PrmYearID: session.yearId ?? GRN_CONFIG.CONFIG_YEAR_ID,
       },
     ]),
     p_ErrCode: -1,
@@ -35,7 +42,7 @@ function buildListParams() {
   };
 }
 
-export default function PurchaseIndentPage() {
+export default function GoodsReceivedNotePage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -45,8 +52,8 @@ export default function PurchaseIndentPage() {
   const [pageSize, setPageSize] = useState(8);
 
   usePageHeader({
-    title: "Purchase Indents",
-    subtitle: "Browse purchase indents or create a new one.",
+    title: "Goods Received Note",
+    subtitle: "Browse goods received notes or create a new one.",
     showBack: true,
     backTo: "/",
   });
@@ -55,53 +62,53 @@ export default function PurchaseIndentPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/purchase-indent",
-        editBtnClass: "ind-list__edit-btn",
+        basePath: "/goods-received-note",
+        editBtnClass: "grn-list__edit-btn",
       }),
     [data, navigate]
   );
 
-  const fetchIndents = useCallback(async () => {
+  const fetchGrnList = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
       setData(normalizeListRows(json?.Table ?? []));
     } catch (err) {
-      console.error("[PurchaseIndentPage] list fetch failed:", err);
-      setError("Failed to load purchase indents.");
+      console.error("[GoodsReceivedNotePage] list fetch failed:", err);
+      setError("Failed to load goods received notes.");
     } finally {
       setLoading(false);
     }
   }, [get]);
 
   useEffect(() => {
-    fetchIndents();
-  }, [fetchIndents]);
+    fetchGrnList();
+  }, [fetchGrnList]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/purchase-indent/new");
+    navigate("/goods-received-note/new");
   }, [navigate]);
 
   return (
-    <div className="workspace-page ind-list-page">
-      <section className="ind-list-panel ind-list-panel--fill">
-        <header className="ind-list-panel__header">
-          <div className="ind-list-panel__title">
+    <div className="workspace-page grn-list-page">
+      <section className="grn-list-panel grn-list-panel--compact grn-list-panel--fill">
+        <header className="grn-list-panel__header">
+          <div className="grn-list-panel__title">
             <ClipboardList size={14} strokeWidth={2} />
-            <span>Purchase Indents</span>
+            <span>Goods Received Notes</span>
           </div>
-          <div className="ind-list-panel__toolbar">
-            <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
+          <div className="grn-list-panel__toolbar">
+            <button type="button" className="grn-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
               Add New
             </button>
-            <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">
+            <label htmlFor="grn-list-page-size" className="grn-list-panel__pagesize-label">
               Rows per page
             </label>
             <select
-              id="ind-list-page-size"
-              className="ng-select ind-list-panel__pagesize-select"
+              id="grn-list-page-size"
+              className="ng-select grn-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               aria-label="Rows per page"
@@ -121,11 +128,11 @@ export default function PurchaseIndentPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading purchase indents…"
+          loaderText="Loading goods received notes…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No purchase indents found."
+          emptyMessage="No goods received notes found."
           hideHeader
           fill
         />

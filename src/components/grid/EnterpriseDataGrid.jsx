@@ -12,6 +12,21 @@ import Loader from "../ui/Loader";
 import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
 import "./EnterpriseDataGrid.css";
 
+const ACTION_COLUMN_KEYS = new Set(["_actions"]);
+
+function isActionColumn(col) {
+  return ACTION_COLUMN_KEYS.has(col.key) || col.isAction;
+}
+
+/** Place edit/action columns first; data columns keep their relative order. */
+function orderColumnsWithActionsFirst(columns) {
+  if (!Array.isArray(columns) || columns.length === 0) return columns;
+  const actionCols = columns.filter((c) => ACTION_COLUMN_KEYS.has(c.key) || c.isAction);
+  if (actionCols.length === 0) return columns;
+  const dataCols = columns.filter((c) => !ACTION_COLUMN_KEYS.has(c.key) && !c.isAction);
+  return [...actionCols, ...dataCols];
+}
+
 /**
  * NormalGrid — a reusable paginated data-grid card.
  *
@@ -40,6 +55,7 @@ import "./EnterpriseDataGrid.css";
  *   dropdownOptions?: array,           // for 'list' type — same shape as GridForm
  *   align?      : 'left'|'center'|'right',
  *   isLink?     : boolean,
+ *   isAction?   : boolean,             // action column (e.g. Edit); rendered first by default
  *   badge?      : (value, row) => 'danger'|'warning'|'success'|'neutral',
  *   render?     : (value, row) => ReactNode,
  * }
@@ -66,6 +82,23 @@ function EnterpriseDataGrid({
   const [currentPage, setCurrentPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
   const itemsPerPage = pageSizeProp ?? internalPageSize;
+
+  const displayColumns = useMemo(
+    () => orderColumnsWithActionsFirst(columns),
+    [columns]
+  );
+
+  const hasPinnedActions = useMemo(
+    () => displayColumns.some(isActionColumn),
+    [displayColumns]
+  );
+
+  const getColStyle = useCallback((col) => {
+    const style = {};
+    if (col.width) style.width = col.width;
+    if (col.minWidth) style.minWidth = typeof col.minWidth === "number" ? `${col.minWidth}px` : col.minWidth;
+    return style;
+  }, []);
 
   const setItemsPerPage = useCallback(
     (next) => {
@@ -109,11 +142,11 @@ function EnterpriseDataGrid({
   const filteredData = useMemo(() => {
     let result = [...data];
     Object.entries(columnFilters).forEach(([key, filterValue]) => {
-      const col = columns.find((c) => c.key === key);
+      const col = displayColumns.find((c) => c.key === key);
       result = applyColumnFilterValue(result, key, filterValue, col);
     });
     return result;
-  }, [data, columnFilters, columns]);
+  }, [data, columnFilters, displayColumns]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
 
@@ -146,7 +179,7 @@ function EnterpriseDataGrid({
     return value ?? "—";
   };
 
-  const rowIsClickable = onRowClick && !columns.some((c) => c.isLink);
+  const rowIsClickable = onRowClick && !displayColumns.some((c) => c.isLink);
   const cellAlign = (col, colIndex) => col.align ?? (colIndex === 0 ? "left" : "center");
 
   /* ── Render ───────────────────────────────────────────────────────── */
@@ -187,20 +220,31 @@ function EnterpriseDataGrid({
         ) : (
           <>
             <div className="ng-table-wrapper">
-              <table className="ng-table">
+              <table
+                className={`ng-table${hasPinnedActions ? " ng-table--pinned-actions" : ""}`}
+              >
                 <colgroup>
-                  {columns.map((col, i) => (
-                    <col key={i} style={col.width ? { width: col.width } : undefined} />
+                  {displayColumns.map((col, i) => (
+                    <col
+                      key={i}
+                      className={isActionColumn(col) ? "ng-col--action" : undefined}
+                      style={getColStyle(col)}
+                    />
                   ))}
                 </colgroup>
 
                 <thead>
                   <tr>
-                    {columns.map((col, i) => {
+                    {displayColumns.map((col, i) => {
                       const active = isFilterActive(columnFilters[col.key]);
                       const filterRef = col.filterable ? getFilterRef(col.key) : null;
+                      const actionCol = isActionColumn(col);
                       return (
-                        <th key={i} style={{ textAlign: cellAlign(col, i) }}>
+                        <th
+                          key={i}
+                          className={actionCol ? "ng-col--action" : undefined}
+                          style={{ textAlign: cellAlign(col, i), ...getColStyle(col) }}
+                        >
                           <div className="ng-th-inner">
                             <span className="ng-th-label">{col.label}</span>
                             {col.filterable && (
@@ -232,8 +276,13 @@ function EnterpriseDataGrid({
                         className={rowIsClickable ? "ng-row--clickable" : ""}
                         onClick={rowIsClickable ? () => onRowClick(row) : undefined}
                       >
-                        {columns.map((col, ci) => (
-                          <td key={ci} style={{ textAlign: cellAlign(col, ci) }} data-col={col.key}>
+                        {displayColumns.map((col, ci) => (
+                          <td
+                            key={ci}
+                            className={isActionColumn(col) ? "ng-col--action" : undefined}
+                            style={{ textAlign: cellAlign(col, ci), ...getColStyle(col) }}
+                            data-col={col.key}
+                          >
                             {renderCell(col, row)}
                           </td>
                         ))}
@@ -241,7 +290,7 @@ function EnterpriseDataGrid({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={columns.length} className="ng-empty-cell">
+                      <td colSpan={displayColumns.length} className="ng-empty-cell">
                         {emptyMessage}
                       </td>
                     </tr>
@@ -284,7 +333,7 @@ function EnterpriseDataGrid({
       {/* ── Filter popup (portaled to body) ── */}
       {activeFilterCol &&
         (() => {
-          const col = columns.find((c) => c.key === activeFilterCol);
+          const col = displayColumns.find((c) => c.key === activeFilterCol);
           if (!col) return null;
           return (
             <ColumnFilter

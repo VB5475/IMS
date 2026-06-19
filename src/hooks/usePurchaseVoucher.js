@@ -22,7 +22,7 @@ import {
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { PV_CONFIG } from "../pages/purchase-voucher/constants";
-import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
+import { fetchAndBuildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -123,6 +123,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
 
   // ── Detail grid state ───────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
+  const columnsRef = useRef([]);
   const [allColumns, setAllColumns] = useState([]);
   const [eventColumns, setEventColumns] = useState(() => new Set());
   const [isFetching, setIsFetching] = useState(false);
@@ -319,9 +320,6 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
 
   // ── fetchGridColumns ────────────────────────────────────────────────
   const fetchGridColumns = useCallback(async (divisionID = 0, editOpts = false) => {
-    const opts = typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
-    const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
-
     const apiColumns = rawDetailColumnsRef.current;
     const meta = rawDetailRbMetaRef.current;
     if (!apiColumns.length || !meta) {
@@ -330,14 +328,15 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     }
 
     try {
-      const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
+      const gridColumns = await fetchAndBuildGridColumns(get, {
+        apiColumns,
+        rbId: meta.RBID,
         funcCode: PV_CONFIG.RB_DETAIL,
-        divisionID: Number(divisionID) || 0,
-        existingRecordEdit,
-        rowData: masterRow,
-        fetchUnlockedDropdowns,
+        divisionID,
+        editOpts,
+        currentColumns: columnsRef.current,
       });
-      const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, { filterable: false, allEditable: true, existingRecordEdit });
+      columnsRef.current = gridColumns;
       setColumns(gridColumns);
       console.log("%c[PV] Grid columns built:", "color:#22c55e;font-weight:600", gridColumns.length);
       return gridColumns;

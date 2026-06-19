@@ -18,7 +18,7 @@ import { getUserSession } from "../session/userSession";
 import { ENDPOINTS, API_BASE_URL, getColDefault, OBJ_TYPE } from "../api/constants";
 import { TXN_CONFIG } from "../pages/txn-entry/constants";
 import { fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
-import { withSaveContextFields } from "../utils/savePayload";
+import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
@@ -304,17 +304,20 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
 
         const body = await withSaveContextFields(
-          {
-            PrmStrMstRBName: TXN_CONFIG.RB_MASTER,
-            prmStrMstJSON: JSON.stringify([headerValues]),
-            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-            prmstrDetailSaveProcName: detMeta?.SaveProcName,
-            PrmStrDetRBName: TXN_CONFIG.RB_DETAIL,
-            prmStrDetJSON: JSON.stringify(cleanedRows),
-            GenIDNumber: genIDNumber,
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          },
+          buildSaveJsonFields({
+            label: "TxnEntry",
+            mst: headerValues,
+            det: cleanedRows,
+            extra: {
+              PrmStrMstRBName: TXN_CONFIG.RB_MASTER,
+              prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+              prmstrDetailSaveProcName: detMeta?.SaveProcName,
+              PrmStrDetRBName: TXN_CONFIG.RB_DETAIL,
+              GenIDNumber: genIDNumber,
+              p_ErrCode: -1,
+              p_ErrMsg: "",
+            },
+          }),
           { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
         );
 

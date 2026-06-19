@@ -19,8 +19,10 @@ const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIn
 const PurchaseIndentForm = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
 const PurchaseVoucherPage = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
 const PurchaseVoucherForm = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
-const CWIPToFAPage        = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
-const CWIPToFAForm        = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
+const GoodsReceivedNotePage = lazy(() => import("./pages/goods-received-note/GoodsReceivedNotePage"));
+const GoodsReceivedNoteForm = lazy(() => import("./pages/goods-received-note/GoodsReceivedNoteForm"));
+const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
+const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const MainGroupMasterPage  = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
 const LocationMasterPage   = lazy(() => import("./pages/location-master/LocationMasterPage"));
 
@@ -76,10 +78,13 @@ function AppRoutes() {
           <Route path="purchase-voucher/new" element={<PurchaseVoucherForm />} />
           <Route path="purchase-voucher/:id" element={<PurchaseVoucherForm />} />
           <Route path="purchase-voucher/:id/edit" element={<PurchaseVoucherForm />} />
+          <Route path="goods-received-note" element={<GoodsReceivedNotePage />} />
+          <Route path="goods-received-note/new" element={<GoodsReceivedNoteForm />} />
+          <Route path="goods-received-note/:id/edit" element={<GoodsReceivedNoteForm />} />
           <Route path="cwip-to-fa" element={<CWIPToFAPage />} />
           <Route path="cwip-to-fa/new" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
-          <Route path="cwip-to-fa/:id/edit"              element={<CWIPToFAForm />} />
+          <Route path="cwip-to-fa/:id/edit" element={<CWIPToFAForm />} />
           <Route path="admin/main-group-master"       element={<MainGroupMasterPage />} />
           <Route path="admin/company/location-master" element={<LocationMasterPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

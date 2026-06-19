@@ -25,18 +25,7 @@ import {
 import { getUserSession } from "../session/userSession";
 import { IND_CONFIG } from "../pages/purchase-indent/constants";
 import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
-import { withSaveContextFields } from "../utils/savePayload";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-export function formatIndentTranDate(dateVal) {
-  const d = dateVal ? new Date(dateVal) : new Date();
-  if (Number.isNaN(d.getTime())) {
-    const now = new Date();
-    return `${String(now.getDate()).padStart(2, "0")}-${MONTHS[now.getMonth()]}-${now.getFullYear()}`;
-  }
-  return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
-}
+import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -155,7 +144,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_LOCATION,
-        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID,prmLocationType : "" }]),
+        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID, prmLocationType: "" }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -301,7 +290,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: IND_CONFIG.SP_LOCATION,
-          JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID,prmLocationType : ""  }]),
+          JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID, prmLocationType: "" }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         }).catch((err) => { console.warn("[Indent] Location fetch failed:", err); return null; }),
@@ -453,16 +442,19 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
         const isEdit = Number(headerValues.TranMstGenID) > 0 || Number(headerValues.IDNumber) > 0;
         const body = await withSaveContextFields(
-          {
-            PrmStrMstRBName: IND_CONFIG.RB_MASTER,
-            prmStrMstJSON: JSON.stringify([headerValues]),
-            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-            prmstrDetailSaveProcName: detMeta?.SaveProcName,
-            PrmStrDetRBName: IND_CONFIG.RB_DETAIL,
-            prmStrDetJSON: JSON.stringify(cleanedRows),
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          },
+          buildSaveJsonFields({
+            label: "Indent Hook",
+            mst: headerValues,
+            det: cleanedRows,
+            extra: {
+              PrmStrMstRBName: IND_CONFIG.RB_MASTER,
+              prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+              prmstrDetailSaveProcName: detMeta?.SaveProcName,
+              PrmStrDetRBName: IND_CONFIG.RB_DETAIL,
+              p_ErrCode: -1,
+              p_ErrMsg: "",
+            },
+          }),
           { divisionId: headerValues.DivisionID, isEdit }
         );
 
@@ -532,7 +524,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             setDivisionOptions(
               (res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
             )
-          ).catch(() => {})
+          ).catch(() => { })
         );
       }
       if (needsConfig && divisionId) tasks.push(fetchIndentTypes(divisionId));

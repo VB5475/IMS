@@ -7,6 +7,7 @@ import {
   FileText,
   ShoppingCart,
   Receipt,
+  PackageCheck,
   Layers,
   Tag,
   MapPin,
@@ -37,6 +38,7 @@ const NAV_SECTIONS = [
       { to: "/purchase-order", icon: ShoppingCart, label: "Purchase Order", end: false },
       { to: "/purchase-indent", icon: ShoppingCart, label: "Purchase Indent", end: false },
       { to: "/purchase-voucher", icon: Receipt, label: "Purchase Voucher", end: false },
+      { to: "/goods-received-note", icon: PackageCheck, label: "Goods Received Note", end: false },
     ],
   },
   {

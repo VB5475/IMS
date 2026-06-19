@@ -149,26 +149,116 @@ export function syncMasterSummaryFields(summaryFields = [], headerColumns = []) 
     .filter(Boolean);
 }
 
+/** Resolve a row field by exact key, then case-insensitive key match (API casing may differ). */
+export function resolveRowFieldValue(row, fieldName) {
+  if (!row || fieldName == null || fieldName === "") return undefined;
+  const direct = row[fieldName];
+  if (direct != null && direct !== "") return direct;
+  const lower = String(fieldName).toLowerCase();
+  for (const key of Object.keys(row)) {
+    if (key.toLowerCase() === lower) {
+      const val = row[key];
+      if (val != null && val !== "") return val;
+    }
+  }
+  return undefined;
+}
+
+/** Read the stored cell value for a grid column (ColName key + CtrlValueCol + casing fallback). */
+export function resolveRowCellValue(row, col) {
+  if (!row || !col) return "";
+  const key = col.key;
+  const valueCol = col.ctrlValueCol || col.CtrlValueCol || key;
+  const resolved = resolveRowFieldValue(row, key) ?? resolveRowFieldValue(row, valueCol);
+  return resolved != null && resolved !== "" ? resolved : "";
+}
+
 /** Build a single { value, label } option from a master/detail row using column metadata. */
 export function buildDropdownOptionFromRow(apiCol, rowData) {
   if (!apiCol || !rowData) return [];
   const valueCol = apiCol.CtrlValueCol || apiCol.ColName;
   const displayCol = apiCol.CtrlDisplayCol || valueCol;
-  const value = rowData[valueCol];
+  const value = resolveRowFieldValue(rowData, valueCol);
   if (value == null || value === "") return [];
-  const label = rowData[displayCol] ?? value;
+  const label = resolveRowFieldValue(rowData, displayCol) ?? value;
   return [{ value: String(value), label: String(label ?? "") }];
 }
 
-/** Read the display text for a dropdown column from a grid row. */
+/** Read the display text for a dropdown column from a grid row (master-fill display col only). */
 export function getRowDropdownDisplay(row, col) {
   const displayCol = col?.ctrlDisplayCol || col?.CtrlDisplayCol;
-  if (displayCol && row?.[displayCol] != null && row[displayCol] !== "") {
-    return String(row[displayCol]);
-  }
-  const valueCol = col?.ctrlValueCol || col?.CtrlValueCol || col?.key;
-  const value = row?.[valueCol ?? col?.key];
-  return value != null && value !== "" ? String(value) : "";
+  if (!displayCol) return "";
+  const display = resolveRowFieldValue(row, displayCol);
+  if (display == null || display === "") return "";
+  const value = resolveRowCellValue(row, col);
+  if (String(display) === String(value)) return "";
+  return String(display);
+}
+
+/** Normalize dropdown option shapes from GET_FILTER_DETAIL or static lists. */
+export function normalizeDropdownOptions(dropdownOptions) {
+  return (dropdownOptions || []).map((opt) => {
+    if (typeof opt === "string") return { value: opt, label: opt };
+    if (opt?.value !== undefined) {
+      return { value: String(opt.value), label: String(opt.label ?? opt.value) };
+    }
+    return { value: String(opt.IDNumber ?? opt), label: String(opt.Name ?? opt) };
+  });
+}
+
+/**
+ * Resolve dropdown display label: GET_FILTER_DETAIL options first, then master-fill
+ * display column, then raw value. Used in read-only view before edit mode.
+ */
+export function resolveDropdownLabel(col, row, rawValue) {
+  const value =
+    rawValue != null && rawValue !== ""
+      ? rawValue
+      : row
+        ? resolveRowCellValue(row, col)
+        : "";
+  if (value === "" || value == null) return "";
+
+  const opts = normalizeDropdownOptions(col?.dropdownOptions);
+  const found = opts.find((o) => String(o.value) === String(value));
+  if (found?.label) return found.label;
+
+  const rowDisplay = row ? getRowDropdownDisplay(row, col) : "";
+  if (rowDisplay) return rowDisplay;
+
+  return String(value);
+}
+
+/**
+ * After GET_MASTER_DATA_FILL, align dropdown ColName keys with values that may
+ * arrive under CtrlValueCol or with different API casing (e.g. LocationID vs LocationId).
+ */
+export function syncEditGridDropdownValues(rows, gridColumns) {
+  if (!rows?.length || !gridColumns?.length) return rows || [];
+  const dropdownCols = gridColumns.filter((c) => c.controlType === 4 && c.key !== "cb");
+  if (!dropdownCols.length) return rows;
+
+  return rows.map((row) => {
+    const next = { ...row };
+    dropdownCols.forEach((col) => {
+      const resolved = resolveRowCellValue(row, col);
+      if (resolved !== "" && (next[col.key] == null || next[col.key] === "")) {
+        next[col.key] = resolved;
+      }
+    });
+    return next;
+  });
+}
+
+/** Ensure the current row value appears in dropdown options (from master fill + display col). */
+export function mergeRowDropdownOptions(col, row, baseOpts = []) {
+  const opts = [...baseOpts];
+  const value = resolveRowCellValue(row, col);
+  if (value === "") return opts;
+  const strVal = String(value);
+  if (opts.some((o) => String(o.value) === strVal)) return opts;
+  const label = resolveDropdownLabel(col, row, value);
+  return [{ value: strVal, label: label || strVal }, ...opts];
 }
 
 /**
@@ -227,6 +317,146 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
   );
 
   return colDropdownOptions;
+}
+
+function normalizeGridColumnFetchOpts(editOpts) {
+  if (typeof editOpts === "boolean") {
+    return { existingRecordEdit: editOpts, fetchUnlockedDropdowns: true };
+  }
+  return {
+    existingRecordEdit: false,
+    masterRow: null,
+    fetchUnlockedDropdowns: true,
+    preserveUnlockedDropdowns: false,
+    ...(editOpts || {}),
+  };
+}
+
+/** Division id available from list navigation before master fill. */
+export function resolveEditDivisionId(listRecord, fallback = 0) {
+  return (
+    Number(
+      listRecord?.DivisionID ??
+        listRecord?.DivisionId ??
+        listRecord?.prmDivisionID ??
+        fallback
+    ) || 0
+  );
+}
+
+/** Edit load step 1 — GET_FILTER_DETAIL before GET_MASTER_DATA_FILL. */
+export function editPrefetchGridColumnOpts() {
+  return {
+    existingRecordEdit: false,
+    fetchUnlockedDropdowns: true,
+  };
+}
+
+/**
+ * Edit load step 2 — after GET_MASTER_DATA_FILL: locked cols from master,
+ * unlocked cols keep options prefetched in step 1.
+ */
+export function editMergeMasterGridColumnOpts(masterRow) {
+  return {
+    existingRecordEdit: true,
+    masterRow,
+    fetchUnlockedDropdowns: false,
+    preserveUnlockedDropdowns: true,
+  };
+}
+
+/**
+ * fetchGridColumns options when loading an existing record in one pass
+ * (e.g. ensureItemColumns) — fetches GET_FILTER_DETAIL for unlocked columns.
+ */
+export function editRecordGridColumnOpts(masterRow) {
+  return {
+    existingRecordEdit: true,
+    masterRow,
+    fetchUnlockedDropdowns: true,
+  };
+}
+
+/** Keep unlocked dropdown options from a prior prefetch when merging master row. */
+export function mergePreservedUnlockedDropdowns(
+  colDropdownOptions,
+  apiColumns,
+  currentGridColumns
+) {
+  if (!currentGridColumns?.length) return colDropdownOptions;
+  const prevByKey = new Map(
+    currentGridColumns
+      .filter((c) => c.key !== "cb" && c.controlType === 4 && c.dropdownOptions?.length)
+      .map((c) => [c.key, c.dropdownOptions])
+  );
+  const merged = { ...colDropdownOptions };
+  apiColumns.forEach((apiCol) => {
+    if (apiCol.ColCtrlType !== 4 || isLockOnEditModeCol(apiCol)) return;
+    const prev = prevByKey.get(apiCol.ColName);
+    if (prev?.length) merged[apiCol.ColName] = prev;
+  });
+  return merged;
+}
+
+/**
+ * Normalizes edit opts for fetchDropdownOptions + optional merge from current columns.
+ * @deprecated alias — use normalizeGridColumnFetchOpts via fetchAndBuildGridColumns
+ */
+export function resolveGridDropdownFetchOpts(editOpts, currentGridColumns, apiColumns = []) {
+  const opts = normalizeGridColumnFetchOpts(editOpts);
+  return {
+    existingRecordEdit: opts.existingRecordEdit,
+    rowData: opts.masterRow,
+    fetchUnlockedDropdowns: opts.fetchUnlockedDropdowns,
+    preserveUnlockedDropdowns: opts.preserveUnlockedDropdowns,
+    existingRecordEditForBuild: opts.existingRecordEdit,
+    mergeAfterFetch(colDropdownOptions) {
+      if (!opts.preserveUnlockedDropdowns) return colDropdownOptions;
+      return mergePreservedUnlockedDropdowns(
+        colDropdownOptions,
+        apiColumns,
+        currentGridColumns
+      );
+    },
+  };
+}
+
+/**
+ * Shared fetchGridColumns implementation for module hooks.
+ */
+export async function fetchAndBuildGridColumns(
+  get,
+  {
+    apiColumns,
+    rbId,
+    funcCode,
+    divisionID = 0,
+    editOpts = false,
+    currentColumns = [],
+    buildColumnOpts = {},
+  }
+) {
+  const opts = normalizeGridColumnFetchOpts(editOpts);
+  let colDropdownOptions = await fetchDropdownOptions(get, apiColumns, rbId, {
+    funcCode,
+    divisionID: Number(divisionID) || 0,
+    existingRecordEdit: opts.existingRecordEdit,
+    rowData: opts.masterRow,
+    fetchUnlockedDropdowns: opts.fetchUnlockedDropdowns,
+  });
+  if (opts.preserveUnlockedDropdowns) {
+    colDropdownOptions = mergePreservedUnlockedDropdowns(
+      colDropdownOptions,
+      apiColumns,
+      currentColumns
+    );
+  }
+  return buildGridColumns(apiColumns, colDropdownOptions, {
+    filterable: false,
+    allEditable: true,
+    existingRecordEdit: opts.existingRecordEdit,
+    ...buildColumnOpts,
+  });
 }
 
 // ── Column transformer ───────────────────────────────────────────────
