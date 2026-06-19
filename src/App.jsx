@@ -22,7 +22,6 @@ const PurchaseVoucherForm = lazy(() => import("./pages/purchase-voucher/Purchase
 const CWIPToFAPage        = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm        = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
-const MainGroupMasterForm = lazy(() => import("./pages/main-group-master/MainGroupMasterForm"));
 
 function AppLayout() {
   return (
@@ -80,10 +79,7 @@ function AppRoutes() {
           <Route path="cwip-to-fa/new" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id/edit"              element={<CWIPToFAForm />} />
-          <Route path="admin/main-group-master"          element={<MainGroupMasterPage />} />
-          <Route path="admin/main-group-master/new"      element={<MainGroupMasterForm />} />
-          <Route path="admin/main-group-master/:id"      element={<MainGroupMasterForm />} />
-          <Route path="admin/main-group-master/:id/edit" element={<MainGroupMasterForm />} />
+          <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
