@@ -199,14 +199,38 @@ export default function MainGroupMasterForm() {
       console.log("%c[MGM Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
       alert("Main Group saved successfully!");
-      navigate("/admin/main-group-master");
+
+      if (isNewRoute) {
+        // Reset to blank — ready for the next new entry
+        headerValuesRef.current = {
+          IDNumber:                 0,
+          ItemTypeID:               0,
+          MainGroupCode:            "",
+          MainGroupName:            "",
+          MainGroupShortName:       "",
+          UsedCodeInCodeGeneration: false,
+          MainGroupShortCode:       "",
+          FixedAssetAccountID:      0,
+          CompanyID:                DEFAULT_COMPANY_ID,
+          YearID:                   MGM_CONFIG.CONFIG_YEAR_ID,
+          LoginID:                  DEFAULT_LOGIN_ID,
+          SessionID:                DEFAULT_SESSION_ID,
+          FuncCode:                 MGM_CONFIG.RB_MASTER,
+        };
+        setExternalValues(null);
+      }
+      // Exit edit mode — form shows saved values (or blank) in view/disabled state.
+      // User clicks Edit to start a new/next entry. Same pattern as PV / PO.
+      setSaveError(null);
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
     } catch (err) {
       console.error("[MGM Save] Failed:", err);
       setSaveError(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSaving(false);
     }
-  }, [validate, navigate]);
+  }, [validate, isEditRoute, isNewRoute, exitEditMode]);
 
   // ── Cancel ────────────────────────────────────────────────────────────────
   // New route: navigate back to list. Edit route: exit edit mode + reset panel.
