@@ -36,7 +36,7 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
-import { withSaveContextFields } from "../../utils/savePayload";
+import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -280,17 +280,15 @@ export default function PurchaseIndentForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
-        existingRecordEdit: true,
-        masterRow: master,
-        fetchUnlockedDropdowns: false,
-      });
+      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
+      const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
+
       if (itemGridRef.current?.loadRows) {
-        itemGridRef.current.loadRows(details);
+        itemGridRef.current.loadRows(syncedDetails);
       } else {
-        queuedRowsRef.current = details;
+        queuedRowsRef.current = syncedDetails;
       }
     } catch (err) {
       console.error("[Indent] Edit record load failed:", err);
@@ -468,7 +466,7 @@ export default function PurchaseIndentForm() {
             prmLoginID: DEFAULT_LOGIN_ID,
             prmTranDate: formatIndentTranDate(TranDate),
             prmConfigID: Number(ConfigID ?? 0),
-            prmSupplierId : 0,
+            prmSupplierId: 0,
             prmTranBook: IND_CONFIG.TRAN_BOOK,
             prmFrmOption: 0,
           },
@@ -547,17 +545,12 @@ export default function PurchaseIndentForm() {
       return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
     });
 
-    console.log("Indt Mst:",mstRow);
-    console.log("Indt Det:",detRows);
+    console.log("Indt Mst:", mstRow);
+    console.log("Indt Det:", detRows);
     const payload = await withSaveContextFields(
-      {
-        prmStrMstJSON: JSON.stringify([mstRow]),
-        prmStrDetJSON: JSON.stringify(detRows),
-      },
+      buildSaveJsonFields({ label: "Indent", mst: mstRow, det: detRows }),
       { divisionId: hv.DivisionID, isEdit: isEditRoute }
     );
-
-    console.log("%c[Indent Save] Payload:", "color:#f59e0b;font-weight:700", payload);
 
     setIsSavingIndent(true);
     try {

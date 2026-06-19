@@ -3,55 +3,41 @@
 // Values aligned to MRD_Template4Indent.docx (Richa, 08-Jun-2026).
 
 import { controlTypeMap } from "../../data/dummyData";
+import { PURCHASE_API } from "../../constants/purchaseCommon";
+import { formatTranDate } from "../../utils/dateFormat";
+import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
+
+export { formatTranDate as formatIndentTranDate };
 
 export const IND_CONFIG = {
-  // RB board codes
+  ...PURCHASE_API,
+  SP_INDENT_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
+
   RB_MASTER: "RB_PurIndtMst",
   RB_DETAIL: "RB_PurIndtDet",
   RB_DETAIL_SELECT: "RB_PurIndtSelItem",
 
-
-  // Form identifiers
   // ⚠️ CONFIRM with DBA — MRD Section 3 says pass "IND" in @PrmFormTag;
   //    MRD Section 7 constants table says "RB_PurIndtMst". Using "IND" per Section 3.
   FORM_TAG: "IND",
   TRAN_BOOK: "PURIND",
 
-  // Year IDs — ⚠️ CONFIRM with DBA
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
-  // SP / function names
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_INDENT_TYPES: "fn_tbl_ddl_Pur_Configuration",
-  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
   SP_ITEM_PICKER: "fn_tbl_RB_PurIndtSelItem",
-  SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
-  // Grid cell-event SP (fires on Qty / Rate column blur → server recalculates Amount)
   SP_GRID_EVENT: "fn_tbl_RB_PurIndtDet_Event",
   SP_LOCATION: "Fn_Gen_FetchLocationMaster",
 
-  // Edit flow — ⚠️ CONFIRM SP names with DBA (follows PO naming convention)
   SP_MASTER_FILL: "fn_tbl_RB_PurIndtMst",
   SP_DETAIL_FILL: "fn_tbl_RB_PurIndtDet",
 
-  // Save endpoint (REST POST via API_BASE_URL_IMS)
   SAVE_ENDPOINT: "/API/PurINDSave/Post_RB_PurIndtMst_Save",
 
-  // localStorage keys — "ind" prefix avoids collision with PI ("pi") and PO ("po") keys
-  // MRD specifies "piHeaderMeta" but that conflicts with Purchase Inquiry; using "indHeaderMeta"
   STORAGE_HEADER_META: "indHeaderMeta",
   STORAGE_ENTRY_META: "indEntryMeta",
 
-  // Listing — ⚠️ CONFIRM with DBA
-  LIST_OBJ_TYPE: 2,
   SP_INDENT_LIST: "Fn_tbl_Pur_IndentMst_List",
-  LIST_DIVISION_ID: 15,                          // ⚠️ CONFIRM
+  LIST_DIVISION_ID: 15,
 };
 
-// ── Header filter definitions ────────────────────────────────────────────────
-// Field order per revised column list (12-Jun-2026):
-//   TranCode → TranDate → DivisionID → ConfigID → ExpDate → DeptID → LocationID → Remarks → IndentRefrenceNo
 export const IND_HEADER_FILTERS = [
   {
     FilterParameterID: "TranCode",
@@ -97,7 +83,7 @@ export const IND_HEADER_FILTERS = [
     FilterColName: "LocationID",
     FilterCaption: "Location",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [], // ⚠️ Populated once DBA provides SP_LOCATION
+    staticOptions: [],
   },
   {
     FilterParameterID: "Remarks",
@@ -115,7 +101,6 @@ export const IND_HEADER_FILTERS = [
 
 export const IND_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-// Cascade resets: Division change → clear Indent Type (ConfigID)
 export const IND_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID"],
 };
@@ -141,22 +126,10 @@ export function formatIndentTranDate(dateVal) {
 /** Header fields required before Select Item can be opened */
 export const IND_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate",   label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID",   label: "Indent Type" },
+  { headerKey: "TranDate", label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID", label: "Indent Type" },
 ];
 
-function isMissingINDPickerValue(field, value) {
-  if (field.isDate) return value == null || value === "" || formatIndentTranDate(value) === "0";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/** Returns display labels of header fields that must be filled before Select Item. */
 export function getMissingItemPickerHeaderFields(headerValues) {
-  const missing = [];
-  IND_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
-    if (isMissingINDPickerValue(field, headerValues?.[field.headerKey]))
-      missing.push(field.label);
-  });
-  return missing;
+  return getMissingPickerFields(headerValues, IND_ITEM_PICKER_JSON_FIELDS);
 }

@@ -43,6 +43,12 @@
   border-right: none !important;
 }
 
+.ng-table thead th.ng-col--action {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
 .ng-table tbody td {
   padding: 6px 12px !important;
   font-size: 12px !important;

@@ -1,14 +1,4 @@
-// usePurchaseQuotation.js — Header meta, detail grid, and filter dropdowns for Purchase Quotation
-// ─────────────────────────────────────────────────────────────────────
-// On mount:
-//   fetchHeaderMeta  → RB_PurQtnMst → GetDetailColData + Division
-//   fetchDetailMeta  → RB_PurQtnDet → GetDetailColData (columns only, no dropdowns)
-//
-// On first "Select Item":
-//   fetchGridColumns → GET_FILTER_DETAIL dropdowns + buildGridColumns
-//
-// Cascading filters (page onFilterChange):
-//   Division → Quotation Type + Supplier
+// useGoodsReceivedNote.js — Header meta, detail grid, and filter dropdowns for GRN
 
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "../api/useApi";
@@ -20,9 +10,10 @@ import {
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
-import { QTN_CONFIG } from "../pages/purchase-quotation/constants";
+import { GRN_CONFIG } from "../pages/goods-received-note/constants";
 import {
-  fetchAndBuildGridColumns,
+  fetchDropdownOptions,
+  buildGridColumns,
   isTruthyApiFlag,
   isLockOnEditModeCol,
 } from "../utils/gridUtils";
@@ -30,38 +21,47 @@ import {
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
     Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || QTN_CONFIG.CONFIG_YEAR_ID,
+    Number(yearId) || GRN_CONFIG.CONFIG_YEAR_ID,
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
-  const toDateInput = (value) => {
-    if (!value) return "";
-    if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().split("T")[0];
-  };
+function toDateInput(value) {
+  if (!value) return "";
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().split("T")[0];
+}
 
+function mapMasterRowToHeaderValues(master, params) {
   return {
     TranCode: master.TranCode != null ? String(master.TranCode) : "",
     TranDate: toDateInput(master.TranDate),
     DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
     ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    InquiryExpiryDate: toDateInput(master.InquiryExpiryDate ?? master.ExpiryDate) || null,
     SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
-    CurrencyID: master.CurrencyID ?? "",
-    CurrencyRate: master.CurrencyRate ?? "",
+    CurrencyID: master.CurrencyName ?? master.CurrencyID ?? "",
+    CurrencyRate: master.CurrencyRate != null ? String(master.CurrencyRate) : "",
     BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
-    SuppQuotNo: master.SuppQuotNo ?? master.SupplierQuotNo ?? "",
-    SuppQuotDate: toDateInput(master.SuppQuotDate ?? master.SupplierQuotDate) || null,
-    ContactPerson: master.ContactPerson ?? "",
-    Remarks: master.Remarks ?? "",
+    BillNo: master.BillNo ?? "",
+    BillDate: toDateInput(master.BillDate) || null,
+    ChallanNo: master.ChallanNo ?? "",
+    ChallanDate: toDateInput(master.ChallanDate) || null,
+    TransporterID: master.TransporterID != null ? Number(master.TransporterID) : 0,
+    DestinationID: master.DestinationID != null ? Number(master.DestinationID) : 0,
+    LRNo: master.LRNo ?? "",
+    LRDate: toDateInput(master.LRDate) || null,
+    VehicleNo: master.VehicleNo ?? "",
+    VehicleTypeId: master.VehicleTypeId != null ? Number(master.VehicleTypeId) : 0,
+    NoOfPerson: master.NoOfPerson ?? "",
+    DriverName: master.DriverName ?? "",
+    DriverContactNo: master.DriverContactNo ?? "",
+    DriverLicenceNo: master.DriverLicenceNo ?? "",
     CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(params.yearId) || QTN_CONFIG.CONFIG_YEAR_ID,
+    YearID: Number(params.yearId) || GRN_CONFIG.CONFIG_YEAR_ID,
     LoginID: Number(params.loginId) || getUserSession().loginId,
     SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
     IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
@@ -74,6 +74,22 @@ function mapDetailRowsToGridRows(rows) {
     ...row,
     id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
   }));
+}
+
+function mapIndentRowsToChildRowsMap(detailRows, indtRows) {
+  const childRowsMap = {};
+  if (!indtRows?.length || !detailRows?.length) return childRowsMap;
+
+  detailRows.forEach((parent) => {
+    const parentItemId = String(Math.round(Number(parent.ItemID)));
+    const children = indtRows.filter(
+      (c) => String(Math.round(Number(c.ChildFKey))) === parentItemId
+    );
+    if (children.length > 0) {
+      childRowsMap[String(parent.id)] = children;
+    }
+  });
+  return childRowsMap;
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
@@ -89,11 +105,10 @@ function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   return set;
 }
 
-// Shared loader: RB code → RBID + SaveProcName → GetDetailColData columns.
 async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: OBJ_TYPE.FUNCTION,
-    ObjName: QTN_CONFIG.SP_RB_META,
+    ObjName: GRN_CONFIG.SP_RB_META,
     JSon: JSON.stringify([{ prmRBCode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
@@ -108,30 +123,38 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     prmMasterID: meta.RBID,
     prmLoginID: getUserSession().loginId,
   });
-  const apiColumns = colData?.Links || [];
-  return { meta, apiColumns };
+  return { meta, apiColumns: colData?.Links || [] };
 }
 
-export function usePurchaseQuotation(baseURL = API_BASE_URL) {
+function mapTableToOptions(rows, valueKey, labelKey) {
+  return (rows || []).map((r) => ({
+    value: String(r[valueKey] ?? r.IDNumber ?? r.IdNumber ?? ""),
+    label: String(r[labelKey] ?? r.Name ?? r[valueKey] ?? ""),
+  }));
+}
+
+export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const { get } = useApi(baseURL);
 
-  // ── Header (master) state ─────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerRbMeta, setHeaderRbMeta] = useState(null);
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
 
   const [divisionOptions, setDivisionOptions] = useState([]);
-  const [quotationTypeOptions, setQuotationTypeOptions] = useState([]);
+  const [grnTypeOptions, setGrnTypeOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
+  const [transporterOptions, setTransporterOptions] = useState([]);
+  const [destinationOptions, setDestinationOptions] = useState([]);
   const supplierRowsRef = useRef(new Map());
-  const [isLoadingQuotationTypes, setIsLoadingQuotationTypes] = useState(false);
+  const [isLoadingGrnTypes, setIsLoadingGrnTypes] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+  const [isLoadingTransporters, setIsLoadingTransporters] = useState(false);
+  const [isLoadingDestinations, setIsLoadingDestinations] = useState(false);
 
-  // ── Detail grid state ─────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
-  const columnsRef = useRef([]);
   const [allColumns, setAllColumns] = useState([]);
+  const [allIndentColumns, setAllIndentColumns] = useState([]);
   const [eventColumns, setEventColumns] = useState(() => new Set());
   const [isFetching, setIsFetching] = useState(false);
   const [metaError, setMetaError] = useState(null);
@@ -139,25 +162,25 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  const fetchQuotationTypes = useCallback(
+  const fetchGrnTypes = useCallback(
     async (divisionId) => {
       if (!divisionId || divisionId === "0") {
-        setQuotationTypeOptions([]);
+        setGrnTypeOptions([]);
         return [];
       }
 
-      setIsLoadingQuotationTypes(true);
+      setIsLoadingGrnTypes(true);
       try {
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: QTN_CONFIG.SP_QUOTATION_TYPES,
+          ObjName: GRN_CONFIG.SP_GRN_TYPES,
           JSon: JSON.stringify([
             {
               PrmCompanyId: DEFAULT_COMPANY_ID,
               PrmDivisionId: Number(divisionId),
-              PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
               PrmUserId: getUserSession().loginId,
-              PrmFormTag: QTN_CONFIG.FORM_TAG,
+              PrmFormTag: GRN_CONFIG.FORM_TAG,
               PrmRefType: "",
             },
           ]),
@@ -168,14 +191,14 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           value: String(r.ConfigurationId),
           label: r.Name,
         }));
-        setQuotationTypeOptions(opts);
+        setGrnTypeOptions(opts);
         return opts;
       } catch (err) {
-        console.warn("[PQ] Quotation Type fetch failed:", err);
-        setQuotationTypeOptions([]);
+        console.warn("[GRN] GRN Type fetch failed:", err);
+        setGrnTypeOptions([]);
         return [];
       } finally {
-        setIsLoadingQuotationTypes(false);
+        setIsLoadingGrnTypes(false);
       }
     },
     [get]
@@ -193,13 +216,13 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       try {
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: QTN_CONFIG.SUPPLIER_SP,
+          ObjName: GRN_CONFIG.SUPPLIER_SP,
           JSon: JSON.stringify([
             {
               PrmDivisionId: Number(divisionId),
               PrmLoginId: getUserSession().loginId,
-              PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
-              PrmPartyType: QTN_CONFIG.SUPPLIER_PARTY_TYPE,
+              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
+              PrmPartyType: GRN_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
           p_ErrCode: -1,
@@ -216,12 +239,87 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         setSupplierOptions(opts);
         return opts;
       } catch (err) {
-        console.warn("[PQ] Supplier fetch failed:", err);
+        console.warn("[GRN] Supplier fetch failed:", err);
         supplierRowsRef.current = new Map();
         setSupplierOptions([]);
         return [];
       } finally {
         setIsLoadingSuppliers(false);
+      }
+    },
+    [get]
+  );
+
+  const fetchTransporterOptions = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setTransporterOptions([]);
+        return [];
+      }
+
+      setIsLoadingTransporters(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SP_TRANSPORTERS,
+          JSon: JSON.stringify([
+            {
+              PrmDivisionId: Number(divisionId),
+              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
+              PrmUserId: getUserSession().loginId,
+              PrmFormTag: GRN_CONFIG.FORM_TAG,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const opts = mapTableToOptions(res?.Table, "TransporterID", "TransporterName");
+        setTransporterOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[GRN] Transporter fetch failed:", err);
+        setTransporterOptions([]);
+        return [];
+      } finally {
+        setIsLoadingTransporters(false);
+      }
+    },
+    [get]
+  );
+
+  const fetchDestinationOptions = useCallback(
+    async (divisionId, transporterId) => {
+      if (!divisionId || divisionId === "0" || !transporterId || transporterId === "0") {
+        setDestinationOptions([]);
+        return [];
+      }
+
+      setIsLoadingDestinations(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SP_DESTINATIONS,
+          JSon: JSON.stringify([
+            {
+              PrmDivisionId: Number(divisionId),
+              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
+              PrmUserId: getUserSession().loginId,
+              PrmFormTag: GRN_CONFIG.FORM_TAG,
+              prmtransporterMstID: Number(transporterId),
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const opts = mapTableToOptions(res?.Table, "DestinationID", "DestinationName");
+        setDestinationOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[GRN] Destination fetch failed:", err);
+        setDestinationOptions([]);
+        return [];
+      } finally {
+        setIsLoadingDestinations(false);
       }
     },
     [get]
@@ -236,12 +334,12 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     try {
       const divisionData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: QTN_CONFIG.SP_DIVISIONS,
+        ObjName: GRN_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([
           {
             prmUserID: getUserSession().loginId,
             prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID: QTN_CONFIG.DIVISION_YEAR_ID,
+            prmYearID: GRN_CONFIG.DIVISION_YEAR_ID,
           },
         ]),
         p_ErrCode: -1,
@@ -254,7 +352,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         }))
       );
     } catch (err) {
-      console.warn("[PQ] Division fetch failed:", err);
+      console.warn("[GRN] Division fetch failed:", err);
       setDivisionOptions([]);
     }
   }, [get]);
@@ -267,17 +365,17 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       try {
         const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: QTN_CONFIG.SP_RB_META,
-          JSon: JSON.stringify([{ prmRBCode: QTN_CONFIG.RB_MASTER }]),
+          ObjName: GRN_CONFIG.SP_RB_META,
+          JSon: JSON.stringify([{ prmRBCode: GRN_CONFIG.RB_MASTER }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
         const tableRow = metaData?.Table?.[0];
-        if (!tableRow) throw new Error("No Quotation header RB metadata returned from server.");
+        if (!tableRow) throw new Error("No GRN header RB metadata returned from server.");
 
         const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
         setHeaderRbMeta(hdrMeta);
-        localStorage.setItem(QTN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
+        localStorage.setItem(GRN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
         const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: hdrMeta.RBID,
@@ -292,10 +390,9 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         }
 
         await fetchDivisionOptions();
-
         return apiColumns;
       } catch (err) {
-        console.error("[PQ] fetchHeaderMeta failed:", err);
+        console.error("[GRN] fetchHeaderMeta failed:", err);
         setHeaderError(err?.message || "Failed to load header configuration.");
         return [];
       } finally {
@@ -305,12 +402,8 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     [get, fetchDivisionOptions]
   );
 
-  /**
-   * Edit flow — when user enters edit mode, reload list APIs only for header
-   * dropdowns where IsLockOnEditModeAllow is false.
-   */
   const fetchUnlockedHeaderDropdowns = useCallback(
-    async (divisionId) => {
+    async (divisionId, transporterId) => {
       if (!headerColumns.length) return;
 
       const needsDivision = headerColumns.some(
@@ -325,11 +418,22 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
       const tasks = [];
       if (needsDivision) tasks.push(fetchDivisionOptions());
-      if (needsConfig && divisionId) tasks.push(fetchQuotationTypes(divisionId));
+      if (needsConfig && divisionId) tasks.push(fetchGrnTypes(divisionId));
       if (needsSupplier && divisionId) tasks.push(fetchSupplierOptions(divisionId));
+      if (divisionId) tasks.push(fetchTransporterOptions(divisionId));
+      if (divisionId && transporterId) {
+        tasks.push(fetchDestinationOptions(divisionId, transporterId));
+      }
       await Promise.all(tasks);
     },
-    [headerColumns, fetchDivisionOptions, fetchQuotationTypes, fetchSupplierOptions]
+    [
+      headerColumns,
+      fetchDivisionOptions,
+      fetchGrnTypes,
+      fetchSupplierOptions,
+      fetchTransporterOptions,
+      fetchDestinationOptions,
+    ]
   );
 
   const fetchDetailMeta = useCallback(async () => {
@@ -339,31 +443,28 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     try {
       const { meta, apiColumns } = await loadRbDetailGridMeta(
         get,
-        QTN_CONFIG.RB_DETAIL,
-        QTN_CONFIG.STORAGE_ENTRY_META
+        GRN_CONFIG.RB_DETAIL,
+        GRN_CONFIG.STORAGE_ENTRY_META
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
       setEventColumns(
         buildEventColumnSet(apiColumns, [
           "ItemID",
+          "Qty",
+          "Rate",
+          "Amount",
           "TranQty",
           "BaseQty",
           "BaseRate",
           "TranRate",
-          "DiscPerc",
-          "Expense",
-          "GSTPerc",
-          "Rate",
-          "Qty",
-          "Amount",
         ])
       );
       setAllColumns(
         apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
       );
     } catch (err) {
-      console.error("[PQ] fetchDetailMeta failed:", err);
+      console.error("[GRN] fetchDetailMeta failed:", err);
       setMetaError(err?.message || "Failed to load item grid configuration.");
     } finally {
       setIsFetching(false);
@@ -372,28 +473,35 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
   const fetchGridColumns = useCallback(
     async (divisionID = 0, editOpts = false) => {
+      const opts =
+        typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
+      const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+
       const apiColumns = rawDetailColumnsRef.current;
       const meta = rawDetailRbMetaRef.current;
 
       if (!apiColumns.length || !meta) {
-        console.warn("[PQ] fetchGridColumns called before fetchDetailMeta completed.");
+        console.warn("[GRN] fetchGridColumns called before fetchDetailMeta completed.");
         return [];
       }
 
       try {
-        const gridColumns = await fetchAndBuildGridColumns(get, {
-          apiColumns,
-          rbId: meta.RBID,
-          funcCode: QTN_CONFIG.RB_DETAIL,
-          divisionID,
-          editOpts,
-          currentColumns: columnsRef.current,
+        const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
+          funcCode: GRN_CONFIG.RB_DETAIL,
+          divisionID: Number(divisionID) || 0,
+          existingRecordEdit,
+          rowData: masterRow,
+          fetchUnlockedDropdowns,
         });
-        columnsRef.current = gridColumns;
+        const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
+          filterable: false,
+          allEditable: true,
+          existingRecordEdit,
+        });
         setColumns(gridColumns);
         return gridColumns;
       } catch (err) {
-        console.error("[PQ] fetchGridColumns failed:", err);
+        console.error("[GRN] fetchGridColumns failed:", err);
         return [];
       }
     },
@@ -410,30 +518,55 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         idNumber,
       });
 
-      const [mstRes, detRes] = await Promise.all([
+      const [mstRes, detRes, indtRes] = await Promise.all([
         get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-          prmProcedure: QTN_CONFIG.SP_MASTER_FILL,
+          prmProcedure: GRN_CONFIG.SP_MASTER_FILL,
           prmParameters,
-          prmFuncCode: QTN_CONFIG.RB_MASTER,
+          prmFuncCode: GRN_CONFIG.RB_MASTER,
         }),
         get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-          prmProcedure: QTN_CONFIG.SP_DETAIL_FILL,
+          prmProcedure: GRN_CONFIG.SP_DETAIL_FILL,
           prmParameters,
-          prmFuncCode: QTN_CONFIG.RB_DETAIL,
+          prmFuncCode: GRN_CONFIG.RB_DETAIL,
+        }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: GRN_CONFIG.SP_INDT_FILL,
+          prmParameters,
+          prmFuncCode: GRN_CONFIG.RB_INDT_DETAIL,
         }),
       ]);
 
       const master = mstRes?.Links?.[0] ?? null;
       const params = { companyId, yearId, loginId, sessionId, idNumber };
+      const details = mapDetailRowsToGridRows(detRes?.Links || []);
+      const indentDetails = indtRes?.Links || [];
 
       return {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-        details: mapDetailRowsToGridRows(detRes?.Links || []),
+        details,
+        indentDetails,
+        childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
       };
     },
     [get]
   );
+
+  const fetchIndentDetailColumns = useCallback(async () => {
+    const { apiColumns } = await loadRbDetailGridMeta(
+      get,
+      GRN_CONFIG.RB_INDT_DETAIL,
+      GRN_CONFIG.STORAGE_INDT_META
+    );
+    setAllIndentColumns(
+      apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+    );
+    return buildGridColumns(apiColumns, {}, { filterable: false, allEditable: false });
+  }, [get]);
+
+  const clearIndentDetailMeta = useCallback(() => {
+    setAllIndentColumns([]);
+  }, []);
 
   const [isEventFiring, setIsEventFiring] = useState(false);
 
@@ -443,14 +576,14 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       try {
         const { id, ...newRowData } = rowData;
         const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: QTN_CONFIG.SP_GRID_EVENT,
+          GridEventFuncName: GRN_CONFIG.SP_GRID_EVENT,
           EventColName: colName,
           DetJSON: JSON.stringify([newRowData]),
           MstJSon: JSON.stringify([headerValues]),
         });
         return result;
       } catch (err) {
-        console.error("[PQ] fireCellEvent failed:", err);
+        console.error("[GRN] fireCellEvent failed:", err);
         return null;
       } finally {
         setIsEventFiring(false);
@@ -459,11 +592,16 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     [get]
   );
 
-  const clearQuotationTypes = useCallback(() => setQuotationTypeOptions([]), []);
+  const clearGrnTypes = useCallback(() => setGrnTypeOptions([]), []);
   const clearSuppliers = useCallback(() => {
     supplierRowsRef.current = new Map();
     setSupplierOptions([]);
   }, []);
+  const clearTransporters = useCallback(() => {
+    setTransporterOptions([]);
+    setDestinationOptions([]);
+  }, []);
+  const clearDestinations = useCallback(() => setDestinationOptions([]), []);
 
   return {
     headerColumns,
@@ -473,23 +611,34 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     fetchHeaderMeta,
     fetchUnlockedHeaderDropdowns,
     divisionOptions,
-    quotationTypeOptions,
+    grnTypeOptions,
     supplierOptions,
-    fetchQuotationTypes,
+    transporterOptions,
+    destinationOptions,
+    fetchGrnTypes,
     fetchSupplierOptions,
+    fetchTransporterOptions,
+    fetchDestinationOptions,
     getSupplierRow,
-    clearQuotationTypes,
+    clearGrnTypes,
     clearSuppliers,
-    isLoadingQuotationTypes,
+    clearTransporters,
+    clearDestinations,
+    isLoadingGrnTypes,
     isLoadingSuppliers,
+    isLoadingTransporters,
+    isLoadingDestinations,
     columns,
     allColumns,
+    allIndentColumns,
     eventColumns,
     isFetching,
     metaError,
     fetchDetailMeta,
     fetchGridColumns,
     fetchEditRecord,
+    fetchIndentDetailColumns,
+    clearIndentDetailMeta,
     fireCellEvent,
     isEventFiring,
   };

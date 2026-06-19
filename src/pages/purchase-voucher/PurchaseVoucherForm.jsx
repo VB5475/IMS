@@ -40,7 +40,7 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
-import { withSaveContextFields } from "../../utils/savePayload";
+import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -65,30 +65,30 @@ function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
     companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.YearID ?? session.yearId ?? PV_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.LoginID ?? session.loginId,
+    yearId: listRecord?.YearID ?? session.yearId ?? PV_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.PVID ?? listRecord?.IDNumber ?? recordId,
+    idNumber: listRecord?.PVID ?? listRecord?.IDNumber ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode:             headerValues.TranCode ?? "",
-    TranDate:             headerValues.TranDate ?? "",
-    DivisionID:           String(headerValues.DivisionID ?? ""),
-    ConfigID:             String(headerValues.ConfigID ?? ""),
-    BasedOnID:            String(headerValues.BasedOnID ?? "2"),
-    SupplierID:           String(headerValues.SupplierID ?? ""),
-    CurrencyName:         headerValues.CurrencyName ?? headerValues.Currency ?? "",
-    CurrencyRate:         String(headerValues.CurrencyRate ?? ""),
-    BillNo:               headerValues.BillNo ?? "",
-    BillDate:             headerValues.BillDate ?? "",
-    CostCenterID:         String(headerValues.CostCenterID ?? ""),
-    CreditStartDate:      headerValues.CreditStartDate ?? "",
-    Narration:            headerValues.Narration ?? "",
-    Remarks:              headerValues.Remarks ?? "",
+    TranCode: headerValues.TranCode ?? "",
+    TranDate: headerValues.TranDate ?? "",
+    DivisionID: String(headerValues.DivisionID ?? ""),
+    ConfigID: String(headerValues.ConfigID ?? ""),
+    BasedOnID: String(headerValues.BasedOnID ?? "2"),
+    SupplierID: String(headerValues.SupplierID ?? ""),
+    CurrencyName: headerValues.CurrencyName ?? headerValues.Currency ?? "",
+    CurrencyRate: String(headerValues.CurrencyRate ?? ""),
+    BillNo: headerValues.BillNo ?? "",
+    BillDate: headerValues.BillDate ?? "",
+    CostCenterID: String(headerValues.CostCenterID ?? ""),
+    CreditStartDate: headerValues.CreditStartDate ?? "",
+    Narration: headerValues.Narration ?? "",
+    Remarks: headerValues.Remarks ?? "",
   };
 }
 
@@ -115,19 +115,19 @@ function mapPickerToItemRow(item, allColumns) {
 export default function PurchaseVoucherForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
-  const isNewRoute  = location.pathname.endsWith("/new") || routeId === "new";
-  const recordId    = isNewRoute ? 0 : Number(routeId) || 0;
+  const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
+  const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
-  const listRecord  = location.state?.record ?? null;
-  const navigate    = useNavigate();
+  const listRecord = location.state?.record ?? null;
+  const navigate = useNavigate();
 
-  const itemGridRef       = useRef(null);
-  const summaryRef        = useRef(null);
-  const filterPanelRef    = useRef(null);
-  const selectItemBtnRef  = useRef(null);
+  const itemGridRef = useRef(null);
+  const summaryRef = useRef(null);
+  const filterPanelRef = useRef(null);
+  const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
-  const queuedRowsRef     = useRef([]);
-  const { get: getLive }  = useApi(API_BASE_URL);
+  const queuedRowsRef = useRef([]);
+  const { get: getLive } = useApi(API_BASE_URL);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -144,10 +144,10 @@ export default function PurchaseVoucherForm() {
     clearSaveError,
   } = usePurchaseVoucher(API_BASE_URL);
 
-  const [loadedMasterRow, setLoadedMasterRow]   = useState(null);
+  const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
-  const [recordLoading, setRecordLoading]       = useState(false);
-  const [recordLoadError, setRecordLoadError]   = useState(null);
+  const [recordLoading, setRecordLoading] = useState(false);
+  const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
   const todayISO = useMemo(() => {
@@ -156,26 +156,26 @@ export default function PurchaseVoucherForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode:             "",
-    TranDate:             todayISO,
-    DivisionID:           0,
-    ConfigID:             0,
-    BasedOnID:            "2",
-    SupplierID:           0,
-    CurrencyID:           0,
-    CurrencyRate:         0,
-    BillNo:               "",
-    BillDate:             null,
-    CostCenterID:         0,
-    CreditStartDate:      todayISO,
-    Narration:            "",
-    Remarks:              "",
-    TranMstGenID:         0,
-    CompanyID:            DEFAULT_COMPANY_ID,
-    YearID:               PV_CONFIG.DIVISION_YEAR_ID,
-    LoginID:              DEFAULT_LOGIN_ID,
-    IDNumber:             recordId,
-    FuncCode:             PV_CONFIG.RB_MASTER,
+    TranCode: "",
+    TranDate: todayISO,
+    DivisionID: 0,
+    ConfigID: 0,
+    BasedOnID: "2",
+    SupplierID: 0,
+    CurrencyID: 0,
+    CurrencyRate: 0,
+    BillNo: "",
+    BillDate: null,
+    CostCenterID: 0,
+    CreditStartDate: todayISO,
+    Narration: "",
+    Remarks: "",
+    TranMstGenID: 0,
+    CompanyID: DEFAULT_COMPANY_ID,
+    YearID: PV_CONFIG.DIVISION_YEAR_ID,
+    LoginID: DEFAULT_LOGIN_ID,
+    IDNumber: recordId,
+    FuncCode: PV_CONFIG.RB_MASTER,
   });
 
   const filterInitialValues = useMemo(() => {
@@ -184,21 +184,21 @@ export default function PurchaseVoucherForm() {
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
-  const [activeTab, setActiveTab]           = useState("items");
+  const [activeTab, setActiveTab] = useState("items");
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
-  const [basedOnId, setBasedOnId]           = useState("2");
-  const [pasteNotice, setPasteNotice]       = useState(null);
-  const pasteNoticeTimerRef                 = useRef(null);
+  const [basedOnId, setBasedOnId] = useState("2");
+  const [pasteNotice, setPasteNotice] = useState(null);
+  const pasteNoticeTimerRef = useRef(null);
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
-  const [isGridLoading, setIsGridLoading]   = useState(false);
-  const [gridRows, setGridRows]             = useState([]);
+  const [isGridLoading, setIsGridLoading] = useState(false);
+  const [gridRows, setGridRows] = useState([]);
 
   // Item picker modal
-  const [itemModalOpen, setItemModalOpen]     = useState(false);
-  const [itemModalItems, setItemModalItems]   = useState([]);
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemModalItems, setItemModalItems] = useState([]);
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
-  const [itemModalError, setItemModalError]   = useState(null);
+  const [itemModalError, setItemModalError] = useState(null);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -228,7 +228,7 @@ export default function PurchaseVoucherForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title:    isNewRoute ? "New Purchase Voucher" : "Purchase Voucher",
+    title: isNewRoute ? "New Purchase Voucher" : "Purchase Voucher",
     subtitle: isNewRoute
       ? "Fill in the header fields, then add items via the grid."
       : recordLoading
@@ -237,7 +237,7 @@ export default function PurchaseVoucherForm() {
           ? recordLoadError
           : `PV #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/purchase-voucher",
+    backTo: "/purchase-voucher",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -288,17 +288,15 @@ export default function PurchaseVoucherForm() {
         });
       }
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
-        existingRecordEdit: true,
-        masterRow: master,
-        fetchUnlockedDropdowns: false,
-      });
+      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
+      const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
+
       if (itemGridRef.current?.loadRows) {
-        itemGridRef.current.loadRows(details);
+        itemGridRef.current.loadRows(syncedDetails);
       } else {
-        queuedRowsRef.current = details;
+        queuedRowsRef.current = syncedDetails;
       }
     } catch (err) {
       console.error("[PV] Edit record load failed:", err);
@@ -338,11 +336,11 @@ export default function PurchaseVoucherForm() {
   const syncedFilters = useMemo(() => {
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case "DivisionID":           return { ...filter, staticOptions: divisionOptions };
-        case "ConfigID":             return { ...filter, staticOptions: pvTypeOptions };
-        case "SupplierID":           return { ...filter, staticOptions: supplierOptions };
-        case "CostCenterID":         return { ...filter, staticOptions: costCenterOptions };
-        default:                     return filter;
+        case "DivisionID": return { ...filter, staticOptions: divisionOptions };
+        case "ConfigID": return { ...filter, staticOptions: pvTypeOptions };
+        case "SupplierID": return { ...filter, staticOptions: supplierOptions };
+        case "CostCenterID": return { ...filter, staticOptions: costCenterOptions };
+        default: return filter;
       }
     };
 
@@ -406,9 +404,9 @@ export default function PurchaseVoucherForm() {
       if (val && val !== "0") {
         const cached = getSupplierCurrency(val);
         if (cached) {
-          headerValuesRef.current.CurrencyID   = cached.CurrencyID;
+          headerValuesRef.current.CurrencyID = cached.CurrencyID;
           headerValuesRef.current.CurrencyName = cached.CurrencyName;
-          headerValuesRef.current.CurrencyRate  = cached.CurrencyRate;
+          headerValuesRef.current.CurrencyRate = cached.CurrencyRate;
           setCurrencyExternalValues({
             CurrencyName: cached.CurrencyName ?? "",
             CurrencyRate: String(cached.CurrencyRate ?? ""),
@@ -416,7 +414,7 @@ export default function PurchaseVoucherForm() {
         } else {
           const info = await fetchSupplierInfo(val);
           if (info) {
-            headerValuesRef.current.CurrencyID  = info.CurrencyID;
+            headerValuesRef.current.CurrencyID = info.CurrencyID;
             headerValuesRef.current.CurrencyRate = info.CurrencyRate;
             setCurrencyExternalValues({
               CurrencyName: "",
@@ -425,9 +423,9 @@ export default function PurchaseVoucherForm() {
           }
         }
       } else {
-        headerValuesRef.current.CurrencyID   = 0;
+        headerValuesRef.current.CurrencyID = 0;
         headerValuesRef.current.CurrencyName = "";
-        headerValuesRef.current.CurrencyRate  = 0;
+        headerValuesRef.current.CurrencyRate = 0;
         setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
       }
       return;
@@ -503,9 +501,9 @@ export default function PurchaseVoucherForm() {
     try {
       // Three-way picker: 0=GRN Base, 1=PO Base, 2=Direct
       let rbCode;
-      if (Number(BasedOnID) === 0)      rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
+      if (Number(BasedOnID) === 0) rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
       else if (Number(BasedOnID) === 1) rbCode = PV_CONFIG.RB_ITEM_PICKER_PO;
-      else                              rbCode = PV_CONFIG.RB_ITEM_PICKER_DIRECT;
+      else rbCode = PV_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
@@ -518,28 +516,28 @@ export default function PurchaseVoucherForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       const gridColumns = buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false });
       setItemModalColumns(gridColumns);
 
       let spItemPicker;
-      if (Number(BasedOnID) === 0)      spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
+      if (Number(BasedOnID) === 0) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
       else if (Number(BasedOnID) === 1) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_PO;
-      else                              spItemPicker = PV_CONFIG.SP_ITEM_PICKER_DIRECT;
+      else spItemPicker = PV_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: spItemPicker,
         JSon: JSON.stringify([{
           prmDivisionID: Number(divisionID),
-          prmYearID:     PV_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID:    DEFAULT_LOGIN_ID,
-          prmTranDate:   formatPVTranDate(TranDate),
-          prmConfigID:   Number(ConfigID ?? 0),
+          prmYearID: PV_CONFIG.CONFIG_YEAR_ID,
+          prmLoginID: DEFAULT_LOGIN_ID,
+          prmTranDate: formatPVTranDate(TranDate),
+          prmConfigID: Number(ConfigID ?? 0),
           prmSupplierID: Number(SupplierID ?? 0),
-          prmTranBook:   PV_CONFIG.TRAN_BOOK,
-          prmFrmOption:  Number(BasedOnID) || 0,
+          prmTranBook: PV_CONFIG.TRAN_BOOK,
+          prmFrmOption: Number(BasedOnID) || 0,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -607,23 +605,16 @@ export default function PurchaseVoucherForm() {
     });
 
     const payload = await withSaveContextFields(
-      {
-        prmStrMstJSON: JSON.stringify([mstRow]),
-        prmStrDetJSON: JSON.stringify(detRows),
-      },
+      buildSaveJsonFields({ label: "PV", mst: mstRow, det: detRows }),
       { divisionId: hv.DivisionID, isEdit: isEditRoute }
     );
-
-    console.log("%c[PV Save] Payload:", "color:#f59e0b;font-weight:700", payload);
-    console.log("%c[PV Save] Master:",  "color:#6366f1;font-weight:600", [mstRow]);
-    console.log("%c[PV Save] Detail:",  "color:#22c55e;font-weight:600", detRows);
 
     setIsSavingPV(true);
     try {
       const res = await fetch(`${API_BASE_URL_IMS}${PV_CONFIG.SAVE_ENDPOINT}`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       console.log("%c[PV Save] Response:", "color:#22c55e;font-weight:700", result);
@@ -680,7 +671,7 @@ export default function PurchaseVoucherForm() {
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
-  const filterBusy      = headerFetching || isLoadingPvTypes;
+  const filterBusy = headerFetching || isLoadingPvTypes;
 
   useEntryFormKeyboard({
     blocked: itemModalOpen,
@@ -710,7 +701,7 @@ export default function PurchaseVoucherForm() {
   ], [handleSaveAndPrint, isSavingPV, handleSave]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
-  const combinedError  = metaError || headerError;
+  const combinedError = metaError || headerError;
 
   return (
     <div className="workspace-page pv-page">

@@ -3,136 +3,73 @@
 // Values aligned to MRD_Template4PO.docx (Richa, 09-Jun-2026).
 
 import { controlTypeMap } from "../../data/dummyData";
+import {
+  APPROVED_FILTER_OPTS,
+  BASED_ON,
+  DEFAULT_BASED_ON_FILTER_VALUES,
+  DIVISION_CONFIG_CASCADE_RESET,
+  INDENT_DETAILS_COLUMNS,
+  PURCHASE_API,
+  PURCHASE_GST_SUMMARY_FIELDS,
+  PURCHASE_SUPPLIER_GRID_COLUMNS,
+  PURCHASE_SUPPLIER_GRID_CONFIG,
+  TERMS_COLUMNS,
+} from "../../constants/purchaseCommon";
+import { formatTranDate } from "../../utils/dateFormat";
+import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
+
+export { formatTranDate };
+export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
+export { TERMS_COLUMNS };
+export { INDENT_DETAILS_COLUMNS };
+export { PURCHASE_GST_SUMMARY_FIELDS as PO_SUMMARY_FIELDS };
+export { DEFAULT_BASED_ON_FILTER_VALUES as PO_FILTER_INITIAL_VALUES };
+export { DIVISION_CONFIG_CASCADE_RESET as PO_FILTER_CASCADE_RESETS };
 
 export const PO_CONFIG = {
-  // RB board codes
+  ...PURCHASE_API,
+  SP_PO_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
+
   RB_MASTER: "RB_PurPOMst",
   RB_DETAIL: "RB_PurPODet",
   RB_INDT_DETAIL: "RB_PurPOIndtDet",
 
-  // Form identifiers
   FORM_TAG: "PO",
   TRAN_BOOK: "PO",
 
-  // Year IDs
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
+  RB_ITEM_PICKER_DIRECT: "RB_PurPOSelOnlyItem",
+  RB_ITEM_PICKER_INDENT: "RB_PurPOSelIndtItem",
+  RB_ITEM_PICKER_QUOT: "RB_PurPOSelQuotItem",
 
-  // Supplier picker
-  SUPPLIER_PARTY_TYPE: "S",
-  SUPPLIER_SP: "Fn_tbl_FetchCustomerSupplierTranWs4Web",
-
-  // RB codes for item picker modal
-  RB_ITEM_PICKER_DIRECT: "RB_PurPOSelOnlyItem", // BasedOn = '0' (Direct)
-  RB_ITEM_PICKER_INDENT: "RB_PurPOSelIndtItem", // BasedOn = '2' (Indent wise)
-  RB_ITEM_PICKER_QUOT: "RB_PurPOSelQuotItem", // BasedOn = '3' (Quotation)
-
-  // SP / function names
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_PO_TYPES: "fn_tbl_ddl_Pur_Configuration",
-  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPOSelOnlyItem",   // BasedOn = '0' (Direct)
-  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurPOSelIndtItem",   // BasedOn = '2' (Indent wise)
-  SP_ITEM_PICKER_QUOT:   "fn_tbl_RB_PurPOSelQuotItem",   // BasedOn = '3' (Quotation)
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPOSelOnlyItem",
+  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurPOSelIndtItem",
+  SP_ITEM_PICKER_QUOT: "fn_tbl_RB_PurPOSelQuotItem",
   SP_INDENT_SUMMARY: "Fn_tbl_FetchIndentSummaryItem4PO",
   SP_CURRENCIES: "Fn_tbl_FetchCurrencyList",
   SP_SUPPLIER_INFO: "Fn_tbl_FetchSupplierCurrencyInfo",
   SP_EXISTING_POS: "Fn_tbl_FetchPurOrderListForAmend",
   SP_UNIQUE_ID: "Pr_Gen_FetchLevyUniqueNo4Web",
-  SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
+  SP_DEPT: PURCHASE_API.SP_DEPT,
 
-  // Edit flow — GetMasterDataFill procedures (mirrors PI pattern)
   SP_MASTER_FILL: "fn_tbl_RB_PurPOMst",
   SP_DETAIL_FILL: "fn_tbl_RB_PurPODet",
   SP_INDT_DETAIL_FILL: "fn_tbl_RB_PurPOIndtDet",
-
-  // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_RB_PurPODet_Event",
 
-  // "Based On" dropdown — MRD: Direct | Indent wise | Quotation only
-  BASED_ON_OPTIONS: [
-    { value: "0", label: "Direct" },
-    { value: "2", label: "Indent wise" },
-    { value: "3", label: "Quotation" },
-  ],
+  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE, BASED_ON.QUOTATION],
 
-  // Hardcoded columns for the Suppliers grid
-  SUPPLIER_GRID_COLUMNS: [
-    {
-      id: "cb",
-      name: "",
-      key: "cb",
-      controlType: -1,
-      width: 48,
-      isFixed: true,
-      isEditAllow: false,
-    },
-    {
-      id: "SrNo",
-      name: "Sr.No",
-      key: "SrNo",
-      controlType: 0,
-      width: 70,
-      isFixed: false,
-      isEditAllow: false,
-    },
-    {
-      id: "SupplierName",
-      name: "Supplier Name",
-      key: "SupplierName",
-      controlType: 0,
-      width: 200,
-      isFixed: false,
-      isEditAllow: false,
-    },
-    {
-      id: "Address",
-      name: "Address",
-      key: "Address",
-      controlType: 0,
-      width: 220,
-      isFixed: false,
-      isEditAllow: false,
-    },
-    {
-      id: "City",
-      name: "City",
-      key: "City",
-      controlType: 0,
-      width: 120,
-      isFixed: false,
-      isEditAllow: false,
-    },
-    {
-      id: "MobileNo",
-      name: "Mobile No.",
-      key: "MobileNo",
-      controlType: 0,
-      width: 110,
-      isFixed: false,
-      isEditAllow: false,
-    },
-  ],
-  
+  SUPPLIER_GRID_COLUMNS: PURCHASE_SUPPLIER_GRID_COLUMNS,
   INDENT_FRM_OPTION: 0,
-  // Save endpoint (REST POST via API_BASE_URL_IMS)
+
   SAVE_ENDPOINT: "/API/PurPOSave/Post_RB_PurPOMst_Save",
 
-  // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "poHeaderMeta",
   STORAGE_ENTRY_META: "poEntryMeta",
 
-  // Purchase Order listing
-  LIST_OBJ_TYPE: 2,
   SP_PO_LIST: "Fn_tbl_Pur_POMst_List",
   LIST_DIVISION_ID: 0,
 };
 
-// ── Header filter definitions ────────────────────────────────────────────────
-// Field order per MRD: TranCode → TranDate → DivisionID → ConfigID →
-//   DeliveryDate → SupplierID → DeptID → BasedOnID →
-//   CurrencyID → CurrencyRate → CreditDays → Remarks
-// Amend checkbox is rendered separately in the page component.
 export const PO_HEADER_FILTERS = [
   {
     FilterParameterID: "TranCode",
@@ -213,25 +150,9 @@ export const PO_HEADER_FILTERS = [
   },
 ];
 
-// ── Summary field definitions ──
-// Field order + detKey only; captions from GET_DETAIL_COL_DATA (DisplayName).
-// SummaryParameterID must match apiCol.ColName from RB_PurPOMst.
-// detKey must match detail grid column summed (fn_tbl_RB_PurPODet_Event).
-export const PO_SUMMARY_FIELDS = [
-  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
-  { SummaryParameterID: "MstExpense", detKey: "Expense" },
-  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
-  { SummaryParameterID: "MstCGST", detKey: "CGST" },
-  { SummaryParameterID: "MstSGST", detKey: "SGST" },
-  { SummaryParameterID: "MstIGST", detKey: "IGST" },
-  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
-  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
-];
-
-/** Master config — headerFields + summaryFields from same GET_DETAIL_COL_DATA source */
 export const PO_MASTER = {
   headerFields: PO_HEADER_FILTERS,
-  summaryFields: PO_SUMMARY_FIELDS,
+  summaryFields: PURCHASE_GST_SUMMARY_FIELDS,
 };
 
 export const PO_GRID_TABS = [
@@ -302,25 +223,12 @@ export function formatTranDate(dateVal) {
 /** Header fields required before Select Item can be opened */
 export const PO_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate",   label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID",   label: "PO Type" },
+  { headerKey: "TranDate", label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID", label: "PO Type" },
   { headerKey: "SupplierID", label: "Supplier" },
-  { headerKey: "BasedOnID",  label: "Based On", allowZero: true },
+  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
 ];
 
-function isMissingPOPickerValue(field, value) {
-  if (field.isDate) return value == null || value === "" || formatTranDate(value) === "0";
-  if (value == null || value === "") return true;
-  if (field.allowZero) return false;
-  return Number(value) === 0 || value === "0";
-}
-
-/** Returns display labels of header fields that must be filled before Select Item. */
 export function getMissingItemPickerHeaderFields(headerValues) {
-  const missing = [];
-  PO_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
-    if (isMissingPOPickerValue(field, headerValues?.[field.headerKey]))
-      missing.push(field.label);
-  });
-  return missing;
+  return getMissingPickerFields(headerValues, PO_ITEM_PICKER_JSON_FIELDS);
 }

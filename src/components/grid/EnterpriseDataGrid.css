@@ -183,6 +183,51 @@
   table-layout: fixed; /* enables word-wrap in first column */
 }
 
+/* Horizontal scroll + pinned action column (list pages) */
+.ng-table.ng-table--pinned-actions {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.ng-table.ng-table--pinned-actions th:not(.ng-col--action),
+.ng-table.ng-table--pinned-actions td:not(.ng-col--action) {
+  min-width: var(--ng-col-min-width, 120px);
+}
+
+.ng-table .ng-col--action {
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  text-align: center;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.ng-table thead th.ng-col--action {
+  z-index: 10;
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.12);
+}
+
+.ng-table tbody td.ng-col--action {
+  background: var(--surface);
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+
+.ng-table tbody tr:nth-child(even) td.ng-col--action {
+  background: #f8fafc;
+}
+
+.ng-table tbody tr:hover td.ng-col--action {
+  background: var(--primary-lighter);
+}
+
 /* ── Sticky header ── */
 .ng-table thead th {
   position: sticky;
@@ -228,11 +273,19 @@
   border-right: none;
 }
 
-/* First column: allow wrapping (long names, etc.) */
-.ng-table tbody td:first-child {
+/* First data column: allow wrapping (long names, etc.) */
+.ng-table tbody td:first-child:not(.ng-col--action) {
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+
+/* Scrollable data cells keep single line with ellipsis when pinned */
+.ng-table.ng-table--pinned-actions tbody td:not(.ng-col--action) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
 }
 
 /* Zebra striping */
