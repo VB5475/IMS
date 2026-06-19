@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertCircle, Save, XCircle } from "lucide-react";
+import { AlertCircle, Save } from "lucide-react";
 import MasterFormPanel from "../../components/masters/MasterFormPanel";
 import ActionBar from "../../components/ui/ActionBar";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
@@ -13,6 +13,7 @@ import {
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { withSaveContextFields } from "../../utils/savePayload";
 import { MGM_CONFIG, MGM_HEADER_FILTERS } from "./constants";
 import "./MainGroupMasterPage.css";
 
@@ -180,10 +181,13 @@ export default function MainGroupMasterForm() {
     setSaveError(null);
     setIsSaving(true);
     try {
-      const payload = {
-        prmStrMstJSON: JSON.stringify([{ ...headerValuesRef.current }]),
-        prmStrDetJSON: JSON.stringify([]),
-      };
+      const payload = withSaveContextFields(
+        {
+          prmStrMstJSON: JSON.stringify([{ ...headerValuesRef.current }]),
+          prmStrDetJSON: JSON.stringify([]),
+        },
+        { divisionId: 0, isEdit: isEditRoute }
+      );
       console.log("%c[MGM Save] Payload:", "color:#f59e0b;font-weight:700", payload);
 
       const res    = await fetch(`${API_BASE_URL_IMS}${MGM_CONFIG.SAVE_ENDPOINT}`, {
@@ -228,37 +232,20 @@ export default function MainGroupMasterForm() {
     onCancel: handleCancel,
   });
 
-  // ── Card footer — Save / Cancel live inside the form card in edit mode ───
-  const cardFooter = useMemo(() => {
-    if (!isEditMode) return null;
-    return (
-      <>
-        <button
-          ref={cancelButtonRef}
-          type="button"
-          className="action-btn action-btn--cancel"
-          onClick={handleCancel}
-          accessKey="n"
-          title={`Cancel (Esc · Alt+N)`}
-        >
-          <XCircle size={13} strokeWidth={2} />
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="action-btn action-btn--save"
-          onClick={handleSave}
-          disabled={isSaving}
-          accessKey="s"
-          title={FORM_SHORTCUT_TITLES.save}
-        >
-          {isSaving
-            ? <><div className="action-spinner" />Saving…</>
-            : <><Save size={13} strokeWidth={2} />Save</>}
-        </button>
-      </>
-    );
-  }, [isEditMode, isSaving, handleSave, handleCancel, cancelButtonRef]);
+  // ── ActionBar extra buttons — Save (shown only in edit mode) ────────────
+  const mgmExtraButtons = useMemo(() => [
+    {
+      key:       "save",
+      label:     isSaving ? "Saving…" : "Save",
+      Icon:      Save,
+      variant:   "save",
+      onClick:   handleSave,
+      disabled:  isSaving,
+      loading:   isSaving,
+      accessKey: "s",
+      title:     FORM_SHORTCUT_TITLES.save,
+    },
+  ], [isSaving, handleSave]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   const combinedError = headerError || recordLoadError;
@@ -291,7 +278,6 @@ export default function MainGroupMasterForm() {
             disabled={filterBusy || !headerMetaReady}
             fieldTones={filterFieldTones}
             onFilterChange={isEditMode ? handleFilterChange : undefined}
-            footer={cardFooter}
           />
         )}
 
@@ -303,17 +289,18 @@ export default function MainGroupMasterForm() {
         )}
       </section>
 
-      {/* ActionBar only shows the Edit button when not in edit mode */}
-      {!isEditMode && (
-        <ActionBar
-          alignEnd
-          isEditMode={false}
-          onAdd={enterEditModeWithFocus}
-          addLabel="Edit"
-          addAccessKey="a"
-          addButtonRef={addButtonRef}
-        />
-      )}
+      <ActionBar
+        alignEnd
+        isEditMode={isEditMode}
+        onAdd={enterEditModeWithFocus}
+        addLabel="Edit"
+        addAccessKey="a"
+        addButtonRef={addButtonRef}
+        onCancel={handleCancel}
+        cancelAccessKey="n"
+        cancelButtonRef={cancelButtonRef}
+        extraButtons={mgmExtraButtons}
+      />
     </div>
   );
 }
