@@ -27,8 +27,8 @@ function buildListParams() {
 function buildListColumns(onEdit) {
   return [
     { key: "Premises",      label: "Premises",      width: "25%", filterable: true, align: "left" },
-    { key: "Location Code", label: "Location Code", width: "20%", filterable: true, align: "left" },
-    { key: "Location Name", label: "Location Name", width: "35%", filterable: true, align: "left" },
+    { key: "Location_Code", label: "Location Code", width: "20%", filterable: true, align: "left" },
+    { key: "Location_Name", label: "Location Name", width: "35%", filterable: true, align: "left" },
     {
       key: "_actions",
       label: "Edit",
@@ -38,8 +38,8 @@ function buildListColumns(onEdit) {
         <button
           type="button"
           className="lm-list__edit-btn"
-          title={`Edit ${row["Location Code"] ?? ""}`}
-          aria-label={`Edit ${row["Location Code"] ?? ""}`}
+          title={`Edit ${row["Location_Code"] ?? ""}`}
+          aria-label={`Edit ${row["Location_Code"] ?? ""}`}
           disabled={!row.IDNumber}  // ⚠️ IDNumber missing from SP — DBA must add it
           onClick={(e) => {
             e.stopPropagation();
