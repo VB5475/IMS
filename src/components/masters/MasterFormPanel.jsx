@@ -152,6 +152,7 @@ export default function MasterFormPanel({
   isMetaLoading  = false,
   panelRef       = null,
   footer         = null,   // optional JSX rendered inside card footer (Save/Cancel)
+  hideHeader     = false,  // suppress built-in header when used inside Modal (which has its own header)
 }) {
   const [values, setValues] = useState(initialValues || {});
   const initialApplied = useRef(false);
@@ -196,22 +197,24 @@ export default function MasterFormPanel({
   return (
     <div className="mfp-panel" ref={panelRef}>
 
-      {/* ── Header ── */}
-      <header className="mfp-header">
-        <div className="mfp-header__brand">
-          <span className="mfp-header__icon" aria-hidden="true">
-            <FileSpreadsheet size={16} strokeWidth={2} />
-          </span>
-          <div>
-            <h2 className="mfp-header__label">{title || "Master Form"}</h2>
-            {!isMetaLoading && (
-              <span className="mfp-header__subtitle">
-                {staticFilters.length} header field{staticFilters.length !== 1 ? "s" : ""}
-              </span>
-            )}
+      {/* ── Header — hidden when used inside Modal (hideHeader=true) ── */}
+      {!hideHeader && (
+        <header className="mfp-header">
+          <div className="mfp-header__brand">
+            <span className="mfp-header__icon" aria-hidden="true">
+              <FileSpreadsheet size={16} strokeWidth={2} />
+            </span>
+            <div>
+              <h2 className="mfp-header__label">{title || "Master Form"}</h2>
+              {!isMetaLoading && (
+                <span className="mfp-header__subtitle">
+                  {staticFilters.length} header field{staticFilters.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ── Meta loading ── */}
       {isMetaLoading && (

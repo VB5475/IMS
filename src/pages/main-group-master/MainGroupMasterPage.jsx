@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { Tag, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
+import MainGroupMasterModal from "./MainGroupMasterModal";
 import { MGM_CONFIG } from "./constants";
 import "./MainGroupMasterPage.css";
 
@@ -32,13 +33,13 @@ function buildListParams() {
   };
 }
 
-function buildMGMColumns(navigate) {
+function buildMGMColumns(onEdit) {
   return [
-    { key: "ItemTypeName",      label: "Item Type",        width: "18%", filterable: true,  align: "left" },
-    { key: "MainGroupCode",     label: "Main Group Code",  width: "18%", filterable: true,  align: "left" },
-    { key: "MainGroupName",     label: "Main Group Name",  width: "28%", filterable: true,  align: "left" },
-    { key: "MainGroupShortName",label: "Short Name",       width: "15%", filterable: true,  align: "left" },
-    { key: "MainGroupShortCode",label: "Short Code",       width: "13%", filterable: true,  align: "left" },
+    { key: "ItemTypeName",       label: "Item Type",       width: "18%", filterable: true, align: "left" },
+    { key: "MainGroupCode",      label: "Main Group Code", width: "18%", filterable: true, align: "left" },
+    { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
+    { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
+    { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
     {
       key: "_actions",
       label: "Edit",
@@ -52,7 +53,7 @@ function buildMGMColumns(navigate) {
           aria-label={`Edit ${row.MainGroupCode ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/admin/main-group-master/${row.IDNumber}/edit`, { state: { record: row } });
+            onEdit(row.IDNumber);
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -63,13 +64,24 @@ function buildMGMColumns(navigate) {
 }
 
 export default function MainGroupMasterPage() {
-  const navigate  = useNavigate();
-  const { get }   = useApi(API_BASE_URL);
+  const { get } = useApi(API_BASE_URL);
+
+  // ── Hook lifted to page level so dropdown options are fetched once ─────────
+  const {
+    headerFetching, headerError, fetchHeaderMeta,
+    itemTypeOptions, fixedAssetAccOptions,
+    fetchEditRecord, seedOptionsFromMaster,
+  } = useMainGroupMaster();
 
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(8);
+
+  // ── Modal state ───────────────────────────────────────────────────────────
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [modalMode,    setModalMode]    = useState("add");
+  const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
     title:    "Main Group Master",
@@ -78,7 +90,8 @@ export default function MainGroupMasterPage() {
     backTo:   "/",
   });
 
-  const columns = useMemo(() => buildMGMColumns(navigate), [navigate]);
+  // Fetch dropdown meta once on mount
+  useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -96,7 +109,26 @@ export default function MainGroupMasterPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/admin/main-group-master/new"), [navigate]);
+  const handleAddNew = useCallback(() => {
+    setModalMode("add");
+    setEditRecordId(null);
+    setModalOpen(true);
+  }, []);
+
+  const handleEdit = useCallback((idNumber) => {
+    setModalMode("edit");
+    setEditRecordId(idNumber);
+    setModalOpen(true);
+  }, []);
+
+  const handleModalClose = useCallback(() => setModalOpen(false), []);
+
+  const handleSaved = useCallback(() => {
+    setModalOpen(false);
+    fetchList();
+  }, [fetchList]);
+
+  const columns = useMemo(() => buildMGMColumns(handleEdit), [handleEdit]);
 
   return (
     <div className="workspace-page mgm-list-page">
@@ -141,6 +173,20 @@ export default function MainGroupMasterPage() {
           fill
         />
       </section>
+
+      <MainGroupMasterModal
+        isOpen={modalOpen}
+        mode={modalMode}
+        recordId={editRecordId}
+        onClose={handleModalClose}
+        onSaved={handleSaved}
+        headerFetching={headerFetching}
+        headerError={headerError}
+        itemTypeOptions={itemTypeOptions}
+        fixedAssetAccOptions={fixedAssetAccOptions}
+        fetchEditRecord={fetchEditRecord}
+        seedOptionsFromMaster={seedOptionsFromMaster}
+      />
     </div>
   );
 }

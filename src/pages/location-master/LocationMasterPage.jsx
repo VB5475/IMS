@@ -5,54 +5,45 @@ import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useLocationMaster } from "../../hooks/useLocationMaster";
+import LocationMasterModal from "./LocationMasterModal";
 import { LM_CONFIG } from "./constants";
 import "./LocationMasterPage.css";
 
 const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function todayFormatted() {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
-}
-
 function buildListParams() {
-  const today = todayFormatted();
   return {
     ObjType: LM_CONFIG.LIST_OBJ_TYPE,
     ObjName: LM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
-      prmDivisionID: LM_CONFIG.LIST_DIVISION_ID,
-      prmFromDate:   today,
-      prmToDate:     today,
+      PrmCompanyID: DEFAULT_COMPANY_ID,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
   };
 }
 
-function buildListColumns(navigate) {
+function buildListColumns(onEdit) {
   return [
-    { key: "LocationTypeName", label: "Location Type", width: "15%", filterable: true, align: "left" }, // ⚠️ CONFIRM col name with DBA
-    { key: "PremisesName",     label: "Premises",      width: "20%", filterable: true, align: "left" }, // ⚠️ CONFIRM col name with DBA
-    { key: "Location_Name",    label: "Location Name", width: "25%", filterable: true, align: "left" },
-    { key: "Loc_Code",         label: "Location Code", width: "14%", filterable: true, align: "left" },
-    { key: "City",             label: "City",          width: "14%", filterable: true, align: "left" },
+    { key: "Premises",      label: "Premises",      width: "25%", filterable: true, align: "left" },
+    { key: "Location Code", label: "Location Code", width: "20%", filterable: true, align: "left" },
+    { key: "Location Name", label: "Location Name", width: "35%", filterable: true, align: "left" },
     {
       key: "_actions",
       label: "Edit",
-      width: "12%",
+      width: "20%",
       align: "center",
       render: (_value, row) => (
         <button
           type="button"
           className="lm-list__edit-btn"
-          title={`Edit ${row.Loc_Code ?? ""}`}
-          aria-label={`Edit ${row.Loc_Code ?? ""}`}
+          title={`Edit ${row["Location Code"] ?? ""}`}
+          aria-label={`Edit ${row["Location Code"] ?? ""}`}
+          disabled={!row.IDNumber}  // ⚠️ IDNumber missing from SP — DBA must add it
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/admin/company/location-master/${row.IDNumber}/edit`, { state: { record: row } });
+            onEdit(row.IDNumber);
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -63,13 +54,24 @@ function buildListColumns(navigate) {
 }
 
 export default function LocationMasterPage() {
-  const navigate  = useNavigate();
-  const { get }   = useApi(API_BASE_URL);
+  const { get } = useApi(API_BASE_URL);
+
+  // ── Hook lifted to page level so dropdown options are fetched once ─────────
+  const {
+    headerFetching, headerError, fetchHeaderMeta,
+    locationTypeOptions, premisesOptions,
+    fetchEditRecord,
+  } = useLocationMaster();
 
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(8);
+
+  // ── Modal state ───────────────────────────────────────────────────────────
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [modalMode,    setModalMode]    = useState("add");   // "add" | "edit"
+  const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
     title:    "Location Master",
@@ -78,7 +80,8 @@ export default function LocationMasterPage() {
     backTo:   "/",
   });
 
-  const columns = useMemo(() => buildListColumns(navigate), [navigate]);
+  // Fetch dropdown meta once on mount
+  useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -96,10 +99,26 @@ export default function LocationMasterPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(
-    () => navigate("/admin/company/location-master/new"),
-    [navigate]
-  );
+  const handleAddNew = useCallback(() => {
+    setModalMode("add");
+    setEditRecordId(null);
+    setModalOpen(true);
+  }, []);
+
+  const handleEdit = useCallback((idNumber) => {
+    setModalMode("edit");
+    setEditRecordId(idNumber);
+    setModalOpen(true);
+  }, []);
+
+  const handleModalClose = useCallback(() => setModalOpen(false), []);
+
+  const handleSaved = useCallback(() => {
+    setModalOpen(false);
+    fetchList();
+  }, [fetchList]);
+
+  const columns = useMemo(() => buildListColumns(handleEdit), [handleEdit]);
 
   return (
     <div className="workspace-page lm-list-page">
@@ -144,6 +163,19 @@ export default function LocationMasterPage() {
           fill
         />
       </section>
+
+      <LocationMasterModal
+        isOpen={modalOpen}
+        mode={modalMode}
+        recordId={editRecordId}
+        onClose={handleModalClose}
+        onSaved={handleSaved}
+        headerFetching={headerFetching}
+        headerError={headerError}
+        locationTypeOptions={locationTypeOptions}
+        premisesOptions={premisesOptions}
+        fetchEditRecord={fetchEditRecord}
+      />
     </div>
   );
 }
