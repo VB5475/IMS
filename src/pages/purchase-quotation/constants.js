@@ -3,64 +3,58 @@
 // Source of truth: MRD_Template4Qtn.docx (Module Requirements — Purchase Quotation).
 
 import { controlTypeMap } from "../../data/dummyData";
+import {
+  APPROVED_FILTER_OPTS,
+  BASED_ON,
+  CURRENCY_READONLY_FIELDS,
+  DEFAULT_BASED_ON_FILTER_VALUES,
+  PURCHASE_API,
+  PURCHASE_GST_SUMMARY_FIELDS,
+  TERMS_COLUMNS,
+} from "../../constants/purchaseCommon";
+import { formatTranDate } from "../../utils/dateFormat";
+import {
+  buildItemPickerJsonPayload as buildPickerPayload,
+  getMissingItemPickerHeaderFields as getMissingPickerFields,
+} from "../../utils/purchaseItemPicker";
+
+export { formatTranDate };
+export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
+export { TERMS_COLUMNS };
+export { CURRENCY_READONLY_FIELDS as QTN_READONLY_FIELDS };
+export { DEFAULT_BASED_ON_FILTER_VALUES as QTN_FILTER_INITIAL_VALUES };
 
 export const QTN_CONFIG = {
-  // RB board codes
+  ...PURCHASE_API,
+  SP_QUOTATION_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
+
   RB_MASTER: "RB_PurQtnMst",
   RB_DETAIL: "RB_PurQtnDet",
 
-  // Form identifiers
-  FORM_TAG: "PQ", // passed as PrmFormTag for the Quotation Type dropdown
+  FORM_TAG: "PQ",
   TRAN_BOOK: "PURQTN",
 
-  // Year IDs
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
+  RB_ITEM_PICKER_DIRECT: "RB_PurQtnSelOnlyItem",
+  RB_ITEM_PICKER_INQUIRY: "RB_PurQtnSelInqItem",
 
-  // Supplier picker (used to fill the Supplier header dropdown)
-  SUPPLIER_PARTY_TYPE: "S",
-  SUPPLIER_SP: "Fn_tbl_FetchCustomerSupplierTranWs4Web",
-
-  // RB codes for item picker modal (depends on BasedOn selection)
-  RB_ITEM_PICKER_DIRECT: "RB_PurQtnSelOnlyItem", // BasedOn = '0' (Direct)
-  RB_ITEM_PICKER_INQUIRY: "RB_PurQtnSelInqItem", // BasedOn = '2' (Inquiry Based)
-
-  // Edit flow — GetMasterDataFill procedures
   SP_MASTER_FILL: "fn_tbl_RB_PurQtnMst",
   SP_DETAIL_FILL: "fn_tbl_RB_PurQtnDet",
 
-  // SP / function names used in API calls
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_QUOTATION_TYPES: "fn_tbl_ddl_Pur_Configuration",
-  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  // Item picker row fetch — ObjName depends on BasedOn (Direct vs Inquiry Based)
   SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurQtnSelOnlyItem",
   SP_ITEM_PICKER_INQUIRY: "fn_tbl_RB_PurQtnSelInqItem",
   SP_GRID_EVENT: "fn_tbl_RB_PurQtnDet_Event",
 
-  // "Based On" dropdown options (hardcoded — not from API)
-  BASED_ON_OPTIONS: [
-    { value: "0", label: "Direct" },
-    { value: "2", label: "Inquiry Based" },
-  ],
+  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INQUIRY_BASED],
 
-  // Save endpoint (REST gateway — POST with JSON body)
   SAVE_ENDPOINT: "/API/PurQtnSave/Post_RB_PurQtnMst_Save",
 
-  // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "pqHeaderMeta",
   STORAGE_ENTRY_META: "pqEntryMeta",
 
-  // Quotation list (FN_Fetch_Data)
-  LIST_OBJ_TYPE: 2,
   SP_QUOTATION_LIST: "Fn_tbl_Pur_QtnMst_List",
   LIST_DIVISION_ID: 15,
 };
 
-// ── Header filter definitions ──
-// Cascade order: Division → Quotation Type / Supplier.
-// Field order + control types only; captions from GET_DETAIL_COL_DATA (DisplayName).
-// FilterParameterID must match apiCol.ColName from RB_PurQtnMst.
 export const QTN_LIST_DROPDOWN_FIELDS = new Set(["DivisionID", "ConfigID", "SupplierID"]);
 
 export const QTN_HEADER_FILTERS = [
@@ -91,52 +85,22 @@ export const QTN_HEADER_FILTERS = [
   { FilterParameterID: "Remarks", FilterColCtrlType: controlTypeMap.TEXTAREA },
 ];
 
-// Header fields that are always read-only (doc: Is ReadOnly = Yes), even in
-// edit mode. Currency is system-derived; the user never types into it.
-export const QTN_READONLY_FIELDS = ["CurrencyID", "CurrencyRate"];
-
 export const QTN_GRID_TABS = [
   { id: "items", label: "Item Grid" },
   { id: "terms", label: "Term And Conditions" },
 ];
 
-export const APPROVED_OPTS = [
-  { value: "all", label: "All" },
-  { value: "approved", label: "Approved" },
-  { value: "pending", label: "Pending" },
-];
+export const QTN_SUMMARY_FIELDS = PURCHASE_GST_SUMMARY_FIELDS;
 
-export const TERMS_COLUMNS = ["Sr.No", "Terms Type", "Code", "Terms & Conditions"];
-
-// ── Summary field definitions ──
-// Field order + detKey only; captions from GET_DETAIL_COL_DATA (DisplayName).
-// SummaryParameterID must match apiCol.ColName from RB_PurQtnMst.
-// detKey must match detail grid column summed (fn_tbl_RB_PurQtnDet_Event).
-export const QTN_SUMMARY_FIELDS = [
-  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
-  { SummaryParameterID: "MstExpense", detKey: "Expense" },
-  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
-  { SummaryParameterID: "MstCGST", detKey: "CGST" },
-  { SummaryParameterID: "MstSGST", detKey: "SGST" },
-  { SummaryParameterID: "MstIGST", detKey: "IGST" },
-  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
-  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
-];
-
-/** Master config — headerFields + summaryFields share RB_PurQtnMst GET_DETAIL_COL_DATA */
 export const QTN_MASTER = {
   headerFields: QTN_HEADER_FILTERS,
   summaryFields: QTN_SUMMARY_FIELDS,
 };
 
-// Default value for "Based On" — Direct ('0').
-export const QTN_FILTER_INITIAL_VALUES = { BasedOnID: "0" };
-
 export const QTN_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID", "SupplierID", "CurrencyID", "CurrencyRate"],
 };
 
-/** Header fields mapped to item picker FN_FETCH_DATA JSON — item grid clears when any changes */
 export const QTN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
   "DivisionID",
   "TranDate",
@@ -145,31 +109,6 @@ export const QTN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
   "BasedOnID",
 ]);
 
-// Formats a date value as "dd-Mon-yyyy" (e.g. "02-Jun-2026") for API params.
-const MONTH_ABBR = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-export function formatTranDate(dateVal) {
-  if (!dateVal) return "0";
-  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-  if (isNaN(d.getTime())) return "0";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mon = MONTH_ABBR[d.getMonth()];
-  return `${dd}-${mon}-${d.getFullYear()}`;
-}
-
-/** User/header fields required in item picker FN_FETCH_DATA JSON (auto-filled keys omitted). */
 export const QTN_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "DivisionID", label: "Division" },
   { headerKey: "TranDate", label: "Tran Date", isDate: true },
@@ -178,35 +117,13 @@ export const QTN_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "BasedOnID", label: "Based On", allowZero: true },
 ];
 
-function isMissingItemPickerHeaderValue(field, value) {
-  if (field.isDate) {
-    return value == null || value === "" || formatTranDate(value) === "0";
-  }
-  if (value == null || value === "") return true;
-  if (field.allowZero) return false;
-  return Number(value) === 0 || value === "0";
-}
-
-/** Returns display labels of header fields that must be filled before Select Item. */
 export function getMissingItemPickerHeaderFields(headerValues) {
-  const missing = [];
-  QTN_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
-    if (isMissingItemPickerHeaderValue(field, headerValues?.[field.headerKey])) {
-      missing.push(field.label);
-    }
-  });
-  return missing;
+  return getMissingPickerFields(headerValues, QTN_ITEM_PICKER_JSON_FIELDS);
 }
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
-  return {
-    prmDivisionID: Number(headerValues.DivisionID),
-    prmYearID: QTN_CONFIG.CONFIG_YEAR_ID,
-    prmLoginID: loginId,
-    prmTranDate: formatTranDate(headerValues.TranDate),
-    prmConfigID: Number(headerValues.ConfigID),
-    prmSupplierID: Number(headerValues.SupplierID ?? 0),
-    prmTranBook: QTN_CONFIG.TRAN_BOOK,
-    prmFrmOption: Number(headerValues.BasedOnID) || 0,
-  };
+  return buildPickerPayload(headerValues, loginId, {
+    configYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+    tranBook: QTN_CONFIG.TRAN_BOOK,
+  });
 }

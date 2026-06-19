@@ -4,6 +4,21 @@ import { COL_DATA_TYPE } from "../api/constants";
 
 dayjs.extend(customParseFormat);
 
+export const MONTH_ABBR = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
 const DEFAULT_DATE_DISPLAY_FORMAT = "DD/MM/YYYY";
 const DEFAULT_DATE_PICKER_FORMAT = "dd/MM/yyyy";
 
@@ -153,4 +168,40 @@ export function formatDateForDisplay(value, inputFormat = "") {
 
   const fmt = inputFormatToDayjs(inputFormat);
   return dayjs(date).format(fmt);
+}
+
+/** Format a Date as dd-Mon-yyyy (e.g. "02-Jun-2026"). */
+export function formatDdMonYyyy(date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mon = MONTH_ABBR[date.getMonth()];
+  return `${dd}-${mon}-${date.getFullYear()}`;
+}
+
+/**
+ * Format a date for API params (dd-Mon-yyyy).
+ * Empty / invalid values return "0" by default; set `fallbackToToday: true` to use today.
+ */
+export function formatTranDate(dateVal, { invalidValue = "0", fallbackToToday = false } = {}) {
+  if (dateVal == null || dateVal === "") {
+    if (fallbackToToday) return formatDdMonYyyy(new Date());
+    return invalidValue;
+  }
+
+  const d =
+    dateVal instanceof Date ? dateVal : parseFlexibleDate(dateVal) ?? new Date(dateVal);
+  if (!d || Number.isNaN(d.getTime())) {
+    if (fallbackToToday) return formatDdMonYyyy(new Date());
+    return invalidValue;
+  }
+
+  return formatDdMonYyyy(d);
+}
+
+/** Format list/grid date values for display; empty → em dash. */
+export function formatListDate(value) {
+  if (value == null || value === "") return "—";
+  const d =
+    value instanceof Date ? value : parseFlexibleDate(value) ?? new Date(value);
+  if (!d || Number.isNaN(d.getTime())) return "—";
+  return formatDdMonYyyy(d);
 }

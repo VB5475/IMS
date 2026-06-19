@@ -27,18 +27,7 @@ import {
 import { getUserSession } from "../session/userSession";
 import { PO_CONFIG } from "../pages/purchase-order/constants";
 import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
-import { withSaveContextFields } from "../utils/savePayload";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-export function formatPoTranDate(dateVal) {
-  const d = dateVal ? new Date(dateVal) : new Date();
-  if (Number.isNaN(d.getTime())) {
-    const now = new Date();
-    return `${String(now.getDate()).padStart(2, "0")}-${MONTHS[now.getMonth()]}-${now.getFullYear()}`;
-  }
-  return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
-}
+import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -567,17 +556,20 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
         const body = await withSaveContextFields(
-          {
-            PrmStrMstRBName: PO_CONFIG.RB_MASTER,
-            prmStrMstJSON: JSON.stringify([headerValues]),
-            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-            prmstrDetailSaveProcName: detMeta?.SaveProcName,
-            PrmStrDetRBName: PO_CONFIG.RB_DETAIL,
-            prmStrDetJSON: JSON.stringify(cleanedRows),
-            GenIDNumber: genIDNumber,
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          },
+          buildSaveJsonFields({
+            label: "PO Hook",
+            mst: headerValues,
+            det: cleanedRows,
+            extra: {
+              PrmStrMstRBName: PO_CONFIG.RB_MASTER,
+              prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+              prmstrDetailSaveProcName: detMeta?.SaveProcName,
+              PrmStrDetRBName: PO_CONFIG.RB_DETAIL,
+              GenIDNumber: genIDNumber,
+              p_ErrCode: -1,
+              p_ErrMsg: "",
+            },
+          }),
           { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
         );
 
@@ -686,7 +678,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
             p_ErrCode: -1, p_ErrMsg: "",
           }).then((res) => setDivisionOptions(
             (res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
-          )).catch(() => {}),
+          )).catch(() => { }),
 
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: 2,
@@ -714,7 +706,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
                 CrDays: r.CrDays ?? 0,
               };
             });
-          }).catch(() => {})
+          }).catch(() => { })
         );
       }
 

@@ -38,7 +38,9 @@ import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   buildDropdownOptionFromRow,
+  editRecordGridColumnOpts,
   isLockOnEditModeCol,
+  syncEditGridDropdownValues,
   syncHeaderFilterWithApiCol,
   buildHeaderColMap,
   resolveHeaderApiCol,
@@ -47,7 +49,7 @@ import {
 import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
-import { withSaveContextFields } from "../../utils/savePayload";
+import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -361,17 +363,15 @@ export default function PurchaseQuotationForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues, master));
       setFilterResetKey((k) => k + 1);
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
-        existingRecordEdit: true,
-        masterRow: master,
-        fetchUnlockedDropdowns: false,
-      });
+      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
+      const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
+
       if (itemGridRef.current?.loadRows) {
-        itemGridRef.current.loadRows(details);
+        itemGridRef.current.loadRows(syncedDetails);
       } else {
-        queuedRowsRef.current = details;
+        queuedRowsRef.current = syncedDetails;
       }
     } catch (err) {
       console.error("[PQ] Edit record load failed:", err);
@@ -592,7 +592,7 @@ export default function PurchaseQuotationForm() {
       const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0, {
         existingRecordEdit: isEditRoute,
         masterRow: loadedMasterRow,
-        fetchUnlockedDropdowns: isEditRoute ? isEditMode : true,
+        fetchUnlockedDropdowns: true,
       });
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
@@ -752,16 +752,9 @@ export default function PurchaseQuotationForm() {
       );
 
       const payload = await withSaveContextFields(
-        {
-          prmStrMstJSON: JSON.stringify([mstRow]),
-          prmStrDetJSON: JSON.stringify(detRows),
-        },
+        buildSaveJsonFields({ label: "PQ", mst: mstRow, det: detRows }),
         { divisionId: hv.DivisionID, isEdit: isEditRoute }
       );
-
-      console.log("%c[PQ Save] Payload:", "color:#f59e0b;font-weight:700", payload);
-      console.log("%c[PQ Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
-      console.log("%c[PQ Save] Detail:", "color:#22c55e;font-weight:600", detRows);
 
       setIsSavingQtn(true);
       try {

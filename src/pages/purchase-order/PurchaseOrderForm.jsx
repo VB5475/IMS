@@ -40,7 +40,7 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
-import { withSaveContextFields } from "../../utils/savePayload";
+import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -363,17 +363,15 @@ export default function PurchaseOrderForm() {
         });
       }
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
-        existingRecordEdit: true,
-        masterRow: master,
-        fetchUnlockedDropdowns: false,
-      });
+      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
+      const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
+
       if (itemGridRef.current?.loadRows) {
-        itemGridRef.current.loadRows(details);
+        itemGridRef.current.loadRows(syncedDetails);
       } else {
-        queuedRowsRef.current = details;
+        queuedRowsRef.current = syncedDetails;
       }
 
       if (indentDetails.length > 0) {
@@ -794,10 +792,10 @@ export default function PurchaseOrderForm() {
       mstRow[col.ColName] = getColDefault(col.ColDataType);
     });
     Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id"){
+      if (k !== "id") {
         console.log(k)
         console.log(`${mstRow[k]}=${v}`)
-      mstRow[k] = v
+        mstRow[k] = v
       }
     });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
@@ -814,18 +812,14 @@ export default function PurchaseOrderForm() {
     const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
 
     const payload = await withSaveContextFields(
-      {
-        prmStrMstJSON: JSON.stringify([mstRow]),
-        prmStrDetJSON: JSON.stringify(detRows),
-        prmStrIndtDetJSON: JSON.stringify(indentDetailRows),
-      },
+      buildSaveJsonFields({
+        label: "PO",
+        mst: mstRow,
+        det: detRows,
+        indtDet: indentDetailRows,
+      }),
       { divisionId: hv.DivisionID, isEdit: isEditRoute }
     );
-
-    console.log("%c[PO Save] Payload:", "color:#f59e0b;font-weight:700", payload);
-    console.log("%c[PO Save] Master:", "color:#6366f1;font-weight:600", [mstRow]);
-    console.log("%c[PO Save] Detail:", "color:#22c55e;font-weight:600", detRows);
-    console.log("%c[PO Save] IndentDetail:", "color:#ec4899;font-weight:600", indentDetailRows);
 
     setIsSavingPO(true);
     try {

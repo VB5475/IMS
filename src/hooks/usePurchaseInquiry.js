@@ -24,7 +24,7 @@ import {
   OBJ_TYPE,
 } from "../api/constants";
 import { parseApiErrMsg } from "../utils/apiResponse";
-import { withSaveContextFields } from "../utils/savePayload";
+import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 import { PI_CONFIG } from "../pages/purchase-inquiry/constants";
 import {
   fetchDropdownOptions,
@@ -32,20 +32,6 @@ import {
   isTruthyApiFlag,
   isLockOnEditModeCol,
 } from "../utils/gridUtils";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** API expects e.g. "02-Jun-2026" */
-export function formatPiTranDate(dateVal) {
-  const d = dateVal ? new Date(dateVal) : new Date();
-  if (Number.isNaN(d.getTime())) {
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, "0");
-    return `${dd}-${MONTHS[now.getMonth()]}-${now.getFullYear()}`;
-  }
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${dd}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
-}
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -570,17 +556,20 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
         const body = await withSaveContextFields(
-          {
-            PrmStrMstRBName: PI_CONFIG.RB_MASTER,
-            prmStrMstJSON: JSON.stringify([headerValues]),
-            prmstrMasterSaveProcName: mstMeta?.SaveProcName,
-            prmstrDetailSaveProcName: detMeta?.SaveProcName,
-            PrmStrDetRBName: PI_CONFIG.RB_DETAIL,
-            prmStrDetJSON: JSON.stringify(cleanedRows),
-            GenIDNumber: genIDNumber,
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          },
+          buildSaveJsonFields({
+            label: "PI Hook",
+            mst: headerValues,
+            det: cleanedRows,
+            extra: {
+              PrmStrMstRBName: PI_CONFIG.RB_MASTER,
+              prmstrMasterSaveProcName: mstMeta?.SaveProcName,
+              prmstrDetailSaveProcName: detMeta?.SaveProcName,
+              PrmStrDetRBName: PI_CONFIG.RB_DETAIL,
+              GenIDNumber: genIDNumber,
+              p_ErrCode: -1,
+              p_ErrMsg: "",
+            },
+          }),
           { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
         );
 

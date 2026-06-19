@@ -3,13 +3,19 @@
 // Values aligned to MRD_Template4PV.docx (Richa, 10-Jun-2026).
 
 import { controlTypeMap } from "../../data/dummyData";
+import { BASED_ON, PURCHASE_API } from "../../constants/purchaseCommon";
+import { formatTranDate } from "../../utils/dateFormat";
+import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
 
+
+export { formatTranDate as formatPVTranDate };
 export const PV_CONFIG = {
-  // RB board codes
+  ...PURCHASE_API,
+  SP_PV_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
+
   RB_MASTER: "RB_PurPVMst",
   RB_DETAIL: "RB_PurPVDet",
 
-  // Form identifiers
   FORM_TAG: "PV",
   TRAN_BOOK: "PR",
 
@@ -22,38 +28,35 @@ export const PV_CONFIG = {
   SUPPLIER_SP: "Fn_tbl_FetchCustomerSupplierTranWs4Web",
 
   // RB codes for item picker modal (3 modes based on BasedOnID)
-  RB_ITEM_PICKER_GRN:    "RB_PurPVSelGRNDet",    // BasedOn = '0' (GRN Base)
-  RB_ITEM_PICKER_PO:     "RB_PurPVSelPODet",     // BasedOn = '1' (PO Base)
+  RB_ITEM_PICKER_GRN: "RB_PurPVSelGRNDet",    // BasedOn = '0' (GRN Base)
+  RB_ITEM_PICKER_PO: "RB_PurPVSelPODet",     // BasedOn = '1' (PO Base)
   RB_ITEM_PICKER_DIRECT: "RB_PurPVSelOnlyItem",  // BasedOn = '2' (Direct)
 
   // SP / function names
-  SP_RB_META:          "Fn_Fetch_RBDetailByRBCode",
-  SP_PV_TYPES:         "fn_tbl_ddl_Pur_Configuration",
-  SP_DIVISIONS:        "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_PICKER_GRN:    "fn_tbl_RB_PurPVSelGRNDet",    // BasedOn = '0' (GRN Base)
-  SP_ITEM_PICKER_PO:     "fn_tbl_RB_PurPVSelPODet",     // BasedOn = '1' (PO Base)
+  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_PV_TYPES: "fn_tbl_ddl_Pur_Configuration",
+  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
+  SP_ITEM_PICKER_GRN: "fn_tbl_RB_PurPVSelGRNDet",    // BasedOn = '0' (GRN Base)
+  SP_ITEM_PICKER_PO: "fn_tbl_RB_PurPVSelPODet",     // BasedOn = '1' (PO Base)
   SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPVSelOnlyItem",  // BasedOn = '2' (Direct)
-  SP_SUPPLIER_INFO:    "Fn_tbl_FetchSupplierCurrencyInfo",
-  SP_COST_CENTER:      "Fn_tbl_Fas_FetchCostCenterAc",
-SP_DEPT:             "Pr_Fetch_DepartmentData_IMS",
+  SP_SUPPLIER_INFO: "Fn_tbl_FetchSupplierCurrencyInfo",
+  SP_COST_CENTER: "Fn_tbl_Fas_FetchCostCenterAc",
+  SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
 
   // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_RB_PurPVDet_Event",
 
-  // Edit flow — GetMasterDataFill procedures
   SP_MASTER_FILL: "fn_tbl_RB_PurPVMst",
-  SP_DETAIL_FILL:  "fn_tbl_RB_PurPVDet",
+  SP_DETAIL_FILL: "fn_tbl_RB_PurPVDet",
 
-  // Save endpoint (REST POST via API_BASE_URL_IMS)
   SAVE_ENDPOINT: "/API/PurPVSave/Post_RB_PurPVMst_Save",
 
-  // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "pvHeaderMeta",
-  STORAGE_ENTRY_META:  "pvEntryMeta",
+  STORAGE_ENTRY_META: "pvEntryMeta",
 
   // Purchase Voucher listing
-  LIST_OBJ_TYPE:   2,
-  SP_PV_LIST:      "Fn_tbl_Pur_PVMst_List",
+  LIST_OBJ_TYPE: 2,
+  SP_PV_LIST: "Fn_tbl_Pur_PVMst_List",
   LIST_DIVISION_ID: 0, // ⚠️ CONFIRM with DBA — MRD says 15; using 0 (all divisions) pending confirmation
 
   // "Based On" dropdown — MRD: GRN Base | PO Base | Direct
@@ -164,49 +167,47 @@ export const PV_HEADER_FILTERS = [
 
 export const PV_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-// Cascade resets per MRD Section 3:
-//   DivisionID → clear ConfigID + SupplierID
 export const PV_FILTER_CASCADE_RESETS = {
   DivisionID: ["ConfigID", "SupplierID"],
 };
 
 export const PV_SUMMARY_FIELDS = [
   // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows ──
-  { SummaryParameterID: "MstBaseAmount",       detKey: "BaseAmount" },
-  { SummaryParameterID: "MstExpense",          detKey: "Expense" },
-  { SummaryParameterID: "MstTaxableValue",     detKey: "TaxableValue" },
-  { SummaryParameterID: "MstCGST",             detKey: "CGST" },
-  { SummaryParameterID: "MstSGST",             detKey: "SGST" },
-  { SummaryParameterID: "MstIGST",             detKey: "IGST" },
-  { SummaryParameterID: "MstRoundOff",         detKey: "RoundOff" },
-  { SummaryParameterID: "MstNetBaseAmount",    detKey: "NetBaseAmount" },
+  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
+  { SummaryParameterID: "MstExpense", detKey: "Expense" },
+  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
+  { SummaryParameterID: "MstCGST", detKey: "CGST" },
+  { SummaryParameterID: "MstSGST", detKey: "SGST" },
+  { SummaryParameterID: "MstIGST", detKey: "IGST" },
+  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
+  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
   // ── TDS section (ColSeqNo 17-22, 31) — detKey confirmed pending backend ──
-  { SummaryParameterID: "NOPID",               detKey: "NOPID" },
+  { SummaryParameterID: "NOPID", detKey: "NOPID" },
   { SummaryParameterID: "TDSApplicableAmount", detKey: "TDSApplicableAmount" },
-  { SummaryParameterID: "TDSTypeID",           detKey: "TDSTypeID" },
-  { SummaryParameterID: "TDSPercentage",       detKey: "TDSPercentage" },
-  { SummaryParameterID: "TDSAmount",           detKey: "TDSAmount" },
-  { SummaryParameterID: "PendingTDSAmount",    detKey: "PendingTDSAmount" },
-  { SummaryParameterID: "NetPayable",          detKey: "NetPayable" },
+  { SummaryParameterID: "TDSTypeID", detKey: "TDSTypeID" },
+  { SummaryParameterID: "TDSPercentage", detKey: "TDSPercentage" },
+  { SummaryParameterID: "TDSAmount", detKey: "TDSAmount" },
+  { SummaryParameterID: "PendingTDSAmount", detKey: "PendingTDSAmount" },
+  { SummaryParameterID: "NetPayable", detKey: "NetPayable" },
 ];
 
 export const PV_SHORTCUT_CONFIG = {
-  a: { label: "Add",    title: "Add (Alt+A)" },
-  s: { label: "Save",   title: "Save (Alt+S)" },
+  a: { label: "Add", title: "Add (Alt+A)" },
+  s: { label: "Save", title: "Save (Alt+S)" },
   n: { label: "Cancel", title: "Cancel (Alt+N)" },
 };
 
-const MONTH_ABBR = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+// const MONTH_ABBR = [
+//   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+//   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+// ];
 
-export function formatPVTranDate(dateVal) {
-  if (!dateVal) return "0";
-  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-  if (isNaN(d.getTime())) return "0";
-  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
-}
+// export function formatPVTranDate(dateVal) {
+//   if (!dateVal) return "0";
+//   const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+//   if (isNaN(d.getTime())) return "0";
+//   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+// }
 
 /**
  * Columns that support multi-value paste (Serial Number replication) in Direct mode.
@@ -217,25 +218,12 @@ export const PV_MULTI_PASTE_COLUMNS = new Set(["BatchNoSrNo"]);
 /** Header fields required before Select Item can be opened */
 export const PV_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate",   label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID",   label: "PR Type" },
+  { headerKey: "TranDate", label: "Tran Date", isDate: true },
+  { headerKey: "ConfigID", label: "PR Type" },
   { headerKey: "SupplierID", label: "Supplier" },
-  { headerKey: "BasedOnID",  label: "Based On", allowZero: true },
+  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
 ];
 
-function isMissingPVPickerValue(field, value) {
-  if (field.isDate) return value == null || value === "" || formatPVTranDate(value) === "0";
-  if (value == null || value === "") return true;
-  if (field.allowZero) return false;
-  return Number(value) === 0 || value === "0";
-}
-
-/** Returns display labels of header fields that must be filled before Select Item. */
 export function getMissingItemPickerHeaderFields(headerValues) {
-  const missing = [];
-  PV_ITEM_PICKER_JSON_FIELDS.forEach((field) => {
-    if (isMissingPVPickerValue(field, headerValues?.[field.headerKey]))
-      missing.push(field.label);
-  });
-  return missing;
+  return getMissingPickerFields(headerValues, PV_ITEM_PICKER_JSON_FIELDS);
 }
