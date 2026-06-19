@@ -1,21 +1,20 @@
-// PurchaseVoucherForm.jsx
-// Purchase Voucher entry form (add / edit).
-// Mirrors PurchaseIndentForm.jsx — same three-phase load, edit-mode gate, item grid.
+// CWIPToFAForm.jsx — CWIP To Fixed Assets entry form (Add / Edit)
 //
-// PV-specific vs Indent:
-//   Added: Supplier, Currency, CurrencyRate, BillNo, BillDate,
-//          CostCenter, CreditStartDate, Narration
-//   3 item picker modes: GRN Base (0) | PO Base (1) | Direct (2)
-//   Cascade: DivisionID → clear ConfigID + SupplierID + grid
-//            SupplierID → auto-fill Currency + clear grid
-//            BasedOnID  → clear grid
+// Pattern mirrors PurchaseVoucherForm.jsx exactly:
+//   1. fetchHeaderMeta  → RB_AstCWIP2FAMst → GET_DETAIL_COL_DATA (header column METADATA)
+//   2. fetchDetailMeta  → RB_AstCWIP2FADet → GET_DETAIL_COL_DATA (grid column METADATA)
+//   3. fetchGridColumns → GET_FILTER_DETAIL + buildGridColumns  (lazy, on first Add New)
+//   4. syncedFilters useMemo merges static layout + API IsMandatory/IsLockOnEditMode flags
 //
-// Layout (top → bottom):
-//   1. EnterpriseFilterPanel  — header fields
-//   2. pv-grid-section        — single-tab Item Grid
-//        buttons: Select Item | Delete
-//   3. EnterpriseSummaryPanel — live totals computed from grid rows
-//   4. ActionBar              — Add / Save / Cancel / Close (Alt shortcuts)
+// C2F vs PV:
+//   No SupplierID, BasedOnID, EnterpriseSummaryPanel
+//   PutToUseInstDate — required second date field
+//   LocationID       — cascade from Division (fetchLocations)
+//   CWIPAccID        — fetched via C2F_CONFIG.SP_CWIP_ACC (direct SP, same pattern as Division)
+//   ConvTypeID       — internal field, fixed to C2F_CONFIG.CONV_TYPE_ID, not rendered in UI
+//   ConversionFactor — numeric textbox (ColSeqNo 7, between LocationID and CWIPAccID)
+//   NetTotal         — computed client-side: sum of grid Amount column
+//   Cascade: DivisionID → clear LocationID + grid; LocationID → clear grid
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -23,9 +22,8 @@ import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
-import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { usePurchaseVoucher } from "../../hooks/usePurchaseVoucher";
+import { useCWIPToFA } from "../../hooks/useCWIPToFA";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -38,57 +36,56 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
+import {
+  buildGridColumns,
+  isLockOnEditModeCol,
+  syncHeaderFilterWithApiCol,
+  buildHeaderColMap,
+  resolveHeaderApiCol,
+} from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  PV_CONFIG,
-  PV_HEADER_FILTERS,
-  PV_GRID_TABS,
-  PV_FILTER_CASCADE_RESETS,
-  PV_SUMMARY_FIELDS,
-  PV_MULTI_PASTE_COLUMNS,
-  formatPVTranDate,
+  C2F_CONFIG,
+  C2F_HEADER_FILTERS,
+  C2F_GRID_TABS,
+  C2F_FILTER_CASCADE_RESETS,
+  formatC2FTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
 import { controlTypeMap } from "../../data/dummyData";
-import "./PurchaseVoucherPage.css";
+import "./CWIPToFAPage.css";
 
-// ── Temp-ID generator (negative → never clash with real IDs) ──────────
-let _pvTempId = -1;
-const nextTempId = () => _pvTempId--;
+let _c2fTempId = -1;
+const nextTempId = () => _c2fTempId--;
 
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
     companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.YearID ?? session.yearId ?? PV_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.LoginID ?? session.loginId,
+    yearId:    listRecord?.YearID    ?? session.yearId    ?? C2F_CONFIG.CONFIG_YEAR_ID,
+    loginId:   listRecord?.LoginID   ?? session.loginId,
     sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.PVID ?? listRecord?.IDNumber ?? recordId,
+    idNumber:  listRecord?.C2FID     ?? listRecord?.IDNumber   ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode:             headerValues.TranCode ?? "",
-    TranDate:             headerValues.TranDate ?? "",
-    DivisionID:           String(headerValues.DivisionID ?? ""),
-    ConfigID:             String(headerValues.ConfigID ?? ""),
-    BasedOnID:            String(headerValues.BasedOnID ?? "2"),
-    SupplierID:           String(headerValues.SupplierID ?? ""),
-    CurrencyName:         headerValues.CurrencyName ?? headerValues.Currency ?? "",
-    CurrencyRate:         String(headerValues.CurrencyRate ?? ""),
-    BillNo:               headerValues.BillNo ?? "",
-    BillDate:             headerValues.BillDate ?? "",
-    CostCenterID:         String(headerValues.CostCenterID ?? ""),
-    CreditStartDate:      headerValues.CreditStartDate ?? "",
-    Narration:            headerValues.Narration ?? "",
-    Remarks:              headerValues.Remarks ?? "",
+    TranNo:           headerValues.TranNo           ?? "",
+    TranDate:         headerValues.TranDate          ?? "",
+    PutToUseInstDate: headerValues.PutToUseInstDate  ?? "",
+    DivisionID:       String(headerValues.DivisionID      ?? ""),
+    LocationID:       String(headerValues.LocationID      ?? ""),
+    CWIPAccID:        String(headerValues.CWIPAccID        ?? ""),
+    CostCenterAccID:  String(headerValues.CostCenterAccID  ?? ""),
+    ConvTypeID:       String(headerValues.ConvTypeID      ?? "1"),
+    NetTotal:         String(headerValues.NetTotal         ?? "0"),
+    Remark:           headerValues.Remark            ?? "",
   };
 }
 
@@ -110,44 +107,40 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
-// ── Component ──────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────────
 
-export default function PurchaseVoucherForm() {
+export default function CWIPToFAForm() {
   const { id: routeId } = useParams();
-  const location = useLocation();
+  const location    = useLocation();
   const isNewRoute  = location.pathname.endsWith("/new") || routeId === "new";
   const recordId    = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord  = location.state?.record ?? null;
   const navigate    = useNavigate();
 
-  const itemGridRef       = useRef(null);
-  const summaryRef        = useRef(null);
-  const filterPanelRef    = useRef(null);
-  const selectItemBtnRef  = useRef(null);
+  const itemGridRef          = useRef(null);
+  const filterPanelRef       = useRef(null);
+  const selectItemBtnRef     = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
-  const queuedRowsRef     = useRef([]);
-  const { get: getLive }  = useApi(API_BASE_URL);
+  const queuedRowsRef        = useRef([]);
+  const { get: getLive }     = useApi(API_BASE_URL);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, pvTypeOptions, supplierOptions,
-    costCenterOptions,
-    isLoadingPvTypes,
-    fetchPVTypes, clearPvTypes,
-    fetchSupplierInfo, getSupplierCurrency,
+    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
+    fetchLocations, clearLocations,
     fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fireCellEvent,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = usePurchaseVoucher(API_BASE_URL);
+  } = useCWIPToFA(API_BASE_URL);
 
-  const [loadedMasterRow, setLoadedMasterRow]   = useState(null);
-  const [loadedFilterValues, setLoadedFilterValues] = useState(null);
-  const [recordLoading, setRecordLoading]       = useState(false);
-  const [recordLoadError, setRecordLoadError]   = useState(null);
+  const [loadedMasterRow,     setLoadedMasterRow]     = useState(null);
+  const [loadedFilterValues,  setLoadedFilterValues]  = useState(null);
+  const [recordLoading,       setRecordLoading]       = useState(false);
+  const [recordLoadError,     setRecordLoadError]     = useState(null);
   const editRecordLoadedRef = useRef(false);
 
   const todayISO = useMemo(() => {
@@ -156,51 +149,43 @@ export default function PurchaseVoucherForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode:             "",
-    TranDate:             todayISO,
-    DivisionID:           0,
-    ConfigID:             0,
-    BasedOnID:            "2",
-    SupplierID:           0,
-    CurrencyID:           0,
-    CurrencyRate:         0,
-    BillNo:               "",
-    BillDate:             null,
-    CostCenterID:         0,
-    CreditStartDate:      todayISO,
-    Narration:            "",
-    Remarks:              "",
-    TranMstGenID:         0,
-    CompanyID:            DEFAULT_COMPANY_ID,
-    YearID:               PV_CONFIG.DIVISION_YEAR_ID,
-    LoginID:              DEFAULT_LOGIN_ID,
-    IDNumber:             recordId,
-    FuncCode:             PV_CONFIG.RB_MASTER,
+    TranNo:            "",
+    TranDate:          todayISO,
+    PutToUseInstDate:  null,
+    DivisionID:        0,
+    LocationID:        0,
+    ConversionFactor:  0,
+    CWIPAccID:         0,
+    CostCenterAccID:   0,
+    ConvTypeID:        C2F_CONFIG.CONV_TYPE_ID,
+    NetTotal:          0,
+    Remark:           "",
+    TranMstGenID:     0,
+    CompanyID:        DEFAULT_COMPANY_ID,
+    YearID:           C2F_CONFIG.CONFIG_YEAR_ID,
+    LoginID:          DEFAULT_LOGIN_ID,
+    IDNumber:         recordId,
+    FuncCode:         C2F_CONFIG.RB_MASTER,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { TranDate: todayISO, BasedOnID: "2", CreditStartDate: todayISO };
+    return { TranDate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
-  const [filterResetKey, setFilterResetKey] = useState(0);
-  const [activeTab, setActiveTab]           = useState("items");
-  const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
-  const [basedOnId, setBasedOnId]           = useState("2");
-  const [pasteNotice, setPasteNotice]       = useState(null);
-  const pasteNoticeTimerRef                 = useRef(null);
-  const [itemSelectionCount, setItemSelectionCount] = useState(0);
-  const [isGridLoading, setIsGridLoading]   = useState(false);
-  const [gridRows, setGridRows]             = useState([]);
+  const [filterResetKey,      setFilterResetKey]      = useState(0);
+  const [activeTab,           setActiveTab]           = useState("items");
+  const [itemSelectionCount,  setItemSelectionCount]  = useState(0);
+  const [isGridLoading,       setIsGridLoading]       = useState(false);
+  const [gridRows,            setGridRows]            = useState([]);
+  const [isSaving,            setIsSaving]            = useState(false);
 
-  // Item picker modal
-  const [itemModalOpen, setItemModalOpen]     = useState(false);
-  const [itemModalItems, setItemModalItems]   = useState([]);
+  const [itemModalOpen,    setItemModalOpen]    = useState(false);
+  const [itemModalItems,   setItemModalItems]   = useState([]);
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
-  const [itemModalError, setItemModalError]   = useState(null);
+  const [itemModalError,   setItemModalError]   = useState(null);
 
-  // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
 
   const focusFirstEditableFilterField = useCallback(() => {
@@ -228,24 +213,25 @@ export default function PurchaseVoucherForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title:    isNewRoute ? "New Purchase Voucher" : "Purchase Voucher",
+    title:    isNewRoute ? "New CWIP To FA" : "CWIP To FA",
     subtitle: isNewRoute
       ? "Fill in the header fields, then add items via the grid."
       : recordLoading
-        ? "Loading purchase voucher…"
+        ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `PV #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `C2F #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/purchase-voucher",
+    backTo:   "/cwip-to-fa",
   });
 
-  // ── Mount: load metadata ───────────────────────────────────────────
+  // ── Mount: load metadata ───────────────────────────────────────────────────
   useEffect(() => {
     fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
   }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
 
+  // Eager grid column load for new records (once detail meta is ready)
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
     fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
@@ -253,6 +239,7 @@ export default function PurchaseVoucherForm() {
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
 
+  // Flush any queued rows once grid columns are built
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
       if (itemGridRef.current.loadRows) {
@@ -264,14 +251,14 @@ export default function PurchaseVoucherForm() {
     }
   }, [columns]);
 
-  // ── Edit flow: load existing record ───────────────────────────────
+  // ── Edit flow: load existing record ───────────────────────────────────────
   const loadEditRecord = useCallback(async () => {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
       const params = resolveEditLoadParams(recordId, listRecord);
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Purchase Voucher record not found.");
+      if (!master || !headerValues) throw new Error("CWIP To FA record not found.");
 
       headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
       setLoadedMasterRow(master);
@@ -280,13 +267,6 @@ export default function PurchaseVoucherForm() {
       seedOptionsFromMaster(master);
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
-
-      if (headerValues.CurrencyName || headerValues.CurrencyRate) {
-        setCurrencyExternalValues({
-          CurrencyName: headerValues.CurrencyName ?? "",
-          CurrencyRate: String(headerValues.CurrencyRate ?? ""),
-        });
-      }
 
       const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
         existingRecordEdit: true,
@@ -301,8 +281,8 @@ export default function PurchaseVoucherForm() {
         queuedRowsRef.current = details;
       }
     } catch (err) {
-      console.error("[PV] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load purchase voucher record.");
+      console.error("[C2F] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load CWIP To FA record.");
     } finally {
       setRecordLoading(false);
     }
@@ -316,12 +296,7 @@ export default function PurchaseVoucherForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     const hv = headerValuesRef.current;
-    fetchUnlockedHeaderDropdowns(
-      hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0,
-      hv.TranDate,
-      hv.ConfigID,
-      hv.SupplierID,
-    );
+    fetchUnlockedHeaderDropdowns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0, hv.TranDate);
     fetchGridColumns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
@@ -334,126 +309,91 @@ export default function PurchaseVoucherForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── syncedFilters — inject dynamic options ─────────────────────────
+  // ── NetTotal — live sum of grid Amount column ──────────────────────────────
+  useEffect(() => {
+    const total = gridRows.reduce((sum, row) => sum + (Number(row.Amount) || 0), 0);
+    headerValuesRef.current.NetTotal = total;
+  }, [gridRows]);
+
+  // ── syncedFilters — inject dynamic API metadata + dropdown options ─────────
+  // Same pattern as PV: static layout merged with API IsMandatory/IsLockOnEditMode.
   const syncedFilters = useMemo(() => {
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case "DivisionID":           return { ...filter, staticOptions: divisionOptions };
-        case "ConfigID":             return { ...filter, staticOptions: pvTypeOptions };
-        case "SupplierID":           return { ...filter, staticOptions: supplierOptions };
-        case "CostCenterID":         return { ...filter, staticOptions: costCenterOptions };
-        default:                     return filter;
+        case "DivisionID":      return { ...filter, staticOptions: divisionOptions };
+        case "LocationID":      return { ...filter, staticOptions: locationOptions };
+        case "CWIPAccID":       return { ...filter, staticOptions: cWIPAccOptions };
+        case "CostCenterAccID": return { ...filter, staticOptions: costCenterOptions };
+        default:                return filter;
       }
     };
 
-    if (headerColumns.length === 0) return PV_HEADER_FILTERS.map(injectOptions);
+    if (headerColumns.length === 0) return C2F_HEADER_FILTERS.map(injectOptions);
 
+    // buildHeaderColMap / resolveHeaderApiCol / syncHeaderFilterWithApiCol:
+    // inject IsMandatory, IsVisible, IsEditAllow, IsLockOnEditModeAllow from API
     const apiColMap = buildHeaderColMap(headerColumns);
 
-    return PV_HEADER_FILTERS.map((filter) => {
+    return C2F_HEADER_FILTERS.map((filter) => {
       const withOpts = injectOptions(filter);
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
+      const apiCol   = resolveHeaderApiCol(filter, apiColMap);
       if (!apiCol) return withOpts;
       const lockOnEditMode = isLockOnEditModeCol(apiCol);
       const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
-        ? controlTypeMap.LABEL
-        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
+      // Always keep the static control type — API ColCtrlType is unreliable for header
+      // fields (C2F returns 0/LABEL for all columns). Static C2F_HEADER_FILTERS is the
+      // source of truth for rendering; API provides only behaviour flags.
+      def.FilterColCtrlType = withOpts.FilterColCtrlType;
       return def;
     });
-  }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
-
-  const syncedSummaryFields = useMemo(() => {
-    const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
-    return PV_SUMMARY_FIELDS.map((f) => ({
-      ...f,
-      mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
-    }));
-  }, [headerColumns]);
+  }, [headerColumns, divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions]);
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
       let tone = "editable";
-      if (!isEditMode) tone = "view";
-      else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
-      tones[f.FilterColName] = tone;
+      if (!isEditMode)                             tone = "view";
+      else if (isEditRoute && f.lockOnEditMode)    tone = "frozen";
+      tones[f.FilterColName]       = tone;
       if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
 
-  // ── Filter change / cascade ────────────────────────────────────────
+  // ── Filter change / cascade ────────────────────────────────────────────────
+  const confirmGridClear = useCallback((fieldLabel) => {
+    const rows = itemGridRef.current?.getRows?.() ?? [];
+    if (rows.length === 0) return true;
+    return window.confirm(`Changing ${fieldLabel} will clear all item rows. Continue?`);
+  }, []);
+
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
     if (colName === "DivisionID") {
-      headerValuesRef.current.ConfigID = 0;
-      headerValuesRef.current.SupplierID = 0;
-      clearPvTypes();
+      if (!confirmGridClear("Division")) {
+        // revert via filter panel re-key would be invasive; just skip the update
+        return;
+      }
+      headerValuesRef.current.LocationID = 0;
+      clearLocations();
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
-        await fetchPVTypes(val);
-        await fetchCostCenters(val, headerValuesRef.current.TranDate);
+        await Promise.all([
+          fetchLocations(val),
+          fetchCostCenters(val, headerValuesRef.current.TranDate),
+        ]);
       }
       return;
     }
 
-    if (colName === "SupplierID") {
-      itemGridRef.current?.clearRows?.();
-      if (val && val !== "0") {
-        const cached = getSupplierCurrency(val);
-        if (cached) {
-          headerValuesRef.current.CurrencyID   = cached.CurrencyID;
-          headerValuesRef.current.CurrencyName = cached.CurrencyName;
-          headerValuesRef.current.CurrencyRate  = cached.CurrencyRate;
-          setCurrencyExternalValues({
-            CurrencyName: cached.CurrencyName ?? "",
-            CurrencyRate: String(cached.CurrencyRate ?? ""),
-          });
-        } else {
-          const info = await fetchSupplierInfo(val);
-          if (info) {
-            headerValuesRef.current.CurrencyID  = info.CurrencyID;
-            headerValuesRef.current.CurrencyRate = info.CurrencyRate;
-            setCurrencyExternalValues({
-              CurrencyName: "",
-              CurrencyRate: String(info.CurrencyRate ?? ""),
-            });
-          }
-        }
-      } else {
-        headerValuesRef.current.CurrencyID   = 0;
-        headerValuesRef.current.CurrencyName = "";
-        headerValuesRef.current.CurrencyRate  = 0;
-        setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
-      }
-      return;
-    }
-
-    if (colName === "ConfigID") {
+    if (colName === "LocationID") {
+      if (!confirmGridClear("Location")) return;
       itemGridRef.current?.clearRows?.();
       return;
     }
 
-    if (colName === "BasedOnID") {
-      setBasedOnId(String(val));
-      itemGridRef.current?.clearRows?.();
-    }
-  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters]);
-
-  // ── Multi-value paste — Sr. No replication (Direct mode only) ─────
-  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
-    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
-    values.slice(1).forEach((val) => {
-      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
-    });
-    if (pasteNoticeTimerRef.current) clearTimeout(pasteNoticeTimerRef.current);
-    setPasteNotice(`${values.length} row${values.length !== 1 ? "s" : ""} added from pasted serial numbers.`);
-    pasteNoticeTimerRef.current = setTimeout(() => setPasteNotice(null), 4000);
-  }, [addItemRow]);
+  }, [confirmGridClear, clearLocations, fetchLocations, fetchCostCenters]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -468,31 +408,41 @@ export default function PurchaseVoucherForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  // ── Cell event — qty / rate recalculation ─────────────────────────
+  // ── Cell event — Qty / Rate → Amount  ─────────────────────────────────────
+  // If SP_GRID_EVENT is null (TBD), compute Amount client-side as Qty × Rate.
   const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
+    if (!C2F_CONFIG.SP_GRID_EVENT) {
+      // Client-side fallback: Amount = Qty × Rate
+      if (colKey === "Qty" || colKey === "Rate") {
+        const qty  = Number(rowData.Qty)  || 0;
+        const rate = Number(rowData.Rate) || 0;
+        itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
+      }
+      return;
+    }
     const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
     if (!result || !itemGridRef.current) return;
     const responseRow = result?.Links?.[0];
     if (!responseRow) return;
     const errCode = responseRow.ErrCode;
     if (errCode !== 1 && errCode !== 1.0) {
-      console.warn("[PV] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+      console.warn("[C2F] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
       return;
     }
     const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
     itemGridRef.current.updateRow?.(rowId, updatedFields);
   }, [fireCellEvent]);
 
-  // ── Select Item ────────────────────────────────────────────────────
+  // ── Select Item ────────────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
-    const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const headerValues    = headerValuesRef.current;
+    const missingFields   = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
       alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
       return;
     }
-    const { DivisionID, ConfigID, TranDate, BasedOnID, SupplierID } = headerValues;
-    const divisionID = DivisionID ?? 0;
+
+    const { DivisionID, LocationID, CWIPAccID, TranDate, PutToUseInstDate } = headerValues;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -501,16 +451,10 @@ export default function PurchaseVoucherForm() {
     setItemModalLoading(true);
 
     try {
-      // Three-way picker: 0=GRN Base, 1=PO Base, 2=Direct
-      let rbCode;
-      if (Number(BasedOnID) === 0)      rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
-      else if (Number(BasedOnID) === 1) rbCode = PV_CONFIG.RB_ITEM_PICKER_PO;
-      else                              rbCode = PV_CONFIG.RB_ITEM_PICKER_DIRECT;
-
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: PV_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        ObjName: C2F_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: C2F_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.Table?.[0];
@@ -520,32 +464,26 @@ export default function PurchaseVoucherForm() {
         prmMasterID: rbRow.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      const gridColumns = buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false });
-      setItemModalColumns(gridColumns);
-
-      let spItemPicker;
-      if (Number(BasedOnID) === 0)      spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
-      else if (Number(BasedOnID) === 1) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_PO;
-      else                              spItemPicker = PV_CONFIG.SP_ITEM_PICKER_DIRECT;
+      setItemModalColumns(buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false }));
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: spItemPicker,
+        ObjName: C2F_CONFIG.SP_ITEM_PICKER,
         JSon: JSON.stringify([{
-          prmDivisionID: Number(divisionID),
-          prmYearID:     PV_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID:    DEFAULT_LOGIN_ID,
-          prmTranDate:   formatPVTranDate(TranDate),
-          prmConfigID:   Number(ConfigID ?? 0),
-          prmSupplierID: Number(SupplierID ?? 0),
-          prmTranBook:   PV_CONFIG.TRAN_BOOK,
-          prmFrmOption:  Number(BasedOnID) || 0,
+          prmDivisionID:  Number(DivisionID  ?? 0),
+          prmLocationID:  Number(LocationID  ?? 0),
+          prmCWIPAcID:    Number(CWIPAccID   ?? 0),
+          prmYearID:      C2F_CONFIG.CONFIG_YEAR_ID,
+          prmLoginID:     DEFAULT_LOGIN_ID,
+          prmTranDate:    formatC2FTranDate(TranDate),
+          prmPutToUseDate: formatC2FTranDate(PutToUseInstDate),
+          prmConvTypeID:  C2F_CONFIG.CONV_TYPE_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       setItemModalItems(rowRes?.Table || []);
     } catch (err) {
-      console.error("[PV] Item picker fetch failed:", err);
+      console.error("[C2F] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
@@ -564,11 +502,7 @@ export default function PurchaseVoucherForm() {
     if (activeTab === "items") handleSelectItem();
   }, [activeTab, handleSelectItem]);
 
-  const handleToggleCollapsible = useCallback(() => {
-    itemGridRef.current?.toggleFocusedRowCollapsible?.();
-  }, []);
-
-  // ── Delete selected rows ───────────────────────────────────────────
+  // ── Delete selected rows ───────────────────────────────────────────────────
   const handleDeleteSelected = useCallback(() => {
     if (!itemGridRef.current) return;
     const selected = itemGridRef.current.getSelectedRows?.() ?? [];
@@ -576,16 +510,14 @@ export default function PurchaseVoucherForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  // ── Save ───────────────────────────────────────────────────────────
-  const [isSavingPV, setIsSavingPV] = useState(false);
-
+  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerFieldNames  = new Set(C2F_HEADER_FILTERS.map((f) => f.FilterParameterID));
     const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
-    const detailRows = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors = validateGridRows(detailRows, columns);
+    const detailRows    = itemGridRef.current?.getRows?.() ?? [];
+    const detailErrors  = validateGridRows(detailRows, columns);
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
@@ -597,7 +529,6 @@ export default function PurchaseVoucherForm() {
     headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
-    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     mstRow.LoginID = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
@@ -614,26 +545,28 @@ export default function PurchaseVoucherForm() {
       { divisionId: hv.DivisionID, isEdit: isEditRoute }
     );
 
-    console.log("%c[PV Save] Payload:", "color:#f59e0b;font-weight:700", payload);
-    console.log("%c[PV Save] Master:",  "color:#6366f1;font-weight:600", [mstRow]);
-    console.log("%c[PV Save] Detail:",  "color:#22c55e;font-weight:600", detRows);
+    console.log("%c[C2F Save] Payload:",  "color:#f59e0b;font-weight:700", payload);
+    console.log("%c[C2F Save] Master:",   "color:#6366f1;font-weight:600", [mstRow]);
+    console.log("%c[C2F Save] Detail:",   "color:#22c55e;font-weight:600", detRows);
 
-    setIsSavingPV(true);
+    setIsSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL_IMS}${PV_CONFIG.SAVE_ENDPOINT}`, {
+      const res    = await fetch(`${API_BASE_URL_IMS}${C2F_CONFIG.SAVE_ENDPOINT}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log("%c[PV Save] Response:", "color:#22c55e;font-weight:700", result);
+      console.log("%c[C2F Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Purchase Voucher saved successfully!");
+      alert("CWIP To FA record saved successfully!");
+      return true;
     } catch (err) {
-      console.error("[PV Save] Failed:", err);
+      console.error("[C2F Save] Failed:", err);
       alert(err?.message || "Save failed. Please try again.");
+      return false;
     } finally {
-      setIsSavingPV(false);
+      setIsSaving(false);
     }
   }, [headerColumns, allColumns, columns, isEditRoute]);
 
@@ -646,24 +579,22 @@ export default function PurchaseVoucherForm() {
   const handleCancel = useCallback(() => {
     if (!window.confirm("Discard changes and reset the form?")) return;
 
-    localStorage.removeItem(PV_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(PV_CONFIG.STORAGE_ENTRY_META);
+    localStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
 
     headerValuesRef.current = {
-      TranCode: "", TranDate: todayISO, DivisionID: 0, ConfigID: 0,
-      BasedOnID: "2", SupplierID: 0, CurrencyID: 0, CurrencyRate: 0,
-      BillNo: "", BillDate: null,
-      CostCenterID: 0, CreditStartDate: todayISO,
-      Narration: "", Remarks: "", TranMstGenID: 0,
-      CompanyID: DEFAULT_COMPANY_ID, YearID: PV_CONFIG.DIVISION_YEAR_ID,
-      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0, FuncCode: PV_CONFIG.RB_MASTER,
+      TranNo: "", TranDate: todayISO, PutToUseInstDate: null,
+      DivisionID: 0, LocationID: 0, ConversionFactor: 0,
+      CWIPAccID: 0, CostCenterAccID: 0,
+      ConvTypeID: C2F_CONFIG.CONV_TYPE_ID, NetTotal: 0, Remark: "",
+      TranMstGenID: 0,
+      CompanyID: DEFAULT_COMPANY_ID, YearID: C2F_CONFIG.CONFIG_YEAR_ID,
+      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0, FuncCode: C2F_CONFIG.RB_MASTER,
     };
 
-    queuedRowsRef.current = [];
+    queuedRowsRef.current        = [];
     gridColumnsLoadedRef.current = false;
-    clearPvTypes();
     clearSaveError();
-    setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
     setActiveTab("items");
     setIsGridLoading(false);
     setGridRows([]);
@@ -676,44 +607,42 @@ export default function PurchaseVoucherForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearPvTypes, clearSaveError, exitEditMode, todayISO]);
+  }, [clearSaveError, exitEditMode, todayISO]);
 
-  // ── Keyboard shortcuts ─────────────────────────────────────────────
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
-  const filterBusy      = headerFetching || isLoadingPvTypes;
+  const filterBusy      = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked:       itemModalOpen,
     isEditMode,
-    isSaving: isSavingPV,
-    addDisabled: filterBusy,
-    onAdd: enterEditModeWithFocus,
-    onSave: handleSave,
-    onSavePrint: handleSaveAndPrint,
-    onCancel: handleCancel,
-    onSelectList: handleSelectListShortcut,
-    onToggleCollapsible: handleToggleCollapsible,
+    isSaving,
+    addDisabled:   filterBusy,
+    onAdd:         enterEditModeWithFocus,
+    onSave:        handleSave,
+    onSavePrint:   handleSaveAndPrint,
+    onCancel:      handleCancel,
+    onSelectList:  handleSelectListShortcut,
   });
 
-  // ── Extra ActionBar buttons ────────────────────────────────────────
-  const pvExtraButtons = useMemo(() => [
+  const extraButtons = useMemo(() => [
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
-      onClick: handleSaveAndPrint, disabled: isSavingPV,
+      onClick: handleSaveAndPrint, disabled: isSaving,
       title: FORM_SHORTCUT_TITLES.savePrint,
     },
     {
-      key: "save", label: isSavingPV ? "Saving…" : "Save", Icon: Save, variant: "save",
-      onClick: handleSave, disabled: isSavingPV, loading: isSavingPV,
+      key: "save", label: isSaving ? "Saving…" : "Save", Icon: Save, variant: "save",
+      onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, isSavingPV, handleSave]);
+  ], [handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError  = metaError || headerError;
 
   return (
-    <div className="workspace-page pv-page">
+    <div className="workspace-page c2f-page">
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -725,12 +654,11 @@ export default function PurchaseVoucherForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Purchase Voucher Detail"
+            title="CWIP To FA Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
-            cascadeResets={PV_FILTER_CASCADE_RESETS}
+            cascadeResets={C2F_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
-            externalValues={currencyExternalValues}
             isSearching={filterBusy || recordLoading}
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
@@ -740,11 +668,11 @@ export default function PurchaseVoucherForm() {
         )}
       </section>
 
-      {/* ── Single-tab grid section ───────────────────────────────────── */}
-      <section className="pv-grid-section">
+      {/* ── Single-tab grid section ──────────────────────────────────────────── */}
+      <section className="c2f-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {PV_GRID_TABS.map((t) => (
+            {C2F_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -757,19 +685,13 @@ export default function PurchaseVoucherForm() {
           </div>
 
           <div className="grid-tabbar__controls">
-            {pasteNotice && (
-              <span className="pv-paste-notice" role="status" aria-live="polite">
-                ✓ {pasteNotice}
-              </span>
-            )}
-
             <button
               ref={selectItemBtnRef}
               type="button"
               className="pv-tab-action-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
-              title="Pick items from list (Tab here after header fields)"
+              title="Pick CWIP items (Tab here after header fields)"
             >
               <Package size={12} strokeWidth={2.5} />
               Select Item
@@ -788,7 +710,7 @@ export default function PurchaseVoucherForm() {
           </div>
         </div>
 
-        <div className={`pv-tab-pane${activeTab === "items" ? " pv-tab-pane--active" : ""}`}>
+        <div className={`c2f-tab-pane${activeTab === "items" ? " c2f-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -801,13 +723,9 @@ export default function PurchaseVoucherForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={basedOnId === "2" ? PV_MULTI_PASTE_COLUMNS : null}
-            onMultiValuePaste={basedOnId === "2" ? handleMultiValuePaste : null}
           />
         </div>
       </section>
-
-      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
 
       <ActionBar
         alignEnd
@@ -816,7 +734,7 @@ export default function PurchaseVoucherForm() {
         onCancel={handleCancel}
         addAccessKey="a"
         cancelAccessKey="n"
-        extraButtons={pvExtraButtons}
+        extraButtons={extraButtons}
       />
 
       <Suspense fallback={null}>

@@ -34,7 +34,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -45,10 +45,10 @@ import {
   IND_HEADER_FILTERS,
   IND_GRID_TABS,
   IND_FILTER_CASCADE_RESETS,
-  IND_SHORTCUT_CONFIG,
   formatIndentTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
+import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseIndentPage.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
@@ -340,18 +340,18 @@ export default function PurchaseIndentForm() {
 
     if (headerColumns.length === 0) return IND_HEADER_FILTERS.map(injectOptions);
 
-    const apiColMap = {};
-    headerColumns.forEach((col) => { apiColMap[col.ColName] = col; });
+    const apiColMap = buildHeaderColMap(headerColumns);
 
     return IND_HEADER_FILTERS.map((filter) => {
       const withOpts = injectOptions(filter);
-      const apiCol = apiColMap[filter.FilterParameterID] || apiColMap[filter.FilterColName];
+      const apiCol = resolveHeaderApiCol(filter, apiColMap);
       if (!apiCol) return withOpts;
-      return {
-        ...withOpts,
-        FilterColName: apiCol.ColName,
-        lockOnEditMode: isLockOnEditModeCol(apiCol),
-      };
+      const lockOnEditMode = isLockOnEditModeCol(apiCol);
+      const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
+      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
+        ? controlTypeMap.LABEL
+        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
+      return def;
     });
   }, [headerColumns, divisionOptions, indentTypeOptions, departmentOptions, locationOptions]);
 
@@ -516,16 +516,17 @@ export default function PurchaseIndentForm() {
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
   const handleSave = useCallback(async () => {
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColumns);
-    if (headerErrors.length > 0) {
-      alert(`Please fix the following:\n${headerErrors.join("\n")}`);
-      return;
-    }
+    const headerFieldNames = new Set(IND_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(detailRows, columns);
-    if (detailErrors.length > 0) {
-      alert(`Item grid errors:\n${detailErrors.join("\n")}`);
-      return;
+
+    const allErrors = [...headerErrors, ...detailErrors];
+    if (allErrors.length > 0) {
+      alert(allErrors.join("\n"));
+      return false;
     }
 
     const mstRow = {};
@@ -578,7 +579,8 @@ export default function PurchaseIndentForm() {
   }, [headerColumns, allColumns, columns, isEditRoute]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    await handleSave();
+    const saved = await handleSave();
+    if (!saved) return;
     window.print();
   }, [handleSave]);
 

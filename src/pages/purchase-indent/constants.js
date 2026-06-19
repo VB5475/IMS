@@ -124,7 +124,6 @@ export const IND_SHORTCUT_CONFIG = {
   a: { label: "Add", title: "Add (Alt+A)" },
   s: { label: "Save", title: "Save (Alt+S)" },
   n: { label: "Cancel", title: "Cancel (Alt+N)" },
-  c: { label: "Close", title: "Close (Alt+C)" },
 };
 
 const MONTH_ABBR = [

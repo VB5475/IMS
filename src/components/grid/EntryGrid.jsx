@@ -62,6 +62,7 @@ import {
 import { parseNumberInput } from "../../utils/numberFormat";
 import { isDateColumnDef } from "../../utils/dateFormat";
 import RequiredFieldMark from "../ui/RequiredFieldMark";
+import { parseSerialNumbers } from "../../utils/parseSerialNumbers";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -124,6 +125,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     containerClassName = "", // extra class on root container (nested / child grids)
     hidePagination = false, // true → hide pagination bar (embedded child grids)
     embedded = false, // true → nested in scroll host; parent owns overflow
+    multiValuePasteColumns = null, // Set<string> | string[] — column keys that intercept multi-value paste
+    onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
   },
   ref
 ) {
@@ -131,6 +134,13 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     () => ({ existingRecordEdit, viewMode: readOnly }),
     [existingRecordEdit, readOnly]
   );
+
+  const multiValuePasteSet = useMemo(() => {
+    if (!multiValuePasteColumns) return null;
+    if (multiValuePasteColumns instanceof Set) return multiValuePasteColumns;
+    return new Set(multiValuePasteColumns);
+  }, [multiValuePasteColumns]);
+
   const { columns, pagination } = config;
   const { pageSize: defaultPageSize = 25, pageSizeOptions = [10, 25, 50, 100] } = pagination || {};
 
@@ -587,6 +597,20 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             </Suspense>
           );
         }
+
+        const handleMultiPaste =
+          multiValuePasteSet?.has(col.key) && onMultiValuePaste
+            ? (e) => {
+                const text = e.clipboardData?.getData("text") ?? "";
+                const tokens = parseSerialNumbers(text);
+                if (tokens.length < 2) return;
+                e.preventDefault();
+                const currentRow =
+                  rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
+                onMultiValuePaste(currentRow, col.key, tokens);
+              }
+            : undefined;
+
         return (
           <input
             className="cell-input"
@@ -595,6 +619,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             maxLength={columnMeta?.dataKind === "varchar" && columnMeta?.maxLen != null ? columnMeta.maxLen : undefined}
             onFocus={makeCellFocus(row, col)}
             onBlur={makeCellBlur(row, col)}
+            onPaste={handleMultiPaste}
           />
         );
       }

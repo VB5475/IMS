@@ -7,6 +7,7 @@ import {
   FileText,
   ShoppingCart,
   Receipt,
+  Layers,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -34,6 +35,12 @@ const NAV_SECTIONS = [
       { to: "/purchase-order", icon: ShoppingCart, label: "Purchase Order", end: false },
       { to: "/purchase-indent", icon: ShoppingCart, label: "Purchase Indent", end: false },
       { to: "/purchase-voucher", icon: Receipt, label: "Purchase Voucher", end: false },
+    ],
+  },
+  {
+    label: "Assets",
+    items: [
+      { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
     ],
   },
 ];
