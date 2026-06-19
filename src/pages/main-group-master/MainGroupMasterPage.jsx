@@ -5,7 +5,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
-import MainGroupMasterModal from "./MainGroupMasterModal";
+import MainGroupMasterForm from "./MainGroupMasterForm";
 import { MGM_CONFIG } from "./constants";
 import "./MainGroupMasterPage.css";
 
@@ -40,6 +40,11 @@ function buildMGMColumns(onEdit) {
     { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
     { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
     { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
+    { key: "ItemTypeName",       label: "Item Type",       width: "18%", filterable: true, align: "left" },
+    { key: "MainGroupCode",      label: "Main Group Code", width: "18%", filterable: true, align: "left" },
+    { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
+    { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
+    { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
     {
       key: "_actions",
       label: "Edit",
@@ -51,10 +56,7 @@ function buildMGMColumns(onEdit) {
           className="mgm-list__edit-btn"
           title={`Edit ${row.MainGroupCode ?? ""}`}
           aria-label={`Edit ${row.MainGroupCode ?? ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row.IDNumber);
-          }}
+          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
         </button>
@@ -66,9 +68,10 @@ function buildMGMColumns(onEdit) {
 export default function MainGroupMasterPage() {
   const { get } = useApi(API_BASE_URL);
 
-  // ── Hook lifted to page level so dropdown options are fetched once ─────────
+  // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
   const {
-    headerFetching, headerError, fetchHeaderMeta,
+    fetchHeaderMeta,
+    headerColumns: fieldDefs, headerFetching, headerError,
     itemTypeOptions, fixedAssetAccOptions,
     fetchEditRecord, seedOptionsFromMaster,
   } = useMainGroupMaster();
@@ -78,7 +81,6 @@ export default function MainGroupMasterPage() {
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(8);
 
-  // ── Modal state ───────────────────────────────────────────────────────────
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
@@ -90,7 +92,6 @@ export default function MainGroupMasterPage() {
     backTo:   "/",
   });
 
-  // Fetch dropdown meta once on mount
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
@@ -121,8 +122,6 @@ export default function MainGroupMasterPage() {
     setModalOpen(true);
   }, []);
 
-  const handleModalClose = useCallback(() => setModalOpen(false), []);
-
   const handleSaved = useCallback(() => {
     setModalOpen(false);
     fetchList();
@@ -140,8 +139,7 @@ export default function MainGroupMasterPage() {
           </div>
           <div className="mgm-list-panel__toolbar">
             <button type="button" className="mgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              Add New
+              <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
             <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">
               Rows per page
@@ -174,14 +172,15 @@ export default function MainGroupMasterPage() {
         />
       </section>
 
-      <MainGroupMasterModal
+      <MainGroupMasterForm
         isOpen={modalOpen}
         mode={modalMode}
         recordId={editRecordId}
-        onClose={handleModalClose}
+        onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
-        headerFetching={headerFetching}
-        headerError={headerError}
+        fieldDefs={fieldDefs}
+        defsLoading={headerFetching}
+        defsError={headerError}
         itemTypeOptions={itemTypeOptions}
         fixedAssetAccOptions={fixedAssetAccOptions}
         fetchEditRecord={fetchEditRecord}
