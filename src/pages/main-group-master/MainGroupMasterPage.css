@@ -187,3 +187,68 @@
   font-weight: 600;
   color: var(--text);
 }
+
+/* ── Modal footer buttons ──────────────────────────────────────────── */
+.master-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.master-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.master-modal-btn--save {
+  background: var(--primary);
+  color: #fff;
+}
+.master-modal-btn--save:hover:not(:disabled) { filter: brightness(1.08); }
+
+.master-modal-btn--cancel {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border-dark, #c3c6d0);
+}
+.master-modal-btn--cancel:hover:not(:disabled) { background: #f0f4f8; }
+
+.master-modal-btn--edit {
+  background: var(--primary);
+  color: #fff;
+}
+.master-modal-btn--edit:hover:not(:disabled) { filter: brightness(1.08); }
+
+.master-modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Modal body states ─────────────────────────────────────────────── */
+.master-modal-loader {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.master-modal-error,
+.master-modal-save-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+}

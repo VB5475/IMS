@@ -57,7 +57,7 @@ export const MGM_HEADER_FILTERS = [
     FilterParameterID: "UsedCodeInCodeGeneration",
     FilterColName:     "UsedCodeInCodeGeneration",
     FilterCaption:     "Used in Code Generation",
-    FilterColCtrlType: controlTypeMap.CHECKBOX, // type 3 — renders as <input type="checkbox"> in MasterFormPanel
+    FilterColCtrlType: controlTypeMap.CHECKBOX,
     isRequired:        false,
     lockOnEditMode:    false,
   },
