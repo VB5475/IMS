@@ -77,16 +77,21 @@ export function useMainGroupMaster() {
         }).catch((err) => { console.warn("[MGM] Fixed Asset A/C fetch failed:", err); return null; }),
       ]);
 
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[MGM] ItemType row sample:",      itemTypeData?.Table?.[0]);
+        console.log("[MGM] FixedAssetAcc row sample:", fixedAssetData?.Table?.[0]);
+      }
+
       setItemTypeOptions(
         (itemTypeData?.Table || []).map((r) => ({
-          value: r.IDNumber ?? r.ItemTypeID ?? r.ID,
+          value: r.ItemTypeID ?? r.IDNumber ?? r.ID,
           label: String(r.ItemTypeName ?? r.ItemTypeCode ?? r.Name ?? ""),
         })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(
         (fixedAssetData?.Table || []).map((r) => ({
-          value: r.IDNumber ?? r.AccountID ?? r.ID,
-          label: String(r.AccountName ?? r.AccName ?? r.Name ?? ""),
+          value: r.FixedAssetAccountID ?? r.AccountID ?? r.AccID ?? r.IDNumber ?? r.ID,
+          label: String(r.FixedAssetAccountName ?? r.AccountName ?? r.AccName ?? r.Name ?? ""),
         })).filter((o) => o.value != null)
       );
     } catch (err) {
