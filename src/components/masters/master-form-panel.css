@@ -338,6 +338,17 @@
   border-top: 1px solid var(--field-frozen-border, #94b8d8);
 }
 
+/* ── Inside Modal — flatten card; modal is already the container ── */
+.modal-body .mfp-panel {
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.modal-body .mfp-panel::before {
+  display: none;  /* hide left accent bar — modal enterprise header provides the accent */
+}
+
 /* ── Meta loading skeleton ── */
 .mfp-meta-loading {
   padding: 32px 24px;
