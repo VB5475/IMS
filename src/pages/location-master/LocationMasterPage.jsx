@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { MapPin, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useLocationMaster } from "../../hooks/useLocationMaster";
-import LocationMasterModal from "./LocationMasterModal";
+import LocationMasterForm from "./LocationMasterForm";
 import { LM_CONFIG } from "./constants";
 import "./LocationMasterPage.css";
 
@@ -56,9 +55,10 @@ function buildListColumns(onEdit) {
 export default function LocationMasterPage() {
   const { get } = useApi(API_BASE_URL);
 
-  // ── Hook lifted to page level so dropdown options are fetched once ─────────
+  // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
   const {
-    headerFetching, headerError, fetchHeaderMeta,
+    fetchHeaderMeta,
+    headerColumns: fieldDefs, headerFetching, headerError,
     locationTypeOptions, premisesOptions,
     fetchEditRecord,
   } = useLocationMaster();
@@ -68,9 +68,8 @@ export default function LocationMasterPage() {
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(8);
 
-  // ── Modal state ───────────────────────────────────────────────────────────
   const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");   // "add" | "edit"
+  const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
@@ -80,7 +79,6 @@ export default function LocationMasterPage() {
     backTo:   "/",
   });
 
-  // Fetch dropdown meta once on mount
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
@@ -110,8 +108,6 @@ export default function LocationMasterPage() {
     setEditRecordId(idNumber);
     setModalOpen(true);
   }, []);
-
-  const handleModalClose = useCallback(() => setModalOpen(false), []);
 
   const handleSaved = useCallback(() => {
     setModalOpen(false);
@@ -164,14 +160,15 @@ export default function LocationMasterPage() {
         />
       </section>
 
-      <LocationMasterModal
+      <LocationMasterForm
         isOpen={modalOpen}
         mode={modalMode}
         recordId={editRecordId}
-        onClose={handleModalClose}
+        onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
-        headerFetching={headerFetching}
-        headerError={headerError}
+        fieldDefs={fieldDefs}
+        defsLoading={headerFetching}
+        defsError={headerError}
         locationTypeOptions={locationTypeOptions}
         premisesOptions={premisesOptions}
         fetchEditRecord={fetchEditRecord}

@@ -40,11 +40,6 @@ function buildMGMColumns(onEdit) {
     { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
     { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
     { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
-    { key: "ItemTypeName",       label: "Item Type",       width: "18%", filterable: true, align: "left" },
-    { key: "MainGroupCode",      label: "Main Group Code", width: "18%", filterable: true, align: "left" },
-    { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
-    { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
-    { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
     {
       key: "_actions",
       label: "Edit",
