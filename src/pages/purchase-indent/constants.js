@@ -111,17 +111,17 @@ export const IND_SHORTCUT_CONFIG = {
   n: { label: "Cancel", title: "Cancel (Alt+N)" },
 };
 
-const MONTH_ABBR = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+// const MONTH_ABBR = [
+//   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+//   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+// ];
 
-export function formatIndentTranDate(dateVal) {
-  if (!dateVal) return "0";
-  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-  if (isNaN(d.getTime())) return "0";
-  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
-}
+// export function formatIndentTranDate(dateVal) {
+//   if (!dateVal) return "0";
+//   const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+//   if (isNaN(d.getTime())) return "0";
+//   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+// }
 
 /** Header fields required before Select Item can be opened */
 export const IND_ITEM_PICKER_JSON_FIELDS = [

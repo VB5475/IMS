@@ -7,8 +7,8 @@ import { BASED_ON, PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
 
-export { formatTranDate as formatPVTranDate };
 
+export { formatTranDate as formatPVTranDate };
 export const PV_CONFIG = {
   ...PURCHASE_API,
   SP_PV_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
@@ -197,17 +197,17 @@ export const PV_SHORTCUT_CONFIG = {
   n: { label: "Cancel", title: "Cancel (Alt+N)" },
 };
 
-const MONTH_ABBR = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+// const MONTH_ABBR = [
+//   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+//   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+// ];
 
-export function formatPVTranDate(dateVal) {
-  if (!dateVal) return "0";
-  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-  if (isNaN(d.getTime())) return "0";
-  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
-}
+// export function formatPVTranDate(dateVal) {
+//   if (!dateVal) return "0";
+//   const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+//   if (isNaN(d.getTime())) return "0";
+//   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+// }
 
 /**
  * Columns that support multi-value paste (Serial Number replication) in Direct mode.

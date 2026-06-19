@@ -160,25 +160,25 @@ export const PO_GRID_TABS = [
   { id: "terms", label: "Term And Conditions" },
 ];
 
-export const APPROVED_OPTS = [
-  { value: "all", label: "All" },
-  { value: "approved", label: "Approved" },
-  { value: "pending", label: "Pending" },
-];
+// export const APPROVED_OPTS = [
+//   { value: "all", label: "All" },
+//   { value: "approved", label: "Approved" },
+//   { value: "pending", label: "Pending" },
+// ];
 
-export const TERMS_COLUMNS = ["Sr.No", "Terms Type", "Code", "Terms & Conditions"];
+// export const TERMS_COLUMNS = ["Sr.No", "Terms Type", "Code", "Terms & Conditions"];
 
-export const INDENT_DETAILS_COLUMNS = [
-  { key: "SrNo", label: "Sr.No", width: 70 },
-  { key: "IndentNo", label: "Indent No.", width: 120 },
-  { key: "IndentDate", label: "Indent Date", width: 110 },
-  { key: "ItemName", label: "Item Name", width: 190 },
-  { key: "IndentQty", label: "Indent Qty", width: 100 },
-  { key: "TranQty", label: "Tran Qty", width: 100 },
-  { key: "Unit", label: "Unit", width: 80 },
-];
+// export const INDENT_DETAILS_COLUMNS = [
+//   { key: "SrNo", label: "Sr.No", width: 70 },
+//   { key: "IndentNo", label: "Indent No.", width: 120 },
+//   { key: "IndentDate", label: "Indent Date", width: 110 },
+//   { key: "ItemName", label: "Item Name", width: 190 },
+//   { key: "IndentQty", label: "Indent Qty", width: 100 },
+//   { key: "TranQty", label: "Tran Qty", width: 100 },
+//   { key: "Unit", label: "Unit", width: 80 },
+// ];
 
-export const PO_FILTER_INITIAL_VALUES = { BasedOnID: "0" };
+// export const PO_FILTER_INITIAL_VALUES = { BasedOnID: "0" };
 
 // ── Keyboard shortcut labels (used for ActionBar button titles) ──────────────
 export const PO_SHORTCUT_CONFIG = {
@@ -188,9 +188,9 @@ export const PO_SHORTCUT_CONFIG = {
 };
 
 // Cascade resets: Division change → clear PO Type (ConfigID)
-export const PO_FILTER_CASCADE_RESETS = {
-  DivisionID: ["ConfigID"],
-};
+// export const PO_FILTER_CASCADE_RESETS = {
+//   DivisionID: ["ConfigID"],
+// };
 
 export const SUPPLIER_GRID_CONFIG = {
   columns: PO_CONFIG.SUPPLIER_GRID_COLUMNS,
@@ -198,27 +198,27 @@ export const SUPPLIER_GRID_CONFIG = {
 };
 
 // Formats a date value as "dd-Mon-yyyy" for API params.
-const MONTH_ABBR = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-export function formatTranDate(dateVal) {
-  if (!dateVal) return "0";
-  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-  if (isNaN(d.getTime())) return "0";
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${dd}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
-}
+// const MONTH_ABBR = [
+//   "Jan",
+//   "Feb",
+//   "Mar",
+//   "Apr",
+//   "May",
+//   "Jun",
+//   "Jul",
+//   "Aug",
+//   "Sep",
+//   "Oct",
+//   "Nov",
+//   "Dec",
+// ];
+// export function formatTranDate(dateVal) {
+//   if (!dateVal) return "0";
+//   const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+//   if (isNaN(d.getTime())) return "0";
+//   const dd = String(d.getDate()).padStart(2, "0");
+//   return `${dd}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+// }
 
 /** Header fields required before Select Item can be opened */
 export const PO_ITEM_PICKER_JSON_FIELDS = [
