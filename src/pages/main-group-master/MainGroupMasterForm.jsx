@@ -8,6 +8,7 @@ import {
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { MGM_CONFIG } from "./constants";
+import "../../components/masters/master-form-panel.css";
 
 function buildEmpty() {
   return {
