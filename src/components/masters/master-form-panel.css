@@ -1,0 +1,348 @@
+/* ── MasterFormPanel — reusable layout for master-only entry forms ──────── */
+/* Namespace: .mfp-*  |  Does NOT affect EnterpriseFilterPanel (.efq-*)      */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE-LEVEL: workspace modifier + centering wrapper
+   Only applied via .workspace-page--master on master form pages
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Makes the workspace fill its parent so the wrapper can center vertically */
+.workspace-page--master {
+  flex: 1;
+  min-height: 0;
+  padding: 0;           /* wrapper handles its own padding */
+  gap: 0;
+}
+
+/* Full-height flex container — centers the card both axes */
+.master-form-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;      /* horizontal center */
+  justify-content: center;  /* vertical center   */
+  padding: 24px 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARD
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mfp-panel {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.07),
+    0 1px 4px  rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Left accent bar */
+.mfp-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mfp-header {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 8px 16px 8px 20px;
+  background: linear-gradient(135deg, #17406e 0%, var(--primary) 70%);
+  color: #fff;
+  gap: 10px;
+}
+
+.mfp-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mfp-header__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mfp-header__label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.mfp-header__subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FIELD ROWS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mfp-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.mfp-row {
+  display: flex;
+  align-items: stretch;     /* label bg fills full row height via align-self:stretch */
+  min-height: 52px;         /* comfortable ERP row height */
+  transition: background 0.1s ease;
+}
+
+.mfp-row--bordered {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Hover — only on editable rows */
+.mfp-row:not(.mfp-row--tone-view):not(.mfp-row--tone-frozen):hover {
+  background: #f0f5fb;
+}
+
+/* ── Tone: frozen ── */
+.mfp-row--tone-frozen {
+  background: var(--field-frozen-bg, #eef4fa);
+}
+
+/* ── Tone: view (read-only) ── */
+.mfp-row--tone-view {
+  background: var(--field-view-bg, #e6f1fc);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LABEL COLUMN
+   Uses the theme's field-frozen-label palette:
+     bg  → --field-frozen-label-bg (#dbe8f5) — clear blue tint
+     text→ --primary (#1e4a7a)               — navy, readable
+     sep → --field-frozen-border (#94b8d8)   — blue column divider
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mfp-row__label {
+  /* Widened to 230px so even the longest standard ERP labels fit on one line */
+  flex: 0 0 230px;
+  box-sizing: border-box;
+  padding: 0 14px 0 22px;
+  /* Color system */
+  background: var(--field-frozen-label-bg, #dbe8f5);
+  color: var(--primary);
+  /* Column divider */
+  border-right: 1.5px solid var(--field-frozen-border, #94b8d8);
+  /* Typography */
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  /* Layout: centers the inner wrapper vertically, pushes it right */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  user-select: none;
+  cursor: default;
+}
+
+/* Inner wrapper keeps label text + asterisk together as one unit.
+   align-items: flex-start puts asterisk at the TOP of the text block
+   (standard convention — asterisk marks the field, sits at line 1). */
+.mfp-row__label-inner {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+/* Override global align-self: flex-start (from enterprise.css) — the asterisk
+   now aligns to the top of .mfp-row__label-inner, not to the row edge. */
+.mfp-row__label-inner .field-required-mark {
+  align-self: flex-start;
+  flex-shrink: 0;
+  position: static;        /* cancel any inherited positioning */
+  top: 0;
+  margin-top: 1px;         /* nudge down 1px so it sits at cap-height of first line */
+  margin-left: 1px;
+  font-size: 10px;         /* slightly smaller so it doesn't dominate */
+}
+
+/* Tone overrides — label column bg shifts with row tone for visual continuity */
+.mfp-row--tone-frozen .mfp-row__label {
+  background: var(--field-frozen-label-bg, #dbe8f5);
+  color: var(--primary);
+}
+
+.mfp-row--tone-view .mfp-row__label {
+  background: var(--field-view-label-bg, #dceaf7);
+  color: var(--primary);
+  border-right-color: var(--field-view-border, #b8cfe4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VALUE / CONTROL COLUMN
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mfp-row__control {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 18px 8px 16px;
+  display: flex;
+  align-items: center;    /* keeps input vertically centered even if row grows */
+  align-self: center;     /* don't stretch — stay centered if row is taller */
+}
+
+/* ── Read-only value text ── */
+.mfp-value-text {
+  font-size: 13px;
+  font-weight: 600;                    /* bolder than before — values are data, make them pop */
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.mfp-value-text--empty {
+  color: var(--text-muted, #737780);
+  font-weight: 400;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORM CONTROLS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Text input ── */
+.mfp-input {
+  width: 100%;
+  height: 36px;             /* slightly taller for master form comfort */
+  padding: 0 10px;
+  background: #fff;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mfp-input:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.mfp-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30, 74, 122, 0.12);
+}
+
+.mfp-input:disabled {
+  background: var(--bg-tint, #eef4fa);
+  color: var(--text-muted, #737780);
+  cursor: not-allowed;
+  border-color: var(--border);
+}
+
+.mfp-input--date { cursor: pointer; }
+
+/* ── Textarea ── */
+.mfp-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mfp-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30, 74, 122, 0.12);
+}
+
+/* ── Checkbox ── */
+.mfp-checkbox-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mfp-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mfp-checkbox-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARD FOOTER — Save / Cancel actions
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mfp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--field-frozen-label-bg, #dbe8f5);   /* matches label column tone */
+  border-top: 1.5px solid var(--field-frozen-border, #94b8d8);
+}
+
+/* ── Meta loading skeleton ── */
+.mfp-meta-loading {
+  padding: 32px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

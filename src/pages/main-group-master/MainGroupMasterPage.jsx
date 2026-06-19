@@ -1,16 +1,14 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Plus, Edit2 } from "lucide-react";
+import { Tag, Plus, Pencil } from "lucide-react";
+import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import {
-  ENDPOINTS,
-  API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-} from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { MGM_CONFIG } from "./constants";
 import "./MainGroupMasterPage.css";
+
+const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function todayFormatted() {
@@ -34,112 +32,115 @@ function buildListParams() {
   };
 }
 
+function buildMGMColumns(navigate) {
+  return [
+    { key: "ItemTypeName",      label: "Item Type",        width: "18%", filterable: true,  align: "left" },
+    { key: "MainGroupCode",     label: "Main Group Code",  width: "18%", filterable: true,  align: "left" },
+    { key: "MainGroupName",     label: "Main Group Name",  width: "28%", filterable: true,  align: "left" },
+    { key: "MainGroupShortName",label: "Short Name",       width: "15%", filterable: true,  align: "left" },
+    { key: "MainGroupShortCode",label: "Short Code",       width: "13%", filterable: true,  align: "left" },
+    {
+      key: "_actions",
+      label: "Edit",
+      width: "8%",
+      align: "center",
+      render: (_value, row) => (
+        <button
+          type="button"
+          className="mgm-list__edit-btn"
+          title={`Edit ${row.MainGroupCode ?? ""}`}
+          aria-label={`Edit ${row.MainGroupCode ?? ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/admin/main-group-master/${row.IDNumber}/edit`, { state: { record: row } });
+          }}
+        >
+          <Pencil size={13} strokeWidth={2} />
+        </button>
+      ),
+    },
+  ];
+}
+
 export default function MainGroupMasterPage() {
-  const navigate    = useNavigate();
-  const { get }     = useApi(API_BASE_URL);
-  const [rows,      setRows]      = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error,     setError]     = useState(null);
-  const [pageSize,  setPageSize]  = useState(20);
+  const navigate  = useNavigate();
+  const { get }   = useApi(API_BASE_URL);
+
+  const [data,     setData]     = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
+  const [pageSize, setPageSize] = useState(8);
 
   usePageHeader({
     title:    "Main Group Master",
-    subtitle: "Admin › Master › Item",
+    subtitle: "Browse main groups or create a new one.",
+    showBack: true,
+    backTo:   "/",
   });
 
-  const loadList = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const columns = useMemo(() => buildMGMColumns(navigate), [navigate]);
+
+  const fetchList = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
       const res = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setRows(res?.Table || res?.Links || []);
+      setData(res?.Table ?? res?.Links ?? []);
     } catch (err) {
       console.error("[MGM] List fetch failed:", err);
-      setError(err?.message || "Failed to load Main Group list.");
+      setError("Failed to load Main Group list.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [get]);
 
-  useEffect(() => { loadList(); }, [loadList]);
+  useEffect(() => { fetchList(); }, [fetchList]);
 
-  const visibleRows = rows.slice(0, pageSize);
+  const handleAddNew = useCallback(() => navigate("/admin/main-group-master/new"), [navigate]);
 
   return (
-    <div className="mgm-list-page">
-      <div className="mgm-list-panel mgm-list-panel--fill">
-
-        <div className="mgm-list-panel__header">
-          <span className="mgm-list-panel__title">Main Group Master</span>
+    <div className="workspace-page mgm-list-page">
+      <section className="mgm-list-panel mgm-list-panel--fill">
+        <header className="mgm-list-panel__header">
+          <div className="mgm-list-panel__title">
+            <Tag size={14} strokeWidth={2} />
+            <span>Main Group Master</span>
+          </div>
           <div className="mgm-list-panel__toolbar">
-            <label className="mgm-list-panel__pagesize-label">Rows:</label>
+            <button type="button" className="mgm-list-panel__add-btn" onClick={handleAddNew}>
+              <Plus size={14} strokeWidth={2.5} />
+              Add New
+            </button>
+            <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">
+              Rows per page
+            </label>
             <select
-              className="mgm-list-panel__pagesize-select"
+              id="mgm-list-page-size"
+              className="ng-select mgm-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
+              aria-label="Rows per page"
             >
-              {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
-            <button
-              type="button"
-              className="mgm-list-panel__add-btn"
-              onClick={() => navigate("/admin/main-group-master/new")}
-            >
-              <Plus size={13} /> New
-            </button>
           </div>
-        </div>
+        </header>
 
-        {isLoading && <div className="mgm-list-loading">Loading…</div>}
-
-        {error && (
-          <div className="mgm-list-error">
-            <AlertCircle size={14} /> {error}
-          </div>
-        )}
-
-        {!isLoading && !error && (
-          <div className="mgm-list-table-wrap">
-            <table className="mgm-list-table">
-              <thead>
-                <tr>
-                  <th>Item Type</th>
-                  <th>Main Group Code</th>
-                  <th>Main Group Name</th>
-                  <th>Short Code</th>
-                  <th style={{ width: 60 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="mgm-list-empty">No records found.</td>
-                  </tr>
-                ) : (
-                  visibleRows.map((row, idx) => (
-                    <tr key={row.IDNumber ?? idx}>
-                      <td>{row.ItemTypeName ?? row.ItemTypeID ?? "—"}</td>
-                      <td>{row.MainGroupCode ?? "—"}</td>
-                      <td>{row.MainGroupName ?? "—"}</td>
-                      <td>{row.MainGroupShortCode ?? "—"}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="mgm-list__edit-btn"
-                          title="Edit"
-                          onClick={() => navigate(`/admin/main-group-master/${row.IDNumber}/edit`)}
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        <EnterpriseDataGrid
+          title=""
+          columns={columns}
+          data={data}
+          loading={loading}
+          error={error}
+          loaderText="Loading main groups…"
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          emptyMessage="No main groups found."
+          hideHeader
+          fill
+        />
+      </section>
     </div>
   );
 }

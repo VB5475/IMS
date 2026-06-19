@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertCircle, Save, X, Edit2 } from "lucide-react";
-import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import { AlertCircle, Save, XCircle } from "lucide-react";
+import MasterFormPanel from "../../components/masters/MasterFormPanel";
+import ActionBar from "../../components/ui/ActionBar";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
+import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   API_BASE_URL_IMS,
   DEFAULT_LOGIN_ID,
@@ -12,6 +15,16 @@ import {
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { MGM_CONFIG, MGM_HEADER_FILTERS } from "./constants";
 import "./MainGroupMasterPage.css";
+
+// Collect all focusable fields inside the filter panel (same helper as PV/Indent).
+function queryEditableFilterFields(panel) {
+  if (!panel) return [];
+  return Array.from(
+    panel.querySelectorAll(
+      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+    )
+  );
+}
 
 export default function MainGroupMasterForm() {
   const { id: routeId } = useParams();
@@ -33,13 +46,18 @@ export default function MainGroupMasterForm() {
     backTo:   "/admin/main-group-master",
   });
 
-  const [isEditMode,      setIsEditMode]      = useState(isNewRoute);
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const filterPanelRef  = useRef(null);
+  const addButtonRef    = useRef(null);
+  const cancelButtonRef = useRef(null);
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [isEditMode,      setIsEditMode]      = useState(false);   // always start in view
+  const [filterResetKey,  setFilterResetKey]  = useState(0);
   const [recordLoading,   setRecordLoading]   = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
   const [saveError,       setSaveError]       = useState(null);
-
-  // externalValues drives auto-fill into the panel without remounting
   const [externalValues,  setExternalValues]  = useState(null);
 
   const headerValuesRef = useRef({
@@ -57,6 +75,20 @@ export default function MainGroupMasterForm() {
     SessionID:                DEFAULT_SESSION_ID,
     FuncCode:                 MGM_CONFIG.RB_MASTER,
   });
+
+  // ── Edit mode helpers (same pattern as PV / Indent) ──────────────────────
+  const focusFirstEditableFilterField = useCallback(() => {
+    const fields = queryEditableFilterFields(filterPanelRef.current);
+    if (fields.length > 0) { fields[0].focus(); return true; }
+    return false;
+  }, []);
+
+  const enterEditModeWithFocus = useCallback(() => {
+    setIsEditMode(true);
+    setTimeout(() => focusFirstEditableFilterField(), 50);
+  }, [focusFirstEditableFilterField]);
+
+  const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   // ── Mount: load header metadata ──────────────────────────────────────────
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -80,7 +112,6 @@ export default function MainGroupMasterForm() {
         }
         headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
         seedOptionsFromMaster(master);
-        // Seed the panel with loaded values
         setExternalValues({ ...headerValues });
       })
       .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
@@ -98,6 +129,10 @@ export default function MainGroupMasterForm() {
     }),
   [itemTypeOptions, fixedAssetAccOptions]);
 
+  // ── Derived flags ─────────────────────────────────────────────────────────
+  const headerMetaReady = !headerFetching;
+  const filterBusy      = headerFetching;
+
   // ── Per-field tones (view / editable / frozen per MRD LockOnEdit) ────────
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -105,8 +140,8 @@ export default function MainGroupMasterForm() {
       let tone = "editable";
       if (!isEditMode)                          tone = "view";
       else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
-      tones[f.FilterColName]     = tone;
-      if (f.FilterParameterID)  tones[f.FilterParameterID] = tone;
+      tones[f.FilterColName]    = tone;
+      if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     // MainGroupShortCode is always view-only — auto-fill, never user-editable
     tones["MainGroupShortCode"] = "view";
@@ -169,67 +204,116 @@ export default function MainGroupMasterForm() {
     }
   }, [validate, navigate]);
 
+  // ── Cancel ────────────────────────────────────────────────────────────────
+  // New route: navigate back to list. Edit route: exit edit mode + reset panel.
   const handleCancel = useCallback(() => {
     if (!window.confirm("Discard changes?")) return;
-    navigate("/admin/main-group-master");
-  }, [navigate]);
+    if (isNewRoute) {
+      navigate("/admin/main-group-master");
+    } else {
+      exitEditMode();
+      setFilterResetKey((k) => k + 1);
+      setExternalValues({ ...headerValuesRef.current });
+      setSaveError(null);
+    }
+  }, [isNewRoute, navigate, exitEditMode]);
+
+  // ── Keyboard shortcuts (Alt+A / Alt+S / Alt+N / Esc) ─────────────────────
+  useEntryFormKeyboard({
+    isEditMode,
+    isSaving,
+    addDisabled: filterBusy,
+    onAdd:    enterEditModeWithFocus,
+    onSave:   handleSave,
+    onCancel: handleCancel,
+  });
+
+  // ── Card footer — Save / Cancel live inside the form card in edit mode ───
+  const cardFooter = useMemo(() => {
+    if (!isEditMode) return null;
+    return (
+      <>
+        <button
+          ref={cancelButtonRef}
+          type="button"
+          className="action-btn action-btn--cancel"
+          onClick={handleCancel}
+          accessKey="n"
+          title={`Cancel (Esc · Alt+N)`}
+        >
+          <XCircle size={13} strokeWidth={2} />
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="action-btn action-btn--save"
+          onClick={handleSave}
+          disabled={isSaving}
+          accessKey="s"
+          title={FORM_SHORTCUT_TITLES.save}
+        >
+          {isSaving
+            ? <><div className="action-spinner" />Saving…</>
+            : <><Save size={13} strokeWidth={2} />Save</>}
+        </button>
+      </>
+    );
+  }, [isEditMode, isSaving, handleSave, handleCancel, cancelButtonRef]);
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (headerFetching || recordLoading) {
-    return <div className="mgm-page"><div className="mgm-loading">Loading…</div></div>;
-  }
+  const combinedError = headerError || recordLoadError;
 
-  if (headerError || recordLoadError) {
+  if (headerFetching || recordLoading) {
     return (
-      <div className="mgm-page">
-        <div className="mgm-error">
-          <AlertCircle size={16} /> {headerError || recordLoadError}
-        </div>
+      <div className="workspace-page">
+        <div className="mgm-loading">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="mgm-page">
-      <div className="mgm-form-panel">
-
-        <div className="mgm-panel-header">
-          <span className="mgm-panel-title">Main Group Master</span>
-          <div className="mgm-panel-toolbar">
-            {!isEditMode && isEditRoute && (
-              <button type="button" className="mgm-btn mgm-btn--secondary" onClick={() => setIsEditMode(true)}>
-                <Edit2 size={13} /> Edit
-              </button>
-            )}
-            {isEditMode && (
-              <>
-                <button type="button" className="mgm-btn mgm-btn--primary" onClick={handleSave} disabled={isSaving}>
-                  <Save size={13} /> {isSaving ? "Saving…" : "Save"}
-                </button>
-                <button type="button" className="mgm-btn mgm-btn--secondary" onClick={handleCancel} disabled={isSaving}>
-                  <X size={13} /> Cancel
-                </button>
-              </>
-            )}
+    <div className="workspace-page workspace-page--master">
+      <section className="workspace-page__filters master-form-wrapper">
+        {combinedError ? (
+          <div className="workspace-error">
+            <AlertCircle size={16} strokeWidth={2} />
+            <span>{combinedError}</span>
           </div>
-        </div>
-
-        <EnterpriseFilterPanel
-          title="Main Group"
-          staticFilters={syncedFilters}
-          initialValues={headerValuesRef.current}
-          externalValues={externalValues}
-          fieldTones={filterFieldTones}
-          onFilterChange={isEditMode ? handleFilterChange : undefined}
-          actionLabel=""
-        />
+        ) : (
+          <MasterFormPanel
+            key={filterResetKey}
+            panelRef={filterPanelRef}
+            title="Main Group"
+            staticFilters={syncedFilters}
+            initialValues={headerValuesRef.current}
+            externalValues={externalValues}
+            isMetaLoading={!headerMetaReady || recordLoading}
+            disabled={filterBusy || !headerMetaReady}
+            fieldTones={filterFieldTones}
+            onFilterChange={isEditMode ? handleFilterChange : undefined}
+            footer={cardFooter}
+          />
+        )}
 
         {saveError && (
-          <div className="mgm-save-error">
-            <AlertCircle size={14} /> {saveError}
+          <div className="workspace-error" style={{ maxWidth: 680, width: "100%" }}>
+            <AlertCircle size={16} strokeWidth={2} />
+            <span>{saveError}</span>
           </div>
         )}
-      </div>
+      </section>
+
+      {/* ActionBar only shows the Edit button when not in edit mode */}
+      {!isEditMode && (
+        <ActionBar
+          alignEnd
+          isEditMode={false}
+          onAdd={enterEditModeWithFocus}
+          addLabel="Edit"
+          addAccessKey="a"
+          addButtonRef={addButtonRef}
+        />
+      )}
     </div>
   );
 }

@@ -65,32 +65,28 @@ export function useMainGroupMaster() {
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType:   2,
           ObjName:   MGM_CONFIG.SP_ITEM_TYPE,
-          JSon:      JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID }]),
+          JSon:      JSON.stringify([{ }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Item Type fetch failed:", err); return null; }),
 
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType:   2,
           ObjName:   MGM_CONFIG.SP_FIXED_ASSET_ACC,
-          JSon:      JSON.stringify([{
-            PrmCompanyID: DEFAULT_COMPANY_ID,
-            PrmLoginID:   DEFAULT_LOGIN_ID,
-            PrmYearID:    MGM_CONFIG.CONFIG_YEAR_ID,
-          }]),
+          JSon:      JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Fixed Asset A/C fetch failed:", err); return null; }),
       ]);
 
       setItemTypeOptions(
         (itemTypeData?.Table || []).map((r) => ({
-          value: String(r.ItemTypeID ?? r.IDNumber),
-          label: r.ItemTypeName ?? r.Name ?? String(r.ItemTypeID),
+          value: String(r.IDNumber ?? r.IDNumber),
+          label: String(r.ItemTypeCode),
         }))
       );
       setFixedAssetAccOptions(
         (fixedAssetData?.Table || []).map((r) => ({
-          value: String(r.FixedAssetAccountID ?? r.AccountID ?? r.IDNumber),
-          label: r.AccountName ?? r.FixedAssetAccountName ?? String(r.FixedAssetAccountID),
+          value: String(r.IDNumber),
+          label:  String(r.ACNAME),
         }))
       );
     } catch (err) {
