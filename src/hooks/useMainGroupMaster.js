@@ -79,15 +79,15 @@ export function useMainGroupMaster() {
 
       setItemTypeOptions(
         (itemTypeData?.Table || []).map((r) => ({
-          value: String(r.IDNumber ?? r.IDNumber),
-          label: String(r.ItemTypeCode),
-        }))
+          value: r.IDNumber ?? r.ItemTypeID ?? r.ID,
+          label: String(r.ItemTypeName ?? r.ItemTypeCode ?? r.Name ?? ""),
+        })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(
         (fixedAssetData?.Table || []).map((r) => ({
-          value: String(r.IDNumber),
-          label:  String(r.ACNAME),
-        }))
+          value: r.IDNumber ?? r.AccountID ?? r.ID,
+          label: String(r.AccountName ?? r.AccName ?? r.Name ?? ""),
+        })).filter((o) => o.value != null)
       );
     } catch (err) {
       console.error("[MGM] fetchHeaderMeta failed:", err);

@@ -107,11 +107,11 @@ function FieldControl({ filter, value, options, onChange, tone = "editable" }) {
         value={value || ""}
         onChange={(val) => emit(val)}
         options={(options || []).map((opt) => {
-          if (opt.value !== undefined) return { value: String(opt.value), label: opt.label };
-          const valKey  = opt.FilterCtrlValueCol   || "IDNumber";
-          const lblKey  = opt.FilterCtrlDisplayCol || "Name";
-          return { value: String(opt[valKey]), label: opt[lblKey] };
-        })}
+          if (opt.value != null) return { value: String(opt.value), label: opt.label ?? "" };
+          const valKey = opt.FilterCtrlValueCol  || "IDNumber";
+          const lblKey = opt.FilterCtrlDisplayCol || "Name";
+          return { value: String(opt[valKey] ?? ""), label: String(opt[lblKey] ?? "") };
+        }).filter((o) => o.value && o.value !== "undefined")}
         placeholder="Select…"
         ariaLabel={FilterCaption}
       />
