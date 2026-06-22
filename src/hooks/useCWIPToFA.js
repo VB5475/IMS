@@ -107,6 +107,11 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   return { meta, apiColumns: colData?.Links || [] };
 }
 
+// Fields that RB_AstCWIP2FADet incorrectly includes as detail columns but belong
+// to the master header. Filtered out before building grid columns or allColumns.
+// Long-term fix: DBA should set IsVisible=0 for these in the RB detail config.
+const DETAIL_HEADER_FIELDS = new Set(["NetTotal"]);
+
 export function useCWIPToFA(baseURL = API_BASE_URL) {
   const { get } = useApi(baseURL);
 
@@ -161,7 +166,25 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     }
   }, [get]);
 
-  const clearCWIPAccOptions = useCallback(() => setCWIPAccOptions([]), []);
+  const clearCWIPAccOptions     = useCallback(() => setCWIPAccOptions([]), []);
+  const clearCostCenterOptions  = useCallback(() => setCostCenterOptions([]), []);
+
+  // ── fetchUniqueId — generate TranMstGenID on Add New (mirrors PO pattern) ──
+  const fetchUniqueId = useCallback(async () => {
+    if (!C2F_CONFIG.SP_UNIQUE_ID) return 0;
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 1,
+        ObjName: C2F_CONFIG.SP_UNIQUE_ID,
+        JSon: JSON.stringify([{ PrmIDNumber: 0, PrmYearID: C2F_CONFIG.CONFIG_YEAR_ID }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      return res?.Table?.[0]?.UniqueID ?? 0;
+    } catch (err) {
+      console.warn("[C2F] UniqueID fetch failed:", err);
+      return 0;
+    }
+  }, [get]);
 
   // ── fetchLocations — cascade from Division ─────────────────────────────────
   const fetchLocations = useCallback(async (divisionId) => {
@@ -250,6 +273,9 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
 
       if (skipListDropdowns) {
         setDivisionOptions([]);
+        setLocationOptions([]);
+        setCWIPAccOptions([]);
+        setCostCenterOptions([]);
         return;
       }
 
@@ -282,11 +308,13 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     setIsFetching(true);
     setMetaError(null);
     try {
-      const { meta, apiColumns } = await loadRbDetailGridMeta(
+      const { meta, apiColumns: rawApiColumns } = await loadRbDetailGridMeta(
         get,
         C2F_CONFIG.RB_DETAIL,
         C2F_CONFIG.STORAGE_ENTRY_META
       );
+      // Strip out master-level fields the RB erroneously includes in detail columns
+      const apiColumns = rawApiColumns.filter((c) => !DETAIL_HEADER_FIELDS.has(c.ColName));
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
 
@@ -442,7 +470,8 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
     fetchLocations, clearLocations,
     fetchCWIPAccByDivision, clearCWIPAccOptions,
-    fetchCostCenters,
+    fetchCostCenters, clearCostCenterOptions,
+    fetchUniqueId,
     // Detail grid
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
