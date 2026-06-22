@@ -10,13 +10,15 @@ import {
 import { MGM_CONFIG } from "../pages/main-group-master/constants";
 
 function mapMasterRowToHeaderValues(master, params) {
+  
+  
   return {
     IDNumber:                 Number(master.IDNumber ?? params.idNumber) || 0,
     ItemTypeID:               master.ItemTypeID        != null ? Number(master.ItemTypeID)        : 0,
     MainGroupCode:            master.MainGroupCode             ?? "",
     MainGroupName:            master.MainGroupName             ?? "",
     MainGroupShortName:       master.MainGroupShortName        ?? "",
-    UsedCodeInCodeGeneration: Boolean(master.UsedCodeInCodeGeneration),
+    UsedCodeInCodeGeneration: (Boolean(master.UsedCodeInCodeGeneration)) ? 1 : 0,
     MainGroupShortCode:       master.MainGroupShortCode        ?? "",
     FixedAssetAccountID:      master.FixedAssetAccountID != null ? Number(master.FixedAssetAccountID) : 0,
     CompanyID:                Number(params.companyId)  || DEFAULT_COMPANY_ID,

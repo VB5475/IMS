@@ -11,6 +11,7 @@ import {
   Layers,
   Tag,
   MapPin,
+  Package,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -50,8 +51,10 @@ const NAV_SECTIONS = [
   {
     label: "Admin",
     items: [
-      { to: "/admin/main-group-master",         icon: Tag,    label: "Main Group Master", end: false },
-      { to: "/admin/company/location-master",   icon: MapPin, label: "Location Master",   end: false },
+      { to: "/admin/main-group-master",                 icon: Tag,    label: "Main Group Master",      end: false },
+      { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master",  end: false },
+      { to: "/admin/master/item/sub-group-master",      icon: Package,label: "Sub Group Master",       end: false },
+      { to: "/admin/company/location-master",           icon: MapPin, label: "Location Master",        end: false },
     ],
   },
 ];

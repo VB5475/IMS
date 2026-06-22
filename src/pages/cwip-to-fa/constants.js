@@ -22,7 +22,7 @@ export const C2F_CONFIG = {
   SP_RB_META:      "Fn_Fetch_RBDetailByRBCode",
   SP_DIVISIONS:    "Fn_tbl_FetchUserWsDivision",
   SP_LOCATION:     "Fn_Gen_FetchLocationMaster",
-  SP_CWIP_ACC:     null, // ⚠️ CONFIRM with DBA — SP that returns CWIP A/C dropdown options
+  SP_CWIP_ACC:     "Fn_tbl_Fetch_AssetsAccount", // ⚠️ CONFIRM with DBA — SP that returns CWIP A/C dropdown options
   SP_COST_CENTER:  "Fn_tbl_Fas_FetchCostCenterAc",
   SP_ITEM_PICKER:  "fn_tbl_RB_AstCWIP2FADetSel",
   SP_GRID_EVENT:   null, // ⚠️ CONFIRM with DBA — Amount may be client-side Qty × Rate only
