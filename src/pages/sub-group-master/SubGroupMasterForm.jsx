@@ -6,6 +6,7 @@ import {
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { validateApiColumns } from "../../utils/columnValidation";
 import { SGM_CONFIG } from "./constants";
 
 // Fields locked during edit mode (per MRD lock-on-edit spec)
@@ -133,18 +134,11 @@ export default function SubGroupMasterForm({
     );
   }
 
-  // Validation driven by IsMandatory from API
+  // Validation driven by RB field metadata via shared columnValidation utility
   const handleSave = useCallback(async () => {
-    const missing = visibleFields
-      .filter((f) => {
-        if (!f.IsMandatory) return false;
-        if (CHECKBOX_OVERRIDES.has(f.ColName)) return false;
-        return !String(formValues[f.ColName] || "").trim();
-      })
-      .map(getLabel);
-
-    if (missing.length > 0) {
-      alert(`Please fill in required fields:\n${missing.join("\n")}`);
+    const errors = validateApiColumns(formValues, visibleFields);
+    if (errors.length > 0) {
+      alert(errors.join("\n"));
       return;
     }
 
@@ -158,7 +152,6 @@ export default function SubGroupMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-      console.log("%c[SGM Save] Payload:", "color:#f59e0b;font-weight:700", payload);
       const res    = await fetch(`${API_BASE_URL_IMS}${SGM_CONFIG.SAVE_ENDPOINT}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },

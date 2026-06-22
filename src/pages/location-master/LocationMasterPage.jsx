@@ -8,8 +8,7 @@ import { useLocationMaster } from "../../hooks/useLocationMaster";
 import LocationMasterForm from "./LocationMasterForm";
 import { LM_CONFIG } from "./constants";
 import "./LocationMasterPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   return {
@@ -23,27 +22,35 @@ function buildListParams() {
   };
 }
 
-function buildListColumns(onEdit) {
+const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
+
+const LABEL_MAP = {
+  RegName: "Reg Name",
+};
+
+function toLabel(key) {
+  if (LABEL_MAP[key]) return LABEL_MAP[key];
+  return key.replace(/([A-Z_])/g, " $1").replace(/_/g, "").trim();
+}
+
+function buildColumnsFromData(data, onEdit) {
+  if (!data || data.length === 0) return [];
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
-    { key: "Premises",      label: "Premises",      width: "25%", filterable: true, align: "left" },
-    { key: "Location_Code", label: "Location Code", width: "20%", filterable: true, align: "left" },
-    { key: "Location_Name", label: "Location Name", width: "35%", filterable: true, align: "left" },
+    ...keys.map((key) => ({ key, label: toLabel(key), filterable: true, align: "left" })),
     {
-      key: "_actions",
+      key:   "_actions",
       label: "Edit",
-      width: "20%",
+      width: "80px",
       align: "center",
       render: (_value, row) => (
         <button
           type="button"
           className="lm-list__edit-btn"
-          title={`Edit ${row["Location_Code"] ?? ""}`}
-          aria-label={`Edit ${row["Location_Code"] ?? ""}`}
-          disabled={!row.IDNumber}  // ⚠️ IDNumber missing from SP — DBA must add it
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row.IDNumber);
-          }}
+          title={`Edit ${row.Location_Code ?? row.Loc_Code ?? ""}`}
+          aria-label={`Edit ${row.Location_Code ?? row.Loc_Code ?? ""}`}
+          disabled={!row.IDNumber}
+          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
         </button>
@@ -66,7 +73,7 @@ export default function LocationMasterPage() {
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");
@@ -114,7 +121,7 @@ export default function LocationMasterPage() {
     fetchList();
   }, [fetchList]);
 
-  const columns = useMemo(() => buildListColumns(handleEdit), [handleEdit]);
+  const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
   return (
     <div className="workspace-page lm-list-page">

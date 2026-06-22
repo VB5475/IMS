@@ -121,9 +121,9 @@ export const C2F_HEADER_FILTERS = [
 
 export const C2F_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-// Cascade resets — DivisionID clears LocationID (grid cleared in form handler)
+// Cascade resets — DivisionID clears LocationID + CWIPAccID (grid cleared in form handler)
 export const C2F_FILTER_CASCADE_RESETS = {
-  DivisionID: ["LocationID"],
+  DivisionID: ["LocationID", "CWIPAccID"],
 };
 
 // ── Item picker required fields ───────────────────────────────────────────────

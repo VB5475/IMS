@@ -8,8 +8,7 @@ import { useSubGroupMaster } from "../../hooks/useSubGroupMaster";
 import SubGroupMasterForm from "./SubGroupMasterForm";
 import { SGM_CONFIG } from "./constants";
 import "./SubGroupMasterPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function todayFormatted() {
@@ -33,22 +32,41 @@ function buildListParams() {
   };
 }
 
-function buildListColumns(onEdit) {
+const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
+
+const LABEL_MAP = {
+  ISAutoCodeGen: "Auto Code Gen",
+  RegName:       "Reg Name",
+  ShortName:     "Short Name",
+  ShortCode:     "Short Code",
+};
+
+function toLabel(key) {
+  if (LABEL_MAP[key]) return LABEL_MAP[key];
+  return key.replace(/([A-Z])/g, " $1").trim();
+}
+
+function buildColumnsFromData(data, onEdit) {
+  if (!data || data.length === 0) return [];
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
-    { key: "SubGroupCode",      label: "Sub Group Code", width: "20%", filterable: true, align: "left" },
-    { key: "SubGroupName",      label: "Sub Group Name", width: "40%", filterable: true, align: "left" },
-    { key: "SubGroupShortName", label: "Short Name",     width: "25%", filterable: true, align: "left" },
+    ...keys.map((key) => ({
+      key,
+      label:      toLabel(key),
+      filterable: true,
+      align:      "left",
+    })),
     {
-      key: "_actions",
+      key:   "_actions",
       label: "Edit",
-      width: "15%",
+      width: "80px",
       align: "center",
       render: (_value, row) => (
         <button
           type="button"
           className="sgm-list__edit-btn"
-          title={`Edit ${row.SubGroupCode ?? ""}`}
-          aria-label={`Edit ${row.SubGroupCode ?? ""}`}
+          title={`Edit ${row.Code ?? ""}`}
+          aria-label={`Edit ${row.Code ?? ""}`}
           onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -70,7 +88,7 @@ export default function SubGroupMasterPage() {
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");
@@ -118,7 +136,7 @@ export default function SubGroupMasterPage() {
     fetchList();
   }, [fetchList]);
 
-  const columns = useMemo(() => buildListColumns(handleEdit), [handleEdit]);
+  const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
   return (
     <div className="workspace-page sgm-list-page">

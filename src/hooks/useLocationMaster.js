@@ -21,6 +21,7 @@ function mapMasterRowToHeaderValues(master, params) {
     State:          master.State           ?? "",
     Zipcode:        master.Zipcode         ?? "",
     Country:        master.Country         ?? "",
+    RegName:        master.RegName         ?? "",
     CompanyID:      Number(params.companyId)    || DEFAULT_COMPANY_ID,
     YearID:         Number(master.YearID   ?? params.yearId)    || LM_CONFIG.CONFIG_YEAR_ID,
     LoginID:        Number(master.LoginID  ?? params.loginId)   || DEFAULT_LOGIN_ID,

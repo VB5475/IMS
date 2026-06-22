@@ -11,8 +11,7 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from ".
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { C2F_CONFIG } from "./constants";
 import "./CWIPToFAPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 const MONTH_ABBR = [
   "Jan","Feb","Mar","Apr","May","Jun",
@@ -46,21 +45,27 @@ function buildListParams() {
   };
 }
 
-function buildListColumns(navigate) {
+const HIDDEN_COLS = new Set(["C2FID", "IDNumber"]);
+
+function toLabel(key) {
+  return key.replace(/([A-Z])/g, " $1").trim();
+}
+
+function buildColumnsFromData(data, navigate) {
+  if (!data || data.length === 0) return [];
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
-    { key: "TranNo",          label: "Tran No",         width: "10%", filterable: true,  align: "left" },
-    { key: "TranDate",        label: "Tran Date",        width: "10%", filterable: true,  filterType: "date", render: (v) => formatListDate(v) },
-    { key: "PutToUseInstDate",label: "Put To Use Date",  width: "12%", filterable: true,  filterType: "date", render: (v) => formatListDate(v) },
-    { key: "Division",        label: "Division",         width: "12%", filterable: true,  align: "left" },
-    { key: "Location",        label: "Location",         width: "12%", filterable: true,  align: "left" },
-    { key: "CWIPAccount",     label: "CWIP A/C",         width: "14%", filterable: true,  align: "left" },
-    { key: "ConvType",        label: "Conv. Type",       width: "10%", filterable: true,  align: "left" },
-    { key: "NetTotal",        label: "Net Total",        width: "8%",  filterable: false, align: "right" },
-    { key: "CreatedBy",       label: "Created By",       width: "8%",  filterable: true,  align: "left" },
+    ...keys.map((key) => ({
+      key,
+      label:      toLabel(key),
+      filterable: true,
+      align:      "left",
+      ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
+    })),
     {
-      key: "_actions",
+      key:   "_actions",
       label: "Edit",
-      width: "4%",
+      width: "60px",
       align: "center",
       render: (_value, row) => (
         <button
@@ -87,7 +92,7 @@ export default function CWIPToFAPage() {
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
     title:    "CWIP To FA",
@@ -96,7 +101,7 @@ export default function CWIPToFAPage() {
     backTo:   "/",
   });
 
-  const columns = useMemo(() => buildListColumns(navigate), [navigate]);
+  const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);
 
   const fetchList = useCallback(async () => {
     try {

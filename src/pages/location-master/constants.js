@@ -3,10 +3,7 @@
 
 export const LM_CONFIG = {
   RB_MASTER:           "RB_GenLocationMst",
-  FORM_TAG:            "RB_GenLocationMst",
-  TRAN_BOOK:           "LM",
   CONFIG_YEAR_ID:      2,              // ⚠️ CONFIRM with DBA
-  DIVISION_YEAR_ID:    2,              // ⚠️ CONFIRM with DBA
   SP_RB_META:          "Fn_Fetch_RBDetailByRBCode",
   SP_LOCATION_TYPE:    "Fn_tbl_Fetch_LocationType",
   SP_PREMISES:         "Fn_tbl_Fetch_Premises",

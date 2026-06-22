@@ -7,6 +7,7 @@ import {
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { validateApiColumns } from "../../utils/columnValidation";
 import { LM_CONFIG } from "./constants";
 
 // Fields locked during edit mode (per MRD lock-on-edit spec)
@@ -27,6 +28,7 @@ function buildEmpty() {
     State:          "",
     Zipcode:        "",
     Country:        "",
+    RegName:        "",
     CompanyID:      DEFAULT_COMPANY_ID,
     YearID:         LM_CONFIG.CONFIG_YEAR_ID,
     LoginID:        DEFAULT_LOGIN_ID,
@@ -157,18 +159,14 @@ export default function LocationMasterForm({
 
   // Save — validation driven by IsMandatory from API
   const handleSave = useCallback(async () => {
-    const missing = visibleFields
-      .filter((f) => {
-        if (!f.IsMandatory) return false;
-        const val = formValues[f.ColName];
-        return f.ColCtrlType === 4 ? (!val || val === 0) : !String(val || "").trim();
-      })
-      .map((f) => f.DisplayName || f.ColName);
-
-    if (missing.length > 0) {
-      alert(`Please fill in required fields:\n${missing.join("\n")}`);
-      return;
-    }
+    const normalizedValues = Object.fromEntries(
+      visibleFields.map((f) => [
+        f.ColName,
+        f.ColCtrlType === 4 && formValues[f.ColName] === 0 ? "" : formValues[f.ColName],
+      ])
+    );
+    const errors = validateApiColumns(normalizedValues, visibleFields);
+    if (errors.length > 0) { alert(errors.join("\n")); return; }
 
     setSaveError(null);
     setIsSaving(true);
@@ -180,7 +178,6 @@ export default function LocationMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-      console.log("%c[LM Save] Payload:", "color:#f59e0b;font-weight:700", payload);
       const res    = await fetch(`${API_BASE_URL_IMS}${LM_CONFIG.SAVE_ENDPOINT}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },

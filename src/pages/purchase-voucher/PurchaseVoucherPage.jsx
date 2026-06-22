@@ -13,8 +13,7 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { PV_CONFIG } from "./constants";
 import "./PurchaseVoucherPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -43,7 +42,7 @@ export default function PurchaseVoucherPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
     title: "Purchase Vouchers",

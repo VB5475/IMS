@@ -7,6 +7,7 @@ import {
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { validateApiColumns } from "../../utils/columnValidation";
 import { MGM_CONFIG } from "./constants";
 
 // API ColName → formValues key (only where they differ)
@@ -33,7 +34,7 @@ function buildEmpty() {
     MainGroupCode:            "",
     MainGroupName:            "",
     MainGroupShortName:       "",
-    UsedCodeInCodeGeneration: false,
+    UsedCodeInCodeGeneration: 0,
     MainGroupShortCode:       "",
     FixedAssetAccountID:      0,
     CompanyID:                DEFAULT_COMPANY_ID,
@@ -140,7 +141,7 @@ export default function MainGroupMasterForm({
             type="checkbox"
             className="mgm-form-checkbox"
             checked={!!formValues[key]}
-            onChange={(e) => handleChange(key, e.target.checked)}
+            onChange={(e) => handleChange(key, e.target.checked ? 1 : 0)}
             disabled={locked}
           />
           <span className="mgm-form-checkbox-label">
@@ -178,20 +179,15 @@ export default function MainGroupMasterForm({
 
   // Save — validation driven by IsMandatory from API
   const handleSave = useCallback(async () => {
-    const missing = visibleFields
-      .filter((f) => {
-        if (!f.IsMandatory) return false;
-        if (f.ColName === "MainGroupShortCode")           return false; // auto-fill
-        if (f.ColName === "UsedInAutoItemCodeGeneration") return false; // checkbox false is valid
+    const fieldsToValidate = visibleFields.filter((f) => f.ColName !== "MainGroupShortCode");
+    const normalizedValues = Object.fromEntries(
+      fieldsToValidate.map((f) => {
         const val = formValues[formKey(f.ColName)];
-        return f.ColCtrlType === 4 ? (!val || val === 0) : !String(val || "").trim();
+        return [f.ColName, f.ColCtrlType === 4 && val === 0 ? "" : val];
       })
-      .map(getLabel);
-
-    if (missing.length > 0) {
-      alert(`Please fill in required fields:\n${missing.join("\n")}`);
-      return;
-    }
+    );
+    const errors = validateApiColumns(normalizedValues, fieldsToValidate);
+    if (errors.length > 0) { alert(errors.join("\n")); return; }
 
     setSaveError(null);
     setIsSaving(true);
@@ -203,7 +199,6 @@ export default function MainGroupMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-      console.log("%c[MGM Save] Payload:", "color:#f59e0b;font-weight:700", payload);
       const res    = await fetch(`${API_BASE_URL_IMS}${MGM_CONFIG.SAVE_ENDPOINT}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },

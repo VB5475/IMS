@@ -62,6 +62,49 @@ import "./CWIPToFAPage.css";
 let _c2fTempId = -1;
 const nextTempId = () => _c2fTempId--;
 
+// ── Item picker column builder ─────────────────────────────────────────────────
+// Used as fallback when RB metadata (RB_AstCWIP2FADetSelO) columns are empty
+// or their ColName values don't match the actual SP response field names.
+const PICKER_HIDDEN_COLS = new Set(["ItemID", "ItemTypeID", "ParentUKey", "ChildFKey", "BaseUnitID", "TranUnitID"]);
+const PICKER_LABEL_MAP = {
+  ItemTypeDesc: "Item Type",
+  ItemCode:     "Item Code",
+  ItemName:     "Item Name",
+  BaseUnit:     "Base Unit",
+  UnitConv:     "Unit Conv",
+  TranUnit:     "Tran Unit",
+  BaseQty:      "Base Qty",
+  TranQty:      "Tran Qty",
+  BaseRate:     "Base Rate",
+  TranRate:     "Tran Rate",
+  BaseAmount:   "Base Amount",
+  TranAmount:   "Tran Amount",
+};
+function toPickerLabel(key) {
+  return PICKER_LABEL_MAP[key] ?? key.replace(/([A-Z])/g, " $1").trim();
+}
+const PICKER_CB_COL = {
+  id: "cb", name: "", key: "cb", controlType: -1,
+  width: 48, filterable: false, isFixed: true, isEditAllow: false,
+};
+
+function buildPickerColumnsFromData(firstRow) {
+  if (!firstRow) return [];
+  const dataCols = Object.keys(firstRow)
+    .filter((k) => !PICKER_HIDDEN_COLS.has(k))
+    .map((key) => ({
+      id:           key,
+      key,
+      name:         toPickerLabel(key),
+      label:        toPickerLabel(key),
+      controlType:  1,
+      filterable:   false,
+      isEditAllow:  false,
+      align:        "left",
+    }));
+  return [PICKER_CB_COL, ...dataCols];
+}
+
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
@@ -129,6 +172,7 @@ export default function CWIPToFAForm() {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
     fetchLocations, clearLocations,
+    fetchCWIPAccByDivision, clearCWIPAccOptions,
     fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
@@ -371,16 +415,16 @@ export default function CWIPToFAForm() {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
     if (colName === "DivisionID") {
-      if (!confirmGridClear("Division")) {
-        // revert via filter panel re-key would be invasive; just skip the update
-        return;
-      }
+      if (!confirmGridClear("Division")) return;
       headerValuesRef.current.LocationID = 0;
+      headerValuesRef.current.CWIPAccID  = 0;
       clearLocations();
+      clearCWIPAccOptions();
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
         await Promise.all([
           fetchLocations(val),
+          fetchCWIPAccByDivision(val),
           fetchCostCenters(val, headerValuesRef.current.TranDate),
         ]);
       }
@@ -460,28 +504,45 @@ export default function CWIPToFAForm() {
       const rbRow = rbRes?.Table?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
-      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
-      });
-      setItemModalColumns(buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false }));
+      // Fetch RB columns + item rows in parallel
+      const [colRes, rowRes] = await Promise.all([
+        getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+          prmMasterID: rbRow.RBID,
+          prmLoginID:  DEFAULT_LOGIN_ID,
+        }),
+        getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: C2F_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([{
+            prmDivisionID:   Number(DivisionID  ?? 0),
+            prmLocationID:   Number(LocationID  ?? 0),
+            prmCWIPAcID:     Number(CWIPAccID   ?? 0),
+            prmYearID:       C2F_CONFIG.CONFIG_YEAR_ID,
+            prmLoginID:      DEFAULT_LOGIN_ID,
+            prmTranDate:     formatC2FTranDate(TranDate),
+            prmPutToUseDate: formatC2FTranDate(PutToUseInstDate),
+            prmConvTypeID:   C2F_CONFIG.CONV_TYPE_ID,
+          }]),
+          p_ErrCode: -1, p_ErrMsg: "",
+        }),
+      ]);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: C2F_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([{
-          prmDivisionID:  Number(DivisionID  ?? 0),
-          prmLocationID:  Number(LocationID  ?? 0),
-          prmCWIPAcID:    Number(CWIPAccID   ?? 0),
-          prmYearID:      C2F_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID:     DEFAULT_LOGIN_ID,
-          prmTranDate:    formatC2FTranDate(TranDate),
-          prmPutToUseDate: formatC2FTranDate(PutToUseInstDate),
-          prmConvTypeID:  C2F_CONFIG.CONV_TYPE_ID,
-        }]),
-        p_ErrCode: -1, p_ErrMsg: "",
-      });
-      setItemModalItems(rowRes?.Table || []);
+      const rows = rowRes?.Table || [];
+
+      // Build columns from RB metadata; fall back to data-driven if RB has no columns
+      // (RB_AstCWIP2FADetSelO may not be fully configured yet) or its ColName values
+      // don't match the actual SP response field names.
+      const rbLinks = colRes?.Links || [];
+      const rbDataKeys = new Set(rbLinks.map((c) => c.ColName));
+      const dataKeys   = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const rbMatchesData = rbLinks.length > 0 && dataKeys.some((k) => rbDataKeys.has(k));
+
+      const cols = rbMatchesData
+        ? buildGridColumns(rbLinks, {}, { filterable: false, allEditable: false })
+        : buildPickerColumnsFromData(rows[0] ?? null);
+
+      setItemModalColumns(cols);
+      setItemModalItems(rows);
     } catch (err) {
       console.error("[C2F] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");

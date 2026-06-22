@@ -12,15 +12,16 @@
 //   </Modal>
 //
 // Props:
-//   isOpen    — boolean — controls visibility
-//   onClose   — () => void — called on Escape key or overlay/close-btn click
-//   title     — string — header title text
-//   subtitle  — string (optional) — sub-header text
-//   icon      — ReactNode (optional) — icon shown in header
-//   size      — 'sm' | 'md' | 'lg' | 'xl' | 'full' (default: 'lg')
-//   headerless — boolean (default: false) — hides the built-in header
-//   footer    — ReactNode (optional) — custom footer content
-//   children  — body content (any React component)
+//   isOpen             — boolean — controls visibility
+//   onClose            — () => void — called on Escape key, X button, or Cancel click
+//   title              — string — header title text
+//   subtitle           — string (optional) — sub-header text
+//   icon               — ReactNode (optional) — icon shown in header
+//   size               — 'sm' | 'md' | 'lg' | 'xl' | 'full' (default: 'lg')
+//   headerless         — boolean (default: false) — hides the built-in header
+//   footer             — ReactNode (optional) — custom footer content
+//   closeOnOverlayClick — boolean (default: false) — set true ONLY when overlay dismiss is intentional
+//   children           — body content (any React component)
 
 import React, { useEffect, useCallback } from "react";
 import { X } from "lucide-react";
@@ -36,6 +37,7 @@ export default function Modal({
   headerless = false,
   variant = "default",
   footer = null,
+  closeOnOverlayClick = false,
   children,
 }) {
   // Close on Escape key — capture phase so open modals win over page-level Esc handlers.
@@ -71,12 +73,10 @@ export default function Modal({
   return (
     <div
       className="modal-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
       role="dialog"
       aria-modal="true"
       aria-label={title || "Modal dialog"}
+      onMouseDown={closeOnOverlayClick ? (e) => { if (e.target === e.currentTarget) onClose?.(); } : undefined}
     >
       <div
         className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""}`}
