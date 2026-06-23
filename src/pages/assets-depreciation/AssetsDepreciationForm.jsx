@@ -1,20 +1,17 @@
-// CWIPToFAForm.jsx — CWIP To Fixed Assets entry form (Add / Edit)
+// AssetsDepreciationForm.jsx — Assets Depreciation entry form (Add / Edit)
 //
-// Pattern mirrors PurchaseVoucherForm.jsx exactly:
-//   1. fetchHeaderMeta  → RB_AstCWIP2FAMst → GET_DETAIL_COL_DATA (header column METADATA)
-//   2. fetchDetailMeta  → RB_AstCWIP2FADet → GET_DETAIL_COL_DATA (grid column METADATA)
+// Pattern mirrors CWIPToFAForm.jsx exactly:
+//   1. fetchHeaderMeta  → RB_AstDepCAMst → GET_DETAIL_COL_DATA (header column METADATA — dynamic)
+//   2. fetchDetailMeta  → RB_AstDepCADet → GET_DETAIL_COL_DATA (grid column METADATA — dynamic)
 //   3. fetchGridColumns → GET_FILTER_DETAIL + buildGridColumns  (lazy, on first Add New)
 //   4. syncedFilters useMemo merges static layout + API IsMandatory/IsLockOnEditMode flags
 //
-// C2F vs PV:
-//   No SupplierID, BasedOnID
-//   PutToUseInstDate — required second date field
-//   LocationID       — cascade from Division (fetchLocations)
-//   CWIPAccID        — fetched via C2F_CONFIG.SP_CWIP_ACC (direct SP, same pattern as Division)
-//   ConvTypeID       — internal field, fixed to C2F_CONFIG.CONV_TYPE_ID, not rendered in UI
-//   ConversionFactor — numeric textbox (ColSeqNo 7, between LocationID and CWIPAccID)
-//   NetTotal         — computed client-side: sum of grid Amount column
-//   Cascade: DivisionID → clear LocationID + grid; LocationID → clear grid
+// DPC vs C2F:
+//   No PutToUseInstDate, LocationID, CostCenterAccID, ConversionFactor, ConvTypeID
+//   FixedAstAcID — cascades from DivisionID (fetchAssetsAccByDivision)
+//   TotalDepAmount — computed client-side: sum of grid Amount column
+//   Cascade: DivisionID → clear FixedAstAcID + grid
+//   Cascade: FixedAstAcID → clear grid
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -24,7 +21,7 @@ import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPa
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { useCWIPToFA } from "../../hooks/useCWIPToFA";
+import { useAstDepCA } from "../../hooks/useAstDepCA";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -48,29 +45,24 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  C2F_CONFIG,
-  C2F_CONV_FACTOR_OPTIONS,
-  C2F_SUMMARY_FIELDS,
-  C2F_GRID_TABS,
-  C2F_FILTER_CASCADE_RESETS,
-  formatC2FTranDate,
+  DPC_CONFIG,
+  DPC_SUMMARY_FIELDS,
+  DPC_GRID_TABS,
+  DPC_FILTER_CASCADE_RESETS,
   getMissingItemPickerHeaderFields,
 } from "./constants";
-import "./CWIPToFAPage.css";
+import "./AssetsDepreciationPage.css";
 
-let _c2fTempId = -1;
-const nextTempId = () => _c2fTempId--;
+let _dpcTempId = -1;
+const nextTempId = () => _dpcTempId--;
 
-// ── Item picker column builder ─────────────────────────────────────────────────
-// Used as fallback when RB metadata (RB_AstCWIP2FADetSelO) columns are empty
-// or their ColName values don't match the actual SP response field names.
+// ── Item picker column builder (fallback when RB metadata columns are empty) ──
 const PICKER_HIDDEN_COLS = new Set(["ItemID", "ItemTypeID", "ParentUKey", "ChildFKey", "BaseUnitID", "TranUnitID"]);
 const PICKER_LABEL_MAP = {
   ItemTypeDesc: "Item Type",
   ItemCode:     "Item Code",
   ItemName:     "Item Name",
   BaseUnit:     "Base Unit",
-  UnitConv:     "Unit Conv",
   TranUnit:     "Tran Unit",
   BaseQty:      "Base Qty",
   TranQty:      "Tran Qty",
@@ -92,14 +84,8 @@ function buildPickerColumnsFromData(firstRow) {
   const dataCols = Object.keys(firstRow)
     .filter((k) => !PICKER_HIDDEN_COLS.has(k))
     .map((key) => ({
-      id:           key,
-      key,
-      name:         toPickerLabel(key),
-      label:        toPickerLabel(key),
-      controlType:  1,
-      filterable:   false,
-      isEditAllow:  false,
-      align:        "left",
+      id: key, key, name: toPickerLabel(key), label: toPickerLabel(key),
+      controlType: 1, filterable: false, isEditAllow: false, align: "left",
     }));
   return [PICKER_CB_COL, ...dataCols];
 }
@@ -107,27 +93,24 @@ function buildPickerColumnsFromData(firstRow) {
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.YearID    ?? session.yearId    ?? C2F_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.LoginID   ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.C2FID     ?? listRecord?.IDNumber   ?? recordId,
+    companyId: listRecord?.CompanyID  ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId:    listRecord?.YearID     ?? session.yearId    ?? DPC_CONFIG.CONFIG_YEAR_ID,
+    loginId:   listRecord?.LoginID    ?? session.loginId,
+    sessionId: listRecord?.SessionID  ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
+    idNumber:  listRecord?.AstDepID   ?? listRecord?.IDNumber  ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranNo:           headerValues.TranNo           ?? "",
-    TranDate:         headerValues.TranDate          ?? "",
-    PutToUseInstDate: headerValues.PutToUseInstDate  ?? "",
-    DivisionID:       String(headerValues.DivisionID      ?? ""),
-    LocationID:       String(headerValues.LocationID      ?? ""),
-    CWIPAccID:        String(headerValues.CWIPAccID        ?? ""),
-    CostCenterAccID:  String(headerValues.CostCenterAccID  ?? ""),
-    ConvTypeID:       String(headerValues.ConvTypeID      ?? "1"),
-    NetTotal:         String(headerValues.NetTotal         ?? "0"),
-    Remark:           headerValues.Remark            ?? "",
+    TranCode:       headerValues.TranCode       ?? "",
+    TranDate:       headerValues.TranDate        ?? "",
+    DivisionID:     String(headerValues.DivisionID   ?? ""),
+    FixedAstAcID:   String(headerValues.FixedAstAcID ?? ""),
+    TotalDepAmount: String(headerValues.TotalDepAmount ?? "0"),
+    Remarks:        headerValues.Remarks         ?? "",
+    FuncCode:       headerValues.FuncCode        ?? "",
   };
 }
 
@@ -151,7 +134,7 @@ function mapPickerToItemRow(item, allColumns) {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function CWIPToFAForm() {
+export default function AssetsDepreciationForm() {
   const { id: routeId } = useParams();
   const location    = useLocation();
   const isNewRoute  = location.pathname.endsWith("/new") || routeId === "new";
@@ -170,47 +153,38 @@ export default function CWIPToFAForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
-    fetchLocations, clearLocations,
-    fetchCWIPAccByDivision, clearCWIPAccOptions,
-    fetchCostCenters, clearCostCenterOptions,
-    fetchUniqueId,
+    divisionOptions, assetsAccOptions,
+    fetchAssetsAccByDivision, clearAssetsAccOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
-    fireCellEvent,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useCWIPToFA(API_BASE_URL);
+  } = useAstDepCA(API_BASE_URL);
 
-  const [loadedMasterRow,     setLoadedMasterRow]     = useState(null);
-  const [loadedFilterValues,  setLoadedFilterValues]  = useState(null);
-  const [recordLoading,       setRecordLoading]       = useState(false);
-  const [recordLoadError,     setRecordLoadError]     = useState(null);
+  const [loadedMasterRow,    setLoadedMasterRow]    = useState(null);
+  const [loadedFilterValues, setLoadedFilterValues] = useState(null);
+  const [recordLoading,      setRecordLoading]      = useState(false);
+  const [recordLoadError,    setRecordLoadError]    = useState(null);
   const editRecordLoadedRef = useRef(false);
 
   const todayISO = useMemo(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   }, []);
 
   const headerValuesRef = useRef({
-    TranNo:            "",
-    TranDate:          todayISO,
-    PutToUseInstDate:  null,
-    DivisionID:        0,
-    LocationID:        0,
-    ConversionFactor:  0,
-    CWIPAccID:         0,
-    CostCenterAccID:   0,
-    ConvTypeID:        C2F_CONFIG.CONV_TYPE_ID,
-    NetTotal:          0,
-    Remark:           "",
-    TranMstGenID:     0,
-    CompanyID:        DEFAULT_COMPANY_ID,
-    YearID:           C2F_CONFIG.CONFIG_YEAR_ID,
-    LoginID:          DEFAULT_LOGIN_ID,
-    IDNumber:         recordId,
-    FuncCode:         C2F_CONFIG.RB_MASTER,
+    TranCode:       "",
+    TranDate:       todayISO,
+    DivisionID:     0,
+    FixedAstAcID:   0,
+    TotalDepAmount: 0,
+    Remarks:        "",
+    FuncCode:       DPC_CONFIG.RB_MASTER,
+    TranMstGenID:   0,
+    CompanyID:      DEFAULT_COMPANY_ID,
+    YearID:         DPC_CONFIG.CONFIG_YEAR_ID,
+    LoginID:        DEFAULT_LOGIN_ID,
+    IDNumber:       recordId,
   });
 
   const filterInitialValues = useMemo(() => {
@@ -218,12 +192,12 @@ export default function CWIPToFAForm() {
     return { TranDate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
-  const [filterResetKey,      setFilterResetKey]      = useState(0);
-  const [activeTab,           setActiveTab]           = useState("items");
-  const [itemSelectionCount,  setItemSelectionCount]  = useState(0);
-  const [isGridLoading,       setIsGridLoading]       = useState(false);
-  const [gridRows,            setGridRows]            = useState([]);
-  const [isSaving,            setIsSaving]            = useState(false);
+  const [filterResetKey,     setFilterResetKey]     = useState(0);
+  const [activeTab,          setActiveTab]          = useState("items");
+  const [itemSelectionCount, setItemSelectionCount] = useState(0);
+  const [isGridLoading,      setIsGridLoading]      = useState(false);
+  const [gridRows,           setGridRows]           = useState([]);
+  const [isSaving,           setIsSaving]           = useState(false);
 
   const [itemModalOpen,    setItemModalOpen]    = useState(false);
   const [itemModalItems,   setItemModalItems]   = useState([]);
@@ -246,10 +220,6 @@ export default function CWIPToFAForm() {
   }, []);
 
   const enterEditModeWithFocus = useCallback(async () => {
-    if (isNewRoute) {
-      const uid = await fetchUniqueId();
-      headerValuesRef.current.TranMstGenID = uid;
-    }
     setIsEditMode(true);
     setActiveTab("items");
     window.requestAnimationFrame(() => {
@@ -257,21 +227,21 @@ export default function CWIPToFAForm() {
         if (!focusFirstEditableFilterField()) focusSelectItemButton();
       }, 80);
     });
-  }, [isNewRoute, fetchUniqueId, focusFirstEditableFilterField, focusSelectItemButton]);
+  }, [focusFirstEditableFilterField, focusSelectItemButton]);
 
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title:    isNewRoute ? "New CWIP To FA" : "CWIP To FA",
+    title:    isNewRoute ? "New Assets Depreciation" : "Assets Depreciation",
     subtitle: isNewRoute
       ? "Fill in the header fields, then add items via the grid."
       : recordLoading
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `C2F #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/cwip-to-fa",
+    backTo:   "/assets-depreciation",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -307,7 +277,7 @@ export default function CWIPToFAForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord);
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("CWIP To FA record not found.");
+      if (!master || !headerValues) throw new Error("Assets Depreciation record not found.");
 
       headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
       setLoadedMasterRow(master);
@@ -330,8 +300,8 @@ export default function CWIPToFAForm() {
         queuedRowsRef.current = details;
       }
     } catch (err) {
-      console.error("[C2F] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load CWIP To FA record.");
+      console.error("[DPC] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Assets Depreciation record.");
     } finally {
       setRecordLoading(false);
     }
@@ -345,7 +315,7 @@ export default function CWIPToFAForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     const hv = headerValuesRef.current;
-    fetchUnlockedHeaderDropdowns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0, hv.TranDate);
+    fetchUnlockedHeaderDropdowns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0);
     fetchGridColumns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
@@ -358,38 +328,32 @@ export default function CWIPToFAForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── syncedSummaryFields — labels from API headerColumns, structure from C2F_SUMMARY_FIELDS ──
+  // ── syncedSummaryFields — labels from API headerColumns ───────────────────
   const syncedSummaryFields = useMemo(() => {
     const colMap = {};
     headerColumns.forEach((col) => { colMap[col.ColName] = col; });
-    return C2F_SUMMARY_FIELDS.map((f) => ({
+    return DPC_SUMMARY_FIELDS.map((f) => ({
       ...f,
       mstKey: f.SummaryParameterID,
       label:  colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
     }));
   }, [headerColumns]);
 
-  // ── syncedFilters — built purely from API headerColumns ───────────────────
-  // ColCtrlType from RB_AstCWIP2FAMst drives control rendering directly.
-  // Only ConversionFactor gets static options injected — all other dropdowns
-  // (Division, Location, CWIP A/C, Cost Center) get live API-loaded options.
+  // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
+  // ColCtrlType from RB_AstDepCAMst drives control rendering directly.
+  // Only Division + FixedAstAcID get API-loaded options injected by ColName.
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    DivisionID:      divisionOptions,
-    LocationID:      locationOptions,
-    CWIPAccID:       cWIPAccOptions,
-    CostCenterAccID: costCenterOptions,
-    ConversionFactor: C2F_CONV_FACTOR_OPTIONS,
-  }), [divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions]);
+    DivisionID:   divisionOptions,
+    FixedAstAcID: assetsAccOptions,
+  }), [divisionOptions, assetsAccOptions]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
-
     return headerColumns
       .filter((col) => col.IsVisible !== false)
       .map((col) => {
-        const lockOnEditMode  = isLockOnEditModeCol(col);
-        const staticOptions   = DROPDOWN_OPTIONS_BY_COL[col.ColName];
-
+        const lockOnEditMode = isLockOnEditModeCol(col);
+        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.ColName];
         const base = {
           FilterParameterID: col.ColName,
           FilterColName:     col.ColName,
@@ -397,7 +361,6 @@ export default function CWIPToFAForm() {
           FilterColCtrlType: col.ColCtrlType ?? 0,
           ...(staticOptions ? { staticOptions } : {}),
         };
-
         return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
       });
   }, [headerColumns, DROPDOWN_OPTIONS_BY_COL]);
@@ -406,8 +369,8 @@ export default function CWIPToFAForm() {
     const tones = {};
     syncedFilters.forEach((f) => {
       let tone = "editable";
-      if (!isEditMode)                             tone = "view";
-      else if (isEditRoute && f.lockOnEditMode)    tone = "frozen";
+      if (!isEditMode)                          tone = "view";
+      else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
       tones[f.FilterColName]       = tone;
       if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
@@ -426,44 +389,21 @@ export default function CWIPToFAForm() {
 
     if (colName === "DivisionID") {
       if (!confirmGridClear("Division")) return;
-      headerValuesRef.current.LocationID    = 0;
-      headerValuesRef.current.CWIPAccID     = 0;
-      headerValuesRef.current.CostCenterAccID = 0;
-      clearLocations();
-      clearCWIPAccOptions();
-      clearCostCenterOptions();
+      headerValuesRef.current.FixedAstAcID = 0;
+      clearAssetsAccOptions();
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
-        await Promise.all([
-          fetchLocations(val),
-          fetchCWIPAccByDivision(val),
-          fetchCostCenters(val, headerValuesRef.current.TranDate),
-        ]);
+        await fetchAssetsAccByDivision(val);
       }
       return;
     }
 
-    if (colName === "TranDate") {
-      const divId = headerValuesRef.current.DivisionID;
-      if (divId && divId !== 0 && divId !== "0") {
-        clearCostCenterOptions();
-        fetchCostCenters(divId, val);
-      }
-      return;
-    }
-
-    if (colName === "LocationID") {
-      if (!confirmGridClear("Location")) return;
+    if (colName === "FixedAstAcID") {
+      if (!confirmGridClear("Fixed Asset A/C")) return;
       itemGridRef.current?.clearRows?.();
       return;
     }
-
-  }, [
-    confirmGridClear,
-    clearLocations, fetchLocations,
-    clearCWIPAccOptions, fetchCWIPAccByDivision,
-    clearCostCenterOptions, fetchCostCenters,
-  ]);
+  }, [confirmGridClear, clearAssetsAccOptions, fetchAssetsAccByDivision]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -478,41 +418,25 @@ export default function CWIPToFAForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  // ── Cell event — Qty / Rate → Amount  ─────────────────────────────────────
-  // If SP_GRID_EVENT is null (TBD), compute Amount client-side as Qty × Rate.
-  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
-    if (!C2F_CONFIG.SP_GRID_EVENT) {
-      // Client-side fallback: Amount = Qty × Rate
-      if (colKey === "Qty" || colKey === "Rate") {
-        const qty  = Number(rowData.Qty)  || 0;
-        const rate = Number(rowData.Rate) || 0;
-        itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
-      }
-      return;
+  // ── Cell event — Amount = Qty × Rate (client-side; no SP_GRID_EVENT in MRD) ──
+  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
+    if (colKey === "Qty" || colKey === "Rate") {
+      const qty  = Number(rowData.Qty)  || 0;
+      const rate = Number(rowData.Rate) || 0;
+      itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
     }
-    const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-    if (!result || !itemGridRef.current) return;
-    const responseRow = result?.Links?.[0];
-    if (!responseRow) return;
-    const errCode = responseRow.ErrCode;
-    if (errCode !== 1 && errCode !== 1.0) {
-      console.warn("[C2F] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
-      return;
-    }
-    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
-    itemGridRef.current.updateRow?.(rowId, updatedFields);
-  }, [fireCellEvent]);
+  }, []);
 
   // ── Select Item ────────────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
-    const headerValues    = headerValuesRef.current;
-    const missingFields   = getMissingItemPickerHeaderFields(headerValues);
+    const headerValues  = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
       alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
       return;
     }
 
-    const { DivisionID, LocationID, CWIPAccID, TranDate, PutToUseInstDate } = headerValues;
+    const { DivisionID, FixedAstAcID, TranDate } = headerValues;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -523,14 +447,13 @@ export default function CWIPToFAForm() {
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: C2F_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: C2F_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: DPC_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: DPC_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.Table?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
-      // Fetch RB columns + item rows in parallel
       const [colRes, rowRes] = await Promise.all([
         getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: rbRow.RBID,
@@ -538,29 +461,22 @@ export default function CWIPToFAForm() {
         }),
         getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: C2F_CONFIG.SP_ITEM_PICKER,
+          ObjName: DPC_CONFIG.SP_ITEM_PICKER,
           JSon: JSON.stringify([{
-            prmDivisionID:   Number(DivisionID  ?? 0),
-            prmLocationID:   Number(LocationID  ?? 0),
-            prmCWIPAcID:     Number(CWIPAccID   ?? 0),
-            prmYearID:       C2F_CONFIG.CONFIG_YEAR_ID,
-            prmLoginID:      DEFAULT_LOGIN_ID,
-            prmTranDate:     formatC2FTranDate(TranDate),
-            prmPutToUseDate: formatC2FTranDate(PutToUseInstDate),
-            prmConvTypeID:   C2F_CONFIG.CONV_TYPE_ID,
+            prmDivisionID:  Number(DivisionID  ?? 0),
+            prmFixedAstAcID: Number(FixedAstAcID ?? 0),
+            prmYearID:      DPC_CONFIG.CONFIG_YEAR_ID,
+            prmLoginID:     DEFAULT_LOGIN_ID,
+            prmTranDate:    TranDate ?? "",
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }),
       ]);
 
-      const rows = rowRes?.Table || [];
-
-      // Build columns from RB metadata; fall back to data-driven if RB has no columns
-      // (RB_AstCWIP2FADetSelO may not be fully configured yet) or its ColName values
-      // don't match the actual SP response field names.
+      const rows    = rowRes?.Table || [];
       const rbLinks = colRes?.Links || [];
-      const rbDataKeys = new Set(rbLinks.map((c) => c.ColName));
-      const dataKeys   = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const rbDataKeys  = new Set(rbLinks.map((c) => c.ColName));
+      const dataKeys    = rows.length > 0 ? Object.keys(rows[0]) : [];
       const rbMatchesData = rbLinks.length > 0 && dataKeys.some((k) => rbDataKeys.has(k));
 
       const cols = rbMatchesData
@@ -570,7 +486,7 @@ export default function CWIPToFAForm() {
       setItemModalColumns(cols);
       setItemModalItems(rows);
     } catch (err) {
-      console.error("[C2F] Item picker fetch failed:", err);
+      console.error("[DPC] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
@@ -600,8 +516,7 @@ export default function CWIPToFAForm() {
   // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const headerColsToValidate = headerColumns.filter((c) => c.IsVisible !== false);
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-
+    const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors  = validateGridRows(detailRows, columns);
 
@@ -625,24 +540,24 @@ export default function CWIPToFAForm() {
     });
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: "C2F", mst: mstRow, det: detRows }),
+      buildSaveJsonFields({ label: DPC_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
       { divisionId: hv.DivisionID, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const res    = await fetch(`${API_BASE_URL_IMS}${C2F_CONFIG.SAVE_ENDPOINT}`, {
+      const res    = await fetch(`${API_BASE_URL_IMS}${DPC_CONFIG.SAVE_ENDPOINT}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log("%c[C2F Save] Response:", "color:#22c55e;font-weight:700", result);
+      console.log("%c[DPC Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("CWIP To FA record saved successfully!");
+      alert("Assets Depreciation record saved successfully!");
       return true;
     } catch (err) {
-      console.error("[C2F Save] Failed:", err);
+      console.error("[DPC Save] Failed:", err);
       alert(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
@@ -659,23 +574,20 @@ export default function CWIPToFAForm() {
   const handleCancel = useCallback(() => {
     if (!window.confirm("Discard changes and reset the form?")) return;
 
-    localStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
+    localStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(DPC_CONFIG.STORAGE_ENTRY_META);
+    sessionStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
+    sessionStorage.removeItem(DPC_CONFIG.STORAGE_ENTRY_META);
 
-    clearLocations();
-    clearCWIPAccOptions();
-    clearCostCenterOptions();
+    clearAssetsAccOptions();
 
     headerValuesRef.current = {
-      TranNo: "", TranDate: todayISO, PutToUseInstDate: null,
-      DivisionID: 0, LocationID: 0, ConversionFactor: 0,
-      CWIPAccID: 0, CostCenterAccID: 0,
-      ConvTypeID: C2F_CONFIG.CONV_TYPE_ID, NetTotal: 0, Remark: "",
-      TranMstGenID: 0,
-      CompanyID: DEFAULT_COMPANY_ID, YearID: C2F_CONFIG.CONFIG_YEAR_ID,
-      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0, FuncCode: C2F_CONFIG.RB_MASTER,
+      TranCode: "", TranDate: todayISO,
+      DivisionID: 0, FixedAstAcID: 0,
+      TotalDepAmount: 0, Remarks: "",
+      FuncCode: DPC_CONFIG.RB_MASTER, TranMstGenID: 0,
+      CompanyID: DEFAULT_COMPANY_ID, YearID: DPC_CONFIG.CONFIG_YEAR_ID,
+      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0,
     };
 
     queuedRowsRef.current        = [];
@@ -693,22 +605,22 @@ export default function CWIPToFAForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearSaveError, exitEditMode, todayISO]);
+  }, [clearAssetsAccOptions, clearSaveError, exitEditMode, todayISO]);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy      = headerFetching;
 
   useEntryFormKeyboard({
-    blocked:       itemModalOpen,
+    blocked:      itemModalOpen,
     isEditMode,
     isSaving,
-    addDisabled:   filterBusy,
-    onAdd:         enterEditModeWithFocus,
-    onSave:        handleSave,
-    onSavePrint:   handleSaveAndPrint,
-    onCancel:      handleCancel,
-    onSelectList:  handleSelectListShortcut,
+    addDisabled:  filterBusy,
+    onAdd:        enterEditModeWithFocus,
+    onSave:       handleSave,
+    onSavePrint:  handleSaveAndPrint,
+    onCancel:     handleCancel,
+    onSelectList: handleSelectListShortcut,
   });
 
   const extraButtons = useMemo(() => [
@@ -728,7 +640,7 @@ export default function CWIPToFAForm() {
   const combinedError  = metaError || headerError;
 
   return (
-    <div className="workspace-page c2f-page">
+    <div className="workspace-page dpc-page">
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -740,10 +652,10 @@ export default function CWIPToFAForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="CWIP To FA Detail"
+            title="Assets Depreciation Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
-            cascadeResets={C2F_FILTER_CASCADE_RESETS}
+            cascadeResets={DPC_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
             isSearching={filterBusy || recordLoading}
             isMetaLoading={!headerMetaReady || recordLoading}
@@ -754,11 +666,11 @@ export default function CWIPToFAForm() {
         )}
       </section>
 
-      {/* ── Single-tab grid section ──────────────────────────────────────────── */}
-      <section className="c2f-grid-section">
+      {/* ── Item grid section ──────────────────────────────────────────────── */}
+      <section className="dpc-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {C2F_GRID_TABS.map((t) => (
+            {DPC_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -777,7 +689,7 @@ export default function CWIPToFAForm() {
               className="pv-tab-action-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
-              title="Pick CWIP items (Tab here after header fields)"
+              title="Pick depreciation items (Tab here after header fields)"
             >
               <Package size={12} strokeWidth={2.5} />
               Select Item
@@ -796,7 +708,7 @@ export default function CWIPToFAForm() {
           </div>
         </div>
 
-        <div className={`c2f-tab-pane${activeTab === "items" ? " c2f-tab-pane--active" : ""}`}>
+        <div className={`dpc-tab-pane${activeTab === "items" ? " dpc-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}

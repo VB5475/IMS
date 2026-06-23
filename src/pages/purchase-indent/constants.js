@@ -34,7 +34,7 @@ export const IND_CONFIG = {
   STORAGE_HEADER_META: "indHeaderMeta",
   STORAGE_ENTRY_META: "indEntryMeta",
 
-  SP_INDENT_LIST: "Fn_tbl_Pur_IndentMst_List",
+  SP_INDENT_LIST: "fn_tbl_RB_PurIndtMst_List",
   LIST_DIVISION_ID: 15,
 };
 

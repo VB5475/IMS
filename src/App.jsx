@@ -21,8 +21,10 @@ const PurchaseVoucherPage    = lazy(() => import("./pages/purchase-voucher/Purch
 const PurchaseVoucherForm    = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
 const GoodsReceivedNotePage  = lazy(() => import("./pages/goods-received-note/GoodsReceivedNotePage"));
 const GoodsReceivedNoteForm  = lazy(() => import("./pages/goods-received-note/GoodsReceivedNoteForm"));
-const CWIPToFAPage           = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
-const CWIPToFAForm           = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
+const CWIPToFAPage               = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
+const CWIPToFAForm               = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
+const AssetsDepreciationPage     = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
+const AssetsDepreciationForm     = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
 const MainGroupMasterPage    = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
 const LocationMasterPage     = lazy(() => import("./pages/location-master/LocationMasterPage"));
 const SubMainGroupMasterPage = lazy(() => import("./pages/sub-main-group-master/SubMainGroupMasterPage"));
@@ -86,6 +88,10 @@ function AppRoutes() {
           <Route path="cwip-to-fa/new" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id/edit" element={<CWIPToFAForm />} />
+          <Route path="assets-depreciation" element={<AssetsDepreciationPage />} />
+          <Route path="assets-depreciation/new" element={<AssetsDepreciationForm />} />
+          <Route path="assets-depreciation/:id" element={<AssetsDepreciationForm />} />
+          <Route path="assets-depreciation/:id/edit" element={<AssetsDepreciationForm />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master"                    element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master"    element={<SubMainGroupMasterPage />} />
