@@ -403,6 +403,11 @@ export default function PurchaseVoucherForm() {
       if (val && val !== "0") {
         await fetchPVTypes(val);
         await fetchCostCenters(val, headerValuesRef.current.TranDate);
+        requestAnimationFrame(() =>
+          filterPanelRef.current
+            ?.querySelector("#efq-ConfigID .search-select__trigger")
+            ?.focus()
+        );
       }
       return;
     }

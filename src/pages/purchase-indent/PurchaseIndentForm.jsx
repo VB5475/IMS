@@ -373,7 +373,15 @@ export default function PurchaseIndentForm() {
         headerValuesRef.current.ConfigID = 0;
         clearIndentTypes();
         itemGridRef.current?.clearRows?.();
-        if (val && val !== "0") await fetchIndentTypes(val);
+        if (val && val !== "0") {
+          await fetchIndentTypes(val);
+          // Options loaded — move focus to ConfigID (Indent Type) field
+          requestAnimationFrame(() =>
+            filterPanelRef.current
+              ?.querySelector("#efq-ConfigID .search-select__trigger")
+              ?.focus()
+          );
+        }
         return;
       }
 

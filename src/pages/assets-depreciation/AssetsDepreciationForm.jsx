@@ -404,6 +404,11 @@ export default function AssetsDepreciationForm() {
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await fetchAssetsAccByDivision(val);
+          requestAnimationFrame(() =>
+            filterPanelRef.current
+              ?.querySelector("#efq-FixedAstAcID .search-select__trigger")
+              ?.focus()
+          );
         }
       });
       return;

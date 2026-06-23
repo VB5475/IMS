@@ -520,7 +520,14 @@ export default function PurchaseOrderForm() {
         clearPoTypes();
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});
-        if (val && val !== "0") await fetchPoTypes(val);
+        if (val && val !== "0") {
+          await fetchPoTypes(val);
+          requestAnimationFrame(() =>
+            filterPanelRef.current
+              ?.querySelector("#efq-ConfigID .search-select__trigger")
+              ?.focus()
+          );
+        }
         return;
       }
 

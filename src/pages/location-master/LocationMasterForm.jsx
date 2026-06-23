@@ -146,6 +146,7 @@ export default function LocationMasterForm({
           onChange={(e) => handleChange(key, e.target.value)}
           placeholder={`Enter ${field.DisplayName || key}...`}
           readOnly={locked}
+          tabIndex={locked ? -1 : undefined}
           rows={2}
         />
       );
@@ -160,6 +161,7 @@ export default function LocationMasterForm({
         onChange={(e) => handleChange(key, e.target.value)}
         placeholder={`Enter ${field.DisplayName || key}...`}
         readOnly={locked}
+        tabIndex={locked ? -1 : undefined}
       />
     );
   }

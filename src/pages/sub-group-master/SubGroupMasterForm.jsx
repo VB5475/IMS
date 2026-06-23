@@ -137,6 +137,7 @@ export default function SubGroupMasterForm({
         onChange={(e) => handleChange(key, e.target.value)}
         placeholder={`Enter ${getLabel(field)}...`}
         readOnly={locked}
+        tabIndex={locked ? -1 : undefined}
       />
     );
   }

@@ -449,6 +449,11 @@ export default function CWIPToFAForm() {
             fetchCWIPAccByDivision(val),
             fetchCostCenters(val, headerValuesRef.current.TranDate),
           ]);
+          requestAnimationFrame(() =>
+            filterPanelRef.current
+              ?.querySelector("#efq-LocationID .search-select__trigger")
+              ?.focus()
+          );
         }
       });
       return;
