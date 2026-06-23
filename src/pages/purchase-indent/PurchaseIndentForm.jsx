@@ -34,7 +34,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -42,13 +42,11 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   IND_CONFIG,
-  IND_HEADER_FILTERS,
   IND_GRID_TABS,
   IND_FILTER_CASCADE_RESETS,
   formatIndentTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
-import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseIndentPage.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
@@ -319,39 +317,31 @@ export default function PurchaseIndentForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── syncedFilters — inject dynamic options ─────────────────────────
+  // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
+    DivisionID: divisionOptions,
+    ConfigID:   indentTypeOptions,
+    DeptID:     departmentOptions,
+    LocationID: locationOptions,
+  }), [divisionOptions, indentTypeOptions, departmentOptions, locationOptions]);
+
   const syncedFilters = useMemo(() => {
-    const injectOptions = (filter) => {
-      switch (filter.FilterParameterID) {
-        case "DivisionID":
-          return { ...filter, staticOptions: divisionOptions };
-        case "ConfigID":
-          return { ...filter, staticOptions: indentTypeOptions };
-        case "DeptID":
-          return { ...filter, staticOptions: departmentOptions };
-        case "LocationID":
-          return { ...filter, staticOptions: locationOptions };
-        default:
-          return filter;
-      }
-    };
-
-    if (headerColumns.length === 0) return IND_HEADER_FILTERS.map(injectOptions);
-
-    const apiColMap = buildHeaderColMap(headerColumns);
-
-    return IND_HEADER_FILTERS.map((filter) => {
-      const withOpts = injectOptions(filter);
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
-      if (!apiCol) return withOpts;
-      const lockOnEditMode = isLockOnEditModeCol(apiCol);
-      const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
-        ? controlTypeMap.LABEL
-        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
-      return def;
-    });
-  }, [headerColumns, divisionOptions, indentTypeOptions, departmentOptions, locationOptions]);
+    if (headerColumns.length === 0) return [];
+    return headerColumns
+      .filter((col) => col.IsVisible !== false)
+      .map((col) => {
+        const lockOnEditMode = isLockOnEditModeCol(col);
+        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.ColName];
+        const base = {
+          FilterParameterID: col.ColName,
+          FilterColName:     col.ColName,
+          FilterCaption:     col.DisplayName ?? col.ColName,
+          FilterColCtrlType: col.ColCtrlType ?? 0,
+          ...(staticOptions ? { staticOptions } : {}),
+        };
+        return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
+      });
+  }, [headerColumns, DROPDOWN_OPTIONS_BY_COL]);
 
   // ── filterFieldTones — per-field visual state ──────────────────────
   const filterFieldTones = useMemo(() => {
@@ -514,8 +504,7 @@ export default function PurchaseIndentForm() {
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
   const handleSave = useCallback(async () => {
-    const headerFieldNames = new Set(IND_HEADER_FILTERS.map((f) => f.FilterParameterID));
-    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+    const headerColsToValidate = headerColumns.filter((c) => c.IsVisible !== false);
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];

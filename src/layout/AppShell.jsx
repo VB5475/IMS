@@ -32,7 +32,16 @@ const NAV_SECTIONS = [
     items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
   },
   {
-    label: "Modules",
+    label: "Master",
+    items: [
+      { to: "/admin/main-group-master",                 icon: Tag,    label: "Main Group Master",      end: false },
+      { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master",  end: false },
+      { to: "/admin/master/item/sub-group-master",      icon: Package,label: "Sub Group Master",       end: false },
+      { to: "/admin/company/location-master",           icon: MapPin, label: "Location Master",        end: false },
+    ],
+  },
+  {
+    label: "Purchase",
     items: [
       { to: "/txn-entry", icon: FileSpreadsheet, label: "Invoices", end: false },
       { to: "/purchase-inquiry", icon: ClipboardList, label: "Purchase Inquiry", end: false },
@@ -50,15 +59,7 @@ const NAV_SECTIONS = [
       { to: "/assets-depreciation",   icon: TrendingDown, label: "Depreciation",          end: false },
     ],
   },
-  {
-    label: "Admin",
-    items: [
-      { to: "/admin/main-group-master",                 icon: Tag,    label: "Main Group Master",      end: false },
-      { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master",  end: false },
-      { to: "/admin/master/item/sub-group-master",      icon: Package,label: "Sub Group Master",       end: false },
-      { to: "/admin/company/location-master",           icon: MapPin, label: "Location Master",        end: false },
-    ],
-  },
+  
 ];
 
 export default function AppShell({ children }) {

@@ -2,7 +2,6 @@
 // All RB codes, SP names, IDs, and request defaults for the Indent module.
 // Values aligned to MRD_Template4Indent.docx (Richa, 08-Jun-2026).
 
-import { controlTypeMap } from "../../data/dummyData";
 import { PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
@@ -37,67 +36,6 @@ export const IND_CONFIG = {
   SP_INDENT_LIST: "fn_tbl_RB_PurIndtMst_List",
   LIST_DIVISION_ID: 15,
 };
-
-export const IND_HEADER_FILTERS = [
-  {
-    FilterParameterID: "TranCode",
-    FilterColName: "TranCode",
-    FilterCaption: "Indent No.",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "TranDate",
-    FilterColName: "TranDate",
-    FilterCaption: "Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "DivisionID",
-    FilterColName: "DivisionID",
-    FilterCaption: "Division",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "ConfigID",
-    FilterColName: "ConfigID",
-    FilterCaption: "Indent Type",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "ExpDate",
-    FilterColName: "ExpDate",
-    FilterCaption: "Expiry Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "DeptID",
-    FilterColName: "DeptID",
-    FilterCaption: "Department",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "LocationID",
-    FilterColName: "LocationID",
-    FilterCaption: "Location",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "Remarks",
-    FilterColName: "Remarks",
-    FilterCaption: "Remarks",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-  {
-    FilterParameterID: "IndentRefrenceNo",
-    FilterColName: "IndentRefrenceNo",
-    FilterCaption: "Reference No",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-];
 
 export const IND_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
