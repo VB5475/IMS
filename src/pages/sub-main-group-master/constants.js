@@ -1,4 +1,9 @@
 // Field definitions driven dynamically from GetDetailColData via useSubMainGroupMaster hook.
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const MODAL_TITLE_ADD = "New Sub Main Group";
+export const MODAL_TITLE_EDIT = "Edit Sub Main Group";
+export const MODAL_SUBTITLE  = "Admin › Master › Item › Sub Main Group Master";
+
 
 export const SMGM_CONFIG = {
   RB_MASTER:           "RB_SubMainGroupMst",

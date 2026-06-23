@@ -9,11 +9,12 @@
 //   filters       — array of filter definition objects (required)
 //                   Each: { FilterParameterID, FilterColName, FilterCaption,
 //                            FilterColCtrlType, staticOptions? }
-//   onAddNew      — () => void — called when "Add New" is clicked
+//   onAddNew      — () => void — called when "Entry Form" is clicked
 //   isAdding      — boolean — disables button while a row is being added
 //   onFilterChange — (colName, value) => void — live change notification
 
 import React, { useState, useCallback, useEffect } from "react";
+import { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 import { controlTypeMap } from "../../data/dummyData";
 import SearchSelect from "../ui/SearchSelect";
 import { Plus, Table2, ShoppingCart } from "lucide-react";
@@ -174,13 +175,13 @@ export default function TxnHeaderPanel({
             <span>{secondaryBtnLabel}</span>
           </button>
         )}
-        {/* Add New button */}
+        {/* Entry Form button */}
         <button
           className="tef-add-btn"
           onClick={handleAddNewClick}
           disabled={isAdding}
-          title="Add New"
-          aria-label="Add New"
+          title={ENTRY_FORM_LABEL}
+          aria-label={ENTRY_FORM_LABEL}
         >
           {isAdding ? (
             <>
@@ -190,7 +191,7 @@ export default function TxnHeaderPanel({
           ) : (
             <>
               <Plus size={14} strokeWidth={2.5} />
-              <span>Add New</span>
+              <span>{ENTRY_FORM_LABEL}</span>
             </>
           )}
         </button>

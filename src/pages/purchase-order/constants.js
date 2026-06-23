@@ -1,4 +1,8 @@
 // constants.js — Purchase Order page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Order";
+export const PAGE_TITLE_NEW = "New Purchase Order";
+
 // All RB codes, SP names, IDs, and request defaults for the PO module.
 // Values aligned to MRD_Template4PO.docx (Richa, 09-Jun-2026).
 

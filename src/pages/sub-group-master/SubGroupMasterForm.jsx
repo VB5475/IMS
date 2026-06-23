@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Package, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
-import { SGM_CONFIG } from "./constants";
+import { useNotification } from "../../context/NotificationContext";
+import { SGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
 // Fields locked during edit mode (per MRD lock-on-edit spec)
 const LOCK_ON_EDIT = new Set(["SubGroupCode", "SubGroupName"]);
@@ -52,6 +56,9 @@ export default function SubGroupMasterForm({
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
   const [saveError,       setSaveError]       = useState(null);
+  const notify = useNotification();
+  const [formErrors,    setFormErrors]    = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // Reset form each time modal opens
   useEffect(() => {
@@ -138,7 +145,7 @@ export default function SubGroupMasterForm({
   const handleSave = useCallback(async () => {
     const errors = validateApiColumns(formValues, visibleFields);
     if (errors.length > 0) {
-      alert(errors.join("\n"));
+      setFormErrors(errors);
       return;
     }
 
@@ -159,7 +166,9 @@ export default function SubGroupMasterForm({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Sub Group saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message);
       onSaved?.();
     } catch (err) {
       console.error("[SGM Save] Failed:", err);
@@ -169,17 +178,26 @@ export default function SubGroupMasterForm({
     }
   }, [visibleFields, formValues, isAddMode, onSaved]);
 
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose();
+    } else {
+      if (isAddMode) { onClose(); return; }
+      setIsEditMode(false);
+      setSaveError(null);
+    }
+  }, [discardAction, isAddMode, onClose]);
+
   const handleClose = useCallback(() => {
-    if (isEditMode && !window.confirm("Discard changes?")) return;
-    onClose();
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
   }, [isEditMode, onClose]);
 
   const handleCancelEdit = useCallback(() => {
-    if (!window.confirm("Discard changes?")) return;
-    if (isAddMode) { onClose(); return; }
-    setIsEditMode(false);
-    setSaveError(null);
-  }, [isAddMode, onClose]);
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
@@ -212,13 +230,19 @@ export default function SubGroupMasterForm({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isAddMode ? "New Sub Group" : "Edit Sub Group"}
-      subtitle="Admin › Master › Item › Sub Group Master"
+      title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
+      subtitle={MODAL_SUBTITLE}
       icon={<Package size={16} strokeWidth={2} />}
       size="md"
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -227,6 +251,7 @@ export default function SubGroupMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="sgm-form">
             {visibleFields.map((field) => (
               <div key={field.ColName} className="sgm-form-row">

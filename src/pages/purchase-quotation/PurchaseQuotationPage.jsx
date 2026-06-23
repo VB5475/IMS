@@ -7,7 +7,7 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { QTN_CONFIG, formatTranDate } from "./constants";
+import { QTN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseQuotationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -100,7 +100,7 @@ export default function PurchaseQuotationPage() {
           <div className="pq-list-panel__toolbar">
             <button type="button" className="pq-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="pq-list-page-size" className="pq-list-panel__pagesize-label">
               Rows per page
@@ -133,6 +133,7 @@ export default function PurchaseQuotationPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No purchase quotations found."
           hideHeader
+          searchable
           fill
         />
       </section>

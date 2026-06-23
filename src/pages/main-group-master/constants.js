@@ -1,5 +1,10 @@
 // Field definitions are driven dynamically from GetDetailColData via useMainGroupMaster hook.
 // No hardcoded field array needed here.
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const MODAL_TITLE_ADD = "New Main Group";
+export const MODAL_TITLE_EDIT = "Edit Main Group";
+export const MODAL_SUBTITLE  = "Admin › Master › Item › Main Group Master";
+
 
 export const MGM_CONFIG = {
   RB_MASTER:           "RB_PurMainGroupMst",

@@ -11,7 +11,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { PV_CONFIG } from "./constants";
+import { PV_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseVoucherPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -92,7 +92,7 @@ export default function PurchaseVoucherPage() {
           <div className="pv-list-panel__toolbar">
             <button type="button" className="pv-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="pv-list-page-size" className="pv-list-panel__pagesize-label">
               Rows per page
@@ -125,6 +125,7 @@ export default function PurchaseVoucherPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No purchase vouchers found."
           hideHeader
+          searchable
           fill
         />
       </section>

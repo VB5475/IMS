@@ -28,7 +28,7 @@ import {
 } from "../../utils/gridUtils";
 import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { TXN_CONFIG } from "./constants";
+import { TXN_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import "./TxnEntryPage.css";
 
@@ -384,7 +384,7 @@ export default function TxnEntryPage() {
 
   usePageHeader({
     title: "Sample Invoice",
-    subtitle: "Fill in the header fields, then click Add New to add line items.",
+    subtitle: "Fill in the header fields, then click Entry Form to add line items.",
     showBack: true,
     backTo: "/",
   });
@@ -416,7 +416,7 @@ export default function TxnEntryPage() {
             isSearching={isGridLoading}
             isMetaLoading={!headerMetaReady}
             disabled={!headerMetaReady || isGridLoading}
-            actionLabel="Add New"
+            actionLabel={ENTRY_FORM_LABEL}
             ActionIcon={Plus}
           />
         )}

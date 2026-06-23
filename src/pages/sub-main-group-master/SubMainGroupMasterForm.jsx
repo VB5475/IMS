@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Layers, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
-import { SMGM_CONFIG } from "./constants";
+import { useNotification } from "../../context/NotificationContext";
+import { SMGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
 // Fields locked during edit mode (per MRD lock-on-edit spec)
 const LOCK_ON_EDIT = new Set(["ItemTypeID", "SubMainGroupCode", "FixedAssetAccountID"]);
@@ -60,6 +64,9 @@ export default function SubMainGroupMasterForm({
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
   const [saveError,       setSaveError]       = useState(null);
+  const notify = useNotification();
+  const [formErrors,    setFormErrors]    = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // Reset form each time modal opens
   useEffect(() => {
@@ -191,7 +198,7 @@ export default function SubMainGroupMasterForm({
       ])
     );
     const errors = validateApiColumns(normalizedValues, visibleFields);
-    if (errors.length > 0) { alert(errors.join("\n")); return; }
+    if (errors.length > 0) { setFormErrors(errors); return; }
 
     setSaveError(null);
     setIsSaving(true);
@@ -210,7 +217,9 @@ export default function SubMainGroupMasterForm({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Sub Main Group saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message);
       onSaved?.();
     } catch (err) {
       console.error("[SMGM Save] Failed:", err);
@@ -220,17 +229,26 @@ export default function SubMainGroupMasterForm({
     }
   }, [visibleFields, formValues, isAddMode, onSaved]);
 
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose();
+    } else {
+      if (isAddMode) { onClose(); return; }
+      setIsEditMode(false);
+      setSaveError(null);
+    }
+  }, [discardAction, isAddMode, onClose]);
+
   const handleClose = useCallback(() => {
-    if (isEditMode && !window.confirm("Discard changes?")) return;
-    onClose();
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
   }, [isEditMode, onClose]);
 
   const handleCancelEdit = useCallback(() => {
-    if (!window.confirm("Discard changes?")) return;
-    if (isAddMode) { onClose(); return; }
-    setIsEditMode(false);
-    setSaveError(null);
-  }, [isAddMode, onClose]);
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
@@ -263,13 +281,19 @@ export default function SubMainGroupMasterForm({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isAddMode ? "New Sub Main Group" : "Edit Sub Main Group"}
-      subtitle="Admin › Master › Item › Sub Main Group Master"
+      title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
+      subtitle={MODAL_SUBTITLE}
       icon={<Layers size={16} strokeWidth={2} />}
       size="md"
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -278,6 +302,7 @@ export default function SubMainGroupMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="smgm-form">
             {visibleFields.map((field) => (
               <div key={field.ColName} className="smgm-form-row">

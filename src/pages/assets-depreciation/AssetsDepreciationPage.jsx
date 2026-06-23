@@ -9,7 +9,7 @@ import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { DPC_CONFIG } from "./constants";
+import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -37,6 +37,7 @@ function buildListParams() {
       PrmYearID:     DPC_CONFIG.CONFIG_YEAR_ID,
       PrmFromDate:   `01-Jan-${year}`,
       PrmToDate:     `31-Dec-${year}`,
+      PrmAccountID : 0,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
@@ -133,7 +134,7 @@ export default function AssetsDepreciationPage() {
           <div className="dpc-list-panel__toolbar">
             <button type="button" className="dpc-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="dpc-list-page-size" className="dpc-list-panel__pagesize-label">
               Rows per page
@@ -162,6 +163,7 @@ export default function AssetsDepreciationPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No Assets Depreciation records found."
           hideHeader
+          searchable
           fill
         />
       </section>

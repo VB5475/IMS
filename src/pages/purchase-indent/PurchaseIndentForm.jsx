@@ -20,6 +20,9 @@ import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
 import { useApi } from "../../api/useApi";
@@ -37,6 +40,7 @@ import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -44,6 +48,8 @@ import {
   IND_CONFIG,
   IND_GRID_TABS,
   IND_FILTER_CASCADE_RESETS,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   formatIndentTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -71,7 +77,7 @@ function mapHeaderValuesToFilterValues(headerValues) {
     TranDate: headerValues.TranDate ?? "",
     DivisionID: String(headerValues.DivisionID ?? ""),
     ConfigID: String(headerValues.ConfigID ?? ""),
-    ExpDate: headerValues.ExpDate ?? "",
+    ExpectedDate: headerValues.ExpectedDate ?? "",
     DeptID: String(headerValues.DeptID ?? ""),
     LocationID: String(headerValues.LocationID ?? ""),
     Remarks: headerValues.Remarks ?? "",
@@ -108,6 +114,8 @@ export default function PurchaseIndentForm() {
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -162,7 +170,7 @@ export default function PurchaseIndentForm() {
     TranDate: todayISO,
     DivisionID: 0,
     ConfigID: 0,
-    ExpDate: null,
+    ExpectedDate: null,
     DeptID: 0,
     LocationID: 0,
     Remarks: "",
@@ -220,7 +228,7 @@ export default function PurchaseIndentForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title: isNewRoute ? "New Purchase Indent" : "Purchase Indent",
+    title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then add items via the grid."
       : recordLoading
@@ -412,7 +420,7 @@ export default function PurchaseIndentForm() {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
     const { DivisionID, ConfigID, TranDate } = headerValues;
@@ -512,7 +520,7 @@ export default function PurchaseIndentForm() {
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
-      alert(allErrors.join("\n"));
+      setFormErrors(allErrors);
       return false;
     }
 
@@ -534,8 +542,6 @@ export default function PurchaseIndentForm() {
       return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
     });
 
-    console.log("Indt Mst:", mstRow);
-    console.log("Indt Det:", detRows);
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "Indent", mst: mstRow, det: detRows }),
       { divisionId: hv.DivisionID, isEdit: isEditRoute }
@@ -549,12 +555,13 @@ export default function PurchaseIndentForm() {
         body: JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log("%c[Indent Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Purchase Indent saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return false; }
+      notify.success(message);
     } catch (err) {
       console.error("[Indent Save] Failed:", err);
-      alert(err?.message || "Save failed. Please try again.");
+      notify.error(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSavingIndent(false);
     }
@@ -566,8 +573,10 @@ export default function PurchaseIndentForm() {
     window.print();
   }, [handleSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     localStorage.removeItem(IND_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(IND_CONFIG.STORAGE_ENTRY_META);
@@ -577,7 +586,7 @@ export default function PurchaseIndentForm() {
       TranDate: todayISO,
       DivisionID: 0,
       ConfigID: 0,
-      ExpDate: null,
+      ExpectedDate: null,
       DeptID: 0,
       LocationID: 0,
       Remarks: "",
@@ -609,6 +618,8 @@ export default function PurchaseIndentForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
   }, [clearIndentTypes, clearSaveError, exitEditMode, todayISO]);
+
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
@@ -662,6 +673,14 @@ export default function PurchaseIndentForm() {
 
   return (
     <div className="workspace-page ind-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -715,7 +734,7 @@ export default function PurchaseIndentForm() {
             <button
               ref={selectItemBtnRef}
               type="button"
-              className="ind-tab-action-btn"
+              className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
               title="Pick items from list (Tab here after header fields)"
@@ -726,7 +745,7 @@ export default function PurchaseIndentForm() {
 
             <button
               type="button"
-              className="ind-tab-delete-btn"
+              className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || itemSelectionCount === 0}
               title="Delete selected rows"
@@ -758,6 +777,7 @@ export default function PurchaseIndentForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={indExtraButtons}

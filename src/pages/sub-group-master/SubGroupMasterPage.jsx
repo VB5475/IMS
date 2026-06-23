@@ -6,7 +6,7 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useSubGroupMaster } from "../../hooks/useSubGroupMaster";
 import SubGroupMasterForm from "./SubGroupMasterForm";
-import { SGM_CONFIG } from "./constants";
+import { SGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -148,7 +148,7 @@ export default function SubGroupMasterPage() {
           </div>
           <div className="sgm-list-panel__toolbar">
             <button type="button" className="sgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
+              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="sgm-list-page-size" className="sgm-list-panel__pagesize-label">
               Rows per page
@@ -177,6 +177,7 @@ export default function SubGroupMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No sub groups found."
           hideHeader
+          searchable
           fill
         />
       </section>

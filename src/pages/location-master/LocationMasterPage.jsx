@@ -6,7 +6,7 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useLocationMaster } from "../../hooks/useLocationMaster";
 import LocationMasterForm from "./LocationMasterForm";
-import { LM_CONFIG } from "./constants";
+import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./LocationMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -134,7 +134,7 @@ export default function LocationMasterPage() {
           <div className="lm-list-panel__toolbar">
             <button type="button" className="lm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="lm-list-page-size" className="lm-list-panel__pagesize-label">
               Rows per page
@@ -163,6 +163,7 @@ export default function LocationMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No locations found."
           hideHeader
+          searchable
           fill
         />
       </section>

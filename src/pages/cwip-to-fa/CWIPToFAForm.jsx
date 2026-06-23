@@ -23,6 +23,9 @@ import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPane
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useCWIPToFA } from "../../hooks/useCWIPToFA";
 import { useApi } from "../../api/useApi";
@@ -44,6 +47,7 @@ import {
 } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -53,6 +57,8 @@ import {
   C2F_SUMMARY_FIELDS,
   C2F_GRID_TABS,
   C2F_FILTER_CASCADE_RESETS,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   formatC2FTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -158,6 +164,8 @@ export default function CWIPToFAForm() {
   const recordId    = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord  = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate    = useNavigate();
 
   const itemGridRef          = useRef(null);
@@ -262,7 +270,7 @@ export default function CWIPToFAForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title:    isNewRoute ? "New CWIP To FA" : "CWIP To FA",
+    title:    isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then add items via the grid."
       : recordLoading
@@ -415,31 +423,34 @@ export default function CWIPToFAForm() {
   }, [syncedFilters, isEditMode, isEditRoute]);
 
   // ── Filter change / cascade ────────────────────────────────────────────────
-  const confirmGridClear = useCallback((fieldLabel) => {
+  const requestGridClear = useCallback((fieldLabel, action) => {
     const rows = itemGridRef.current?.getRows?.() ?? [];
-    if (rows.length === 0) return true;
-    return window.confirm(`Changing ${fieldLabel} will clear all item rows. Continue?`);
+    if (rows.length === 0) { action(); return; }
+    pendingClearActionRef.current = action;
+    setClearRowsLabel(fieldLabel);
+    setClearRowsOpen(true);
   }, []);
 
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
     if (colName === "DivisionID") {
-      if (!confirmGridClear("Division")) return;
-      headerValuesRef.current.LocationID    = 0;
-      headerValuesRef.current.CWIPAccID     = 0;
-      headerValuesRef.current.CostCenterAccID = 0;
-      clearLocations();
-      clearCWIPAccOptions();
-      clearCostCenterOptions();
-      itemGridRef.current?.clearRows?.();
-      if (val && val !== "0") {
-        await Promise.all([
-          fetchLocations(val),
-          fetchCWIPAccByDivision(val),
-          fetchCostCenters(val, headerValuesRef.current.TranDate),
-        ]);
-      }
+      requestGridClear("Division", async () => {
+        headerValuesRef.current.LocationID      = 0;
+        headerValuesRef.current.CWIPAccID       = 0;
+        headerValuesRef.current.CostCenterAccID = 0;
+        clearLocations();
+        clearCWIPAccOptions();
+        clearCostCenterOptions();
+        itemGridRef.current?.clearRows?.();
+        if (val && val !== "0") {
+          await Promise.all([
+            fetchLocations(val),
+            fetchCWIPAccByDivision(val),
+            fetchCostCenters(val, headerValuesRef.current.TranDate),
+          ]);
+        }
+      });
       return;
     }
 
@@ -453,13 +464,14 @@ export default function CWIPToFAForm() {
     }
 
     if (colName === "LocationID") {
-      if (!confirmGridClear("Location")) return;
-      itemGridRef.current?.clearRows?.();
+      requestGridClear("Location", () => {
+        itemGridRef.current?.clearRows?.();
+      });
       return;
     }
 
   }, [
-    confirmGridClear,
+    requestGridClear,
     clearLocations, fetchLocations,
     clearCWIPAccOptions, fetchCWIPAccByDivision,
     clearCostCenterOptions, fetchCostCenters,
@@ -508,7 +520,7 @@ export default function CWIPToFAForm() {
     const headerValues    = headerValuesRef.current;
     const missingFields   = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
 
@@ -607,7 +619,7 @@ export default function CWIPToFAForm() {
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
-      alert(allErrors.join("\n"));
+      setFormErrors(allErrors);
       return false;
     }
 
@@ -637,13 +649,14 @@ export default function CWIPToFAForm() {
         body:    JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log("%c[C2F Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("CWIP To FA record saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return false; }
+      notify.success(message);
       return true;
     } catch (err) {
       console.error("[C2F Save] Failed:", err);
-      alert(err?.message || "Save failed. Please try again.");
+      notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
@@ -656,8 +669,13 @@ export default function CWIPToFAForm() {
     window.print();
   }, [handleSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen,   setDiscardOpen]   = useState(false);
+  const [clearRowsOpen, setClearRowsOpen] = useState(false);
+  const [clearRowsLabel, setClearRowsLabel] = useState("");
+  const pendingClearActionRef = useRef(null);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     localStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
@@ -695,6 +713,20 @@ export default function CWIPToFAForm() {
     exitEditMode();
   }, [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearSaveError, exitEditMode, todayISO]);
 
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
+
+  const handleClearRowsConfirm = useCallback(() => {
+    setClearRowsOpen(false);
+    const fn = pendingClearActionRef.current;
+    pendingClearActionRef.current = null;
+    fn?.();
+  }, []);
+
+  const handleClearRowsCancel = useCallback(() => {
+    setClearRowsOpen(false);
+    pendingClearActionRef.current = null;
+  }, []);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy      = headerFetching;
@@ -729,6 +761,23 @@ export default function CWIPToFAForm() {
 
   return (
     <div className="workspace-page c2f-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+      <ConfirmDialog
+        isOpen={clearRowsOpen}
+        type="warning"
+        message={`Changing ${clearRowsLabel} will clear all item rows. Proceed?`}
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
+        onConfirm={handleClearRowsConfirm}
+        onCancel={handleClearRowsCancel}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -774,7 +823,7 @@ export default function CWIPToFAForm() {
             <button
               ref={selectItemBtnRef}
               type="button"
-              className="pv-tab-action-btn"
+              className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
               title="Pick CWIP items (Tab here after header fields)"
@@ -785,7 +834,7 @@ export default function CWIPToFAForm() {
 
             <button
               type="button"
-              className="pv-tab-delete-btn"
+              className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || itemSelectionCount === 0}
               title="Delete selected rows"
@@ -824,6 +873,7 @@ export default function CWIPToFAForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={extraButtons}

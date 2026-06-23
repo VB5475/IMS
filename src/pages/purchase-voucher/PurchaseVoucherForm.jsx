@@ -23,6 +23,9 @@ import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { usePurchaseVoucher } from "../../hooks/usePurchaseVoucher";
@@ -41,6 +44,7 @@ import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -51,6 +55,8 @@ import {
   PV_FILTER_CASCADE_RESETS,
   PV_SUMMARY_FIELDS,
   PV_MULTI_PASTE_COLUMNS,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   formatPVTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -119,6 +125,8 @@ export default function PurchaseVoucherForm() {
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -228,7 +236,7 @@ export default function PurchaseVoucherForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title: isNewRoute ? "New Purchase Voucher" : "Purchase Voucher",
+    title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then add items via the grid."
       : recordLoading
@@ -486,7 +494,7 @@ export default function PurchaseVoucherForm() {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
     const { DivisionID, ConfigID, TranDate, BasedOnID, SupplierID } = headerValues;
@@ -587,7 +595,7 @@ export default function PurchaseVoucherForm() {
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
-      alert(allErrors.join("\n"));
+      setFormErrors(allErrors);
       return false;
     }
 
@@ -617,12 +625,13 @@ export default function PurchaseVoucherForm() {
         body: JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log("%c[PV Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Purchase Voucher saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return false; }
+      notify.success(message);
     } catch (err) {
       console.error("[PV Save] Failed:", err);
-      alert(err?.message || "Save failed. Please try again.");
+      notify.error(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSavingPV(false);
     }
@@ -634,8 +643,10 @@ export default function PurchaseVoucherForm() {
     window.print();
   }, [handleSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     localStorage.removeItem(PV_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(PV_CONFIG.STORAGE_ENTRY_META);
@@ -668,6 +679,8 @@ export default function PurchaseVoucherForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
   }, [clearPvTypes, clearSaveError, exitEditMode, todayISO]);
+
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
@@ -705,6 +718,14 @@ export default function PurchaseVoucherForm() {
 
   return (
     <div className="workspace-page pv-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -757,7 +778,7 @@ export default function PurchaseVoucherForm() {
             <button
               ref={selectItemBtnRef}
               type="button"
-              className="pv-tab-action-btn"
+              className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
               title="Pick items from list (Tab here after header fields)"
@@ -768,7 +789,7 @@ export default function PurchaseVoucherForm() {
 
             <button
               type="button"
-              className="pv-tab-delete-btn"
+              className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || itemSelectionCount === 0}
               title="Delete selected rows"
@@ -805,6 +826,7 @@ export default function PurchaseVoucherForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={pvExtraButtons}

@@ -22,6 +22,9 @@ import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-re
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import SearchSelect from "../../components/ui/SearchSelect";
@@ -41,6 +44,7 @@ import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -53,6 +57,8 @@ import {
   TERMS_COLUMNS,
   PO_FILTER_CASCADE_RESETS,
   PO_SUMMARY_FIELDS,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   formatTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -129,6 +135,8 @@ export default function PurchaseOrderForm() {
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -295,7 +303,7 @@ export default function PurchaseOrderForm() {
   const [childColumns, setChildColumns] = useState([]);
 
   usePageHeader({
-    title: isNewRoute ? "New Purchase Order" : "Purchase Order",
+    title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then use Item Grid or Terms tabs."
       : recordLoading
@@ -608,7 +616,7 @@ export default function PurchaseOrderForm() {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
     const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValues;
@@ -783,7 +791,7 @@ export default function PurchaseOrderForm() {
 
     const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
     if (allErrors.length > 0) {
-      alert(allErrors.join("\n"));
+      setFormErrors(allErrors);
       return false;
     }
 
@@ -792,24 +800,21 @@ export default function PurchaseOrderForm() {
       mstRow[col.ColName] = getColDefault(col.ColDataType);
     });
     Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") {
-        console.log(k)
-        console.log(`${mstRow[k]}=${v}`)
-        mstRow[k] = v
-      }
+      if (k !== "id") mstRow[k] = v;
     });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.LoginID = DEFAULT_LOGIN_ID;
+    const { loginId } = getUserSession();
+    mstRow.LoginID = loginId;
 
     const detRows = itemRows.map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => {
         row[key] = getColDefault(colDataType);
       });
-      return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, LoginID: loginId };
     });
 
-    const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, LoginID: DEFAULT_LOGIN_ID }));
+    const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, LoginID: loginId }));
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({
@@ -829,12 +834,13 @@ export default function PurchaseOrderForm() {
         body: JSON.stringify(payload),
       });
       const result = await res.json();
-      console.log("%c[PO Save] Response:", "color:#22c55e;font-weight:700", result);
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Purchase Order saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return false; }
+      notify.success(message);
     } catch (err) {
       console.error("[PO Save] Failed:", err);
-      alert(err?.message || "Save failed. Please try again.");
+      notify.error(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSavingPO(false);
     }
@@ -846,8 +852,10 @@ export default function PurchaseOrderForm() {
     window.print();
   }, [handleSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     localStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
@@ -908,6 +916,8 @@ export default function PurchaseOrderForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
   }, [clearPoTypes, clearSaveError, exitEditMode, todayISO]);
+
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   const handleDocument = useCallback(() => {
     console.log("[PO] Document F6 — reserved for document generation.");
@@ -973,6 +983,14 @@ export default function PurchaseOrderForm() {
 
   return (
     <div className="workspace-page po-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -1061,7 +1079,7 @@ export default function PurchaseOrderForm() {
               <button
                 ref={selectItemBtnRef}
                 type="button"
-                className="po-tab-action-btn"
+                className="eg-tab-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
                 title={FORM_SHORTCUT_TITLES.selectList}
@@ -1083,7 +1101,7 @@ export default function PurchaseOrderForm() {
             </div>
             <button
               type="button"
-              className="po-tab-delete-btn"
+              className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || activeSelectionCount === 0}
               title="Delete selected rows"
@@ -1100,7 +1118,7 @@ export default function PurchaseOrderForm() {
             config={itemGridConfig}
             title=""
             hideBottomPanel
-            emptyMessage="No items yet. Click Add New or Select Item above."
+            emptyMessage="No items yet. Click Entry Form or Select Item above."
             onSelectionChange={setItemSelectionCount}
             onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
@@ -1143,6 +1161,7 @@ export default function PurchaseOrderForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={poExtraButtons}

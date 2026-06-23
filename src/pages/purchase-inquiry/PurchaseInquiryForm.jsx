@@ -23,6 +23,9 @@ import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPane
 import EntryGrid from "../../components/grid/EntryGrid";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 import SupplierPickerModal from "../../components/purchase-inquiry/SupplierPickerModal";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
@@ -65,6 +68,8 @@ import {
   PI_FILTER_CASCADE_RESETS,
   PI_ITEM_PICKER_CONTEXT_FIELDS,
   SUPPLIER_GRID_CONFIG,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -141,6 +146,8 @@ export default function PurchaseInquiryForm() {
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -354,7 +361,7 @@ export default function PurchaseInquiryForm() {
   const [childColumns, setChildColumns] = useState([]);
 
   usePageHeader({
-    title: isNewRoute ? "New Purchase Inquiry" : "Purchase Inquiry",
+    title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then use Item Grid or Suppliers tabs."
       : `Inquiry #${recordId || routeId || "—"} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
@@ -604,7 +611,7 @@ export default function PurchaseInquiryForm() {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
 
@@ -762,7 +769,7 @@ export default function PurchaseInquiryForm() {
   const handleSelectSupplier = useCallback(async () => {
     const divisionID = headerValuesRef.current?.DivisionID ?? 0;
     if (!divisionID || divisionID === "0" || divisionID === 0) {
-      alert("Please select a Division before selecting suppliers.");
+      setFormErrors(["Please select a Division before selecting suppliers."]);
       return;
     }
     setSupplierModalOpen(true);
@@ -868,7 +875,7 @@ export default function PurchaseInquiryForm() {
 
       const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
       if (allErrors.length > 0) {
-        alert(allErrors.join("\n"));
+        setFormErrors(allErrors);
         return false;
       }
 
@@ -908,16 +915,15 @@ export default function PurchaseInquiryForm() {
       setIsSavingPI(true);
       try {
         const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
-        console.log("%c[PI Save] Response:", "color:#22c55e;font-weight:700", result);
         const { success, message } = parseApiErrMsg(result);
-        alert(message);
-        if (!success) return false;
+        if (!success) { setFormErrors([message]); return false; }
+        notify.success(message);
 
         if (!skipPostSave) completeSuccessfulSave();
         return true;
       } catch (err) {
         console.error("[PI Save] Failed:", err);
-        alert(err?.message || "Save failed. Please try again.");
+        notify.error(err?.message || "Save failed. Please try again.");
         return false;
       } finally {
         setIsSavingPI(false);
@@ -933,8 +939,10 @@ export default function PurchaseInquiryForm() {
     completeSuccessfulSave();
   }, [handleSave, completeSuccessfulSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     if (isEditRoute) {
       exitEditMode();
@@ -948,6 +956,8 @@ export default function PurchaseInquiryForm() {
 
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
+
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   const handleDocument = useCallback(() => {
     console.log("[PI] Document F6 — reserved for document generation.");
@@ -1022,6 +1032,14 @@ export default function PurchaseInquiryForm() {
 
   return (
     <div className="workspace-page pi-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -1075,7 +1093,7 @@ export default function PurchaseInquiryForm() {
               <button
                 ref={selectItemBtnRef}
                 type="button"
-                className="pi-tab-action-btn"
+                className="eg-tab-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
                 title={FORM_SHORTCUT_TITLES.selectList}
@@ -1088,7 +1106,7 @@ export default function PurchaseInquiryForm() {
             {activeTab === "suppliers" && (
               <button
                 type="button"
-                className="pi-tab-action-btn"
+                className="eg-tab-btn"
                 onClick={handleSelectSupplier}
                 disabled={!isEditMode}
                 title={FORM_SHORTCUT_TITLES.selectList}
@@ -1110,7 +1128,7 @@ export default function PurchaseInquiryForm() {
             </div>
             <button
               type="button"
-              className="pi-tab-delete-btn"
+              className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || activeSelectionCount === 0}
               title="Delete selected rows"
@@ -1189,6 +1207,7 @@ export default function PurchaseInquiryForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={piExtraButtons}

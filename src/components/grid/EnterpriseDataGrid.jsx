@@ -10,6 +10,7 @@ import React, { useState, useMemo, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import Loader from "../ui/Loader";
 import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
+import GridSearch from "./GridSearch";
 import "./EnterpriseDataGrid.css";
 
 const ACTION_COLUMN_KEYS = new Set(["_actions"]);
@@ -76,12 +77,16 @@ function EnterpriseDataGrid({
   emptyMessage = "No records found.",
   hideHeader = false,
   fill = false,
+  searchable = false,
 }) {
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilterCol, setActiveFilterCol] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
+  const [searchQuery, setSearchQuery] = useState("");
   const itemsPerPage = pageSizeProp ?? internalPageSize;
+
+  const handleSearchChange = useCallback((q) => { setSearchQuery(q); setCurrentPage(1); }, []);
 
   const displayColumns = useMemo(
     () => orderColumnsWithActionsFirst(columns),
@@ -138,15 +143,31 @@ function EnterpriseDataGrid({
     setCurrentPage(1);
   }, []);
 
-  /* ── Apply all column filters ─────────────────────────────────────── */
+  /* ── Global text search ───────────────────────────────────────────── */
+  const textSearchedData = useMemo(() => {
+    if (!searchable || !searchQuery.trim()) return data;
+    const q = searchQuery.toLowerCase().trim();
+    return data.filter((row) =>
+      displayColumns.some((col) => {
+        if (isActionColumn(col)) return false;
+        const raw = row[col.key];
+        const val = col.dropdownOptions
+          ? (col.dropdownOptions.find((o) => String(o.value) === String(raw))?.label ?? raw)
+          : raw;
+        return String(val ?? "").toLowerCase().includes(q);
+      })
+    );
+  }, [data, searchQuery, searchable, displayColumns]);
+
+  /* ── Apply all column filters (on top of text search) ────────────── */
   const filteredData = useMemo(() => {
-    let result = [...data];
+    let result = [...textSearchedData];
     Object.entries(columnFilters).forEach(([key, filterValue]) => {
       const col = displayColumns.find((c) => c.key === key);
       result = applyColumnFilterValue(result, key, filterValue, col);
     });
     return result;
-  }, [data, columnFilters, displayColumns]);
+  }, [textSearchedData, columnFilters, displayColumns]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
 
@@ -208,6 +229,18 @@ function EnterpriseDataGrid({
             </select>
             <label htmlFor="ng-pagesize-select">entries</label>
           </div>
+        </div>
+      )}
+
+      {/* ── search bar ── */}
+      {searchable && (
+        <div className="eg-search-bar">
+          <GridSearch
+            query={searchQuery}
+            onChange={handleSearchChange}
+            matchCount={filteredData.length}
+            totalCount={data.length}
+          />
         </div>
       )}
 

@@ -1,4 +1,8 @@
 // constants.js — Purchase Indent page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Indent";
+export const PAGE_TITLE_NEW = "New Purchase Indent";
+
 // All RB codes, SP names, IDs, and request defaults for the Indent module.
 // Values aligned to MRD_Template4Indent.docx (Richa, 08-Jun-2026).
 

@@ -1,4 +1,8 @@
 // constants.js — Purchase Voucher page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Voucher";
+export const PAGE_TITLE_NEW = "New Purchase Voucher";
+
 // All RB codes, SP names, IDs, and request defaults for the PV module.
 // Values aligned to MRD_Template4PV.docx (Richa, 10-Jun-2026).
 

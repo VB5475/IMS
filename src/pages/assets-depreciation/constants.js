@@ -1,4 +1,8 @@
 // constants.js — Assets Depreciation (DPC) page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Assets Depreciation";
+export const PAGE_TITLE_NEW = "New Assets Depreciation";
+
 // Values aligned to MRD_Template4Depriciation.docx (Richa, 16-Jun-2026).
 
 export const DPC_CONFIG = {

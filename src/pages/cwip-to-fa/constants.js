@@ -1,4 +1,8 @@
 // constants.js — CWIP To FA (C2F) page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "CWIP To FA";
+export const PAGE_TITLE_NEW = "New CWIP To FA";
+
 // All RB codes, SP names, IDs, and request defaults for the C2F module.
 // Values aligned to MRD_Template4CWIPToFA.docx (Richa, 16-Jun-2026).
 

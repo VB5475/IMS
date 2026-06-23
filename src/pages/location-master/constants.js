@@ -1,5 +1,10 @@
 // Field definitions are driven dynamically from GetDetailColData via useLocationMaster hook.
 // No hardcoded field array needed here.
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const MODAL_TITLE_ADD = "New Location";
+export const MODAL_TITLE_EDIT = "Edit Location";
+export const MODAL_SUBTITLE  = "Admin › Company › Location Master";
+
 
 export const LM_CONFIG = {
   RB_MASTER:           "RB_GenLocationMst",

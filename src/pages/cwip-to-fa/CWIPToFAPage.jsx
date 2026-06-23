@@ -9,7 +9,7 @@ import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { C2F_CONFIG } from "./constants";
+import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -132,7 +132,7 @@ export default function CWIPToFAPage() {
           <div className="c2f-list-panel__toolbar">
             <button type="button" className="c2f-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="c2f-list-page-size" className="c2f-list-panel__pagesize-label">
               Rows per page
@@ -161,6 +161,7 @@ export default function CWIPToFAPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No CWIP To FA records found."
           hideHeader
+          searchable
           fill
         />
       </section>

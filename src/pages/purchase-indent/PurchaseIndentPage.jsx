@@ -11,7 +11,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { IND_CONFIG } from "./constants";
+import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -93,7 +93,7 @@ export default function PurchaseIndentPage() {
           <div className="ind-list-panel__toolbar">
             <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">
               Rows per page
@@ -126,6 +126,7 @@ export default function PurchaseIndentPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No purchase indents found."
           hideHeader
+          searchable
           fill
         />
       </section>

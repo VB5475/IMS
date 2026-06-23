@@ -51,7 +51,7 @@ function mapMasterRowToHeaderValues(master, params) {
     TranDate: toDateInput(master.TranDate),
     DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
     ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    ExpDate: toDateInput(master.ExpDate ?? master.ExpectedDate) || null,
+    ExpectedDate: toDateInput(master.ExpectedDate ?? master.ExpDate) || null,
     DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
     LocationID: master.LocationID != null ? Number(master.LocationID) : 0,
     Remarks: master.Remarks ?? "",

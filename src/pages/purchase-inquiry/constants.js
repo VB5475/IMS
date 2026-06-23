@@ -1,4 +1,8 @@
 // constants.js — Purchase Inquiry page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Inquiry";
+export const PAGE_TITLE_NEW = "New Purchase Inquiry";
+
 // All RB codes, SP names, IDs, and request defaults used by this page in one place.
 
 import { controlTypeMap } from "../../data/dummyData";

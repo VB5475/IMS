@@ -7,7 +7,7 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { GRN_CONFIG, formatTranDate } from "./constants";
+import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -100,7 +100,7 @@ export default function GoodsReceivedNotePage() {
           <div className="grn-list-panel__toolbar">
             <button type="button" className="grn-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="grn-list-page-size" className="grn-list-panel__pagesize-label">
               Rows per page
@@ -133,6 +133,7 @@ export default function GoodsReceivedNotePage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No goods received notes found."
           hideHeader
+          searchable
           fill
         />
       </section>

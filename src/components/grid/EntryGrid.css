@@ -101,6 +101,65 @@
   padding: 4px 0;
 }
 
+/* ── Shared tab-bar action buttons (used by all forms) ──────────────── */
+.eg-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--primary, #1e4a7a);
+  background: rgba(30, 74, 122, 0.06);
+  border: 1px solid rgba(30, 74, 122, 0.25);
+  border-radius: var(--radius, 4px);
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.eg-tab-btn:hover:not(:disabled) {
+  background: rgba(30, 74, 122, 0.12);
+  border-color: var(--primary, #1e4a7a);
+}
+.eg-tab-btn:active:not(:disabled) {
+  background: rgba(30, 74, 122, 0.18);
+}
+.eg-tab-btn:focus-visible {
+  outline: 2px solid var(--primary-light, #d3e3ff);
+  outline-offset: 2px;
+}
+.eg-tab-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.eg-tab-btn--danger {
+  color: var(--n-error, #d93025);
+  background: rgba(217, 48, 37, 0.05);
+  border-color: rgba(217, 48, 37, 0.2);
+}
+.eg-tab-btn--danger:hover:not(:disabled) {
+  background: rgba(217, 48, 37, 0.1);
+  border-color: var(--n-error, #d93025);
+}
+.eg-tab-btn--danger:active:not(:disabled) {
+  background: rgba(217, 48, 37, 0.15);
+}
+
+/* ── Compact search-only toolbar (no title, no tabs) ───────────────── */
+.eg-search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border, #d8dee6);
+  background: var(--bg, #e8eef4);
+  flex-shrink: 0;
+}
+
 .grid-tab-content {
   flex: 1;
   min-height: 0;

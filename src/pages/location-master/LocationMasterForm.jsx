@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { MapPin, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
-import { LM_CONFIG } from "./constants";
+import { useNotification } from "../../context/NotificationContext";
+import { LM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
 // Fields locked during edit mode (per MRD lock-on-edit spec)
 const LOCK_ON_EDIT = new Set(["LocationType", "ParentIDNumber", "Loc_Code", "Location_Name"]);
@@ -51,6 +55,9 @@ export default function LocationMasterForm({
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
   const [saveError,       setSaveError]       = useState(null);
+  const notify = useNotification();
+  const [formErrors,    setFormErrors]    = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // Reset form each time modal opens
   useEffect(() => {
@@ -166,7 +173,7 @@ export default function LocationMasterForm({
       ])
     );
     const errors = validateApiColumns(normalizedValues, visibleFields);
-    if (errors.length > 0) { alert(errors.join("\n")); return; }
+    if (errors.length > 0) { setFormErrors(errors); return; }
 
     setSaveError(null);
     setIsSaving(true);
@@ -185,7 +192,9 @@ export default function LocationMasterForm({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
-      alert("Location saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message);
       onSaved?.();
     } catch (err) {
       console.error("[LM Save] Failed:", err);
@@ -195,17 +204,26 @@ export default function LocationMasterForm({
     }
   }, [visibleFields, formValues, isAddMode, onSaved]);
 
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose();
+    } else {
+      if (isAddMode) { onClose(); return; }
+      setIsEditMode(false);
+      setSaveError(null);
+    }
+  }, [discardAction, isAddMode, onClose]);
+
   const handleClose = useCallback(() => {
-    if (isEditMode && !window.confirm("Discard changes?")) return;
-    onClose();
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
   }, [isEditMode, onClose]);
 
   const handleCancelEdit = useCallback(() => {
-    if (!window.confirm("Discard changes?")) return;
-    if (isAddMode) { onClose(); return; }
-    setIsEditMode(false);
-    setSaveError(null);
-  }, [isAddMode, onClose]);
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
@@ -240,13 +258,19 @@ export default function LocationMasterForm({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isAddMode ? "New Location" : "Edit Location"}
-      subtitle="Admin › Company › Location Master"
+      title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
+      subtitle={MODAL_SUBTITLE}
       icon={<MapPin size={16} strokeWidth={2} />}
       size="md"
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -255,6 +279,7 @@ export default function LocationMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="lm-form">
             {visibleFields.map((field) => {
               const rows = [];
