@@ -5,6 +5,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
+import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import MainGroupMasterForm from "./MainGroupMasterForm";
 import { MGM_CONFIG } from "./constants";
 import "./MainGroupMasterPage.css";
@@ -31,33 +32,6 @@ function buildListParams() {
     p_ErrCode: -1,
     p_ErrMsg:  "",
   };
-}
-
-function buildMGMColumns(onEdit) {
-  return [
-    { key: "ItemTypeName",       label: "Item Type",       width: "18%", filterable: true, align: "left" },
-    { key: "MainGroupCode",      label: "Main Group Code", width: "18%", filterable: true, align: "left" },
-    { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
-    { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
-    { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
-    {
-      key: "_actions",
-      label: "Edit",
-      width: "8%",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="mgm-list__edit-btn"
-          title={`Edit ${row.MainGroupCode ?? ""}`}
-          aria-label={`Edit ${row.MainGroupCode ?? ""}`}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
-  ];
 }
 
 export default function MainGroupMasterPage() {
@@ -122,7 +96,32 @@ export default function MainGroupMasterPage() {
     fetchList();
   }, [fetchList]);
 
-  const columns = useMemo(() => buildMGMColumns(handleEdit), [handleEdit]);
+  const columns = useMemo(
+    () =>
+      buildListColumnsFromApi({
+        data,
+        fieldDefs,
+        onEdit: (row) => {
+          const id = resolveListRowId(row);
+          if (id != null) handleEdit(id);
+        },
+        renderEditCell: (row, onEdit) => (
+          <button
+            type="button"
+            className="mgm-list__edit-btn"
+            title={`Edit ${row.MainGroupCode ?? row.MainGroupName ?? ""}`}
+            aria-label={`Edit ${row.MainGroupCode ?? row.MainGroupName ?? ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(row);
+            }}
+          >
+            <Pencil size={13} strokeWidth={2} />
+          </button>
+        ),
+      }),
+    [data, fieldDefs, handleEdit]
+  );
 
   return (
     <div className="workspace-page mgm-list-page">

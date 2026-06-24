@@ -24,6 +24,12 @@ const GoodsReceivedNoteForm = lazy(() => import("./pages/goods-received-note/Goo
 const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
+const UserMasterPage = lazy(() => import("./pages/user-master/UserMasterPage"));
+const UserGroupPage = lazy(() => import("./pages/user-group/UserGroupPage"));
+const DivisionWiseRightsPage = lazy(() => import("./pages/division-wise-rights/DivisionWiseRightsPage"));
+const ItemMasterPage = lazy(() => import("./pages/item-master/ItemMasterPage"));
+const DepartmentMasterPage = lazy(() => import("./pages/department-master/DepartmentMasterPage"));
+const CompanyPage = lazy(() => import("./pages/company/CompanyPage"));
 
 function AppLayout() {
   return (
@@ -85,6 +91,12 @@ function AppRoutes() {
           <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id/edit" element={<CWIPToFAForm />} />
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
+          <Route path="admin/user-master" element={<UserMasterPage />} />
+          <Route path="admin/user-group" element={<UserGroupPage />} />
+          <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />
+          <Route path="admin/item-master" element={<ItemMasterPage />} />
+          <Route path="admin/department-master" element={<DepartmentMasterPage />} />
+          <Route path="admin/company" element={<CompanyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

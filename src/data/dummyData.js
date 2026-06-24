@@ -1,5 +1,6 @@
 // dummyData.js — Backend response simulation
-// Control Types: Label=0, TextBox=1, Date=2, Dropdown=4, Textarea=9
+// ColCtrlType / controlType codes from API metadata (GetDetailColData, GetFilters, etc.)
+// Label=0, TextBox=1, Date=2, Checkbox=3, Dropdown=4, Textarea=9, CheckboxAlt=11, Toggle=14
 
 export const controlTypeMap = {
   LABEL: 0,
@@ -8,15 +9,25 @@ export const controlTypeMap = {
   CHECKBOX: 3,
   DROPDOWN: 4,
   TEXTAREA: 9,
+  CHECKBOX_ALT: 11,
+  TOGGLE: 14,
 };
 
-// export const controlTypeName = {
-//   0: 'Label',
-//   1: 'TextBox',
-//   2: 'Date',
-//   4: 'Dropdown',
-//   9: 'Textarea'
-// };
+/** ColCtrlType 3 or 11 → checkbox input in master forms and grids. */
+export function isCheckboxColCtrlType(colCtrlType) {
+  const ctrl = Number(colCtrlType);
+  return ctrl === controlTypeMap.CHECKBOX || ctrl === controlTypeMap.CHECKBOX_ALT;
+}
+
+/** ColCtrlType 4 → SearchSelect dropdown. */
+export function isDropdownColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.DROPDOWN;
+}
+
+/** ColCtrlType 9 → multiline textarea. */
+export function isTextareaColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.TEXTAREA;
+}
 
 export const gridMeta = {
   title: "RB Marketing Action",

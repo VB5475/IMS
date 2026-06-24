@@ -613,14 +613,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         const handleMultiPaste =
           multiValuePasteSet?.has(col.key) && onMultiValuePaste
             ? (e) => {
-                const text = e.clipboardData?.getData("text") ?? "";
-                const tokens = parseSerialNumbers(text);
-                if (tokens.length < 2) return;
-                e.preventDefault();
-                const currentRow =
-                  rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
-                onMultiValuePaste(currentRow, col.key, tokens);
-              }
+              const text = e.clipboardData?.getData("text") ?? "";
+              const tokens = parseSerialNumbers(text);
+              if (tokens.length < 2) return;
+              e.preventDefault();
+              const currentRow =
+                rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
+              onMultiValuePaste(currentRow, col.key, tokens);
+            }
             : undefined;
 
         return (
@@ -754,288 +754,288 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     <div
       className={`erp-grid-container erp-grid-container--dense ${embedded ? "erp-grid-container--embedded" : "erp-grid-container--fill"} ${enableCollapsible ? "erp-grid-container--collapsible-parent" : ""} ${containerClassName} ${resizing ? "resizing" : ""}`.trim()}
     >
-        {tabs && tabs.length > 0 ? (
-          <div className="grid-tabbar">
-            <div className="grid-tabbar__tabs">
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                  onClick={() => onTabChange?.(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
+      {tabs && tabs.length > 0 ? (
+        <div className="grid-tabbar">
+          <div className="grid-tabbar__tabs">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
+                onClick={() => onTabChange?.(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {headerControls ? <div className="grid-tabbar__controls">{headerControls}</div> : null}
+        </div>
+      ) : title ? (
+        <div className="grid-header">
+          <h2 className="grid-title">{title}</h2>
+        </div>
+      ) : null}
+
+      {tabContentOverride ? (
+        <div className="grid-tab-content">{tabContentOverride}</div>
+      ) : (
+        <>
+          {selectedIds.size > 0 && (
+            <div className="selection-bar">
+              <span>{selectedIds.size} row(s) selected</span>
+              <button type="button" onClick={() => setSelectedIds(new Set())}>
+                Clear selection
+              </button>
             </div>
-            {headerControls ? <div className="grid-tabbar__controls">{headerControls}</div> : null}
-          </div>
-        ) : title ? (
-          <div className="grid-header">
-            <h2 className="grid-title">{title}</h2>
-          </div>
-        ) : null}
+          )}
 
-        {tabContentOverride ? (
-          <div className="grid-tab-content">{tabContentOverride}</div>
-        ) : (
-          <>
-            {selectedIds.size > 0 && (
-              <div className="selection-bar">
-                <span>{selectedIds.size} row(s) selected</span>
-                <button type="button" onClick={() => setSelectedIds(new Set())}>
-                  Clear selection
-                </button>
-              </div>
-            )}
-
-            <div
-              className={`table-wrapper ${scrollState.left ? "scrolled-left" : ""} ${scrollState.right ? "scrolled-right" : ""}`}
-              ref={tableWrapperRef}
-              onScroll={handleScroll}
-              onKeyDown={handleGridKeyDown}
-            >
-              <table className="erp-table">
-                <thead>
-                  <tr>
-                    {columns.map((col) => (
-                      <th
-                        key={col.id}
-                        className={`${cellClass(col) || ""} ${getHeaderThemeClass(col)}`}
-                        style={cellStyle(col, "header")}
-                      >
-                        {col.key === "cb" ? (
-                          <div className="header-cell-content" style={{ justifyContent: "center" }}>
-                            <input
-                              type="checkbox"
-                              className="row-checkbox"
-                              title="Select / deselect all visible rows"
-                              aria-label="Select all rows"
-                              checked={
-                                displayRows.length > 0 &&
-                                displayRows.every((r) => selectedIds.has(String(r.id)))
-                              }
-                              onChange={handleSelectAll}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        ) : (
-                          <div className="header-cell-content">
-                            <span
-                              className="header-label"
-                              onClick={() => handleSort(col.key)}
-                              style={{ cursor: "pointer" }}
-                            >
-                              <span className="field-caption">
-                                <span>{col.name}</span>
-                                {isColumnMandatory(col) && <RequiredFieldMark />}
-                              </span>
-                              {sortConfig.key === col.key && (
-                                <span className="sort-icon">
-                                  {sortConfig.direction === "asc" ? "▲" : "▼"}
-                                </span>
-                              )}
+          <div
+            className={`table-wrapper ${scrollState.left ? "scrolled-left" : ""} ${scrollState.right ? "scrolled-right" : ""}`}
+            ref={tableWrapperRef}
+            onScroll={handleScroll}
+            onKeyDown={handleGridKeyDown}
+          >
+            <table className="erp-table">
+              <thead>
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.id}
+                      className={`${cellClass(col) || ""} ${getHeaderThemeClass(col)}`}
+                      style={cellStyle(col, "header")}
+                    >
+                      {col.key === "cb" ? (
+                        <div className="header-cell-content" style={{ justifyContent: "center" }}>
+                          <input
+                            type="checkbox"
+                            className="row-checkbox"
+                            title="Select / deselect all visible rows"
+                            aria-label="Select all rows"
+                            checked={
+                              displayRows.length > 0 &&
+                              displayRows.every((r) => selectedIds.has(String(r.id)))
+                            }
+                            onChange={handleSelectAll}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      ) : (
+                        <div className="header-cell-content">
+                          <span
+                            className="header-label"
+                            onClick={() => handleSort(col.key)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <span className="field-caption">
+                              <span>{col.name}</span>
+                              {isColumnMandatory(col) && <RequiredFieldMark />}
                             </span>
-                          </div>
-                        )}
-                        <div
-                          className="resize-handle"
-                          onMouseDown={(e) => handleResizeStart(e, col.id)}
-                        />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
+                            {sortConfig.key === col.key && (
+                              <span className="sort-icon">
+                                {sortConfig.direction === "asc" ? "▲" : "▼"}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className="resize-handle"
+                        onMouseDown={(e) => handleResizeStart(e, col.id)}
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-                <tbody>
-                  {displayRows.map((row) => {
-                    const rowId = String(row.id);
-                    const hasChildren =
-                      enableCollapsible && childRowsMap && childRowsMap[rowId]?.length > 0;
-                    const isExpanded = hasChildren && expandedRows.has(rowId);
-                    return (
-                      <React.Fragment key={row.id}>
-                        <tr
-                          className={selectedIds.has(rowId) ? "selected" : ""}
-                          data-eg-row-id={rowId}
-                        >
-                          {columns.map((col) => (
-                            <td
-                              key={`${row.id}-${col.id}`}
-                              className={cellClass(col)}
-                              style={cellStyle(col, "body")}
-                              onMouseDown={(e) => focusCellControl(e, col)}
-                              onClick={() => {
-                                if (col.key === "cb") handleSelectRow(row.id);
-                              }}
-                            >
-                              <div className="cell-wrapper">
-                                {col.key === "cb" ? (
-                                  <div className="cell-checkbox">
-                                    {hasChildren && (
-                                      <button
-                                        type="button"
-                                        className="eg-expand-toggle"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleExpand(row.id);
-                                        }}
-                                        title={
-                                          isExpanded
-                                            ? "Collapse indent details"
-                                            : "Expand indent details"
-                                        }
-                                        aria-expanded={isExpanded}
-                                      >
-                                        {isExpanded ? (
-                                          <ChevronDown size={11} strokeWidth={2.5} />
-                                        ) : (
-                                          <ChevronRight size={11} strokeWidth={2.5} />
-                                        )}
-                                      </button>
-                                    )}
-                                    <input
-                                      type="checkbox"
-                                      className="row-checkbox"
-                                      checked={selectedIds.has(rowId)}
-                                      onChange={() => handleSelectRow(row.id)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      aria-label={`Select row ${row.id}`}
-                                    />
-                                  </div>
-                                ) : (
-                                  renderCell(row, col)
-                                )}
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-
-                        {isExpanded && (
-                          <tr className="eg-child-row">
-                            <td colSpan={columns.length} className="eg-child-cell">
-                              <Suspense fallback={gridChildLazyFallback}>
-                                <CollapsibleGrid
-                                  variant="inline"
-                                  columns={childColumns.filter((c) => c.key !== "cb")}
-                                  rows={childRowsMap[rowId]}
-                                  defaultExpanded
-                                  recordLabel="indent record"
-                                />
-                              </Suspense>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-
-                  {displayRows.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={columns.length}
-                        style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}
+              <tbody>
+                {displayRows.map((row) => {
+                  const rowId = String(row.id);
+                  const hasChildren =
+                    enableCollapsible && childRowsMap && childRowsMap[rowId]?.length > 0;
+                  const isExpanded = hasChildren && expandedRows.has(rowId);
+                  return (
+                    <React.Fragment key={row.id}>
+                      <tr
+                        className={selectedIds.has(rowId) ? "selected" : ""}
+                        data-eg-row-id={rowId}
                       >
-                        {emptyMessage ??
-                          (readOnly ? (
-                            "No data available."
-                          ) : (
-                            <>
-                              Click <strong>Add New</strong> in the header panel to add a row.
-                            </>
-                          ))}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        {columns.map((col) => (
+                          <td
+                            key={`${row.id}-${col.id}`}
+                            className={cellClass(col)}
+                            style={cellStyle(col, "body")}
+                            onMouseDown={(e) => focusCellControl(e, col)}
+                            onClick={() => {
+                              if (col.key === "cb") handleSelectRow(row.id);
+                            }}
+                          >
+                            <div className="cell-wrapper">
+                              {col.key === "cb" ? (
+                                <div className="cell-checkbox">
+                                  {hasChildren && (
+                                    <button
+                                      type="button"
+                                      className="eg-expand-toggle"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleExpand(row.id);
+                                      }}
+                                      title={
+                                        isExpanded
+                                          ? "Collapse indent details"
+                                          : "Expand indent details"
+                                      }
+                                      aria-expanded={isExpanded}
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronDown size={11} strokeWidth={2.5} />
+                                      ) : (
+                                        <ChevronRight size={11} strokeWidth={2.5} />
+                                      )}
+                                    </button>
+                                  )}
+                                  <input
+                                    type="checkbox"
+                                    className="row-checkbox"
+                                    checked={selectedIds.has(rowId)}
+                                    onChange={() => handleSelectRow(row.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    aria-label={`Select row ${row.id}`}
+                                  />
+                                </div>
+                              ) : (
+                                renderCell(row, col)
+                              )}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
 
-            {!hidePagination && (
-              <div className="pagination-bar">
-                <div className="pagination-left">
-                  Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> –{" "}
-                  <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of{" "}
-                  <strong>{processedRows.length}</strong> records
-                </div>
-                <div className="pagination-right">
-                  <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Rows:</span>
-                  <select
-                    className="page-size-select"
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                  >
-                    {pageSizeOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="page-btn"
-                    onClick={() => setPage(1)}
-                    disabled={safePage <= 1}
-                  >
-                    «
-                  </button>
-                  <button
-                    type="button"
-                    className="page-btn"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage <= 1}
-                  >
-                    ‹
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(
-                      (p) => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2)
-                    )
-                    .map((p, idx, arr) => (
-                      <React.Fragment key={p}>
-                        {idx > 0 && arr[idx - 1] !== p - 1 && (
-                          <span style={{ color: "var(--text-muted)", padding: "0 4px" }}>…</span>
-                        )}
-                        <button
-                          type="button"
-                          className={`page-btn ${p === safePage ? "active" : ""}`}
-                          onClick={() => setPage(p)}
-                        >
-                          {p}
-                        </button>
-                      </React.Fragment>
-                    ))}
-                  <button
-                    type="button"
-                    className="page-btn"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage >= totalPages}
-                  >
-                    ›
-                  </button>
-                  <button
-                    type="button"
-                    className="page-btn"
-                    onClick={() => setPage(totalPages)}
-                    disabled={safePage >= totalPages}
-                  >
-                    »
-                  </button>
-                </div>
+                      {isExpanded && (
+                        <tr className="eg-child-row">
+                          <td colSpan={columns.length} className="eg-child-cell">
+                            <Suspense fallback={gridChildLazyFallback}>
+                              <CollapsibleGrid
+                                variant="inline"
+                                columns={childColumns.filter((c) => c.key !== "cb")}
+                                rows={childRowsMap[rowId]}
+                                defaultExpanded
+                                recordLabel="indent record"
+                              />
+                            </Suspense>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
+                {displayRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}
+                    >
+                      {emptyMessage ??
+                        (readOnly ? (
+                          "No data available."
+                        ) : (
+                          <>
+                            Click <strong>Add New</strong> in the header panel to add a row.
+                          </>
+                        ))}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {!hidePagination && (
+            <div className="pagination-bar">
+              <div className="pagination-left">
+                Showing <strong>{processedRows.length > 0 ? startIdx + 1 : 0}</strong> –{" "}
+                <strong>{Math.min(startIdx + pageSize, processedRows.length)}</strong> of{" "}
+                <strong>{processedRows.length}</strong> records
               </div>
-            )}
+              <div className="pagination-right">
+                <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Rows:</span>
+                <select
+                  className="page-size-select"
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                >
+                  {pageSizeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage(1)}
+                  disabled={safePage <= 1}
+                >
+                  «
+                </button>
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(
+                    (p) => p === 1 || p === totalPages || (p >= safePage - 2 && p <= safePage + 2)
+                  )
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span style={{ color: "var(--text-muted)", padding: "0 4px" }}>…</span>
+                      )}
+                      <button
+                        type="button"
+                        className={`page-btn ${p === safePage ? "active" : ""}`}
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                >
+                  ›
+                </button>
+                <button
+                  type="button"
+                  className="page-btn"
+                  onClick={() => setPage(totalPages)}
+                  disabled={safePage >= totalPages}
+                >
+                  »
+                </button>
+              </div>
+            </div>
+          )}
 
-            {/* Bottom toolbar — hidden in readOnly / embedded mode */}
-            {!readOnly && !hideBottomPanel && (
-              <TxnEntryBottomPanel
-                selectedCount={selectedIds.size}
-                onExportExcel={handleExport}
-                onCopy={handleCopy}
-                onSave={handleSave}
-              />
-            )}
-          </>
-        )}
+          {/* Bottom toolbar — hidden in readOnly / embedded mode */}
+          {!readOnly && !hideBottomPanel && (
+            <TxnEntryBottomPanel
+              selectedCount={selectedIds.size}
+              onExportExcel={handleExport}
+              onCopy={handleCopy}
+              onSave={handleSave}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 });

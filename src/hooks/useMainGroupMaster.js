@@ -16,7 +16,12 @@ function mapMasterRowToHeaderValues(master, params) {
     MainGroupCode:            master.MainGroupCode             ?? "",
     MainGroupName:            master.MainGroupName             ?? "",
     MainGroupShortName:       master.MainGroupShortName        ?? "",
-    UsedCodeInCodeGeneration: Boolean(master.UsedCodeInCodeGeneration),
+    UsedCodeInCodeGeneration:
+      master.UsedCodeInCodeGeneration === true ||
+      master.UsedCodeInCodeGeneration === 1 ||
+      master.UsedCodeInCodeGeneration === "1"
+        ? 1
+        : 0,
     MainGroupShortCode:       master.MainGroupShortCode        ?? "",
     FixedAssetAccountID:      master.FixedAssetAccountID != null ? Number(master.FixedAssetAccountID) : 0,
     CompanyID:                Number(params.companyId)  || DEFAULT_COMPANY_ID,

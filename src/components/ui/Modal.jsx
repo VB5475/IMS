@@ -35,6 +35,7 @@ export default function Modal({
   size = "lg",
   headerless = false,
   variant = "default",
+  dialogClassName = "",
   footer = null,
   children,
 }) {
@@ -79,7 +80,7 @@ export default function Modal({
       aria-label={title || "Modal dialog"}
     >
       <div
-        className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""}`}
+        className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""} ${dialogClassName}`.trim()}
       >
         {/* Header — hidden when headerless */}
         {!headerless && (
