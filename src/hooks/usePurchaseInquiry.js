@@ -43,7 +43,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -53,20 +53,13 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    ExpectedDate: toDateInput(master.ExpectedDate) || null,
-    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
-    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
-    Remarks: master.Remarks ?? "",
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(params.yearId) || PI_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID: getUserSession().userId,
+    ...master,
+    trandate:     toDateInput(master.trandate),
+    expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
+    yearid:    PI_CONFIG.CONFIG_YEAR_ID,
+    funccode:  PI_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
@@ -353,13 +346,13 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       if (!headerColumns.length) return;
 
       const needsDivision = headerColumns.some(
-        (c) => c.ColName === "DivisionID" && !isLockOnEditModeCol(c)
+        (c) => c.ColName === "divisionid" && !isLockOnEditModeCol(c)
       );
       const needsDept = headerColumns.some(
-        (c) => c.ColName === "DeptID" && !isLockOnEditModeCol(c)
+        (c) => c.ColName === "deptid" && !isLockOnEditModeCol(c)
       );
       const needsConfig = headerColumns.some(
-        (c) => c.ColName === "ConfigID" && !isLockOnEditModeCol(c)
+        (c) => c.ColName === "configid" && !isLockOnEditModeCol(c)
       );
 
       const tasks = [];
@@ -482,13 +475,12 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       ]);
 
       const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
       const details = mapDetailRowsToGridRows(detRes?.Links || []);
       const indentDetails = indtRes?.Links || [];
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
         childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
@@ -570,7 +562,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
               p_ErrMsg: "",
             },
           }),
-          { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
+          { divisionId: headerValues.divisionid, isEdit: genIDNumber > 0 }
         );
 
         const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);
