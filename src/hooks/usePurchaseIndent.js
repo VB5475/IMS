@@ -37,7 +37,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -47,24 +47,15 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    ExpectedDate: toDateInput(master.ExpectedDate ?? master.ExpDate) || null,
-    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
-    LocationID: master.LocationID != null ? Number(master.LocationID) : 0,
-    Remarks: master.Remarks ?? "",
-    IndentRefrenceNo: master.IndentRefrenceNo ?? "",
-    TranMstGenID: master.TranMstGenID != null ? Number(master.TranMstGenID) : 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(master.Year_ID ?? params.yearId) || IND_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? master.IndentID ?? params.idNumber) || 0,
-    UserID: getUserSession().userId,
-    CompUniqueKey: master.CompUniqueKey ?? master.IDNumber ?? master.IndentID ?? params.idNumber ?? 0,
-    FuncCode: master.FuncCode ?? IND_CONFIG.RB_MASTER,
+    ...master,
+    // Date fields need normalisation from ISO → date-input format
+    trandate:     toDateInput(master.trandate),
+    expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
+    // Context fields: always use live values, not stale DB values
+    yearid:    IND_CONFIG.CONFIG_YEAR_ID,
+    funccode:  IND_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
@@ -440,7 +431,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         }
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-        const isEdit = Number(headerValues.TranMstGenID) > 0 || Number(headerValues.IDNumber) > 0;
+        const isEdit = Number(headerValues.tranmstgenid) > 0 || Number(headerValues.idnumber) > 0;
         const body = await withSaveContextFields(
           buildSaveJsonFields({
             label: "Indent Hook",
@@ -455,7 +446,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
               p_ErrMsg: "",
             },
           }),
-          { divisionId: headerValues.DivisionID, isEdit }
+          { divisionId: headerValues.divisionid, isEdit }
         );
 
         const result = await axios.post(`${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`, body, {
@@ -478,19 +469,19 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   // ── seedOptionsFromMaster — seed single-item options from master fill response ──
   // API returns display names as: DivisionName, ConfigName, Department (not DeptName), Location (not LocationName)
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.ConfigID != null && master.ConfigName) {
-      setIndentTypeOptions([{ value: String(master.ConfigID), label: master.ConfigName }]);
+    if (master.configid != null && master.configname) {
+      setIndentTypeOptions([{ value: String(master.configid), label: master.configname }]);
     }
-    const deptLabel = master.DeptName ?? master.Department;
-    if (master.DeptID != null && master.DeptID !== 0 && deptLabel) {
-      setDepartmentOptions([{ value: String(master.DeptID), label: deptLabel }]);
+    const deptLabel = master.deptname ?? master.department;
+    if (master.deptid != null && master.deptid !== 0 && deptLabel) {
+      setDepartmentOptions([{ value: String(master.deptid), label: deptLabel }]);
     }
-    const locLabel = master.LocationName ?? master.Location;
-    if (master.LocationID != null && master.LocationID !== 0 && locLabel) {
-      setLocationOptions([{ value: String(master.LocationID), label: locLabel }]);
+    const locLabel = master.locationname ?? master.location;
+    if (master.locationid != null && master.locationid !== 0 && locLabel) {
+      setLocationOptions([{ value: String(master.locationid), label: locLabel }]);
     }
   }, []);
 
@@ -501,10 +492,10 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
 
       const isEditable = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
 
-      const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID" && isEditable(c));
-      const needsConfig = headerColumns.some((c) => c.ColName === "ConfigID" && isEditable(c));
-      const needsDept = headerColumns.some((c) => c.ColName === "DeptID" && isEditable(c));
-      const needsLocation = headerColumns.some((c) => c.ColName === "LocationID" && isEditable(c));
+      const needsDivision = headerColumns.some((c) => c.ColName === "divisionid" && isEditable(c));
+      const needsConfig   = headerColumns.some((c) => c.ColName === "configid"   && isEditable(c));
+      const needsDept     = headerColumns.some((c) => c.ColName === "deptid"     && isEditable(c));
+      const needsLocation = headerColumns.some((c) => c.ColName === "locationid" && isEditable(c));
 
       const tasks = [];
 
@@ -560,11 +551,10 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       ]);
 
       const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details: mapDetailRowsToGridRows(detRes?.Links || []),
       };
     },

@@ -73,15 +73,15 @@ function resolveEditLoadParams(recordId, listRecord) {
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode: headerValues.TranCode ?? "",
-    TranDate: headerValues.TranDate ?? "",
-    DivisionID: String(headerValues.DivisionID ?? ""),
-    ConfigID: String(headerValues.ConfigID ?? ""),
-    ExpectedDate: headerValues.ExpectedDate ?? "",
-    DeptID: String(headerValues.DeptID ?? ""),
-    LocationID: String(headerValues.LocationID ?? ""),
-    Remarks: headerValues.Remarks ?? "",
-    IndentRefrenceNo: headerValues.IndentRefrenceNo ?? "",
+    trancode:         headerValues.trancode         ?? "",
+    trandate:         headerValues.trandate         ?? "",
+    divisionid:       String(headerValues.divisionid       ?? ""),
+    configid:         String(headerValues.configid         ?? ""),
+    expecteddate:     headerValues.expecteddate     ?? "",
+    deptid:           String(headerValues.deptid           ?? ""),
+    locationid:       String(headerValues.locationid       ?? ""),
+    remarks:          headerValues.remarks          ?? "",
+    indentrefrenceno: headerValues.indentrefrenceno ?? "",
   };
 }
 
@@ -100,7 +100,8 @@ function mapPickerToItemRow(item, allColumns) {
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    const lk = k.toLowerCase();
+    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -166,26 +167,26 @@ export default function PurchaseIndentForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode: "",
-    TranDate: todayISO,
-    DivisionID: 0,
-    ConfigID: 0,
-    ExpectedDate: null,
-    DeptID: 0,
-    LocationID: 0,
-    Remarks: "",
-    IndentRefrenceNo: "",
-    TranMstGenID: 0,
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: IND_CONFIG.DIVISION_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    IDNumber: recordId,
-    FuncCode: IND_CONFIG.RB_MASTER,
+    trancode:         "",
+    trandate:         todayISO,
+    divisionid:       0,
+    configid:         0,
+    expecteddate:     null,
+    deptid:           0,
+    locationid:       0,
+    remarks:          "",
+    indentrefrenceno: "",
+    tranmstgenid:     0,
+    companyid:        DEFAULT_COMPANY_ID,
+    yearid:           IND_CONFIG.DIVISION_YEAR_ID,
+    loginid:          DEFAULT_LOGIN_ID,
+    idnumber:         recordId,
+    funccode:         IND_CONFIG.RB_MASTER,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { TranDate: todayISO };
+    return { trandate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
@@ -249,7 +250,7 @@ export default function PurchaseIndentForm() {
   // Phase 3 (new route only): pre-load grid columns after detail meta loads
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -286,7 +287,7 @@ export default function PurchaseIndentForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
+      const activeCols = await fetchGridColumns(headerValues.divisionid ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
@@ -311,7 +312,7 @@ export default function PurchaseIndentForm() {
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
-    const divisionId = headerValuesRef.current?.DivisionID ?? loadedMasterRow?.DivisionID ?? 0;
+    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
     fetchUnlockedHeaderDropdowns(divisionId);
     fetchGridColumns(divisionId, {
       existingRecordEdit: true,
@@ -327,10 +328,10 @@ export default function PurchaseIndentForm() {
 
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    DivisionID: divisionOptions,
-    ConfigID:   indentTypeOptions,
-    DeptID:     departmentOptions,
-    LocationID: locationOptions,
+    divisionid: divisionOptions,
+    configid:   indentTypeOptions,
+    deptid:     departmentOptions,
+    locationid: locationOptions,
   }), [divisionOptions, indentTypeOptions, departmentOptions, locationOptions]);
 
   const syncedFilters = useMemo(() => {
@@ -369,23 +370,22 @@ export default function PurchaseIndentForm() {
     async (colName, val) => {
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-      if (colName === "DivisionID") {
-        headerValuesRef.current.ConfigID = 0;
+      if (colName === "divisionid") {
+        headerValuesRef.current.configid = 0;
         clearIndentTypes();
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await fetchIndentTypes(val);
-          // Options loaded — move focus to ConfigID (Indent Type) field
           requestAnimationFrame(() =>
             filterPanelRef.current
-              ?.querySelector("#efq-ConfigID .search-select__trigger")
+              ?.querySelector("#efq-configid .search-select__trigger")
               ?.focus()
           );
         }
         return;
       }
 
-      if (colName === "ConfigID") {
+      if (colName === "configid") {
         itemGridRef.current?.clearRows?.();
       }
     },
@@ -397,7 +397,7 @@ export default function PurchaseIndentForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0);
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -431,8 +431,8 @@ export default function PurchaseIndentForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { DivisionID, ConfigID, TranDate } = headerValues;
-    const divisionID = DivisionID ?? 0;
+    const { divisionid, configid, trandate } = headerValues;
+    const divisionID = divisionid ?? 0;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -470,8 +470,8 @@ export default function PurchaseIndentForm() {
             prmDivisionID: Number(divisionID),
             prmYearID: IND_CONFIG.CONFIG_YEAR_ID,
             prmLoginID: DEFAULT_LOGIN_ID,
-            prmTranDate: formatIndentTranDate(TranDate),
-            prmConfigID: Number(ConfigID ?? 0),
+            prmTranDate: formatIndentTranDate(trandate),
+            prmConfigID: Number(configid ?? 0),
             prmSupplierId: 0,
             prmTranBook: IND_CONFIG.TRAN_BOOK,
             prmFrmOption: 0,
@@ -540,19 +540,19 @@ export default function PurchaseIndentForm() {
     Object.entries(hv).forEach(([k, v]) => {
       if (k !== "id") mstRow[k] = v;
     });
-    mstRow.LoginID = DEFAULT_LOGIN_ID;
+    mstRow.loginid = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => {
         row[key] = getColDefault(colDataType);
       });
-      return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
     });
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "Indent", mst: mstRow, det: detRows }),
-      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSavingIndent(true);
@@ -590,21 +590,21 @@ export default function PurchaseIndentForm() {
     localStorage.removeItem(IND_CONFIG.STORAGE_ENTRY_META);
 
     headerValuesRef.current = {
-      TranCode: "",
-      TranDate: todayISO,
-      DivisionID: 0,
-      ConfigID: 0,
-      ExpectedDate: null,
-      DeptID: 0,
-      LocationID: 0,
-      Remarks: "",
-      IndentRefrenceNo: "",
-      TranMstGenID: 0,
-      CompanyID: DEFAULT_COMPANY_ID,
-      YearID: IND_CONFIG.DIVISION_YEAR_ID,
-      LoginID: DEFAULT_LOGIN_ID,
-      IDNumber: 0,
-      FuncCode: IND_CONFIG.RB_MASTER,
+      trancode:         "",
+      trandate:         todayISO,
+      divisionid:       0,
+      configid:         0,
+      expecteddate:     null,
+      deptid:           0,
+      locationid:       0,
+      remarks:          "",
+      indentrefrenceno: "",
+      tranmstgenid:     0,
+      companyid:        DEFAULT_COMPANY_ID,
+      yearid:           IND_CONFIG.DIVISION_YEAR_ID,
+      loginid:          DEFAULT_LOGIN_ID,
+      idnumber:         0,
+      funccode:         IND_CONFIG.RB_MASTER,
     };
 
     queuedRowsRef.current = [];

@@ -44,7 +44,7 @@ export const IND_CONFIG = {
 export const IND_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 export const IND_FILTER_CASCADE_RESETS = {
-  DivisionID: ["ConfigID"],
+  divisionid: ["configid"],
 };
 
 export const IND_SHORTCUT_CONFIG = {
@@ -67,9 +67,9 @@ export const IND_SHORTCUT_CONFIG = {
 
 /** Header fields required before Select Item can be opened */
 export const IND_ITEM_PICKER_JSON_FIELDS = [
-  { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate", label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID", label: "Indent Type" },
+  { headerKey: "divisionid", label: "Division" },
+  { headerKey: "trandate",   label: "Tran Date", isDate: true },
+  { headerKey: "configid",   label: "Indent Type" },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues) {

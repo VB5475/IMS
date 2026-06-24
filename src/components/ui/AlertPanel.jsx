@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { XCircle, AlertTriangle, Info, CheckCircle2, X } from "lucide-react";
 import "./AlertPanel.css";
 
@@ -10,6 +10,12 @@ const VARIANTS = {
 };
 
 export default function AlertPanel({ type = "error", title, errors = [], onDismiss }) {
+  useEffect(() => {
+    if (!errors || errors.length === 0 || !onDismiss) return;
+    const t = setTimeout(onDismiss, 10000);
+    return () => clearTimeout(t);
+  }, [errors, onDismiss]);
+
   if (!errors || errors.length === 0) return null;
 
   const { Icon, summaryPrefix } = VARIANTS[type] ?? VARIANTS.error;
