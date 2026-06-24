@@ -13,6 +13,7 @@ import {
   MapPin,
   Package,
   TrendingDown,
+  Package2,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -57,6 +58,7 @@ const NAV_SECTIONS = [
     items: [
       { to: "/cwip-to-fa",            icon: Layers,       label: "CWIP To FA",           end: false },
       { to: "/assets-depreciation",   icon: TrendingDown, label: "Depreciation",          end: false },
+      { to: "/assets-item-opening",   icon: Package2,     label: "Assets Item Opening",   end: false },
     ],
   },
   
