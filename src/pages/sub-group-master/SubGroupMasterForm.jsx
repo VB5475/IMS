@@ -17,11 +17,11 @@ import { SGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from ".
 const LOCK_ON_EDIT = new Set(["SubGroupCode", "SubGroupName"]);
 
 // Fields that render as checkbox despite API returning ColCtrlType 1 (textbox)
-const CHECKBOX_OVERRIDES = new Set(["UsedInAutoItemCodeGeneration"]);
+const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration"]);
 
 // Corrected display labels
 const DISPLAY_OVERRIDES = {
-  UsedInAutoItemCodeGeneration: "Used in Auto Item Code Gen.",
+  usedinautoitemcodegeneration: "Used in Auto Item Code Gen.",
   SubGroupShortCode:            "Sub Group Short Code",
   SubGroupShortName:            "Sub Group Short Name",
 };
@@ -34,7 +34,7 @@ function buildEmpty() {
     SubGroupName:                 "",
     SubGroupShortName:            "",
     SubGroupShortCode:            "",
-    UsedInAutoItemCodeGeneration: 0,
+    usedinautoitemcodegeneration: 0,
     CompanyID:                    DEFAULT_COMPANY_ID,
     YearID:                       SGM_CONFIG.CONFIG_YEAR_ID,
     LoginID:                      DEFAULT_LOGIN_ID,
