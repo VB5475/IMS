@@ -32,18 +32,19 @@ function buildListParams() {
   };
 }
 
-const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
+const HIDDEN_COLS = new Set(["idNumber", "systemconfigured"]);
 
 const LABEL_MAP = {
-  ISAutoCodeGen: "Auto Code Gen",
-  RegName:       "Reg Name",
-  ShortName:     "Short Name",
-  ShortCode:     "Short Code",
+  code:          "Code",
+  name:          "Name",
+  shortname:     "Short Name",
+  shortcode:     "Short Code",
+  isautocodegen: "Auto Code Gen",
+  regname:       "Reg Name",
 };
 
 function toLabel(key) {
-  if (LABEL_MAP[key]) return LABEL_MAP[key];
-  return key.replace(/([A-Z])/g, " $1").trim();
+  return LABEL_MAP[key] ?? key;
 }
 
 function buildColumnsFromData(data, onEdit) {
@@ -65,9 +66,9 @@ function buildColumnsFromData(data, onEdit) {
         <button
           type="button"
           className="sgm-list__edit-btn"
-          title={`Edit ${row.Code ?? ""}`}
-          aria-label={`Edit ${row.Code ?? ""}`}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
+          title={`Edit ${row.code ?? ""}`}
+          aria-label={`Edit ${row.code ?? ""}`}
+          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
         </button>

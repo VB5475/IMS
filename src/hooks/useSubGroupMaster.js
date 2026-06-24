@@ -9,19 +9,13 @@ import {
 } from "../api/constants";
 import { SGM_CONFIG } from "../pages/sub-group-master/constants";
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   return {
-    IDNumber:                     Number(master.IDNumber ?? params.idNumber) || 0,
-    SubGroupCode:                 master.SubGroupCode                 ?? "",
-    SubGroupName:                 master.SubGroupName                 ?? "",
-    SubGroupShortName:            master.SubGroupShortName            ?? "",
-    SubGroupShortCode:            master.SubGroupShortCode            ?? "",
-    UsedInAutoItemCodeGeneration: Boolean(master.UsedInAutoItemCodeGeneration) ? 1 : 0,
-    CompanyID:                    Number(params.companyId)    || DEFAULT_COMPANY_ID,
-    YearID:                       Number(master.YearID   ?? params.yearId)    || SGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                      Number(master.LoginID  ?? params.loginId)   || DEFAULT_LOGIN_ID,
-    SessionID:                    Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode:                     master.FuncCode ?? SGM_CONFIG.RB_MASTER,
+    ...master,
+    yearid:    SGM_CONFIG.CONFIG_YEAR_ID,
+    funccode:  SGM_CONFIG.RB_MASTER,
+    loginid:   DEFAULT_LOGIN_ID,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
@@ -81,9 +75,7 @@ export function useSubGroupMaster() {
     const master = mstRes?.Links?.[0] ?? null;
     return {
       master,
-      headerValues: master
-        ? mapMasterRowToHeaderValues(master, { companyId, yearId, loginId, sessionId, idNumber })
-        : null,
+      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
     };
   }, [get]);
 

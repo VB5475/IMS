@@ -153,9 +153,12 @@ export default function SubGroupMasterForm({
     setSaveError(null);
     setIsSaving(true);
     try {
+      const mstRow = Object.fromEntries(
+        Object.entries(formValues).map(([k, v]) => [k.toLowerCase(), v])
+      );
       const payload = withSaveContextFields(
         {
-          prmStrMstJSON: JSON.stringify([{ ...formValues }]),
+          prmStrMstJSON: JSON.stringify([mstRow]),
           prmStrDetJSON: JSON.stringify([]),
         },
         { divisionId: 0, isEdit: !isAddMode }
