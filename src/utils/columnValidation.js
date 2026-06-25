@@ -34,7 +34,7 @@ export function isNumericColDataType(colDataType) {
 export function isNumericColumnDef(col) {
   if (!col) return false;
   if (col.columnMeta?.dataKind === "numeric") return true;
-  const colDataType = col.colDataType ?? col.ColDataType ?? col.columnMeta?.colDataType;
+  const colDataType = col.colDataType ?? col.coldatatype ?? col.columnMeta?.colDataType;
   return isNumericColDataType(colDataType);
 }
 
@@ -48,22 +48,22 @@ export function getNumericDecimalPlaces(colDataType) {
 /** Build normalized validation/display metadata from a GET_DETAIL_COL_DATA column. */
 export function buildColumnMeta(apiCol) {
   if (!apiCol) return null;
-  const colDataType = apiCol.ColDataType ?? apiCol.colDataType ?? null;
+  const colDataType = apiCol.coldatatype ?? apiCol.colDataType ?? null;
   return {
-    key: apiCol.ColName ?? apiCol.key,
-    displayName: apiCol.DisplayName ?? apiCol.name ?? apiCol.ColName ?? apiCol.key ?? "Field",
-    isMandatory: isTruthyApiFlag(apiCol.IsMandatory),
-    isValidationReq: isTruthyApiFlag(apiCol.IsValidationReq),
+    key: apiCol.colname ?? apiCol.key,
+    displayName: apiCol.displayname ?? apiCol.name ?? apiCol.colname ?? apiCol.key ?? "Field",
+    isMandatory: isTruthyApiFlag(apiCol.ismandatory),
+    isValidationReq: isTruthyApiFlag(apiCol.isvalidationreq),
     colDataType,
     dataKind: getColDataKind(colDataType),
-    inputFormat: apiCol.InputFormat ?? apiCol.inputFormat ?? "",
+    inputFormat: apiCol.inputformat ?? apiCol.inputFormat ?? "",
     decimalPlaces: getNumericDecimalPlaces(colDataType),
-    minLen: apiCol.MinLen != null ? Number(apiCol.MinLen) : null,
-    maxLen: apiCol.MaxLen != null ? Number(apiCol.MaxLen) : null,
-    valueMinRange: apiCol.ValueMinRange != null ? Number(apiCol.ValueMinRange) : null,
-    valueMaxRange: apiCol.ValueMaxRange != null ? Number(apiCol.ValueMaxRange) : null,
-    isCrossYearEntryAllow: isTruthyApiFlag(apiCol.IsCrossYearEntryAllow),
-    isFutureDateAllow: isTruthyApiFlag(apiCol.IsFutureDateAllow),
+    minLen: apiCol.minlen != null ? Number(apiCol.minlen) : null,
+    maxLen: apiCol.maxlen != null ? Number(apiCol.maxlen) : null,
+    valueMinRange: apiCol.valueminrange != null ? Number(apiCol.valueminrange) : null,
+    valueMaxRange: apiCol.valuemaxrange != null ? Number(apiCol.valuemaxrange) : null,
+    isCrossYearEntryAllow: isTruthyApiFlag(apiCol.iscrossyearentryallow),
+    isFutureDateAllow: isTruthyApiFlag(apiCol.isfuturedateallow),
   };
 }
 
@@ -257,8 +257,8 @@ export function validateGridRows(rows, columns) {
 export function validateApiColumns(values, apiColumns) {
   const errors = [];
   (apiColumns || []).forEach((apiCol) => {
-    if (apiCol.IsVisible === false) return;
-    const key = apiCol.ColName;
+    if (!isTruthyApiFlag(apiCol.isvisible)) return;
+    const key = apiCol.colname;
     if (!key) return;
     const result = validateColumnValue(values[key], apiCol);
     if (!result.valid) errors.push(result.message);

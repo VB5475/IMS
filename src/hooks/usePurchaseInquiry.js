@@ -90,8 +90,8 @@ function mapIndentRowsToChildRowsMap(detailRows, indtRows) {
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) {
-      set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
     }
   });
   if (set.size === 0) {
@@ -114,7 +114,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const tableRow = metaData?.Table?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
 
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
@@ -210,7 +210,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         const tableRow = metaData?.Table?.[0];
         if (!tableRow) throw new Error("No PI header RB metadata returned from server.");
 
-        const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+        const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
         setHeaderRbMeta(hdrMeta);
         localStorage.setItem(PI_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
         console.log("%c[PI] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
@@ -264,15 +264,15 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
 
         setDivisionOptions(
           (divisionData?.Table || []).map((r) => ({
-            value: String(r.DivisionID),
-            label: r.DivisionName,
+            value: String(r.divisionid),
+            label: r.divisionname,
           }))
         );
 
         setDepartmentOptions(
           (departmentData?.Table || []).map((r) => ({
-            value: String(r.DepartmentID),
-            label: r.DepartmentName,
+            value: String(r.departmentid ?? r.deptid),
+            label: r.departmentname ?? r.deptname,
           }))
         );
 
@@ -305,8 +305,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       });
       setDivisionOptions(
         (divisionData?.Table || []).map((r) => ({
-          value: String(r.DivisionID),
-          label: r.DivisionName,
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
     } catch (err) {
@@ -326,8 +326,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       });
       setDepartmentOptions(
         (departmentData?.Table || []).map((r) => ({
-          value: String(r.DepartmentID),
-          label: r.DepartmentName,
+          value: String(r.departmentid ?? r.deptid),
+          label: r.departmentname ?? r.deptname,
         }))
       );
     } catch (err) {
@@ -346,13 +346,13 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       if (!headerColumns.length) return;
 
       const needsDivision = headerColumns.some(
-        (c) => c.ColName === "divisionid" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "divisionid" && !isLockOnEditModeCol(c)
       );
       const needsDept = headerColumns.some(
-        (c) => c.ColName === "deptid" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "deptid" && !isLockOnEditModeCol(c)
       );
       const needsConfig = headerColumns.some(
-        (c) => c.ColName === "configid" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "configid" && !isLockOnEditModeCol(c)
       );
 
       const tasks = [];
@@ -389,7 +389,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         ])
       );
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
       console.log(
         "%c[PI] Detail columns received:",
@@ -496,7 +496,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       PI_CONFIG.STORAGE_INDT_META
     );
     setAllIndentColumns(
-      apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+      apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
     );
     return buildGridColumns(apiColumns, {}, { filterable: false, allEditable: false });
   }, [get]);

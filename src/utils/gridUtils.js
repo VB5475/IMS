@@ -44,8 +44,8 @@ export function deriveFilterType(ctrlType) {
  * @returns {number}
  */
 export function getColumnWidth(apiCol) {
-  // if (apiCol.ColumnWidth && apiCol.ColumnWidth > 0) return apiCol.ColumnWidth * 1.5;
-  const len = (apiCol.DisplayName || "").length;
+  // if (apiCol.columnwidth && apiCol.columnwidth > 0) return apiCol.columnwidth * 1.5;
+  const len = (apiCol.displayname || "").length;
   if (len <= 4) return 80;
   if (len <= 8) return 110;
   if (len <= 14) return 150;
@@ -69,7 +69,7 @@ export function formatParamValue(value, dataType) {
 // ── Dropdown fetcher ─────────────────────────────────────────────────
 
 export function isLockOnEditModeCol(apiCol) {
-  return isTruthyApiFlag(apiCol?.IsLockOnEditModeAllow);
+  return isTruthyApiFlag(apiCol?.islockoneditmodeallow);
 }
 
 /**
@@ -77,7 +77,7 @@ export function isLockOnEditModeCol(apiCol) {
  * Match key: filter.FilterParameterID === apiCol.ColName.
  */
 export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
-  const colName = apiCol?.ColName ?? filter.FilterColName ?? filter.FilterParameterID;
+  const colName = apiCol?.colname ?? filter.FilterColName ?? filter.FilterParameterID;
   const columnMeta = apiCol ? buildColumnMeta(apiCol) : null;
   const dateConstraints =
     columnMeta?.dataKind === "date" ? getDateInputConstraints(columnMeta) : null;
@@ -86,20 +86,20 @@ export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
     ...filter,
     ...patch,
     FilterColName: colName,
-    FilterCaption: apiCol?.DisplayName ?? colName,
-    ctrlValueCol: apiCol?.CtrlValueCol,
-    ctrlDisplayCol: apiCol?.CtrlDisplayCol,
+    FilterCaption: apiCol?.displayname ?? colName,
+    ctrlValueCol: apiCol?.ctrlvaluecol,
+    ctrlDisplayCol: apiCol?.ctrldisplaycol,
     columnMeta,
     dateMin: dateConstraints?.min ?? null,
     dateMax: dateConstraints?.max ?? null,
   };
 }
 
-/** Build a ColName → column map from GET_DETAIL_COL_DATA Links. */
+/** Build a colname → column map from GET_DETAIL_COL_DATA. */
 export function buildHeaderColMap(headerColumns = []) {
   const map = {};
   headerColumns.forEach((col) => {
-    map[col.ColName] = col;
+    map[col.colname] = col;
   });
   return map;
 }
@@ -116,13 +116,13 @@ export function resolveHeaderApiCol(filter, apiColMap) {
  */
 export function syncMasterSummaryFieldWithApiCol(field, apiCol, patch = {}) {
   const paramId = field?.SummaryParameterID ?? field?.mstKey;
-  const mstKey = apiCol?.ColName ?? paramId;
+  const mstKey = apiCol?.colname ?? paramId;
   return {
     ...field,
     ...patch,
     SummaryParameterID: paramId,
     mstKey,
-    label: apiCol?.DisplayName ?? field?.label ?? mstKey,
+    label: apiCol?.displayname ?? field?.label ?? mstKey,
   };
 }
 
@@ -143,7 +143,7 @@ export function syncMasterSummaryFields(summaryFields = [], headerColumns = []) 
   return summaryFields
     .map((field) => {
       const apiCol = resolveMasterSummaryApiCol(field, apiColMap);
-      if (apiCol?.IsVisible === false) return null;
+      if (!isTruthyApiFlag(apiCol?.isvisible)) return null;
       return syncMasterSummaryFieldWithApiCol(field, apiCol);
     })
     .filter(Boolean);
@@ -164,11 +164,11 @@ export function resolveRowFieldValue(row, fieldName) {
   return undefined;
 }
 
-/** Read the stored cell value for a grid column (ColName key + CtrlValueCol + casing fallback). */
+/** Read the stored cell value for a grid column (colname key + ctrlvaluecol + casing fallback). */
 export function resolveRowCellValue(row, col) {
   if (!row || !col) return "";
   const key = col.key;
-  const valueCol = col.ctrlValueCol || col.CtrlValueCol || key;
+  const valueCol = col.ctrlValueCol || col.ctrlvaluecol || key;
   const resolved = resolveRowFieldValue(row, key) ?? resolveRowFieldValue(row, valueCol);
   return resolved != null && resolved !== "" ? resolved : "";
 }
@@ -176,8 +176,8 @@ export function resolveRowCellValue(row, col) {
 /** Build a single { value, label } option from a master/detail row using column metadata. */
 export function buildDropdownOptionFromRow(apiCol, rowData) {
   if (!apiCol || !rowData) return [];
-  const valueCol = apiCol.CtrlValueCol || apiCol.ColName;
-  const displayCol = apiCol.CtrlDisplayCol || valueCol;
+  const valueCol = apiCol.ctrlvaluecol || apiCol.colname;
+  const displayCol = apiCol.ctrldisplaycol || valueCol;
   const value = resolveRowFieldValue(rowData, valueCol);
   if (value == null || value === "") return [];
   const label = resolveRowFieldValue(rowData, displayCol) ?? value;
@@ -186,7 +186,7 @@ export function buildDropdownOptionFromRow(apiCol, rowData) {
 
 /** Read the display text for a dropdown column from a grid row (master-fill display col only). */
 export function getRowDropdownDisplay(row, col) {
-  const displayCol = col?.ctrlDisplayCol || col?.CtrlDisplayCol;
+  const displayCol = col?.ctrlDisplayCol || col?.ctrldisplaycol;
   if (!displayCol) return "";
   const display = resolveRowFieldValue(row, displayCol);
   if (display == null || display === "") return "";
@@ -277,7 +277,7 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
     fetchUnlockedDropdowns = true,
   } = opts;
 
-  const dropdownCols = apiColumns.filter((c) => c.ColCtrlType === 4);
+  const dropdownCols = apiColumns.filter((c) => c.colctrltype === 4);
   const colDropdownOptions = {};
 
   if (dropdownCols.length === 0) return colDropdownOptions;
@@ -285,33 +285,33 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
   await Promise.all(
     dropdownCols.map(async (col) => {
       if (existingRecordEdit && isLockOnEditModeCol(col)) {
-        colDropdownOptions[col.ColName] = rowData ? buildDropdownOptionFromRow(col, rowData) : [];
+        colDropdownOptions[col.colname] = rowData ? buildDropdownOptionFromRow(col, rowData) : [];
         return;
       }
 
       if (existingRecordEdit && !fetchUnlockedDropdowns) {
-        colDropdownOptions[col.ColName] = [];
+        colDropdownOptions[col.colname] = [];
         return;
       }
 
       try {
         const detailData = await get(ENDPOINTS.GET_FILTER_DETAIL, {
           prmMasterID: masterID,
-          prmFilterParameterName: col.ObjDetID,
+          prmFilterParameterName: col.objdetid,
           prmCboMode: CBO_MODE.COLUMN,
           prmFuncCode: funcCode,
           prmDivisionID: divisionID,
           prmLoginID: getUserSession().loginId,
         });
 
-        colDropdownOptions[col.ColName] = (detailData?.Links || []).map((opt) => {
-          const valKey = opt.FilterCtrlValueCol || "IDNumber";
-          const labelKey = opt.FilterCtrlDisplayCol || "Name";
+        colDropdownOptions[col.colname] = (detailData || []).map((opt) => {
+          const valKey = opt.filterctrlvaluecol || "IDNumber";
+          const labelKey = opt.filterctrldisplaycol || "Name";
           return { value: String(opt[valKey]), label: opt[labelKey] };
         });
       } catch {
-        console.warn(`[gridUtils] Failed dropdown for column: ${col.DisplayName}`);
-        colDropdownOptions[col.ColName] = [];
+        console.warn(`[gridUtils] Failed dropdown for column: ${col.displayname}`);
+        colDropdownOptions[col.colname] = [];
       }
     })
   );
@@ -391,9 +391,9 @@ export function mergePreservedUnlockedDropdowns(
   );
   const merged = { ...colDropdownOptions };
   apiColumns.forEach((apiCol) => {
-    if (apiCol.ColCtrlType !== 4 || isLockOnEditModeCol(apiCol)) return;
-    const prev = prevByKey.get(apiCol.ColName);
-    if (prev?.length) merged[apiCol.ColName] = prev;
+    if (apiCol.colctrltype !== 4 || isLockOnEditModeCol(apiCol)) return;
+    const prev = prevByKey.get(apiCol.colname);
+    if (prev?.length) merged[apiCol.colname] = prev;
   });
   return merged;
 }
@@ -476,32 +476,32 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
   const { filterable = true, allEditable = false, existingRecordEdit = false } = opts;
 
   const dataColumns = apiColumns
-    .filter((col) => col.IsVisible !== false)
+    .filter((col) => isTruthyApiFlag(col.isvisible))
     .map((col) => {
       const lockOnEditMode = isLockOnEditModeCol(col);
       let isEditAllow;
       if (allEditable) {
         isEditAllow = existingRecordEdit && lockOnEditMode ? false : true;
       } else {
-        isEditAllow = isTruthyApiFlag(col.IsEditAllow);
+        isEditAllow = isTruthyApiFlag(col.iseditallow);
       }
 
       return {
-        id: col.ColName,
-        name: col.DisplayName,
-        key: col.ColName,
-        controlType: col.ColCtrlType,
-        colDataType: col.ColDataType || null,
+        id: col.colname,
+        name: col.displayname,
+        key: col.colname,
+        controlType: col.colctrltype,
+        colDataType: col.coldatatype || null,
         columnMeta: buildColumnMeta(col),
         width: getColumnWidth(col),
         filterable,
-        filterType: deriveFilterType(col.ColCtrlType),
-        isFixed: isTruthyApiFlag(col.IsFreezeReq),
+        filterType: deriveFilterType(col.colctrltype),
+        isFixed: isTruthyApiFlag(col.isfreezereq),
         isEditAllow,
         lockOnEditMode,
-        ctrlValueCol: col.CtrlValueCol || col.ColName,
-        ctrlDisplayCol: col.CtrlDisplayCol || null,
-        dropdownOptions: colDropdownOptions[col.ColName] || [],
+        ctrlValueCol: col.ctrlvaluecol || col.colname,
+        ctrlDisplayCol: col.ctrldisplaycol || null,
+        dropdownOptions: colDropdownOptions[col.colname] || [],
       };
     });
 

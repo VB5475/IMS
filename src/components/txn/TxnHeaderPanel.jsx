@@ -78,8 +78,8 @@ function FilterControl({ filter, value, options, onChange }) {
             onChange={(val) => onChange(FilterColName, val)}
             options={(options || []).map((opt) => {
               if (opt.value !== undefined) return { value: String(opt.value), label: opt.label };
-              const valKey = opt.FilterCtrlValueCol || "IDNumber";
-              const labelKey = opt.FilterCtrlDisplayCol || "Name";
+              const valKey = opt.filterctrlvaluecol || "IDNumber";
+              const labelKey = opt.filterctrldisplaycol || "Name";
               return { value: String(opt[valKey]), label: opt[labelKey] };
             })}
             placeholder={`-- Select ${FilterCaption} --`}

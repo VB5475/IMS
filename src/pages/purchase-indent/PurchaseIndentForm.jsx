@@ -37,7 +37,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -337,15 +337,15 @@ export default function PurchaseIndentForm() {
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
     return headerColumns
-      .filter((col) => col.IsVisible !== false)
+      .filter((col) => isTruthyApiFlag(col.isvisible))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.ColName];
+        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
-          FilterParameterID: col.ColName,
-          FilterColName:     col.ColName,
-          FilterCaption:     col.DisplayName ?? col.ColName,
-          FilterColCtrlType: col.ColCtrlType ?? 0,
+          FilterParameterID: col.colname,
+          FilterColName:     col.colname,
+          FilterCaption:     col.displayname ?? col.colname,
+          FilterColCtrlType: col.colctrltype ?? 0,
           ...(staticOptions ? { staticOptions } : {}),
         };
         return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
@@ -449,14 +449,14 @@ export default function PurchaseIndentForm() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const rbRow = rbRes?.Table?.[0];
+      const rbRow = rbRes?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.RBID,
+        prmMasterID: rbRow.rbid,
         prmLoginID: DEFAULT_LOGIN_ID,
       });
-      const gridColumns = buildGridColumns(colRes?.Links || [], {}, {
+      const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
         allEditable: false,
       });
@@ -467,20 +467,20 @@ export default function PurchaseIndentForm() {
         ObjName: IND_CONFIG.SP_ITEM_PICKER,
         JSon: JSON.stringify([
           {
-            prmDivisionID: Number(divisionID),
-            prmYearID: IND_CONFIG.CONFIG_YEAR_ID,
-            prmLoginID: DEFAULT_LOGIN_ID,
-            prmTranDate: formatIndentTranDate(trandate),
-            prmConfigID: Number(configid ?? 0),
-            prmSupplierId: 0,
-            prmTranBook: IND_CONFIG.TRAN_BOOK,
-            prmFrmOption: 0,
+            prmdivisionid: Number(divisionID),
+            prmyearid: IND_CONFIG.CONFIG_YEAR_ID,
+            prmloginid: DEFAULT_LOGIN_ID,
+            prmtrandate: formatIndentTranDate(trandate),
+            prmconfigid: Number(configid ?? 0),
+            prmsupplierid: 0,
+            prmtranbook: IND_CONFIG.TRAN_BOOK,
+            prmfrmoption: 0,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      setItemModalItems(rowRes?.Table || []);
+      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[Indent] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
@@ -520,7 +520,7 @@ export default function PurchaseIndentForm() {
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
   const handleSave = useCallback(async () => {
-    const headerColsToValidate = headerColumns.filter((c) => c.IsVisible !== false);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
@@ -534,7 +534,7 @@ export default function PurchaseIndentForm() {
 
     const mstRow = {};
     headerColumns.forEach((col) => {
-      mstRow[col.ColName] = getColDefault(col.ColDataType);
+      mstRow[col.colname] = getColDefault(col.coldatatype);
     });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => {

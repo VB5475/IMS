@@ -22,11 +22,11 @@ function buildListParams() {
     ObjName: IND_CONFIG.SP_INDENT_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: IND_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: `01-Jan-${year}`,
-        prmToDate: `31-Dec-${year}`,
-        PrmDepartmentId: 0,
+        prmcompanyid: DEFAULT_COMPANY_ID,
+        prmdivisionid: IND_CONFIG.LIST_DIVISION_ID,
+        prmfromdate: `01-Jan-${year}`,
+        prmtodate: `31-Dec-${year}`,
+        prmdepartmentid: 0,
       },
     ]),
     p_ErrCode: -1,
@@ -65,7 +65,7 @@ export default function PurchaseIndentPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(normalizeListRows(json?.Table ?? []));
+      setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseIndentPage] list fetch failed:", err);
       setError("Failed to load purchase indents.");

@@ -5,13 +5,16 @@
 // The re-exports below keep existing hook/component import paths unchanged.
 
 // ── Base URLs ──────────────────────────────────────────────────────────
-export const API_BASE_URL = "http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx";
+const BASE_DOMAIN ="http://122.179.135.100:8095/IMS_LIVE";
+export const API_BASE_URL = BASE_DOMAIN + "/webservice/WsIMS.asmx";
 
 export const API_BASE_URL_OLD = "http://122.179.135.100:8095/ERPWS_TB/webservice/WsIMS.asmx";
 
 // REST-style endpoint — body is a JSON object, not query params.
 // Used by SPs that route through the newer /API/Values gateway.
-export const API_BASE_URL_IMS = "http://122.179.135.100:8095/IMS_LIVE";
+// export const API_BASE_URL_IMS = "http://122.179.135.100:8095/IMS_LIVE";
+// export const API_BASE_URL_IMS = "http://122.179.135.100:8095/IMS_PGLIVE";
+export const API_BASE_URL_IMS = BASE_DOMAIN;
 
 // ── API endpoint paths ─────────────────────────────────────────────────
 export const ENDPOINTS = {

@@ -493,7 +493,7 @@ export default function PurchaseInquiryForm() {
       let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
 
       if (apiCol) {
-        def.FilterColCtrlType = apiCol.ColCtrlType ?? filter.FilterColCtrlType;
+        def.FilterColCtrlType = apiCol.colctrltype ?? filter.FilterColCtrlType;
       }
 
       // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
@@ -511,7 +511,7 @@ export default function PurchaseInquiryForm() {
           return def;
         }
 
-        if (apiCol?.ColCtrlType === 4) {
+        if (apiCol?.colctrltype === 4) {
           if (lockOnEditMode || !isEditMode) {
             def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
           } else {
@@ -654,7 +654,7 @@ export default function PurchaseInquiryForm() {
         prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(
-        colRes?.Links || [],
+        colRes || [],
         {},
         {
           filterable: false,
@@ -869,7 +869,7 @@ export default function PurchaseInquiryForm() {
 
       // ── Validation (header + detail grids) ───────────────────────────
       const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
-      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
       const headerErrors = validateApiColumns(hv, headerColsToValidate);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
@@ -887,7 +887,7 @@ export default function PurchaseInquiryForm() {
       // ── Master ────────────────────────────────────────────────────────
       const mstRow = {};
       headerColumns.forEach((col) => {
-        mstRow[col.ColName] = getColDefault(col.ColDataType);
+        mstRow[col.colname] = getColDefault(col.coldatatype);
       });
       Object.entries(hv).forEach(([k, v]) => {
         if (k !== "id") mstRow[k] = v;

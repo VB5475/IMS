@@ -2,12 +2,13 @@
 
 /** SP / API names reused by every purchase transaction module. */
 export const PURCHASE_API = {
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_CONFIG_TYPES: "fn_tbl_ddl_Pur_Configuration",
-  SP_DEPT: "Pr_Fetch_DepartmentData_IMS",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
+  SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
+  SP_CONFIG_TYPES: "fn_tbl_ddl_pur_configuration",
+  // SP_DEPT: "pr_fetch_departmentdata_ims",
+  SP_DEPT: "fn_tbl_tbd_departmentdata_ims",
   SUPPLIER_PARTY_TYPE: "S",
-  SUPPLIER_SP: "Fn_tbl_FetchCustomerSupplierTranWs4Web",
+  SUPPLIER_SP: "fn_tbl_fetchcustomersuppliertranws4web",
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
   LIST_OBJ_TYPE: 2,
