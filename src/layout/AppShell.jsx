@@ -10,6 +10,10 @@ import {
   PackageCheck,
   Layers,
   Tag,
+  MapPin,
+  Package,
+  TrendingDown,
+  Package2,
   Users,
   Shield,
   KeyRound,
@@ -35,27 +39,32 @@ const NAV_SECTIONS = [
     items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
   },
   {
-    label: "Modules",
+    label: "Master",
     items: [
-      { to: "/txn-entry", icon: FileSpreadsheet, label: "Invoices", end: false },
+      { to: "/admin/main-group-master", icon: Tag, label: "Main Group Master", end: false },
+      { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master", end: false },
+      { to: "/admin/master/item/sub-group-master", icon: Package, label: "Sub Group Master", end: false },
+      { to: "/admin/company/location-master", icon: MapPin, label: "Location Master", end: false },
+    ],
+  },
+  {
+    label: "Purchase",
+    items: [
+      { to: "/purchase-indent", icon: ShoppingCart, label: "Purchase Indent", end: false },
       { to: "/purchase-inquiry", icon: ClipboardList, label: "Purchase Inquiry", end: false },
       { to: "/purchase-quotation", icon: FileText, label: "Purchase Quotation", end: false },
       { to: "/purchase-order", icon: ShoppingCart, label: "Purchase Order", end: false },
-      { to: "/purchase-indent", icon: ShoppingCart, label: "Purchase Indent", end: false },
-      { to: "/purchase-voucher", icon: Receipt, label: "Purchase Voucher", end: false },
       { to: "/goods-received-note", icon: PackageCheck, label: "Goods Received Note", end: false },
+      { to: "/purchase-voucher", icon: Receipt, label: "Purchase Voucher", end: false },
+      { to: "/txn-entry", icon: FileSpreadsheet, label: "Invoices", end: false },
     ],
   },
   {
     label: "Assets",
     items: [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { to: "/admin/main-group-master", icon: Tag, label: "Main Group Master", end: false },
+      { to: "/assets-depreciation", icon: TrendingDown, label: "Depreciation", end: false },
+      { to: "/assets-item-opening", icon: Package2, label: "Assets Item Opening", end: false },
       { to: "/admin/user-master", icon: Users, label: "User Master", end: false },
       { to: "/admin/user-group", icon: Shield, label: "User Group", end: false },
       { to: "/admin/division-wise-rights", icon: KeyRound, label: "Division Wise Rights", end: false },
@@ -64,6 +73,7 @@ const NAV_SECTIONS = [
       { to: "/admin/company", icon: Building, label: "Company", end: false },
     ],
   },
+
 ];
 
 export default function AppShell({ children }) {

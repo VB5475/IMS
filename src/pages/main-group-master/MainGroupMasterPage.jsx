@@ -7,15 +7,14 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import MainGroupMasterForm from "./MainGroupMasterForm";
-import { MGM_CONFIG } from "./constants";
+import { MGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./MainGroupMasterPage.css";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
-
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function todayFormatted() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -24,13 +23,13 @@ function buildListParams() {
     ObjType: MGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: MGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
+      PrmCompanyID: DEFAULT_COMPANY_ID,
       prmDivisionID: MGM_CONFIG.LIST_DIVISION_ID,
-      prmFromDate:   today,
-      prmToDate:     today,
+      prmFromDate: today,
+      prmToDate: today,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -45,20 +44,20 @@ export default function MainGroupMasterPage() {
     fetchEditRecord, seedOptionsFromMaster,
   } = useMainGroupMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Main Group Master",
+    title: "Main Group Master",
     subtitle: "Browse main groups or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -133,7 +132,7 @@ export default function MainGroupMasterPage() {
           </div>
           <div className="mgm-list-panel__toolbar">
             <button type="button" className="mgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
+              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">
               Rows per page
@@ -162,6 +161,7 @@ export default function MainGroupMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No main groups found."
           hideHeader
+          searchable
           fill
         />
       </section>

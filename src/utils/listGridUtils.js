@@ -24,6 +24,7 @@ export function resolveListRecordId(row) {
     row.IndentID ??
     row.IDNUMBER ??
     row.IDNumber ??
+    row.idnumber ??
     row.MasterID ??
     0
   );

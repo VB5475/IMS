@@ -1,4 +1,8 @@
 // constants.js — Purchase Quotation page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Quotation";
+export const PAGE_TITLE_NEW = "New Purchase Quotation";
+
 // All RB codes, SP names, IDs, and request defaults used by this page in one place.
 // Source of truth: MRD_Template4Qtn.docx (Module Requirements — Purchase Quotation).
 

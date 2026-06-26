@@ -1,8 +1,10 @@
 // constants.js — CWIP To FA (C2F) page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "CWIP To FA";
+export const PAGE_TITLE_NEW = "New CWIP To FA";
+
 // All RB codes, SP names, IDs, and request defaults for the C2F module.
 // Values aligned to MRD_Template4CWIPToFA.docx (Richa, 16-Jun-2026).
-
-import { controlTypeMap } from "../../data/dummyData";
 
 export const C2F_CONFIG = {
   // RB board codes
@@ -14,7 +16,7 @@ export const C2F_CONFIG = {
   FORM_TAG:   "C2F",
   TRAN_BOOK:  "C2F",
 
-  // Year IDs  ⚠️ CONFIRM with DBA
+  
   CONFIG_YEAR_ID:   2,
   DIVISION_YEAR_ID: 2,
 
@@ -22,10 +24,11 @@ export const C2F_CONFIG = {
   SP_RB_META:      "Fn_Fetch_RBDetailByRBCode",
   SP_DIVISIONS:    "Fn_tbl_FetchUserWsDivision",
   SP_LOCATION:     "Fn_Gen_FetchLocationMaster",
-  SP_CWIP_ACC:     null, // ⚠️ CONFIRM with DBA — SP that returns CWIP A/C dropdown options
+  SP_CWIP_ACC:     "Fn_tbl_Fetch_AssetsAccount",
   SP_COST_CENTER:  "Fn_tbl_Fas_FetchCostCenterAc",
   SP_ITEM_PICKER:  "fn_tbl_RB_AstCWIP2FADetSel",
-  SP_GRID_EVENT:   null, // ⚠️ CONFIRM with DBA — Amount may be client-side Qty × Rate only
+  SP_GRID_EVENT:   null, 
+  SP_UNIQUE_ID:    "Pr_Gen_FetchLevyUniqueNo4Web",
 
   // Edit flow
   SP_MASTER_FILL: "fn_tbl_RB_AstCWIP2FAMst",
@@ -48,82 +51,24 @@ export const C2F_CONFIG = {
   CONV_TYPE_ID: 1,
 };
 
-// ── Header filter definitions ─────────────────────────────────────────────────
-// Field order per MRD Section 3:
-//   TranNo → TranDate → PutToUseInstDate → DivisionID → LocationID →
-//   CWIPAccID → CostCenterAccID → ConvTypeID → NetTotal → Remark
-export const C2F_HEADER_FILTERS = [
-  {
-    FilterParameterID: "TranNo",
-    FilterColName:     "TranNo",
-    FilterCaption:     "Tran Code",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "TranDate",
-    FilterColName:     "TranDate",
-    FilterCaption:     "Tran Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "PutToUseInstDate",
-    FilterColName:     "PutToUseInstDate",
-    FilterCaption:     "Put To Use Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "DivisionID",
-    FilterColName:     "DivisionID",
-    FilterCaption:     "Division",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions:     [],
-  },
-  {
-    FilterParameterID: "LocationID",
-    FilterColName:     "LocationID",
-    FilterCaption:     "Location",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions:     [],
-  },
-  {
-    FilterParameterID: "ConversionFactor",
-    FilterColName:     "ConversionFactor",
-    FilterCaption:     "Conversion Factor",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "CWIPAccID",
-    FilterColName:     "CWIPAccID",
-    FilterCaption:     "CWIP A/C",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions:     [],
-  },
-  {
-    FilterParameterID: "CostCenterAccID",
-    FilterColName:     "CostCenterAccID",
-    FilterCaption:     "Cost Center",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions:     [],
-  },
-  {
-    FilterParameterID: "NetTotal",
-    FilterColName:     "NetTotal",
-    FilterCaption:     "Net Total",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "Remark",
-    FilterColName:     "Remark",
-    FilterCaption:     "Remark",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
+// ── ConversionFactor static options (only static dropdown in C2F header) ─────
+export const C2F_CONV_FACTOR_OPTIONS = [
+  { value: "1", label: "Purchase" },
+  { value: "2", label: "Inventory" },
 ];
 
 export const C2F_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-// Cascade resets — DivisionID clears LocationID (grid cleared in form handler)
+// ── Summary panel fields ──────────────────────────────────────────────────────
+// detKey  — grid column key to sum across all item rows
+// SummaryParameterID — master save payload key the value is written to
+export const C2F_SUMMARY_FIELDS = [
+  { SummaryParameterID: "NetTotal", detKey: "Amount" },
+];
+
+// Cascade resets — DivisionID clears LocationID + CWIPAccID (grid cleared in form handler)
 export const C2F_FILTER_CASCADE_RESETS = {
-  DivisionID: ["LocationID"],
+  DivisionID: ["LocationID", "CWIPAccID"],
 };
 
 // ── Item picker required fields ───────────────────────────────────────────────

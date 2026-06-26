@@ -170,68 +170,7 @@
   box-shadow: none !important;
 }
 
-/* ── Tab-bar action buttons ── */
-.pv-tab-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.pv-tab-action-btn:hover:not(:disabled) {
-  background: var(--primary-lighter);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.pv-tab-action-btn:active:not(:disabled) {
-  background: var(--primary-light);
-}
-
-.pv-tab-action-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* ── Delete button ── */
-.pv-tab-delete-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--danger);
-  background: #fef2f2;
-  border: 1px solid rgba(217, 48, 37, 0.25);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.pv-tab-delete-btn:hover:not(:disabled) {
-  background: #fde8e8;
-  border-color: var(--danger);
-}
-
-.pv-tab-delete-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+/* Tab-bar action button styles → shared eg-tab-btn in EntryGrid.css */
 
 /* ── Paste notice banner (serial number replication feedback) ── */
 .pv-paste-notice {

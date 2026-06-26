@@ -23,7 +23,14 @@ const GoodsReceivedNotePage = lazy(() => import("./pages/goods-received-note/Goo
 const GoodsReceivedNoteForm = lazy(() => import("./pages/goods-received-note/GoodsReceivedNoteForm"));
 const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
+const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
+const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
+const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
+const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
 const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
+const LocationMasterPage = lazy(() => import("./pages/location-master/LocationMasterPage"));
+const SubMainGroupMasterPage = lazy(() => import("./pages/sub-main-group-master/SubMainGroupMasterPage"));
+const SubGroupMasterPage = lazy(() => import("./pages/sub-group-master/SubGroupMasterPage"));
 const UserMasterPage = lazy(() => import("./pages/user-master/UserMasterPage"));
 const UserGroupPage = lazy(() => import("./pages/user-group/UserGroupPage"));
 const DivisionWiseRightsPage = lazy(() => import("./pages/division-wise-rights/DivisionWiseRightsPage"));
@@ -68,13 +75,12 @@ function AppRoutes() {
           <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
           <Route path="purchase-inquiry/:id" element={<PurchaseInquiryForm />} />
           <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
-          <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
           <Route path="purchase-order" element={<PurchaseOrderPage />} />
           <Route path="purchase-order/:id" element={<PurchaseOrderForm />} />
+          <Route path="purchase-order/:id/edit" element={<PurchaseOrderForm />} />
+          <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
           <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
-          <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
-          <Route path="purchase-order/:id/edit" element={<PurchaseOrderForm />} />
           <Route path="purchase-indent" element={<PurchaseIndentPage />} />
           <Route path="purchase-indent/new" element={<PurchaseIndentForm />} />
           <Route path="purchase-indent/:id" element={<PurchaseIndentForm />} />
@@ -90,7 +96,19 @@ function AppRoutes() {
           <Route path="cwip-to-fa/new" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
           <Route path="cwip-to-fa/:id/edit" element={<CWIPToFAForm />} />
+          <Route path="assets-depreciation" element={<AssetsDepreciationPage />} />
+          <Route path="assets-depreciation/new" element={<AssetsDepreciationForm />} />
+          <Route path="assets-depreciation/:id" element={<AssetsDepreciationForm />} />
+          <Route path="assets-depreciation/:id/edit" element={<AssetsDepreciationForm />} />
+          <Route path="assets-item-opening" element={<AssetsItemOpeningPage />} />
+          <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
+          <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
+          <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
+          {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
+          <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
+          <Route path="admin/master/item/sub-group-master" element={<SubGroupMasterPage />} />
+          <Route path="admin/company/location-master" element={<LocationMasterPage />} />
           <Route path="admin/user-master" element={<UserMasterPage />} />
           <Route path="admin/user-group" element={<UserGroupPage />} />
           <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />

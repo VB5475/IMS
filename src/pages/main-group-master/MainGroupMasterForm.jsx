@@ -27,8 +27,8 @@ function formKey(colName) { return COL_NAME_MAP[colName] || colName; }
 
 // Corrected display labels (some API DisplayNames have backend typos)
 const DISPLAY_OVERRIDES = {
-  MainGroupShortCode:           "Main Group Short Code",
-  MainGroupShortName:           "Main Group Short Name",
+  MainGroupShortCode: "Main Group Short Code",
+  MainGroupShortName: "Main Group Short Name",
   UsedInAutoItemCodeGeneration: "Used in Code Generation",
 };
 function getLabel(field) { return getMasterFieldLabel(field, DISPLAY_OVERRIDES); }
@@ -37,19 +37,20 @@ const READ_ONLY_COLS = new Set(["MainGroupShortCode"]);
 
 function buildEmpty() {
   return {
-    IDNumber:                 0,
-    ItemTypeID:               0,
-    MainGroupCode:            "",
-    MainGroupName:            "",
-    MainGroupShortName:       "",
+    IDNumber: 0,
+    ItemTypeID: 0,
+    MainGroupCode: "",
+    MainGroupName: "",
+    MainGroupShortName: "",
     UsedCodeInCodeGeneration: 0,
-    MainGroupShortCode:       "",
-    FixedAssetAccountID:      0,
-    CompanyID:                DEFAULT_COMPANY_ID,
-    YearID:                   MGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                  DEFAULT_LOGIN_ID,
-    SessionID:                DEFAULT_SESSION_ID,
-    FuncCode:                 MGM_CONFIG.RB_MASTER,
+    UsedCodeInCodeGeneration: 0,
+    MainGroupShortCode: "",
+    FixedAssetAccountID: 0,
+    CompanyID: DEFAULT_COMPANY_ID,
+    YearID: MGM_CONFIG.CONFIG_YEAR_ID,
+    LoginID: DEFAULT_LOGIN_ID,
+    SessionID: DEFAULT_SESSION_ID,
+    FuncCode: MGM_CONFIG.RB_MASTER,
   };
 }
 
@@ -62,12 +63,15 @@ export default function MainGroupMasterForm({
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
 
-  const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState(buildEmpty());
-  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
+  const [formValues, setFormValues] = useState(buildEmpty());
+  const [recordLoading, setRecordLoading] = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
-  const [isSaving,        setIsSaving]        = useState(false);
-  const [saveError,       setSaveError]       = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // Reset form each time modal opens
   useEffect(() => {
@@ -85,10 +89,10 @@ export default function MainGroupMasterForm({
     setRecordLoadError(null);
     fetchEditRecord({
       companyId: DEFAULT_COMPANY_ID,
-      yearId:    MGM_CONFIG.CONFIG_YEAR_ID,
-      loginId:   DEFAULT_LOGIN_ID,
+      yearId: MGM_CONFIG.CONFIG_YEAR_ID,
+      loginId: DEFAULT_LOGIN_ID,
       sessionId: DEFAULT_SESSION_ID,
-      idNumber:  recordId,
+      idNumber: recordId,
     })
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
@@ -104,11 +108,11 @@ export default function MainGroupMasterForm({
     fieldDefs
       .filter((f) => f.IsVisible && f.ColSeqNo < 100)
       .sort((a, b) => a.ColSeqNo - b.ColSeqNo),
-  [fieldDefs]);
+    [fieldDefs]);
 
   // Dropdown options lookup keyed by ColName
   const optionsMap = useMemo(() => ({
-    ItemTypeID:          itemTypeOptions,
+    ItemTypeID: itemTypeOptions,
     FixedAssetAccountID: fixedAssetAccOptions,
   }), [itemTypeOptions, fixedAssetAccOptions]);
 
@@ -207,7 +211,7 @@ export default function MainGroupMasterForm({
     if (!isEditMode) {
       return (
         <button type="button" className="master-modal-btn master-modal-btn--edit"
-                onClick={() => setIsEditMode(true)}>
+          onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
@@ -215,11 +219,11 @@ export default function MainGroupMasterForm({
     return (
       <div className="master-modal-footer-actions">
         <button type="button" className="master-modal-btn master-modal-btn--cancel"
-                onClick={handleCancelEdit} disabled={isSaving}>
+          onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
-                onClick={handleSave} disabled={isSaving}>
+          onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -227,20 +231,26 @@ export default function MainGroupMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading    = defsLoading || recordLoading;
-  const combinedErr  = defsError   || recordLoadError;
+  const isLoading = defsLoading || recordLoading;
+  const combinedErr = defsError || recordLoadError;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isAddMode ? "New Main Group" : "Edit Main Group"}
-      subtitle="Admin › Master › Item › Main Group Master"
+      title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
+      subtitle={MODAL_SUBTITLE}
       icon={<Tag size={16} strokeWidth={2} />}
       size="md"
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -249,6 +259,7 @@ export default function MainGroupMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="mgm-form">
             {visibleFields.map((field) => (
               <div
@@ -259,20 +270,18 @@ export default function MainGroupMasterForm({
                 ].join(" ").trim()}
               >
                 <span
-                  className={`mgm-form-label${
-                    isMasterFieldRequired(field, {
-                      skipFields: READ_ONLY_COLS,
-                    })
+                  className={`mgm-form-label${isMasterFieldRequired(field, {
+                    skipFields: READ_ONLY_COLS,
+                  })
                       ? " mgm-form-label--required"
                       : ""
-                  }`}
+                    }`}
                 >
                   {getLabel(field)}
                 </span>
                 <div
-                  className={`mgm-form-control${
-                    isMasterCheckboxField(field) ? " mgm-form-control--checkbox" : ""
-                  }`}
+                  className={`mgm-form-control${isMasterCheckboxField(field) ? " mgm-form-control--checkbox" : ""
+                    }`}
                 >
                   {renderControl(field)}
                 </div>

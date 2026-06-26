@@ -1,0 +1,32 @@
+/*
+ * NotifyTokens.css
+ * Notification-specific overrides layered on top of the app's enterprise.css tokens.
+ * All colour references delegate to the existing theme variables — never hard-code.
+ */
+:root {
+  /* Shadows used by toast and alert dialog */
+  --n-toast-shadow:
+    0 1px 3px  rgba(0, 0, 0, 0.06),
+    0 6px 20px rgba(0, 0, 0, 0.09);
+
+  /* Colour helpers mapped from enterprise.css — use these in component CSS */
+  --n-error:          var(--danger,  #d93025);
+  --n-error-hover:    var(--danger-hover, #ba1a1a);
+  --n-error-tint:     #fff5f4;
+  --n-error-text:     #6b1210;
+
+  --n-success:        var(--success, #089949);
+  --n-success-hover:  #067a3a;
+  --n-success-tint:   #f0faf4;
+  --n-success-text:   #0a4a24;
+
+  --n-warning:        var(--warning, #e37400);
+  --n-warning-hover:  var(--orange-hover, #c26400);
+  --n-warning-tint:   #fff8ed;
+  --n-warning-text:   #7c3d00;
+
+  --n-info:           var(--primary, #1e4a7a);
+  --n-info-hover:     var(--primary-hover, #00335f);
+  --n-info-tint:      #eef4fa;
+  --n-info-text:      #0f2d4a;
+}

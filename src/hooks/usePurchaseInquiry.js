@@ -43,7 +43,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -53,20 +53,13 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    ExpectedDate: toDateInput(master.ExpectedDate) || null,
-    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
-    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
-    Remarks: master.Remarks ?? "",
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(params.yearId) || PI_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID: getUserSession().userId,
+    ...master,
+    trandate:     toDateInput(master.trandate),
+    expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
+    yearid:    PI_CONFIG.CONFIG_YEAR_ID,
+    funccode:  PI_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
@@ -97,8 +90,8 @@ function mapIndentRowsToChildRowsMap(detailRows, indtRows) {
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) {
-      set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
     }
   });
   if (set.size === 0) {
@@ -121,7 +114,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const tableRow = metaData?.Table?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
 
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
@@ -217,7 +210,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         const tableRow = metaData?.Table?.[0];
         if (!tableRow) throw new Error("No PI header RB metadata returned from server.");
 
-        const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+        const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
         setHeaderRbMeta(hdrMeta);
         localStorage.setItem(PI_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
         console.log("%c[PI] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
@@ -271,15 +264,15 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
 
         setDivisionOptions(
           (divisionData?.Table || []).map((r) => ({
-            value: String(r.DivisionID),
-            label: r.DivisionName,
+            value: String(r.divisionid),
+            label: r.divisionname,
           }))
         );
 
         setDepartmentOptions(
           (departmentData?.Table || []).map((r) => ({
-            value: String(r.DepartmentID),
-            label: r.DepartmentName,
+            value: String(r.departmentid ?? r.deptid),
+            label: r.departmentname ?? r.deptname,
           }))
         );
 
@@ -312,8 +305,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       });
       setDivisionOptions(
         (divisionData?.Table || []).map((r) => ({
-          value: String(r.DivisionID),
-          label: r.DivisionName,
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
     } catch (err) {
@@ -333,8 +326,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       });
       setDepartmentOptions(
         (departmentData?.Table || []).map((r) => ({
-          value: String(r.DepartmentID),
-          label: r.DepartmentName,
+          value: String(r.departmentid ?? r.deptid),
+          label: r.departmentname ?? r.deptname,
         }))
       );
     } catch (err) {
@@ -353,13 +346,13 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       if (!headerColumns.length) return;
 
       const needsDivision = headerColumns.some(
-        (c) => c.ColName === "DivisionID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "divisionid" && !isLockOnEditModeCol(c)
       );
       const needsDept = headerColumns.some(
-        (c) => c.ColName === "DeptID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "deptid" && !isLockOnEditModeCol(c)
       );
       const needsConfig = headerColumns.some(
-        (c) => c.ColName === "ConfigID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "configid" && !isLockOnEditModeCol(c)
       );
 
       const tasks = [];
@@ -396,7 +389,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         ])
       );
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
       console.log(
         "%c[PI] Detail columns received:",
@@ -482,13 +475,12 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       ]);
 
       const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
       const details = mapDetailRowsToGridRows(detRes?.Links || []);
       const indentDetails = indtRes?.Links || [];
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
         childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
@@ -504,7 +496,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       PI_CONFIG.STORAGE_INDT_META
     );
     setAllIndentColumns(
-      apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+      apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
     );
     return buildGridColumns(apiColumns, {}, { filterable: false, allEditable: false });
   }, [get]);
@@ -570,7 +562,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
               p_ErrMsg: "",
             },
           }),
-          { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
+          { divisionId: headerValues.divisionid, isEdit: genIDNumber > 0 }
         );
 
         const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);

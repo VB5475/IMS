@@ -324,8 +324,8 @@ export function validateGridRows(rows, columns) {
 export function validateApiColumns(values, apiColumns) {
   const errors = [];
   (apiColumns || []).forEach((apiCol) => {
-    if (apiCol.IsVisible === false) return;
-    const key = apiCol.ColName;
+    if (!isTruthyApiFlag(apiCol.isvisible)) return;
+    const key = apiCol.colname;
     if (!key) return;
     const result = validateColumnValue(values[key], apiCol);
     if (!result.valid) errors.push(result.message);

@@ -44,8 +44,8 @@ function findFinancialYearForDate(yearRows, date = new Date()) {
 
   return (
     yearRows.find((row) => {
-      const from = toDateOnly(row.YearFrom);
-      const to = toDateOnly(row.YearTo);
+      const from = toDateOnly(row.yearfrom);
+      const to = toDateOnly(row.yearto);
       if (!from || !to) return false;
       return today >= from && today <= to;
     }) ?? null
@@ -106,7 +106,7 @@ function LoginForm({
             >
               {companies.map((row) => (
                 <option key={row.CompanyID} value={String(row.CompanyID)}>
-                  {row.CompanyName}
+                  {row.companyname}
                 </option>
               ))}
             </select>
@@ -121,8 +121,8 @@ function LoginForm({
               required
             >
               {years.map((row) => (
-                <option key={row.YearID} value={String(row.YearID)}>
-                  {row.YearName}
+                <option key={row.yearid} value={String(row.yearid)}>
+                  {row.yearname}
                 </option>
               ))}
             </select>
@@ -228,11 +228,11 @@ export default function LoginPage() {
       setYears(yearRows);
 
       if (companyRows.length > 0) {
-        setCompanyId(String(companyRows[0].CompanyID));
+        setCompanyId(String(companyRows[0].companyid));
       }
       const activeYear = findFinancialYearForDate(yearRows);
-      if (activeYear?.YearID != null) {
-        setYearId(String(activeYear.YearID));
+      if (activeYear?.yearid != null) {
+        setYearId(String(activeYear.yearid));
       }
     } catch (err) {
       console.error("[LoginPage] bootstrap fetch failed:", err);
@@ -268,13 +268,13 @@ export default function LoginPage() {
       });
 
       const authRow = authRes?.Table?.[0];
-      if (!authRow?.LoginID) {
+      if (!authRow?.loginid) {
         setError("Invalid user ID or password. Please try again.");
         return;
       }
 
       const company = companies.find((row) => String(row.CompanyID) === companyId) ?? null;
-      const year = years.find((row) => String(row.YearID) === yearId) ?? null;
+      const year = years.find((row) => String(row.yearid) === yearId) ?? null;
 
       login(authRow, { companyId, yearId, company, year });
       navigate("/", { replace: true });

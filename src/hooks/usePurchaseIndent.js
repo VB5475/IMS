@@ -37,7 +37,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -47,39 +47,30 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    ExpDate: toDateInput(master.ExpDate ?? master.ExpectedDate) || null,
-    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
-    LocationID: master.LocationID != null ? Number(master.LocationID) : 0,
-    Remarks: master.Remarks ?? "",
-    IndentRefrenceNo: master.IndentRefrenceNo ?? "",
-    TranMstGenID: master.TranMstGenID != null ? Number(master.TranMstGenID) : 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(master.Year_ID ?? params.yearId) || IND_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? master.IndentID ?? params.idNumber) || 0,
-    UserID: getUserSession().userId,
-    CompUniqueKey: master.CompUniqueKey ?? master.IDNumber ?? master.IndentID ?? params.idNumber ?? 0,
-    FuncCode: master.FuncCode ?? IND_CONFIG.RB_MASTER,
+    ...master,
+    // Date fields need normalisation from ISO → date-input format
+    trandate:     toDateInput(master.trandate),
+    expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
+    // Context fields: always use live values, not stale DB values
+    yearid:    IND_CONFIG.CONFIG_YEAR_ID,
+    funccode:  IND_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) {
-      set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
     }
   });
   if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
@@ -95,17 +86,17 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
 
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID: DEFAULT_LOGIN_ID,
   });
-  const apiColumns = colData?.Links || [];
+  const apiColumns = colData || [];
   return { meta, apiColumns };
 }
 
@@ -144,13 +135,13 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_LOCATION,
-        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID, prmLocationType: "" }]),
+        JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID, prmlocationtype: "" }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.LocationID ?? r.LocID),
-        label: r.LocationName ?? r.LocName ?? r.Location ?? String(r.LocationID ?? r.LocID),
+      const opts = (res || []).map((r) => ({
+        value: String(r.locationid ?? r.locid),
+        label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid),
       }));
       setLocationOptions(opts);
       return opts;
@@ -165,15 +156,16 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   const fetchDepartments = useCallback(async () => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 1,
+        ObjType: 2,
         ObjName: IND_CONFIG.SP_DEPT,
-        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID }]),
+        // JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID }]),
+        JSon: JSON.stringify([{ prmdeptid : 0, prmloginid: DEFAULT_LOGIN_ID }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.DeptID ?? r.DepartmentID),
-        label: r.DeptName ?? r.DepartmentName ?? String(r.DeptID),
+      const opts = (res || []).map((r) => ({
+        value: String(r.deptid ?? r.departmentid),
+        label: r.deptname ?? r.departmentname,
       }));
       setDepartmentOptions(opts);
       return opts;
@@ -198,20 +190,20 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
           ObjName: IND_CONFIG.SP_INDENT_TYPES,
           JSon: JSON.stringify([
             {
-              PrmCompanyId: DEFAULT_COMPANY_ID,
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: IND_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: DEFAULT_LOGIN_ID,
-              PrmFormTag: IND_CONFIG.FORM_TAG,
-              PrmRefType: "",
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmdivisionid: Number(divisionId),
+              prmyearid: IND_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: DEFAULT_LOGIN_ID,
+              prmformtag: IND_CONFIG.FORM_TAG,
+              prmreftype: "",
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = (res?.Table || []).map((r) => ({
-          value: String(r.ConfigurationId),
-          label: r.Name,
+        const opts = (res || []).map((r) => ({
+          value: String(r.configurationid),
+          label: r.name,
         }));
         setIndentTypeOptions(opts);
         return opts;
@@ -239,10 +231,10 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Indent header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       setHeaderRbMeta(hdrMeta);
       localStorage.setItem(IND_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
       console.log("%c[Indent] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
@@ -251,11 +243,11 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         prmMasterID: hdrMeta.RBID,
         prmLoginID: DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
       console.log(
         "%c[Indent] Header columns received:",
         "color:#8b5cf6;font-weight:600",
-        (colData?.Links || []).length
+        (colData || []).length
       );
 
       if (skipListDropdowns) {
@@ -272,46 +264,47 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
           ObjName: IND_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([
             {
-              prmUserID: DEFAULT_LOGIN_ID,
-              prmCompanyID: DEFAULT_COMPANY_ID,
-              prmYearID: IND_CONFIG.DIVISION_YEAR_ID,
+              prmuserid: DEFAULT_LOGIN_ID,
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmyearid: IND_CONFIG.DIVISION_YEAR_ID,
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         }).catch((err) => { console.warn("[Indent] Division fetch failed:", err); return null; }),
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 1,
+          ObjType: 2,
           ObjName: IND_CONFIG.SP_DEPT,
-          JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID }]),
+          // JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID }]),
+          JSon: JSON.stringify([{ prmdeptid:0, prmloginid: DEFAULT_LOGIN_ID }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         }).catch((err) => { console.warn("[Indent] Department fetch failed:", err); return null; }),
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: IND_CONFIG.SP_LOCATION,
-          JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID, prmLocationType: "" }]),
+          JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID, prmlocationtype: "" }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         }).catch((err) => { console.warn("[Indent] Location fetch failed:", err); return null; }),
       ]);
 
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({
-          value: String(r.DivisionID),
-          label: r.DivisionName,
+        (divisionData || []).map((r) => ({
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
       setDepartmentOptions(
-        (deptData?.Table || []).map((r) => ({
-          value: String(r.DeptID ?? r.DepartmentID),
-          label: r.DeptName ?? r.DepartmentName ?? String(r.DeptID),
+        (deptData || []).map((r) => ({
+          value: String(r.deptid ?? r.departmentid),
+          label: r.deptname ?? r.departmentname,
         }))
       );
       setLocationOptions(
-        (locationData?.Table || []).map((r) => ({
-          value: String(r.LocationID ?? r.LocID),
-          label: r.LocationName ?? r.LocName ?? r.Location ?? String(r.LocationID ?? r.LocID),
+        (locationData || []).map((r) => ({
+          value: r.locationid,
+          label: r.locationname,
         }))
       );
     } catch (err) {
@@ -341,7 +334,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       setEventColumns(evtSet);
 
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
       console.log(
         "%c[Indent] Detail columns received:",
@@ -440,7 +433,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         }
 
         const cleanedRows = detailRows.map(({ id, ...rest }) => rest);
-        const isEdit = Number(headerValues.TranMstGenID) > 0 || Number(headerValues.IDNumber) > 0;
+        const isEdit = Number(headerValues.tranmstgenid) > 0 || Number(headerValues.idnumber) > 0;
         const body = await withSaveContextFields(
           buildSaveJsonFields({
             label: "Indent Hook",
@@ -455,7 +448,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
               p_ErrMsg: "",
             },
           }),
-          { divisionId: headerValues.DivisionID, isEdit }
+          { divisionId: headerValues.divisionid, isEdit }
         );
 
         const result = await axios.post(`${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`, body, {
@@ -478,19 +471,19 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   // ── seedOptionsFromMaster — seed single-item options from master fill response ──
   // API returns display names as: DivisionName, ConfigName, Department (not DeptName), Location (not LocationName)
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.ConfigID != null && master.ConfigName) {
-      setIndentTypeOptions([{ value: String(master.ConfigID), label: master.ConfigName }]);
+    if (master.configid != null && master.configname) {
+      setIndentTypeOptions([{ value: String(master.configid), label: master.configname }]);
     }
-    const deptLabel = master.DeptName ?? master.Department;
-    if (master.DeptID != null && master.DeptID !== 0 && deptLabel) {
-      setDepartmentOptions([{ value: String(master.DeptID), label: deptLabel }]);
+    const deptLabel = master.deptname ?? master.department;
+    if (master.deptid != null && master.deptid !== 0 && deptLabel) {
+      setDepartmentOptions([{ value: String(master.deptid), label: deptLabel }]);
     }
-    const locLabel = master.LocationName ?? master.Location;
-    if (master.LocationID != null && master.LocationID !== 0 && locLabel) {
-      setLocationOptions([{ value: String(master.LocationID), label: locLabel }]);
+    const locLabel = master.locationname ?? master.location;
+    if (master.locationid != null && master.locationid !== 0 && locLabel) {
+      setLocationOptions([{ value: String(master.locationid), label: locLabel }]);
     }
   }, []);
 
@@ -499,12 +492,12 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
     async (divisionId) => {
       if (!headerColumns.length) return;
 
-      const isEditable = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
+      const isEditable = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
 
-      const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID" && isEditable(c));
-      const needsConfig = headerColumns.some((c) => c.ColName === "ConfigID" && isEditable(c));
-      const needsDept = headerColumns.some((c) => c.ColName === "DeptID" && isEditable(c));
-      const needsLocation = headerColumns.some((c) => c.ColName === "LocationID" && isEditable(c));
+      const needsDivision = headerColumns.some((c) => c.colname === "divisionid" && isEditable(c));
+      const needsConfig   = headerColumns.some((c) => c.colname === "configid"   && isEditable(c));
+      const needsDept     = headerColumns.some((c) => c.colname === "deptid"     && isEditable(c));
+      const needsLocation = headerColumns.some((c) => c.colname === "locationid" && isEditable(c));
 
       const tasks = [];
 
@@ -522,7 +515,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             p_ErrMsg: "",
           }).then((res) =>
             setDivisionOptions(
-              (res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+              (res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))
             )
           ).catch(() => { })
         );
@@ -559,13 +552,12 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         }),
       ]);
 
-      const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
+      const master = mstRes?.[0] ?? null;
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-        details: mapDetailRowsToGridRows(detRes?.Links || []),
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+        details: mapDetailRowsToGridRows(detRes || []),
       };
     },
     [get]

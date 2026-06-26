@@ -1,4 +1,8 @@
 // constants.js — Goods Received Note (GRN) page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Goods Received Note";
+export const PAGE_TITLE_NEW = "New Goods Received Note";
+
 
 // Source of truth: MRD_Template4GRN.docx (Richa, 10-Jun-2026).
 

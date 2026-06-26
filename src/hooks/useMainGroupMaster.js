@@ -10,35 +10,37 @@ import {
 import { MGM_CONFIG } from "../pages/main-group-master/constants";
 
 function mapMasterRowToHeaderValues(master, params) {
+
+
   return {
-    IDNumber:                 Number(master.IDNumber ?? params.idNumber) || 0,
-    ItemTypeID:               master.ItemTypeID        != null ? Number(master.ItemTypeID)        : 0,
-    MainGroupCode:            master.MainGroupCode             ?? "",
-    MainGroupName:            master.MainGroupName             ?? "",
-    MainGroupShortName:       master.MainGroupShortName        ?? "",
+    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
+    ItemTypeID: master.ItemTypeID != null ? Number(master.ItemTypeID) : 0,
+    MainGroupCode: master.MainGroupCode ?? "",
+    MainGroupName: master.MainGroupName ?? "",
+    MainGroupShortName: master.MainGroupShortName ?? "",
     UsedCodeInCodeGeneration:
       master.UsedCodeInCodeGeneration === true ||
-      master.UsedCodeInCodeGeneration === 1 ||
-      master.UsedCodeInCodeGeneration === "1"
+        master.UsedCodeInCodeGeneration === 1 ||
+        master.UsedCodeInCodeGeneration === "1"
         ? 1
         : 0,
-    MainGroupShortCode:       master.MainGroupShortCode        ?? "",
-    FixedAssetAccountID:      master.FixedAssetAccountID != null ? Number(master.FixedAssetAccountID) : 0,
-    CompanyID:                Number(params.companyId)  || DEFAULT_COMPANY_ID,
-    YearID:                   Number(master.YearID   ?? params.yearId)   || MGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                  Number(master.LoginID  ?? params.loginId)  || DEFAULT_LOGIN_ID,
-    SessionID:                Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode:                 master.FuncCode ?? MGM_CONFIG.RB_MASTER,
+    MainGroupShortCode: master.MainGroupShortCode ?? "",
+    FixedAssetAccountID: master.FixedAssetAccountID != null ? Number(master.FixedAssetAccountID) : 0,
+    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
+    YearID: Number(master.YearID ?? params.yearId) || MGM_CONFIG.CONFIG_YEAR_ID,
+    LoginID: Number(master.LoginID ?? params.loginId) || DEFAULT_LOGIN_ID,
+    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
+    FuncCode: master.FuncCode ?? MGM_CONFIG.RB_MASTER,
   };
 }
 
 export function useMainGroupMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,        setHeaderColumns]        = useState([]);
-  const [headerFetching,       setHeaderFetching]       = useState(false);
-  const [headerError,          setHeaderError]          = useState(null);
-  const [itemTypeOptions,      setItemTypeOptions]      = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
+  const [itemTypeOptions, setItemTypeOptions] = useState([]);
   const [fixedAssetAccOptions, setFixedAssetAccOptions] = useState([]);
 
   const fetchHeaderMeta = useCallback(async () => {
@@ -47,11 +49,11 @@ export function useMainGroupMaster() {
     try {
       // Phase 1 — RB metadata → RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   MGM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmRBCode: MGM_CONFIG.RB_MASTER }]),
+        ObjType: 2,
+        ObjName: MGM_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: MGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.Table?.[0];
       if (!tableRow) throw new Error("No Main Group Master RB metadata returned.");
@@ -61,29 +63,29 @@ export function useMainGroupMaster() {
       // Phase 2 — header column definitions
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       setHeaderColumns(colData?.Links || []);
 
       // Phase 3 — Item Type + Fixed Asset A/C dropdowns in parallel
       const [itemTypeData, fixedAssetData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType:   2,
-          ObjName:   MGM_CONFIG.SP_ITEM_TYPE,
-          JSon:      JSON.stringify([{ }]),
+          ObjType: 2,
+          ObjName: MGM_CONFIG.SP_ITEM_TYPE,
+          JSon: JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Item Type fetch failed:", err); return null; }),
 
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType:   2,
-          ObjName:   MGM_CONFIG.SP_FIXED_ASSET_ACC,
-          JSon:      JSON.stringify([{}]),
+          ObjType: 2,
+          ObjName: MGM_CONFIG.SP_FIXED_ASSET_ACC,
+          JSon: JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Fixed Asset A/C fetch failed:", err); return null; }),
       ]);
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[MGM] ItemType row sample:",      itemTypeData?.Table?.[0]);
+        console.log("[MGM] ItemType row sample:", itemTypeData?.Table?.[0]);
         console.log("[MGM] FixedAssetAcc row sample:", fixedAssetData?.Table?.[0]);
       }
 
@@ -109,17 +111,17 @@ export function useMainGroupMaster() {
 
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
-      Number(companyId)  || DEFAULT_COMPANY_ID,
-      Number(yearId)     || MGM_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId)    || DEFAULT_LOGIN_ID,
-      Number(sessionId)  || DEFAULT_SESSION_ID,
-      Number(idNumber)   || 0,
+      Number(companyId) || DEFAULT_COMPANY_ID,
+      Number(yearId) || MGM_CONFIG.CONFIG_YEAR_ID,
+      Number(loginId) || DEFAULT_LOGIN_ID,
+      Number(sessionId) || DEFAULT_SESSION_ID,
+      Number(idNumber) || 0,
     ].join(",");
 
     const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
       prmProcedure: MGM_CONFIG.SP_MASTER_FILL,
       prmParameters,
-      prmFuncCode:  MGM_CONFIG.RB_MASTER,
+      prmFuncCode: MGM_CONFIG.RB_MASTER,
     });
     const master = mstRes?.Links?.[0] ?? null;
     return {

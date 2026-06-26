@@ -28,6 +28,7 @@ import React, {
   Suspense,
 } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import GridSearch from "./GridSearch";
 const SearchSelect = lazy(() => import("../ui/SearchSelect"));
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
 const CollapsibleGrid = lazy(() => import("./CollapsibleGrid"));
@@ -133,6 +134,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     embedded = false, // true → nested in scroll host; parent owns overflow
     multiValuePasteColumns = null, // Set<string> | string[] — column keys that intercept multi-value paste
     onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
+    searchable = true, // false → hide built-in search bar
   },
   ref
 ) {
@@ -341,9 +343,32 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return resolveDropdownLabel(col, row, rawValue);
   }, []);
 
+  // ── Search ────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const searchedRows = useMemo(() => {
+    if (!searchable || !searchQuery.trim()) return rows;
+    const q = searchQuery.toLowerCase().trim();
+    return rows.filter((row) =>
+      columns.some((col) => {
+        if (col.key === "cb") return false;
+        const val =
+          col.controlType === 4
+            ? resolveDropdownLabel(col, row, row[col.key])
+            : row[col.key];
+        return String(val ?? "").toLowerCase().includes(q);
+      })
+    );
+  }, [rows, searchQuery, searchable, columns]);
+
+  const handleSearchChange = useCallback((q) => {
+    setSearchQuery(q);
+    setPage(1);
+  }, []);
+
   // ── Sort ──────────────────────────────────────────────────────────
   const processedRows = useMemo(() => {
-    let data = [...rows];
+    let data = [...searchedRows];
     if (sortConfig.key) {
       data.sort((a, b) => {
         const aVal = a[sortConfig.key] ?? "";
@@ -360,7 +385,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       });
     }
     return data;
-  }, [rows, sortConfig]);
+  }, [searchedRows, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -768,11 +793,38 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               </button>
             ))}
           </div>
-          {headerControls ? <div className="grid-tabbar__controls">{headerControls}</div> : null}
+          <div className="grid-tabbar__controls">
+            {searchable && (
+              <GridSearch
+                query={searchQuery}
+                onChange={handleSearchChange}
+                matchCount={searchedRows.length}
+                totalCount={rows.length}
+              />
+            )}
+            {headerControls}
+          </div>
         </div>
       ) : title ? (
         <div className="grid-header">
           <h2 className="grid-title">{title}</h2>
+          {searchable && (
+            <GridSearch
+              query={searchQuery}
+              onChange={handleSearchChange}
+              matchCount={searchedRows.length}
+              totalCount={rows.length}
+            />
+          )}
+        </div>
+      ) : searchable ? (
+        <div className="eg-search-bar">
+          <GridSearch
+            query={searchQuery}
+            onChange={handleSearchChange}
+            matchCount={searchedRows.length}
+            totalCount={rows.length}
+          />
         </div>
       ) : null}
 
@@ -941,7 +993,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                           "No data available."
                         ) : (
                           <>
-                            Click <strong>Add New</strong> in the header panel to add a row.
+                            Click <strong>Entry Form</strong> in the header panel to add a row.
                           </>
                         ))}
                     </td>
