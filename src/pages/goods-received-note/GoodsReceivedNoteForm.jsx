@@ -18,6 +18,9 @@ import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-re
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
 import { useGoodsReceivedNote } from "../../hooks/useGoodsReceivedNote";
@@ -62,6 +65,8 @@ import {
   GRN_FILTER_CASCADE_RESETS,
   GRN_FILTER_INITIAL_VALUES,
   GRN_ITEM_PICKER_CONTEXT_FIELDS,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
   getMissingItemPickerHeaderFields,
   resolveItemPickerRbCode,
@@ -146,6 +151,8 @@ export default function GoodsReceivedNoteForm() {
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -380,7 +387,7 @@ export default function GoodsReceivedNoteForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   usePageHeader({
-    title: isNewRoute ? "New Goods Received Note" : "Goods Received Note",
+    title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then use the Item Grid tab."
       : `GRN #${recordId || routeId || "—"} — fill in the header fields, then use the Item Grid tab.`,
@@ -708,7 +715,7 @@ export default function GoodsReceivedNoteForm() {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
 
@@ -874,7 +881,7 @@ export default function GoodsReceivedNoteForm() {
 
       const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
       if (allErrors.length > 0) {
-        alert(allErrors.join("\n"));
+        setFormErrors(allErrors);
         return false;
       }
 
@@ -911,13 +918,13 @@ export default function GoodsReceivedNoteForm() {
       try {
         const result = await postSave(GRN_CONFIG.SAVE_ENDPOINT, payload);
         const { success, message } = parseApiErrMsg(result);
-        alert(message);
-        if (!success) return false;
+        if (!success) { setFormErrors([message]); return false; }
+        notify.success(message);
         if (!skipPostSave) completeSuccessfulSave();
         return true;
       } catch (err) {
         console.error("[GRN Save] Failed:", err);
-        alert(err?.message || "Save failed. Please try again.");
+        notify.error(err?.message || "Save failed. Please try again.");
         return false;
       } finally {
         setIsSaving(false);
@@ -943,8 +950,10 @@ export default function GoodsReceivedNoteForm() {
     completeSuccessfulSave();
   }, [handleSave, completeSuccessfulSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     if (isEditRoute) {
       exitEditMode();
@@ -957,6 +966,8 @@ export default function GoodsReceivedNoteForm() {
 
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
+
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   const handleDocument = useCallback(() => {
     console.log("[GRN] Document F6 — reserved for document generation.");
@@ -1034,6 +1045,14 @@ export default function GoodsReceivedNoteForm() {
 
   return (
     <div className="workspace-page grn-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -1088,7 +1107,7 @@ export default function GoodsReceivedNoteForm() {
               <button
                 ref={selectItemBtnRef}
                 type="button"
-                className="grn-tab-action-btn"
+                className="eg-tab-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
                 title={FORM_SHORTCUT_TITLES.selectList}
@@ -1112,7 +1131,7 @@ export default function GoodsReceivedNoteForm() {
                 </div>
                 <button
                   type="button"
-                  className="grn-tab-delete-btn"
+                  className="eg-tab-btn eg-tab-btn--danger"
                   onClick={handleDeleteSelected}
                   disabled={!isEditMode || activeSelectionCount === 0}
                   title="Delete selected rows"
@@ -1182,6 +1201,7 @@ export default function GoodsReceivedNoteForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={grnExtraButtons}

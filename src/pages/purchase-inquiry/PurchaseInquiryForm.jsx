@@ -23,6 +23,9 @@ import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPane
 import EntryGrid from "../../components/grid/EntryGrid";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
 import ActionBar from "../../components/ui/ActionBar";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useNotification } from "../../context/NotificationContext";
 import SupplierPickerModal from "../../components/purchase-inquiry/SupplierPickerModal";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
@@ -65,6 +68,8 @@ import {
   PI_FILTER_CASCADE_RESETS,
   PI_ITEM_PICKER_CONTEXT_FIELDS,
   SUPPLIER_GRID_CONFIG,
+  PAGE_TITLE,
+  PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
   getMissingItemPickerHeaderFields,
 } from "./constants";
@@ -89,14 +94,14 @@ function mapPickerToSupplierRow(item, srNo) {
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode: headerValues.TranCode ?? "",
-    TranDate: headerValues.TranDate ?? "",
-    DivisionID: String(headerValues.DivisionID ?? ""),
-    ConfigID: String(headerValues.ConfigID ?? ""),
-    ExpectedDate: headerValues.ExpectedDate ?? "",
-    DeptID: String(headerValues.DeptID ?? ""),
-    BasedOnID: String(headerValues.BasedOnID ?? "0"),
-    Remarks: headerValues.Remarks ?? "",
+    trancode:     headerValues.trancode ?? "",
+    trandate:     headerValues.trandate ?? "",
+    divisionid:   String(headerValues.divisionid ?? ""),
+    configid:     String(headerValues.configid ?? ""),
+    expecteddate: headerValues.expecteddate ?? "",
+    deptid:       String(headerValues.deptid ?? ""),
+    basedonid:    String(headerValues.basedonid ?? "0"),
+    remarks:      headerValues.remarks ?? "",
   };
 }
 
@@ -127,7 +132,8 @@ function mapPickerToItemRow(item, allColumns) {
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    const lk = k.toLowerCase();
+    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -141,6 +147,8 @@ export default function PurchaseInquiryForm() {
   const recordId = isNewRoute ? 0 : Number(routeId) || 0;
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
+  const notify = useNotification();
+  const [formErrors, setFormErrors] = useState([]);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -199,24 +207,25 @@ export default function PurchaseInquiryForm() {
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    TranCode: "",
-    TranDate: todayISO,
-    ConfigID: 0,
-    ExpectedDate: null,
-    DivisionID: 0,
-    DeptID: 0,
-    BasedOnID: "0",
-    Remarks: "",
-    CompanyID: 1,
-    YearID: PI_CONFIG.DIVISION_YEAR_ID,
-    LoginID: session.loginId,
-    UserID: session.userId,
-    IDNumber: recordId,
+    trancode:     "",
+    trandate:     todayISO,
+    configid:     0,
+    expecteddate: null,
+    divisionid:   0,
+    deptid:       0,
+    basedonid:    "0",
+    remarks:      "",
+    yearid:       PI_CONFIG.DIVISION_YEAR_ID,
+    funccode:     PI_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    loginid:      session.loginId,
+    sessionid:    DEFAULT_SESSION_ID,
+    idnumber:     recordId,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { BasedOnID: "0", TranDate: todayISO };
+    return { basedonid: "0", trandate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
@@ -263,19 +272,20 @@ export default function PurchaseInquiryForm() {
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      TranCode: "",
-      TranDate: todayISO,
-      ConfigID: 0,
-      ExpectedDate: null,
-      DivisionID: 0,
-      DeptID: 0,
-      BasedOnID: "0",
-      Remarks: "",
-      CompanyID: 1,
-      YearID: PI_CONFIG.DIVISION_YEAR_ID,
-      LoginID: resetSession.loginId,
-      UserID: resetSession.userId,
-      IDNumber: 0,
+      trancode:     "",
+      trandate:     todayISO,
+      configid:     0,
+      expecteddate: null,
+      divisionid:   0,
+      deptid:       0,
+      basedonid:    "0",
+      remarks:      "",
+      yearid:       PI_CONFIG.DIVISION_YEAR_ID,
+      funccode:     PI_CONFIG.RB_MASTER,
+      tranmstgenid: 0,
+      loginid:      resetSession.loginId,
+      sessionid:    DEFAULT_SESSION_ID,
+      idnumber:     0,
     };
 
     queuedRowsRef.current = [];
@@ -354,7 +364,7 @@ export default function PurchaseInquiryForm() {
   const [childColumns, setChildColumns] = useState([]);
 
   usePageHeader({
-    title: isNewRoute ? "New Purchase Inquiry" : "Purchase Inquiry",
+    title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
       ? "Fill in the header fields, then use Item Grid or Suppliers tabs."
       : `Inquiry #${recordId || routeId || "—"} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
@@ -391,7 +401,7 @@ export default function PurchaseInquiryForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const isIndentWise = Number(headerValues.BasedOnID) === 2;
+      const isIndentWise = Number(headerValues.basedonid) === 2;
       if (isIndentWise && Object.keys(loadedChildRowsMap).length > 0) {
         const indentCols = await fetchIndentDetailColumns();
         setChildColumns(indentCols.filter((c) => c.key !== "cb"));
@@ -401,7 +411,7 @@ export default function PurchaseInquiryForm() {
         setChildRowsMap({});
       }
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
+      const activeCols = await fetchGridColumns(headerValues.divisionid ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
@@ -422,7 +432,7 @@ export default function PurchaseInquiryForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
 
-    const divisionId = headerValuesRef.current?.DivisionID ?? loadedMasterRow?.DivisionID ?? 0;
+    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
     fetchUnlockedHeaderDropdowns(divisionId);
     fetchGridColumns(divisionId, {
       existingRecordEdit: true,
@@ -465,11 +475,11 @@ export default function PurchaseInquiryForm() {
 
     const injectListOptions = (filter, baseFilter) => {
       switch (filter.FilterParameterID) {
-        case "DivisionID":
+        case "divisionid":
           return { ...baseFilter, staticOptions: divisionOptions };
-        case "ConfigID":
+        case "configid":
           return { ...baseFilter, staticOptions: inquiryTypeOptions };
-        case "DeptID":
+        case "deptid":
           return { ...baseFilter, staticOptions: departmentOptions };
         default:
           return baseFilter;
@@ -483,14 +493,14 @@ export default function PurchaseInquiryForm() {
       let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
 
       if (apiCol) {
-        def.FilterColCtrlType = apiCol.ColCtrlType ?? filter.FilterColCtrlType;
+        def.FilterColCtrlType = apiCol.colctrltype ?? filter.FilterColCtrlType;
       }
 
       // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
       if (isEditRoute && loadedMasterRow) {
-        if (filter.FilterParameterID === "BasedOnID") {
+        if (filter.FilterParameterID === "basedonid") {
           const basedOnVal = String(
-            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? "0"
+            loadedMasterRow.basedonid ?? headerValuesRef.current?.basedonid ?? "0"
           );
           if (lockOnEditMode || !isEditMode) {
             const match = PI_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
@@ -501,7 +511,7 @@ export default function PurchaseInquiryForm() {
           return def;
         }
 
-        if (apiCol?.ColCtrlType === 4) {
+        if (apiCol?.colctrltype === 4) {
           if (lockOnEditMode || !isEditMode) {
             def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
           } else {
@@ -565,8 +575,8 @@ export default function PurchaseInquiryForm() {
 
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-      if (colName === "DivisionID") {
-        headerValuesRef.current.ConfigID = 0;
+      if (colName === "divisionid") {
+        headerValuesRef.current.configid = 0;
         clearInquiryTypes();
         supplierGridRef.current?.clearRows?.();
         setSupplierSelectionCount(0);
@@ -581,7 +591,7 @@ export default function PurchaseInquiryForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0, {
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0, {
         existingRecordEdit: isEditRoute,
         masterRow: loadedMasterRow,
         fetchUnlockedDropdowns: true,
@@ -604,12 +614,12 @@ export default function PurchaseInquiryForm() {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      alert(`Please fill in the following before selecting items:\n${missingFields.join("\n")}`);
+      setFormErrors(missingFields);
       return;
     }
 
-    const { BasedOnID } = headerValues;
     const loginId = getUserSession().loginId;
+    const BasedOnID = headerValues.basedonid;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -644,7 +654,7 @@ export default function PurchaseInquiryForm() {
         prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(
-        colRes?.Links || [],
+        colRes || [],
         {},
         {
           filterable: false,
@@ -675,7 +685,7 @@ export default function PurchaseInquiryForm() {
       if (!selectedItems?.length) return;
       setActiveTab("items");
 
-      const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
+      const isIndentWise = Number(headerValuesRef.current?.basedonid) === 2;
 
       if (!isIndentWise) {
         // ── Direct mode ───────────────────────────────────────────────────
@@ -692,7 +702,7 @@ export default function PurchaseInquiryForm() {
       // 1. API_VALUES → aggregated parent item rows
       // 2. RB_PurInquiryIndtDet → RBID (localStorage) → GET_DETAIL_COL_DATA → child columns
       // 3. Attach selected indent rows from the picker under each parent row
-      ensureItemColumns().catch(() => { });
+      await ensureItemColumns();
 
       // Strip synthetic '_row_N' ids before sending to the API.
       const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
@@ -741,10 +751,12 @@ export default function PurchaseInquiryForm() {
           );
           if (children.length > 0) newChildRowsMap[pid] = children;
 
-          // Spread all API fields directly so the row doesn't depend on
-          // allColumns being loaded yet; any grid column whose key matches
-          // a parent field will display the correct value automatically.
-          addItemRow({ ...parent, id: pid });
+          // Summary SP returns PascalCase keys; normalize to lowercase so they
+          // match RB_PurInquiryDet column keys (lowercased by DBA).
+          const normalizedParent = Object.fromEntries(
+            Object.entries(parent).map(([k, v]) => [k.toLowerCase(), v])
+          );
+          addItemRow({ ...normalizedParent, id: pid });
         });
 
         setChildRowsMap((prev) => ({ ...prev, ...newChildRowsMap }));
@@ -760,9 +772,9 @@ export default function PurchaseInquiryForm() {
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────
   const handleSelectSupplier = useCallback(async () => {
-    const divisionID = headerValuesRef.current?.DivisionID ?? 0;
+    const divisionID = headerValuesRef.current?.divisionid ?? 0;
     if (!divisionID || divisionID === "0" || divisionID === 0) {
-      alert("Please select a Division before selecting suppliers.");
+      setFormErrors(["Please select a Division before selecting suppliers."]);
       return;
     }
     setSupplierModalOpen(true);
@@ -857,7 +869,7 @@ export default function PurchaseInquiryForm() {
 
       // ── Validation (header + detail grids) ───────────────────────────
       const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
-      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
       const headerErrors = validateApiColumns(hv, headerColsToValidate);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
@@ -868,24 +880,24 @@ export default function PurchaseInquiryForm() {
 
       const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
       if (allErrors.length > 0) {
-        alert(allErrors.join("\n"));
+        setFormErrors(allErrors);
         return false;
       }
 
       // ── Master ────────────────────────────────────────────────────────
       const mstRow = {};
       headerColumns.forEach((col) => {
-        mstRow[col.ColName] = getColDefault(col.ColDataType);
+        mstRow[col.colname] = getColDefault(col.coldatatype);
       });
       Object.entries(hv).forEach(([k, v]) => {
         if (k !== "id") mstRow[k] = v;
       });
       const session = getUserSession();
-      mstRow.LoginID = session.loginId;
-      mstRow.UserID = session.userId;
+      mstRow.loginid = session.loginId;
+      mstRow.userid  = session.userId;
 
       // ── Detail ────────────────────────────────────────────────────────
-      const sessionFields = { LoginID: session.loginId, UserID: session.userId };
+      const sessionFields = { loginid: session.loginId, userid: session.userId };
       const detRows = itemRows.map(({ id, ...rest }) =>
         buildSaveRowFromColumns(rest, allColumns, sessionFields)
       );
@@ -902,22 +914,21 @@ export default function PurchaseInquiryForm() {
           det: detRows,
           indtDet: indentDetailRows,
         }),
-        { divisionId: hv.DivisionID, isEdit: isEditRoute }
+        { divisionId: hv.divisionid, isEdit: isEditRoute }
       );
 
       setIsSavingPI(true);
       try {
         const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
-        console.log("%c[PI Save] Response:", "color:#22c55e;font-weight:700", result);
         const { success, message } = parseApiErrMsg(result);
-        alert(message);
-        if (!success) return false;
+        if (!success) { setFormErrors([message]); return false; }
+        notify.success(message);
 
         if (!skipPostSave) completeSuccessfulSave();
         return true;
       } catch (err) {
         console.error("[PI Save] Failed:", err);
-        alert(err?.message || "Save failed. Please try again.");
+        notify.error(err?.message || "Save failed. Please try again.");
         return false;
       } finally {
         setIsSavingPI(false);
@@ -933,8 +944,10 @@ export default function PurchaseInquiryForm() {
     completeSuccessfulSave();
   }, [handleSave, completeSuccessfulSave]);
 
-  const handleCancel = useCallback(() => {
-    if (!window.confirm("Discard changes and reset the form?")) return;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
 
     if (isEditRoute) {
       exitEditMode();
@@ -948,6 +961,8 @@ export default function PurchaseInquiryForm() {
 
     resetFormToInitialState();
   }, [exitEditMode, isEditRoute, loadEditRecord, resetFormToInitialState]);
+
+  const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   const handleDocument = useCallback(() => {
     console.log("[PI] Document F6 — reserved for document generation.");
@@ -1022,6 +1037,14 @@ export default function PurchaseInquiryForm() {
 
   return (
     <div className="workspace-page pi-page">
+      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+      <ConfirmDialog
+        isOpen={discardOpen}
+        message="Discard changes and reset the form?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardOpen(false)}
+      />
+
       <section className="workspace-page__filters">
         {combinedError ? (
           <div className="workspace-error">
@@ -1075,7 +1098,7 @@ export default function PurchaseInquiryForm() {
               <button
                 ref={selectItemBtnRef}
                 type="button"
-                className="pi-tab-action-btn"
+                className="eg-tab-btn"
                 onClick={handleSelectItem}
                 disabled={!isEditMode}
                 title={FORM_SHORTCUT_TITLES.selectList}
@@ -1088,7 +1111,7 @@ export default function PurchaseInquiryForm() {
             {activeTab === "suppliers" && (
               <button
                 type="button"
-                className="pi-tab-action-btn"
+                className="eg-tab-btn"
                 onClick={handleSelectSupplier}
                 disabled={!isEditMode}
                 title={FORM_SHORTCUT_TITLES.selectList}
@@ -1110,7 +1133,7 @@ export default function PurchaseInquiryForm() {
             </div>
             <button
               type="button"
-              className="pi-tab-delete-btn"
+              className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
               disabled={!isEditMode || activeSelectionCount === 0}
               title="Delete selected rows"
@@ -1189,6 +1212,7 @@ export default function PurchaseInquiryForm() {
         isEditMode={isEditMode}
         onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
+        addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"
         cancelAccessKey="n"
         extraButtons={piExtraButtons}

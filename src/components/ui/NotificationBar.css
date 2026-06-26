@@ -1,0 +1,107 @@
+@import "./NotifyTokens.css";
+
+/* ── Toast container ────────────────────────────────────────────────── */
+.n-toast {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 9999;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  padding: 11px 10px 11px 12px;
+  min-width: 280px;
+  max-width: 400px;
+
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #d8dee6);
+  border-left: 4px solid;          /* coloured accent strip */
+  border-radius: var(--radius-lg, 6px);
+  box-shadow: var(--n-toast-shadow);
+
+  animation: n-toast-slide-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Left accent colour per variant */
+.n-toast--success { border-left-color: var(--n-success, #089949); }
+.n-toast--error   { border-left-color: var(--n-error,   #d93025); }
+.n-toast--warning { border-left-color: var(--n-warning, #e37400); }
+.n-toast--info    { border-left-color: var(--n-info,    #1e4a7a); }
+
+/* ── Icon ────────────────────────────────────────────────────────────── */
+.n-toast__icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-top: 1px;
+}
+.n-toast--success .n-toast__icon-wrap { color: var(--n-success, #089949); }
+.n-toast--error   .n-toast__icon-wrap { color: var(--n-error,   #d93025); }
+.n-toast--warning .n-toast__icon-wrap { color: var(--n-warning, #e37400); }
+.n-toast--info    .n-toast__icon-wrap { color: var(--n-info,    #1e4a7a); }
+
+/* ── Text block ──────────────────────────────────────────────────────── */
+.n-toast__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* "SUCCESS" / "ERROR" label */
+.n-toast__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.n-toast--success .n-toast__label { color: var(--n-success, #089949); }
+.n-toast--error   .n-toast__label { color: var(--n-error,   #d93025); }
+.n-toast--warning .n-toast__label { color: var(--n-warning, #e37400); }
+.n-toast--info    .n-toast__label { color: var(--n-info,    #1e4a7a); }
+
+/* Main message */
+.n-toast__msg {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #161c21);
+  word-break: break-word;
+}
+
+/* ── Close button ─────────────────────────────────────────────────────── */
+.n-toast__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #737780);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm, 4px);
+  opacity: 0.5;
+  margin-top: 1px;
+  transition: opacity 0.14s, background 0.14s;
+}
+.n-toast__close:hover {
+  opacity: 1;
+  background: var(--border, #d8dee6);
+  color: var(--text, #161c21);
+}
+.n-toast__close:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--primary-light, #d3e3ff);
+  outline-offset: 1px;
+}
+
+/* ── Slide-in from the right ─────────────────────────────────────────── */
+@keyframes n-toast-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}

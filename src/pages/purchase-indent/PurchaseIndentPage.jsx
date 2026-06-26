@@ -11,10 +11,9 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { IND_CONFIG } from "./constants";
+import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseIndentPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -23,11 +22,11 @@ function buildListParams() {
     ObjName: IND_CONFIG.SP_INDENT_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: IND_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: `01-Jan-${year}`,
-        prmToDate: `31-Dec-${year}`,
-        PrmDepartmentId: 0,
+        prmcompanyid: DEFAULT_COMPANY_ID,
+        prmdivisionid: IND_CONFIG.LIST_DIVISION_ID,
+        prmfromdate: `01-Jan-${year}`,
+        prmtodate: `31-Dec-${year}`,
+        prmdepartmentid: 0,
       },
     ]),
     p_ErrCode: -1,
@@ -42,7 +41,7 @@ export default function PurchaseIndentPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
     title: "Purchase Indents",
@@ -66,7 +65,7 @@ export default function PurchaseIndentPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(normalizeListRows(json?.Table ?? []));
+      setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseIndentPage] list fetch failed:", err);
       setError("Failed to load purchase indents.");
@@ -94,7 +93,7 @@ export default function PurchaseIndentPage() {
           <div className="ind-list-panel__toolbar">
             <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">
               Rows per page
@@ -127,6 +126,7 @@ export default function PurchaseIndentPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No purchase indents found."
           hideHeader
+          searchable
           fill
         />
       </section>

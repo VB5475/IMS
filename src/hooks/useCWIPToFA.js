@@ -107,6 +107,11 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   return { meta, apiColumns: colData?.Links || [] };
 }
 
+// Fields that RB_AstCWIP2FADet incorrectly includes as detail columns but belong
+// to the master header. Filtered out before building grid columns or allColumns.
+// Long-term fix: DBA should set IsVisible=0 for these in the RB detail config.
+const DETAIL_HEADER_FIELDS = new Set(["NetTotal"]);
+
 export function useCWIPToFA(baseURL = API_BASE_URL) {
   const { get } = useApi(baseURL);
 
@@ -130,6 +135,56 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
 
   const rawDetailColumnsRef  = useRef([]);
   const rawDetailRbMetaRef   = useRef(null);
+
+  // ── fetchCWIPAccByDivision — cascade from Division ────────────────────────
+  const fetchCWIPAccByDivision = useCallback(async (divisionId) => {
+    if (!divisionId || divisionId === "0") { setCWIPAccOptions([]); return []; }
+    if (!C2F_CONFIG.SP_CWIP_ACC) return [];
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: C2F_CONFIG.SP_CWIP_ACC,
+        JSon: JSON.stringify([{
+          PrmDivisionID:    Number(divisionId),
+          PrmAcMainGroupID: 7,           // ⚠️ CONFIRM with DBA — Main Group ID for CWIP accounts
+          PrmLoginID:       DEFAULT_LOGIN_ID,
+          PrmCompanyID:     DEFAULT_COMPANY_ID,
+          PrmYearID:        C2F_CONFIG.CONFIG_YEAR_ID,
+        }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      const opts = (res?.Table || []).map((r) => ({
+        value: r.AccountID ?? 0,
+        label: String(r.AcCode  + " | "+ r.AcName) ?? "",
+      }));
+      setCWIPAccOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[C2F] CWIP A/C fetch failed:", err);
+      setCWIPAccOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearCWIPAccOptions     = useCallback(() => setCWIPAccOptions([]), []);
+  const clearCostCenterOptions  = useCallback(() => setCostCenterOptions([]), []);
+
+  // ── fetchUniqueId — generate TranMstGenID on Add New (mirrors PO pattern) ──
+  const fetchUniqueId = useCallback(async () => {
+    if (!C2F_CONFIG.SP_UNIQUE_ID) return 0;
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 1,
+        ObjName: C2F_CONFIG.SP_UNIQUE_ID,
+        JSon: JSON.stringify([{ PrmIDNumber: 0, PrmYearID: C2F_CONFIG.CONFIG_YEAR_ID }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      return res?.Table?.[0]?.UniqueID ?? 0;
+    } catch (err) {
+      console.warn("[C2F] UniqueID fetch failed:", err);
+      return 0;
+    }
+  }, [get]);
 
   // ── fetchLocations — cascade from Division ─────────────────────────────────
   const fetchLocations = useCallback(async (divisionId) => {
@@ -218,48 +273,28 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
 
       if (skipListDropdowns) {
         setDivisionOptions([]);
+        setLocationOptions([]);
+        setCWIPAccOptions([]);
+        setCostCenterOptions([]);
         return;
       }
 
-      // Phase 3 — Division + CWIP A/C in parallel (same direct-SP pattern as Division)
-      const [divisionData, cWIPAccData] = await Promise.all([
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
-          ObjName: C2F_CONFIG.SP_DIVISIONS,
-          JSon: JSON.stringify([{
-            prmUserID:    DEFAULT_LOGIN_ID,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID:    C2F_CONFIG.DIVISION_YEAR_ID,
-          }]),
-          p_ErrCode: -1, p_ErrMsg: "",
-        }).catch((err) => { console.warn("[C2F] Division fetch failed:", err); return null; }),
-
-        // ⚠️ SP_CWIP_ACC: confirm SP name with DBA — no call made until set
-        C2F_CONFIG.SP_CWIP_ACC
-          ? get(ENDPOINTS.FN_FETCH_DATA, {
-              ObjType: 2,
-              ObjName: C2F_CONFIG.SP_CWIP_ACC,
-              JSon: JSON.stringify([{
-                PrmCompanyID: DEFAULT_COMPANY_ID,
-                PrmLoginID:   DEFAULT_LOGIN_ID,
-                PrmYearID:    C2F_CONFIG.CONFIG_YEAR_ID,
-              }]),
-              p_ErrCode: -1, p_ErrMsg: "",
-            }).catch((err) => { console.warn("[C2F] CWIP A/C fetch failed:", err); return null; })
-          : Promise.resolve(null),
-      ]);
+      // Phase 3 — Division only. CWIP A/C is cascade-driven: loaded by fetchCWIPAccByDivision
+      // when user selects a Division (not pre-loaded at page open).
+      const divisionData = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: C2F_CONFIG.SP_DIVISIONS,
+        JSon: JSON.stringify([{
+          prmUserID:    DEFAULT_LOGIN_ID,
+          prmCompanyID: DEFAULT_COMPANY_ID,
+          prmYearID:    C2F_CONFIG.DIVISION_YEAR_ID,
+        }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      }).catch((err) => { console.warn("[C2F] Division fetch failed:", err); return null; });
 
       setDivisionOptions(
         (divisionData?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
       );
-      setCWIPAccOptions(
-        (cWIPAccData?.Table || []).map((r) => ({
-          value: String(r.CWIPAccID ?? r.AccountID ?? r.AccID),
-          label: r.CWIPAccName ?? r.AccountName ?? r.AccName ?? String(r.CWIPAccID ?? r.AccountID),
-        }))
-      );
-      console.log("%c[C2F] Header dropdowns loaded:", "color:#8b5cf6;font-weight:600",
-        { divisions: divisionData?.Table?.length ?? 0, cwipAcc: cWIPAccData?.Table?.length ?? 0 });
     } catch (err) {
       console.error("[C2F] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load C2F header configuration.");
@@ -273,11 +308,13 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     setIsFetching(true);
     setMetaError(null);
     try {
-      const { meta, apiColumns } = await loadRbDetailGridMeta(
+      const { meta, apiColumns: rawApiColumns } = await loadRbDetailGridMeta(
         get,
         C2F_CONFIG.RB_DETAIL,
         C2F_CONFIG.STORAGE_ENTRY_META
       );
+      // Strip out master-level fields the RB erroneously includes in detail columns
+      const apiColumns = rawApiColumns.filter((c) => !DETAIL_HEADER_FIELDS.has(c.ColName));
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
 
@@ -372,9 +409,10 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   const fetchUnlockedHeaderDropdowns = useCallback(async (divisionId, tranDate) => {
     if (!headerColumns.length) return;
     const isEditable  = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
-    const needsDivision    = headerColumns.some((c) => c.ColName === "DivisionID"    && isEditable(c));
-    const needsLocation    = headerColumns.some((c) => c.ColName === "LocationID"    && isEditable(c));
-    const needsCostCenter  = headerColumns.some((c) => c.ColName === "CostCenterAccID" && isEditable(c));
+    const needsDivision   = headerColumns.some((c) => c.ColName === "DivisionID"     && isEditable(c));
+    const needsLocation   = headerColumns.some((c) => c.ColName === "LocationID"     && isEditable(c));
+    const needsCWIPAcc    = headerColumns.some((c) => c.ColName === "CWIPAccID"      && isEditable(c));
+    const needsCostCenter = headerColumns.some((c) => c.ColName === "CostCenterAccID" && isEditable(c));
 
     const tasks = [];
     if (needsDivision) {
@@ -393,10 +431,11 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
           .catch(() => {})
       );
     }
-    if (needsLocation && divisionId)   tasks.push(fetchLocations(divisionId));
-    if (needsCostCenter)               tasks.push(fetchCostCenters(divisionId, tranDate));
+    if (needsLocation  && divisionId) tasks.push(fetchLocations(divisionId));
+    if (needsCWIPAcc   && divisionId) tasks.push(fetchCWIPAccByDivision(divisionId));
+    if (needsCostCenter)              tasks.push(fetchCostCenters(divisionId, tranDate));
     await Promise.all(tasks);
-  }, [headerColumns, get, fetchLocations, fetchCostCenters]);
+  }, [headerColumns, get, fetchLocations, fetchCWIPAccByDivision, fetchCostCenters]);
 
   // ── fetchEditRecord ────────────────────────────────────────────────────────
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
@@ -430,7 +469,9 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
     fetchLocations, clearLocations,
-    fetchCostCenters,
+    fetchCWIPAccByDivision, clearCWIPAccOptions,
+    fetchCostCenters, clearCostCenterOptions,
+    fetchUniqueId,
     // Detail grid
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,

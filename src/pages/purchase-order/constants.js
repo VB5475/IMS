@@ -1,4 +1,8 @@
 // constants.js — Purchase Order page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Order";
+export const PAGE_TITLE_NEW = "New Purchase Order";
+
 // All RB codes, SP names, IDs, and request defaults for the PO module.
 // Values aligned to MRD_Template4PO.docx (Richa, 09-Jun-2026).
 
@@ -45,7 +49,6 @@ export const PO_CONFIG = {
   SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurPOSelIndtItem",
   SP_ITEM_PICKER_QUOT: "fn_tbl_RB_PurPOSelQuotItem",
   SP_INDENT_SUMMARY: "Fn_tbl_FetchIndentSummaryItem4PO",
-  SP_CURRENCIES: "Fn_tbl_FetchCurrencyList",
   SP_SUPPLIER_INFO: "Fn_tbl_FetchSupplierCurrencyInfo",
   SP_EXISTING_POS: "Fn_tbl_FetchPurOrderListForAmend",
   SP_UNIQUE_ID: "Pr_Gen_FetchLevyUniqueNo4Web",

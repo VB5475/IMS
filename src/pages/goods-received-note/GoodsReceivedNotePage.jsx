@@ -7,10 +7,9 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { GRN_CONFIG, formatTranDate } from "./constants";
+import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./GoodsReceivedNotePage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListDateRange() {
   const now = new Date();
@@ -49,7 +48,7 @@ export default function GoodsReceivedNotePage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
     title: "Goods Received Note",
@@ -101,7 +100,7 @@ export default function GoodsReceivedNotePage() {
           <div className="grn-list-panel__toolbar">
             <button type="button" className="grn-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="grn-list-page-size" className="grn-list-panel__pagesize-label">
               Rows per page
@@ -134,6 +133,7 @@ export default function GoodsReceivedNotePage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No goods received notes found."
           hideHeader
+          searchable
           fill
         />
       </section>

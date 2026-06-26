@@ -1,4 +1,8 @@
 // constants.js — Purchase Inquiry page config
+export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
+export const PAGE_TITLE     = "Purchase Inquiry";
+export const PAGE_TITLE_NEW = "New Purchase Inquiry";
+
 // All RB codes, SP names, IDs, and request defaults used by this page in one place.
 
 import { controlTypeMap } from "../../data/dummyData";
@@ -6,7 +10,6 @@ import {
   APPROVED_FILTER_OPTS,
   BASED_ON,
   DEFAULT_BASED_ON_FILTER_VALUES,
-  DIVISION_CONFIG_CASCADE_RESET,
   INDENT_DETAILS_COLUMNS,
   PURCHASE_API,
   PURCHASE_SUPPLIER_GRID_COLUMNS,
@@ -15,7 +18,6 @@ import {
 } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import {
-  buildItemPickerJsonPayload as buildPickerPayload,
   getMissingItemPickerHeaderFields as getMissingPickerFields,
 } from "../../utils/purchaseItemPicker";
 
@@ -24,7 +26,7 @@ export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
 export { TERMS_COLUMNS };
 export { INDENT_DETAILS_COLUMNS };
 export { DEFAULT_BASED_ON_FILTER_VALUES as PI_FILTER_INITIAL_VALUES };
-export { DIVISION_CONFIG_CASCADE_RESET as PI_FILTER_CASCADE_RESETS };
+export const PI_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 
 export const PI_CONFIG = {
   ...PURCHASE_API,
@@ -66,22 +68,22 @@ export const PI_CONFIG = {
 };
 
 export const PI_HEADER_FILTERS = [
-  { FilterParameterID: "TranCode", FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: "TranDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "trancode",     FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "trandate",     FilterColCtrlType: controlTypeMap.DATE },
   {
-    FilterParameterID: "DivisionID",
+    FilterParameterID: "divisionid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: [],
   },
-  { FilterParameterID: "ConfigID", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: "ExpectedDate", FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: "DeptID", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: "configid",     FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: "expecteddate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "deptid",       FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
   {
-    FilterParameterID: "BasedOnID",
+    FilterParameterID: "basedonid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: PI_CONFIG.BASED_ON_OPTIONS,
   },
-  { FilterParameterID: "Remarks", FilterColCtrlType: controlTypeMap.TEXTAREA },
+  { FilterParameterID: "remarks",      FilterColCtrlType: controlTypeMap.TEXTAREA },
 ];
 
 export const PI_GRID_TABS = [
@@ -92,28 +94,34 @@ export const PI_GRID_TABS = [
 
 /** Header fields mapped to item picker FN_FETCH_DATA JSON — grids clear when any changes */
 export const PI_ITEM_PICKER_CONTEXT_FIELDS = new Set([
-  "DivisionID",
-  "TranDate",
-  "ConfigID",
-  "BasedOnID",
+  "divisionid",
+  "trandate",
+  "configid",
+  "basedonid",
 ]);
 
 export const PI_ITEM_PICKER_JSON_FIELDS = [
-  { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate", label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID", label: "Inquiry Type" },
-  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
+  { headerKey: "divisionid", label: "Division" },
+  { headerKey: "trandate",   label: "Tran Date", isDate: true },
+  { headerKey: "configid",   label: "Inquiry Type" },
+  { headerKey: "basedonid",  label: "Based On", allowZero: true },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues) {
-  return getMissingPickerFields(headerValues, PI_ITEM_PICKER_JSON_FIELDS);
+  return getMissingPickerFields(headerValues, PI_ITEM_PICKER_JSON_FIELDS, { basedOnKey: "basedonid" });
 }
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
-  return buildPickerPayload(headerValues, loginId, {
-    configYearId: PI_CONFIG.CONFIG_YEAR_ID,
-    tranBook: PI_CONFIG.TRAN_BOOK,
-  });
+  return {
+    prmDivisionID: Number(headerValues.divisionid) || 0,
+    prmYearID:     PI_CONFIG.CONFIG_YEAR_ID,
+    prmLoginID:    loginId,
+    prmTranDate:   formatTranDate(headerValues.trandate),
+    prmConfigID:   Number(headerValues.configid) || 0,
+    prmSupplierID: Number(headerValues.supplierid ?? 0),
+    prmTranBook:   PI_CONFIG.TRAN_BOOK,
+    prmFrmOption:  Number(headerValues.basedonid) || 0,
+  };
 }
 
 export const SUPPLIER_GRID_CONFIG = PURCHASE_SUPPLIER_GRID_CONFIG;

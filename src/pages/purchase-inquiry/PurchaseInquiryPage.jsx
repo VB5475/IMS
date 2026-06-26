@@ -7,10 +7,9 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { PI_CONFIG } from "./constants";
+import { PI_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseInquiryPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -39,7 +38,7 @@ export default function PurchaseInquiryPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
     title: "Purchase Inquiry",
@@ -91,7 +90,7 @@ export default function PurchaseInquiryPage() {
           <div className="pi-list-panel__toolbar">
             <button type="button" className="pi-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="pi-list-page-size" className="pi-list-panel__pagesize-label">
               Rows per page
@@ -124,6 +123,7 @@ export default function PurchaseInquiryPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No purchase inquiries found."
           hideHeader
+          searchable
           fill
         />
       </section>

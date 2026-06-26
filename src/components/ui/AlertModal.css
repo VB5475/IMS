@@ -1,0 +1,221 @@
+@import "./NotifyTokens.css";
+
+/* ── Backdrop ─────────────────────────────────────────────────────────── */
+.vdlg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.50);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: vdlg-fade-in 180ms ease-out both;
+}
+
+@keyframes vdlg-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Dialog card ──────────────────────────────────────────────────────── */
+.vdlg {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #d8dee6);
+  border-radius: var(--radius-lg, 6px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 20px 60px rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(30, 61, 122, 0.06);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  overflow: hidden;
+  animation: vdlg-slide-up 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes vdlg-slide-up {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ── Header — type-coloured to match alert semantics ─────────────────── */
+.vdlg__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 10px 14px;
+  border-bottom: 1px solid var(--border, #d8dee6);
+  border-radius: var(--radius-lg, 6px) var(--radius-lg, 6px) 0 0;
+  position: relative;
+}
+
+/* 3-px accent strip — mirrors enterprise modal pattern */
+.vdlg__head::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: var(--radius-lg, 6px) 0 0 0;
+}
+
+.vdlg--error   .vdlg__head { background: #fff5f4; }
+.vdlg--error   .vdlg__head::before  { background: var(--n-error,   #d93025); }
+.vdlg--error   .vdlg__icon,
+.vdlg--error   .vdlg__title         { color: var(--n-error,   #d93025); }
+
+.vdlg--warning .vdlg__head { background: #fff8ed; }
+.vdlg--warning .vdlg__head::before  { background: var(--n-warning, #e37400); }
+.vdlg--warning .vdlg__icon,
+.vdlg--warning .vdlg__title         { color: var(--n-warning, #e37400); }
+
+.vdlg--info    .vdlg__head { background: var(--primary-lighter, #eef4fa); }
+.vdlg--info    .vdlg__head::before  { background: var(--n-info,    #1e4a7a); }
+.vdlg--info    .vdlg__icon,
+.vdlg--info    .vdlg__title         { color: var(--n-info,    #1e4a7a); }
+
+.vdlg--success .vdlg__head { background: #f0faf4; }
+.vdlg--success .vdlg__head::before  { background: var(--n-success, #089949); }
+.vdlg--success .vdlg__icon,
+.vdlg--success .vdlg__title         { color: var(--n-success, #089949); }
+
+.vdlg__head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vdlg__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.vdlg__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.vdlg__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #737780);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm, 4px);
+  opacity: 0.55;
+  flex-shrink: 0;
+  transition: opacity 0.14s, background 0.14s;
+}
+.vdlg__close:hover {
+  opacity: 1;
+  background: var(--border, #d8dee6);
+}
+
+/* ── Body ────────────────────────────────────────────────────────────── */
+.vdlg__body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg, #e8eef4);
+}
+
+/* Single message */
+.vdlg__single {
+  margin: 0;
+  padding: 11px 13px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text, #161c21);
+  background: var(--surface, #ffffff);
+  border-radius: var(--radius, 4px);
+  border-left: 3px solid;
+}
+.vdlg--error   .vdlg__single { border-color: var(--n-error,   #d93025); }
+.vdlg--warning .vdlg__single { border-color: var(--n-warning, #e37400); }
+.vdlg--info    .vdlg__single { border-color: var(--n-info,    #1e4a7a); }
+.vdlg--success .vdlg__single { border-color: var(--n-success, #089949); }
+
+/* Multi-item list */
+.vdlg__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-dark, #c3c6d0) transparent;
+}
+
+.vdlg__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--surface, #ffffff);
+  border-radius: var(--radius, 4px);
+  border-left: 3px solid;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #161c21);
+}
+.vdlg--error   .vdlg__item { border-color: var(--n-error,   #d93025); }
+.vdlg--warning .vdlg__item { border-color: var(--n-warning, #e37400); }
+.vdlg--info    .vdlg__item { border-color: var(--n-info,    #1e4a7a); }
+.vdlg--success .vdlg__item { border-color: var(--n-success, #089949); }
+
+.vdlg__dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+.vdlg--error   .vdlg__dot { background: var(--n-error,   #d93025); }
+.vdlg--warning .vdlg__dot { background: var(--n-warning, #e37400); }
+.vdlg--info    .vdlg__dot { background: var(--n-info,    #1e4a7a); }
+.vdlg--success .vdlg__dot { background: var(--n-success, #089949); }
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.vdlg__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 14px;
+  background: var(--surface, #ffffff);
+  border-top: 1px solid var(--border, #d8dee6);
+}
+
+.vdlg__ok {
+  padding: 6px 24px;
+  border: none;
+  border-radius: var(--radius, 4px);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  transition: background var(--transition, 150ms ease), transform 0.1s;
+}
+.vdlg--error   .vdlg__ok { background: var(--n-error,   #d93025); }
+.vdlg--error   .vdlg__ok:hover { background: var(--n-error-hover,   #ba1a1a); }
+.vdlg--warning .vdlg__ok { background: var(--n-warning, #e37400); }
+.vdlg--warning .vdlg__ok:hover { background: var(--n-warning-hover, #c26400); }
+.vdlg--info    .vdlg__ok { background: var(--n-info,    #1e4a7a); }
+.vdlg--info    .vdlg__ok:hover { background: var(--n-info-hover,    #00335f); }
+.vdlg--success .vdlg__ok { background: var(--n-success, #089949); }
+.vdlg--success .vdlg__ok:hover { background: var(--n-success-hover, #067a3a); }
+
+.vdlg__ok:active        { transform: scale(0.97); }
+.vdlg__ok:focus-visible { outline: 2px solid var(--primary-light, #d3e3ff); outline-offset: 2px; }

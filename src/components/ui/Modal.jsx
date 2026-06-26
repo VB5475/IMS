@@ -12,19 +12,28 @@
 //   </Modal>
 //
 // Props:
-//   isOpen    — boolean — controls visibility
-//   onClose   — () => void — called on Escape key or overlay/close-btn click
-//   title     — string — header title text
-//   subtitle  — string (optional) — sub-header text
-//   icon      — ReactNode (optional) — icon shown in header
-//   size      — 'sm' | 'md' | 'lg' | 'xl' | 'full' (default: 'lg')
-//   headerless — boolean (default: false) — hides the built-in header
-//   footer    — ReactNode (optional) — custom footer content
-//   children  — body content (any React component)
+//   isOpen             — boolean — controls visibility
+//   onClose            — () => void — called on Escape key, X button, or Cancel click
+//   title              — string — header title text
+//   subtitle           — string (optional) — sub-header text
+//   icon               — ReactNode (optional) — icon shown in header
+//   size               — 'sm' | 'md' | 'lg' | 'xl' | 'full' (default: 'lg')
+//   headerless         — boolean (default: false) — hides the built-in header
+//   footer             — ReactNode (optional) — custom footer content
+//   closeOnOverlayClick — boolean (default: false) — set true ONLY when overlay dismiss is intentional
+//   children           — body content (any React component)
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
 import "./modal.css";
+
+const FOCUSABLE = [
+  'button:not([disabled])',
+  'input:not([disabled]):not([tabindex="-1"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
 
 export default function Modal({
   isOpen = false,
@@ -36,21 +45,39 @@ export default function Modal({
   headerless = false,
   variant = "default",
   footer = null,
+  closeOnOverlayClick = false,
   children,
 }) {
-  // Close on Escape key — capture phase so open modals win over page-level Esc handlers.
+  const dialogRef = useRef(null);
+
+  // Keyboard handler — Escape closes, Tab is trapped within dialog.
   const handleKeyDown = useCallback(
     (e) => {
-      if (e.key !== "Escape") return;
-      if (
-        e.target.closest(".search-select--open") ||
-        e.target.closest(".search-select__dropdown")
-      ) {
+      if (e.key === "Escape") {
+        if (
+          e.target.closest(".search-select--open") ||
+          e.target.closest(".search-select__dropdown")
+        ) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        onClose?.();
         return;
       }
-      e.preventDefault();
-      e.stopPropagation();
-      onClose?.();
+      if (e.key === "Tab" && dialogRef.current) {
+        // Don't interfere when a nested alert dialog (ConfirmDialog) has focus
+        if (document.activeElement?.closest('[role="alertdialog"]')) return;
+        const focusable = [...dialogRef.current.querySelectorAll(FOCUSABLE)];
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last  = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+          if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+        }
+      }
     },
     [onClose]
   );
@@ -58,9 +85,14 @@ export default function Modal({
   useEffect(() => {
     if (!isOpen) return;
     document.addEventListener("keydown", handleKeyDown, true);
-    // Prevent body scroll while modal is open
     document.body.style.overflow = "hidden";
+    // Auto-focus first focusable element when modal opens
+    const t = setTimeout(() => {
+      if (!dialogRef.current) return;
+      dialogRef.current.querySelector(FOCUSABLE)?.focus();
+    }, 80);
     return () => {
+      clearTimeout(t);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = "";
     };
@@ -71,14 +103,13 @@ export default function Modal({
   return (
     <div
       className="modal-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
       role="dialog"
       aria-modal="true"
       aria-label={title || "Modal dialog"}
+      onMouseDown={closeOnOverlayClick ? (e) => { if (e.target === e.currentTarget) onClose?.(); } : undefined}
     >
       <div
+        ref={dialogRef}
         className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""}`}
       >
         {/* Header — hidden when headerless */}

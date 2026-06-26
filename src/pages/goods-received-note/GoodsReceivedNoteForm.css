@@ -103,34 +103,7 @@
   padding: 8px 12px 12px;
 }
 
-.grn-tab-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.grn-tab-action-btn:hover:not(:disabled) {
-  background: var(--primary-lighter);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.grn-tab-action-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+/* Tab-bar action button styles → shared eg-tab-btn in EntryGrid.css */
 
 .grn-tab-filter {
   display: flex;
@@ -145,30 +118,3 @@
   white-space: nowrap;
 }
 
-.grn-tab-delete-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--danger);
-  background: #fef2f2;
-  border: 1px solid rgba(217, 48, 37, 0.25);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.grn-tab-delete-btn:hover:not(:disabled) {
-  background: #fde8e8;
-  border-color: var(--danger);
-}
-
-.grn-tab-delete-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}

@@ -133,7 +133,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [poTypeOptions, setPoTypeOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
-  const [currencyOptions, setCurrencyOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [existingPOs, setExistingPOs] = useState([]);
 
@@ -340,7 +339,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         return;
       }
 
-      const [divisionData, supplierData, currencyData, deptData] = await Promise.all([
+      const [divisionData, supplierData, deptData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PO_CONFIG.SP_DIVISIONS,
@@ -372,16 +371,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           p_ErrMsg: "",
         }).catch((err) => {
           console.warn("[PO] Supplier fetch failed:", err);
-          return null;
-        }),
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 1,
-          ObjName: PO_CONFIG.SP_CURRENCIES,
-          JSon: JSON.stringify([{ PrmCurrencyID: 0 }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }).catch((err) => {
-          console.warn("[PO] Currency fetch failed:", err);
           return null;
         }),
         get(ENDPOINTS.FN_FETCH_DATA, {
@@ -424,13 +413,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         };
       });
       setIsLoadingSuppliers(false);
-
-      setCurrencyOptions(
-        (currencyData?.Table || []).map((r) => ({
-          value: String(r.CurrencyID),
-          label: r.CurrencyName ?? r.CurrencyCode ?? String(r.CurrencyID),
-        }))
-      );
 
       setDepartmentOptions(
         (deptData?.Table || []).map((r) => ({
@@ -778,7 +760,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     divisionOptions,
     poTypeOptions,
     supplierOptions,
-    currencyOptions,
     departmentOptions,
     existingPOs,
     // loaders

@@ -30,6 +30,7 @@ export default function SearchSelect({
   const dropdownRef = useRef(null);
   const optionsListRef = useRef(null);
   const skipBlurRef = useRef(false);
+  const suppressOpenRef = useRef(false);
 
   const selectedOption = options.find((o) => String(o.value) === String(value));
   const selectedLabel = selectedOption ? selectedOption.label : "";
@@ -126,6 +127,7 @@ export default function SearchSelect({
   const handleSelect = useCallback(
     (optValue) => {
       onChange(optValue);
+      suppressOpenRef.current = true;
       closeDropdown();
       requestAnimationFrame(() => inputRef.current?.focus());
     },
@@ -137,6 +139,7 @@ export default function SearchSelect({
       e.stopPropagation();
       e.preventDefault();
       onChange("");
+      suppressOpenRef.current = true;
       closeDropdown();
       requestAnimationFrame(() => inputRef.current?.focus());
     },
@@ -145,6 +148,7 @@ export default function SearchSelect({
 
   const handleInputFocus = useCallback(() => {
     if (disabled) return;
+    if (suppressOpenRef.current) { suppressOpenRef.current = false; return; }
     openDropdown();
   }, [disabled, openDropdown]);
 
@@ -173,14 +177,13 @@ export default function SearchSelect({
         skipBlurRef.current = false;
         return;
       }
-      if (!onBlur || disabled) return;
 
       requestAnimationFrame(() => {
         const active = document.activeElement;
         if (wrapperRef.current?.contains(active)) return;
         if (dropdownRef.current?.contains(active)) return;
         closeDropdown();
-        onBlur(e);
+        if (onBlur && !disabled) onBlur(e);
       });
     },
     [disabled, onBlur, closeDropdown]
@@ -241,6 +244,14 @@ export default function SearchSelect({
           e.preventDefault();
           closeDropdown();
           requestAnimationFrame(() => inputRef.current?.focus());
+          break;
+        }
+        case "Tab": {
+          // No preventDefault — Tab moves focus to next field naturally
+          if (focusedIndex >= 0 && filteredOptions[focusedIndex]) {
+            onChange(filteredOptions[focusedIndex].value);
+          }
+          closeDropdown();
           break;
         }
         default:

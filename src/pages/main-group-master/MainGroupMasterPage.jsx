@@ -6,10 +6,9 @@ import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
 import MainGroupMasterForm from "./MainGroupMasterForm";
-import { MGM_CONFIG } from "./constants";
+import { MGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./MainGroupMasterPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function todayFormatted() {
@@ -33,24 +32,34 @@ function buildListParams() {
   };
 }
 
-function buildMGMColumns(onEdit) {
+const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
+
+const LABEL_MAP = {
+  ISAutoCodeGen: "Auto Code Gen",
+  RegName:       "Reg Name",
+};
+
+function toLabel(key) {
+  if (LABEL_MAP[key]) return LABEL_MAP[key];
+  return key.replace(/([A-Z])/g, " $1").trim();
+}
+
+function buildColumnsFromData(data, onEdit) {
+  if (!data || data.length === 0) return [];
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
-    { key: "ItemTypeName",       label: "Item Type",       width: "18%", filterable: true, align: "left" },
-    { key: "MainGroupCode",      label: "Main Group Code", width: "18%", filterable: true, align: "left" },
-    { key: "MainGroupName",      label: "Main Group Name", width: "28%", filterable: true, align: "left" },
-    { key: "MainGroupShortName", label: "Short Name",      width: "15%", filterable: true, align: "left" },
-    { key: "MainGroupShortCode", label: "Short Code",      width: "13%", filterable: true, align: "left" },
+    ...keys.map((key) => ({ key, label: toLabel(key), filterable: true, align: "left" })),
     {
-      key: "_actions",
+      key:   "_actions",
       label: "Edit",
-      width: "8%",
+      width: "80px",
       align: "center",
       render: (_value, row) => (
         <button
           type="button"
           className="mgm-list__edit-btn"
-          title={`Edit ${row.MainGroupCode ?? ""}`}
-          aria-label={`Edit ${row.MainGroupCode ?? ""}`}
+          title={`Edit ${row.MainGroupCode ?? row.Code ?? ""}`}
+          aria-label={`Edit ${row.MainGroupCode ?? row.Code ?? ""}`}
           onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -74,7 +83,7 @@ export default function MainGroupMasterPage() {
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");
@@ -122,7 +131,7 @@ export default function MainGroupMasterPage() {
     fetchList();
   }, [fetchList]);
 
-  const columns = useMemo(() => buildMGMColumns(handleEdit), [handleEdit]);
+  const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
   return (
     <div className="workspace-page mgm-list-page">
@@ -134,7 +143,7 @@ export default function MainGroupMasterPage() {
           </div>
           <div className="mgm-list-panel__toolbar">
             <button type="button" className="mgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
+              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">
               Rows per page
@@ -163,6 +172,7 @@ export default function MainGroupMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No main groups found."
           hideHeader
+          searchable
           fill
         />
       </section>

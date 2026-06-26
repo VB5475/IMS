@@ -11,10 +11,9 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { PO_CONFIG } from "./constants";
+import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -46,7 +45,7 @@ export default function PurchaseOrderPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
     title: "Purchase Orders",
@@ -98,7 +97,7 @@ export default function PurchaseOrderPage() {
           <div className="po-list-panel__toolbar">
             <button type="button" className="po-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
-              Add New
+              {ENTRY_FORM_LABEL}
             </button>
             <label htmlFor="po-list-page-size" className="po-list-panel__pagesize-label">
               Rows per page
@@ -131,6 +130,7 @@ export default function PurchaseOrderPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No purchase orders found."
           hideHeader
+          searchable
           fill
         />
       </section>
