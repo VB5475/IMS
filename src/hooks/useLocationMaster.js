@@ -9,31 +9,11 @@ import {
 } from "../api/constants";
 import { LM_CONFIG } from "../pages/location-master/constants";
 
-function mapMasterRowToHeaderValues(master, params) {
-  return {
-    IDNumber:       Number(master.IDNumber ?? params.idNumber) || 0,
-    LocationType:   master.LocationType    != null ? Number(master.LocationType)    : 0,
-    ParentIDNumber: master.ParentIDNumber  != null ? Number(master.ParentIDNumber)  : 0,
-    Loc_Code:       master.Loc_Code        ?? "",
-    Location_Name:  master.Location_Name   ?? "",
-    Address1:       master.Address1        ?? "",
-    City:           master.City            ?? "",
-    State:          master.State           ?? "",
-    Zipcode:        master.Zipcode         ?? "",
-    Country:        master.Country         ?? "",
-    RegName:        master.RegName         ?? "",
-    CompanyID:      Number(params.companyId)    || DEFAULT_COMPANY_ID,
-    YearID:         Number(master.YearID   ?? params.yearId)    || LM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:        Number(master.LoginID  ?? params.loginId)   || DEFAULT_LOGIN_ID,
-    SessionID:      Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode:       master.FuncCode ?? LM_CONFIG.RB_MASTER,
-  };
-}
-
 export function useLocationMaster() {
   const { get } = useApi(API_BASE_URL);
 
   const [headerColumns,       setHeaderColumns]       = useState([]);
+  const [allColumns,          setAllColumns]          = useState([]);
   const [headerFetching,      setHeaderFetching]      = useState(false);
   const [headerError,         setHeaderError]         = useState(null);
   const [locationTypeOptions, setLocationTypeOptions] = useState([]);
@@ -51,24 +31,27 @@ export function useLocationMaster() {
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Location Master RB metadata returned.");
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(LM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
-      // Phase 2 — header column definitions
+      // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
+      setAllColumns(
+        (colData || []).map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
 
       // Phase 3 — LocationType + Premises dropdowns in parallel
       const [locTypeData, premisesData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType:   2,
           ObjName:   LM_CONFIG.SP_LOCATION_TYPE,
-          JSon:      JSON.stringify([{ PrmIdnumber: 0 }]), // ⚠️ CONFIRM param value with DBA
+          JSon:      JSON.stringify([{ PrmIdnumber: 0 }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[LM] Location Type fetch failed:", err); return null; }),
 
@@ -81,21 +64,21 @@ export function useLocationMaster() {
       ]);
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[LM] LocationType row sample:", locTypeData?.Table?.[0]);
-        console.log("[LM] Premises row sample:",     premisesData?.Table?.[0]);
+        console.log("[LM] LocationType row sample:", locTypeData?.[0]);
+        console.log("[LM] Premises row sample:",     premisesData?.[0]);
       }
 
       setLocationTypeOptions(
-        (locTypeData?.Table || []).map((r) => ({
-          value: r.IDNumber ?? r.Idnumber ?? r.ID,
-          label: String(r.Name ?? r.LocationType ?? r.Description ?? ""),
+        (locTypeData || []).map((r) => ({
+          value: r.idnumber,
+          label: String(r.code + " - " + r.locationtype),
         })).filter((o) => o.value != null)
       );
 
       setPremisesOptions(
-        (premisesData?.Table || []).map((r) => ({
-          value: r.IDNumber ?? r.Idnumber ?? r.ID,
-          label: String(r.Name ?? r.Location_Name ?? r.Description ?? ""),
+        (premisesData || []).map((r) => ({
+          value: r.idnumber,
+          label: String(r.idnumber + " - " + r.locationname),
         })).filter((o) => o.value != null)
       );
     } catch (err) {
@@ -106,6 +89,8 @@ export function useLocationMaster() {
     }
   }, [get]);
 
+  // Returns master spread directly (PG returns lowercase keys matching RB colnames).
+  // System context fields are overlaid so the save SP always gets consistent values.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
       Number(companyId)  || DEFAULT_COMPANY_ID,
@@ -120,17 +105,25 @@ export function useLocationMaster() {
       prmParameters,
       prmFuncCode:  LM_CONFIG.RB_MASTER,
     });
-    const master = mstRes?.Links?.[0] ?? null;
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master
-        ? mapMasterRowToHeaderValues(master, { companyId, yearId, loginId, sessionId, idNumber })
-        : null,
+      headerValues: master ? {
+        ...master,
+        // API returns locationtypeid (numeric) + locationtype (display string).
+        // The form dropdown is keyed on "locationtype" and matches by numeric ID.
+        locationtype: master.locationtypeid ?? master.locationtype,
+        companyid: Number(companyId)                     || DEFAULT_COMPANY_ID,
+        yearid:    Number(master.yearid    ?? yearId)    || LM_CONFIG.CONFIG_YEAR_ID,
+        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
+        funccode:  master.funccode ?? LM_CONFIG.RB_MASTER,
+      } : null,
     };
   }, [get]);
 
   return {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
+    headerColumns, allColumns, headerFetching, headerError, fetchHeaderMeta,
     locationTypeOptions, premisesOptions,
     fetchEditRecord,
   };

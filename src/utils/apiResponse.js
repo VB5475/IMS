@@ -52,7 +52,7 @@ function toErrEntries(payload) {
   if (entries && !Array.isArray(entries)) entries = [entries];
   if (Array.isArray(entries) && entries.length > 0) return entries;
 
-  const tableRow = payload?.Table?.[0];
+  const tableRow = payload?.[0];
   if (
     tableRow &&
     (pickField(tableRow, "ErrCode", "errCode", "p_ErrCode") !== undefined ||

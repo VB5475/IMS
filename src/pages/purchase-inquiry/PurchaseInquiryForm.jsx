@@ -82,12 +82,12 @@ const nextTempId = () => _piTempId--;
 // Map a supplier picker row → supplier grid row (hardcoded column keys).
 function mapPickerToSupplierRow(item, srNo) {
   return {
-    id: String(item.SupplierID ?? nextTempId()),
+    id: String(item.supplierid ?? item.SupplierID ?? nextTempId()),
     SrNo: srNo,
-    SupplierName: item.SupplierName ?? "",
-    Address: item.SuppAddress ?? item.Address ?? "",
-    City: item.City ?? "",
-    MobileNo: item.ContactNo ?? item.MobileNo ?? "",
+    SupplierName: item.suppliername ?? item.SupplierName ?? "",
+    Address: item.suppaddress ?? item.SuppAddress ?? item.address ?? item.Address ?? "",
+    City: item.city ?? item.City ?? "",
+    MobileNo: item.contactno ?? item.ContactNo ?? item.mobileno ?? item.MobileNo ?? "",
   };
 }
 
@@ -108,11 +108,11 @@ function mapHeaderValuesToFilterValues(headerValues) {
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? PI_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.IDNUMBER ?? listRecord?.IDNumber ?? recordId,
+    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? session.yearId ?? PI_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.idnumber ?? recordId,
   };
 }
 
@@ -443,7 +443,7 @@ export default function PurchaseInquiryForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -645,12 +645,12 @@ export default function PurchaseInquiryForm() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const rbRow = rbRes?.Table?.[0];
+      const rbRow = rbRes?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       // Step 3 — fetch columns (read-only: skip dropdown options)
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.RBID,
+        prmMasterID: rbRow.rbid,
         prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(
@@ -671,7 +671,7 @@ export default function PurchaseInquiryForm() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      setItemModalItems(rowRes?.Table || []);
+      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[PI] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
@@ -722,7 +722,7 @@ export default function PurchaseInquiryForm() {
         });
         const summaryRes = await summaryResponse.json();
 
-        const parents = summaryRes?.Table ?? [];
+        const parents = summaryRes ?? [];
         if (!parents.length) return;
 
         // Fetch collapsible indent columns from RB_PurInquiryIndtDet.
@@ -733,10 +733,10 @@ export default function PurchaseInquiryForm() {
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const rbRow = rbRes?.Table?.[0];
+        const rbRow = rbRes?.[0];
         if (!rbRow) throw new Error("Could not load indent detail configuration.");
 
-        const indtMeta = { RBID: rbRow.RBID, SaveProcName: rbRow.SaveProcName };
+        const indtMeta = { RBID: rbRow.rbid, SaveProcName: rbRow.saveprocname };
         localStorage.setItem(PI_CONFIG.STORAGE_INDT_META, JSON.stringify(indtMeta));
 
         const indentChildColumns = await fetchIndentDetailColumns();
@@ -745,17 +745,19 @@ export default function PurchaseInquiryForm() {
         // Relationship: child.ChildFKey === parent.ItemID
         const newChildRowsMap = {};
         parents.forEach((parent) => {
-          const pid = String(Math.round(Number(parent.ItemID)));
-          const children = cleanItems.filter(
-            (c) => String(Math.round(Number(c.ChildFKey))) === pid
-          );
-          if (children.length > 0) newChildRowsMap[pid] = children;
-
-          // Summary SP returns PascalCase keys; normalize to lowercase so they
-          // match RB_PurInquiryDet column keys (lowercased by DBA).
+          // Normalize first — handles both PascalCase (SQL) and lowercase (PG).
           const normalizedParent = Object.fromEntries(
             Object.entries(parent).map(([k, v]) => [k.toLowerCase(), v])
           );
+          const pid = String(Math.round(Number(normalizedParent.itemid)));
+          const children = cleanItems.filter(
+            (c) => String(Math.round(Number(c.ChildFKey ?? c.childfkey))) === pid
+          );
+          // Shallow-copy each child and assign a unique id — shared object
+          // references caused edits in one row to bleed into all others.
+          if (children.length > 0) {
+            newChildRowsMap[pid] = children.map((c) => ({ ...c, id: nextTempId() }));
+          }
           addItemRow({ ...normalizedParent, id: pid });
         });
 
@@ -797,9 +799,9 @@ export default function PurchaseInquiryForm() {
         p_ErrMsg: "",
       });
       setSupplierModalItems(
-        (response?.Table || []).map((row, idx) => ({
+        (response || []).map((row, idx) => ({
           ...row,
-          id: String(row.SupplierID ?? `sup_${idx}`),
+          id: String(row.supplierid ?? row.SupplierID ?? `sup_${idx}`),
         }))
       );
     } catch (err) {
@@ -814,10 +816,10 @@ export default function PurchaseInquiryForm() {
     if (!selectedSuppliers?.length) return;
     setActiveTab("suppliers");
     const existing = supplierGridRef.current?.getRows?.() ?? [];
-    const existingIds = new Set(existing.map((r) => String(r.SupplierID ?? r.id)));
+    const existingIds = new Set(existing.map((r) => String(r.supplierid ?? r.SupplierID ?? r.id)));
     let nextSrNo = existing.length;
     selectedSuppliers.forEach((item) => {
-      const sid = String(item.SupplierID ?? item.id);
+      const sid = String(item.supplierid ?? item.SupplierID ?? item.id);
       if (existingIds.has(sid)) return;
       existingIds.add(sid);
       nextSrNo += 1;
@@ -847,14 +849,14 @@ export default function PurchaseInquiryForm() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !itemGridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[PI] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       itemGridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]

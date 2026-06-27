@@ -304,11 +304,16 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
           prmLoginID: getUserSession().loginId,
         });
 
-        colDropdownOptions[col.colname] = (detailData || []).map((opt) => {
-          const valKey = opt.filterctrlvaluecol || "IDNumber";
-          const labelKey = opt.filterctrldisplaycol || "Name";
-          return { value: String(opt[valKey]), label: opt[labelKey] };
-        });
+        const rows = detailData || [];
+        // PG returns a flat array; the first row may carry only errcode + column-name
+        // metadata (filterctrlvaluecol / filterctrldisplaycol) with no actual value.
+        // Extract the column names once, then skip rows that have no actual value.
+        const metaRow = rows.find((r) => r.filterctrlvaluecol) ?? rows[0] ?? {};
+        const valKey   = metaRow.filterctrlvaluecol   ?? "idnumber";
+        const labelKey = metaRow.filterctrldisplaycol ?? "name";
+        colDropdownOptions[col.colname] = rows
+          .filter((r) => r[valKey] != null)
+          .map((opt) => ({ value: String(opt[valKey]), label: String(opt[labelKey] ?? "") }));
       } catch {
         console.warn(`[gridUtils] Failed dropdown for column: ${col.displayname}`);
         colDropdownOptions[col.colname] = [];

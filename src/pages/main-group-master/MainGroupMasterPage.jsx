@@ -103,7 +103,7 @@ export default function MainGroupMasterPage() {
       setLoading(true);
       setError(null);
       const res = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(res?.Table ?? res?.Links ?? []);
+      setData(res ?? res ?? []);
     } catch (err) {
       console.error("[MGM] List fetch failed:", err);
       setError("Failed to load Main Group list.");

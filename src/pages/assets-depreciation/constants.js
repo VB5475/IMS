@@ -7,12 +7,12 @@ export const PAGE_TITLE_NEW = "New Assets Depreciation";
 
 export const DPC_CONFIG = {
   // RB board codes (MRD § 5.1)
-  RB_MASTER:      "RB_AstDepCAMst",
-  RB_DETAIL:      "RB_AstDepCADet",
-  RB_ITEM_PICKER: "RB_AstDepCADetSelOnl",
+  RB_MASTER:      "rb_astdepcamst",
+  RB_DETAIL:      "rb_astdepcadet",
+  RB_ITEM_PICKER: "rb_astdepcadetselonl",
 
   // Form identifiers (MRD § 7)
-  FORM_TAG:            "RB_AstDepCAMst",
+  FORM_TAG:            "rb_astdepcamst",
   TRAN_BOOK:           "C2F",
   SUPPLIER_PARTY_TYPE: "S",
 
@@ -21,21 +21,21 @@ export const DPC_CONFIG = {
   DIVISION_YEAR_ID: 2,
 
   // SP names (MRD § 5 / § 5.1)
-  SP_RB_META:     "Fn_Fetch_RBDetailByRBCode",
-  SP_DIVISIONS:   "Fn_tbl_FetchUserWsDivision",
-  SP_ASSETS_ACC:  "Fn_tbl_Fetch_AssetsAccount",
-  SP_ITEM_PICKER: "fn_tbl_RB_AstDepCADetSelOnl",
+  SP_RB_META:     "fn_fetch_rbdetailbyrbcode",
+  SP_DIVISIONS:   "fn_tbl_fetchuserwsdivision",
+  SP_ASSETS_ACC:  "fn_tbl_fetch_assetsaccount",
+  SP_ITEM_PICKER: "fn_tbl_rb_astdepcadetselonl",
 
   // Edit flow (MRD § 5.1)
-  SP_MASTER_FILL: "fn_tbl_RB_AstDepCAMst",
-  SP_DETAIL_FILL: "fn_tbl_RB_AstDepCADet",
+  SP_MASTER_FILL: "fn_tbl_rb_astdepcamst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astdepcadet",
 
   // Save endpoint (MRD § 7)
   SAVE_ENDPOINT: "/API/AstDepCAMstSave/Post_RB_AstDepCAMst_Save",
 
   // Listing (MRD § 7)
   LIST_OBJ_TYPE:    2,
-  SP_LIST:          "Fn_tbl_RB_AstDepCAMst_List",
+  SP_LIST:          "fn_tbl_rb_astdepcamst_list",
   LIST_DIVISION_ID: 15,
 
   // localStorage key for cached header RB metadata (MRD § 7)

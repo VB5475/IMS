@@ -20,9 +20,19 @@ function isTruthyApiFlag(val) {
 export function getColDataKind(colDataType) {
   if (!colDataType) return null;
   const lower = String(colDataType).toLowerCase();
-  if (lower.includes(COL_DATA_TYPE.VARCHAR)) return "varchar";
-  if (lower.includes(COL_DATA_TYPE.NUMERIC)) return "numeric";
-  if (lower.includes(COL_DATA_TYPE.DATETIME) || lower.includes("date")) return "date";
+  // numeric / decimal / float / real / double precision / integer / bigint / smallint / money
+  if (
+    lower.includes("numeric") ||
+    lower.includes("decimal") ||
+    lower.includes("float") ||
+    lower.includes("real") ||
+    lower.includes("double") ||
+    lower.includes("int") ||
+    lower.includes("money")
+  )
+    return "numeric";
+  if (lower.includes("varchar") || lower.includes("text") || lower.includes("char")) return "varchar";
+  if (lower.includes("datetime") || lower.includes("date") || lower.includes("time")) return "date";
   return null;
 }
 
@@ -38,11 +48,38 @@ export function isNumericColumnDef(col) {
   return isNumericColDataType(colDataType);
 }
 
-/** Extract decimal places (N) from ColDataType like "numeric(M,N)". */
+/** Extract decimal places (N) from ColDataType like "numeric(M,N)" or "decimal(M,N)". */
 export function getNumericDecimalPlaces(colDataType) {
   if (!colDataType) return 0;
-  const match = String(colDataType).match(/numeric\s*\(\s*\d+\s*,\s*(\d+)\s*\)/i);
+  const match = String(colDataType).match(/(?:numeric|decimal)\s*\(\s*\d+\s*,\s*(\d+)\s*\)/i);
   return match ? Number(match[1]) : 0;
+}
+
+/**
+ * Build a DetJSON string that preserves decimal precision for numeric columns.
+ *
+ * JSON.stringify collapses 12.00 → 12 because JS numbers have no scale.
+ * This helper uses toFixed(N) from the column's type (e.g. numeric(18,2) → N=2)
+ * so the SP receives "tranqty":12.00 instead of "tranqty":12.
+ *
+ * @param {Object[]} rows       - Row data objects (id already stripped)
+ * @param {Object}   colTypeMap - { key: rawColDataType } from allColumns
+ */
+export function buildDetJSON(rows, colTypeMap = {}) {
+  function enc(k, v) {
+    if (v === null || v === undefined) return "null";
+    if (typeof v === "boolean") return String(v);
+    if (typeof v === "number") {
+      const dp = getNumericDecimalPlaces(colTypeMap[k]);
+      return dp > 0 ? v.toFixed(dp) : String(v);
+    }
+    if (typeof v === "string") return JSON.stringify(v);
+    return JSON.stringify(v);
+  }
+  const inner = rows
+    .map((row) => `{${Object.entries(row).map(([k, v]) => `${JSON.stringify(k)}:${enc(k, v)}`).join(",")}}`)
+    .join(",");
+  return `[${inner}]`;
 }
 
 /** Build normalized validation/display metadata from a GET_DETAIL_COL_DATA column. */

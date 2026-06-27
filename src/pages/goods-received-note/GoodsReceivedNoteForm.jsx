@@ -80,47 +80,47 @@ const nextTempId = () => _grnTempId--;
 function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
   if (!headerValues) return null;
   return {
-    TranCode: headerValues.TranCode ?? "",
-    TranDate: headerValues.TranDate ?? "",
-    DivisionID: String(headerValues.DivisionID ?? ""),
-    ConfigID: String(headerValues.ConfigID ?? ""),
-    SupplierID: String(headerValues.SupplierID ?? ""),
-    CurrencyID: masterRow?.CurrencyName ?? String(headerValues.CurrencyID ?? ""),
-    CurrencyRate: headerValues.CurrencyRate != null ? String(headerValues.CurrencyRate) : "",
-    BasedOnID: String(headerValues.BasedOnID ?? "0"),
-    BillNo: headerValues.BillNo ?? "",
-    BillDate: headerValues.BillDate ?? "",
-    ChallanNo: headerValues.ChallanNo ?? "",
-    ChallanDate: headerValues.ChallanDate ?? "",
-    TransporterID: String(headerValues.TransporterID ?? ""),
-    DestinationID: String(headerValues.DestinationID ?? ""),
-    LRNo: headerValues.LRNo ?? "",
-    LRDate: headerValues.LRDate ?? "",
-    VehicleNo: headerValues.VehicleNo ?? "",
-    VehicleTypeId: String(headerValues.VehicleTypeId ?? ""),
-    NoOfPerson: headerValues.NoOfPerson ?? "",
-    DriverName: headerValues.DriverName ?? "",
-    DriverContactNo: headerValues.DriverContactNo ?? "",
-    DriverLicenceNo: headerValues.DriverLicenceNo ?? "",
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: String(headerValues.divisionid ?? ""),
+    configid: String(headerValues.configid ?? ""),
+    supplierid: String(headerValues.supplierid ?? ""),
+    currencyname: masterRow?.currencyname ?? String(headerValues.currencyname ?? ""),
+    currencyrate: headerValues.currencyrate != null ? String(headerValues.currencyrate) : "",
+    basedonid: String(headerValues.basedonid ?? "0"),
+    billno: headerValues.billno ?? "",
+    billdate: headerValues.billdate ?? "",
+    challanno: headerValues.challanno ?? "",
+    challandate: headerValues.challandate ?? "",
+    transporterid: String(headerValues.transporterid ?? ""),
+    destinationid: String(headerValues.destinationid ?? ""),
+    lrno: headerValues.lrno ?? "",
+    lrdate: headerValues.lrdate ?? "",
+    vehicleno: headerValues.vehicleno ?? "",
+    vehicletypeid: String(headerValues.vehicletypeid ?? ""),
+    noofperson: headerValues.noofperson ?? "",
+    drivername: headerValues.drivername ?? "",
+    drivercontactno: headerValues.drivercontactno ?? "",
+    driverlicenceno: headerValues.driverlicenceno ?? "",
   };
 }
 
 function buildCurrencyPatchFromSupplier(supplier) {
-  if (!supplier) return { CurrencyID: "", CurrencyRate: "" };
+  if (!supplier) return { currencyname: "", currencyrate: "" };
   return {
-    CurrencyID: supplier.CurrencyName ?? String(supplier.CurrencyID ?? ""),
-    CurrencyRate: supplier.CurrencyRate != null ? String(supplier.CurrencyRate) : "",
+    currencyname: supplier.currencyname ?? supplier.CurrencyName ?? "",
+    currencyrate: (supplier.currencyrate ?? supplier.CurrencyRate) != null ? String(supplier.currencyrate ?? supplier.CurrencyRate) : "",
   };
 }
 
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? GRN_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.IDNUMBER ?? listRecord?.IDNumber ?? recordId,
+    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? session.yearId ?? GRN_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.idnumber ?? recordId,
   };
 }
 
@@ -139,7 +139,8 @@ function mapPickerToItemRow(item, allColumns) {
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    const lk = k.toLowerCase();
+    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -215,38 +216,38 @@ export default function GoodsReceivedNoteForm() {
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    TranCode: "",
-    TranDate: todayISO,
-    ConfigID: 0,
-    DivisionID: 0,
-    SupplierID: 0,
-    CurrencyID: "",
-    CurrencyRate: "",
-    BasedOnID: "0",
-    BillNo: "",
-    BillDate: null,
-    ChallanNo: "",
-    ChallanDate: null,
-    TransporterID: 0,
-    DestinationID: 0,
-    LRNo: "",
-    LRDate: null,
-    VehicleNo: "",
-    VehicleTypeId: 0,
-    NoOfPerson: 0,
-    DriverName: "",
-    DriverContactNo: "",
-    DriverLicenceNo: "",
-    CompanyID: 1,
-    YearID: GRN_CONFIG.DIVISION_YEAR_ID,
-    LoginID: session.loginId,
-    UserID: session.userId,
-    IDNumber: recordId,
+    trancode: "",
+    trandate: todayISO,
+    configid: 0,
+    divisionid: 0,
+    supplierid: 0,
+    currencyid: "",
+    currencyrate: "",
+    basedonid: "0",
+    billno: "",
+    billdate: null,
+    challanno: "",
+    challandate: null,
+    transporterid: 0,
+    destinationid: 0,
+    lrno: "",
+    lrdate: null,
+    vehicleno: "",
+    vehicletypeid: 0,
+    noofperson: 0,
+    drivername: "",
+    drivercontactno: "",
+    driverlicenceno: "",
+    companyid: 1,
+    yearid: GRN_CONFIG.DIVISION_YEAR_ID,
+    loginid: session.loginId,
+    userid: session.userId,
+    idnumber: recordId,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { ...GRN_FILTER_INITIAL_VALUES, TranDate: todayISO };
+    return { ...GRN_FILTER_INITIAL_VALUES, trandate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
@@ -283,7 +284,7 @@ export default function GoodsReceivedNoteForm() {
   const refreshItemGridMeta = useCallback(
     async (divisionId) => {
       gridColumnsLoadedRef.current = false;
-      const cols = await fetchGridColumns(divisionId ?? headerValuesRef.current?.DivisionID ?? 0, {
+      const cols = await fetchGridColumns(divisionId ?? headerValuesRef.current?.divisionid ?? 0, {
         existingRecordEdit: isEditRoute,
         masterRow: loadedMasterRow,
         fetchUnlockedDropdowns: true,
@@ -328,33 +329,33 @@ export default function GoodsReceivedNoteForm() {
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      TranCode: "",
-      TranDate: todayISO,
-      ConfigID: 0,
-      DivisionID: 0,
-      SupplierID: 0,
-      CurrencyID: "",
-      CurrencyRate: "",
-      BasedOnID: "0",
-      BillNo: "",
-      BillDate: null,
-      ChallanNo: "",
-      ChallanDate: null,
-      TransporterID: 0,
-      DestinationID: 0,
-      LRNo: "",
-      LRDate: null,
-      VehicleNo: "",
-      VehicleTypeId: 0,
-      NoOfPerson: 0,
-      DriverName: "",
-      DriverContactNo: "",
-      DriverLicenceNo: "",
-      CompanyID: 1,
-      YearID: GRN_CONFIG.DIVISION_YEAR_ID,
-      LoginID: resetSession.loginId,
-      UserID: resetSession.userId,
-      IDNumber: 0,
+      trancode: "",
+      trandate: todayISO,
+      configid: 0,
+      divisionid: 0,
+      supplierid: 0,
+      currencyid: "",
+      currencyrate: "",
+      basedonid: "0",
+      billno: "",
+      billdate: null,
+      challanno: "",
+      challandate: null,
+      transporterid: 0,
+      destinationid: 0,
+      lrno: "",
+      lrdate: null,
+      vehicleno: "",
+      vehicletypeid: 0,
+      noofperson: 0,
+      drivername: "",
+      drivercontactno: "",
+      driverlicenceno: "",
+      companyid: 1,
+      yearid: GRN_CONFIG.DIVISION_YEAR_ID,
+      loginid: resetSession.loginId,
+      userid: resetSession.userId,
+      idnumber: 0,
     };
 
     queuedRowsRef.current = [];
@@ -367,7 +368,7 @@ export default function GoodsReceivedNoteForm() {
     setActiveTab("items");
     setApprovedFilter("all");
     setIsGridLoading(false);
-    setCurrencyExternalValues({ CurrencyID: "", CurrencyRate: "" });
+    setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
     clearItemGridState();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
@@ -417,15 +418,15 @@ export default function GoodsReceivedNoteForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues, master));
       setFilterResetKey((k) => k + 1);
 
-      const divisionId = headerValues.DivisionID ?? 0;
+      const divisionId = headerValues.divisionid ?? 0;
       if (divisionId) {
         await Promise.all([
           fetchGrnTypes(divisionId),
           fetchSupplierOptions(divisionId),
           fetchTransporterOptions(divisionId),
         ]);
-        if (headerValues.TransporterID) {
-          await fetchDestinationOptions(divisionId, headerValues.TransporterID);
+        if (headerValues.transporterid) {
+          await fetchDestinationOptions(divisionId, headerValues.transporterid);
         }
       }
 
@@ -462,9 +463,9 @@ export default function GoodsReceivedNoteForm() {
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
-    const divisionId = headerValuesRef.current?.DivisionID ?? loadedMasterRow?.DivisionID ?? 0;
+    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
     const transporterId =
-      headerValuesRef.current?.TransporterID ?? loadedMasterRow?.TransporterID ?? 0;
+      headerValuesRef.current?.transporterid ?? loadedMasterRow?.transporterid ?? 0;
     fetchUnlockedHeaderDropdowns(divisionId, transporterId);
     fetchGridColumns(divisionId, {
       existingRecordEdit: true,
@@ -475,7 +476,7 @@ export default function GoodsReceivedNoteForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -509,15 +510,15 @@ export default function GoodsReceivedNoteForm() {
       if (apiCol) {
         def.FilterColCtrlType = forceListDropdown
           ? controlTypeMap.DROPDOWN
-          : (apiCol.ColCtrlType ?? filter.FilterColCtrlType);
+          : (apiCol.colctrltype ?? filter.FilterColCtrlType);
       }
 
       const isDropdownField = forceListDropdown || def.FilterColCtrlType === controlTypeMap.DROPDOWN;
 
       if (isEditRoute && loadedMasterRow) {
-        if (filter.FilterParameterID === "BasedOnID") {
+        if (filter.FilterParameterID === "basedonid") {
           const basedOnVal = String(
-            loadedMasterRow.BasedOnID ?? headerValuesRef.current?.BasedOnID ?? "0"
+            loadedMasterRow.basedonid ?? headerValuesRef.current?.basedonid ?? "0"
           );
           if (lockOnEditMode || !isEditMode) {
             const match = GRN_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
@@ -548,11 +549,11 @@ export default function GoodsReceivedNoteForm() {
     const apiColMap = buildHeaderColMap(headerColumns);
     const inject = (filter, baseFilter) => {
       switch (filter.FilterParameterID) {
-        case "DivisionID":
+        case "divisionid":
           return { ...baseFilter, staticOptions: divisionOptions };
-        case "ConfigID":
+        case "configid":
           return { ...baseFilter, staticOptions: grnTypeOptions };
-        case "SupplierID":
+        case "supplierid":
           return { ...baseFilter, staticOptions: supplierOptions };
         default:
           return baseFilter;
@@ -566,9 +567,9 @@ export default function GoodsReceivedNoteForm() {
     const apiColMap = buildHeaderColMap(headerColumns);
     const inject = (filter, baseFilter) => {
       switch (filter.FilterParameterID) {
-        case "TransporterID":
+        case "transporterid":
           return { ...baseFilter, staticOptions: transporterOptions };
-        case "DestinationID":
+        case "destinationid":
           return { ...baseFilter, staticOptions: destinationOptions };
         default:
           return baseFilter;
@@ -622,18 +623,18 @@ export default function GoodsReceivedNoteForm() {
 
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-      if (colName === "SupplierID") {
-        void refreshItemGridMeta(headerValuesRef.current.DivisionID);
+      if (colName === "supplierid") {
+        void refreshItemGridMeta(headerValuesRef.current.divisionid);
         if (!val || val === "0") {
-          headerValuesRef.current.CurrencyID = "";
-          headerValuesRef.current.CurrencyRate = "";
-          setCurrencyExternalValues({ CurrencyID: "", CurrencyRate: "" });
+          headerValuesRef.current.currencyid = "";
+          headerValuesRef.current.currencyrate = "";
+          setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
           return buildCurrencyPatchFromSupplier(null);
         }
         const supplier = getSupplierRow(val);
         if (supplier) {
-          headerValuesRef.current.CurrencyID = supplier.CurrencyID ?? 0;
-          headerValuesRef.current.CurrencyRate = supplier.CurrencyRate ?? "";
+          headerValuesRef.current.currencyid = supplier.currencyid ?? supplier.CurrencyID ?? 0;
+          headerValuesRef.current.currencyrate = supplier.currencyrate ?? supplier.CurrencyRate ?? "";
           const patch = buildCurrencyPatchFromSupplier(supplier);
           setCurrencyExternalValues(patch);
           return patch;
@@ -641,14 +642,14 @@ export default function GoodsReceivedNoteForm() {
         return undefined;
       }
 
-      if (colName === "DivisionID") {
-        headerValuesRef.current.ConfigID = 0;
-        headerValuesRef.current.SupplierID = 0;
-        headerValuesRef.current.CurrencyID = "";
-        headerValuesRef.current.CurrencyRate = "";
-        headerValuesRef.current.TransporterID = 0;
-        headerValuesRef.current.DestinationID = 0;
-        setCurrencyExternalValues({ CurrencyID: "", CurrencyRate: "" });
+      if (colName === "divisionid") {
+        headerValuesRef.current.configid = 0;
+        headerValuesRef.current.supplierid = 0;
+        headerValuesRef.current.currencyid = "";
+        headerValuesRef.current.currencyrate = "";
+        headerValuesRef.current.transporterid = 0;
+        headerValuesRef.current.destinationid = 0;
+        setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
         clearGrnTypes();
         clearSuppliers();
         clearTransporters();
@@ -663,18 +664,18 @@ export default function GoodsReceivedNoteForm() {
         return buildCurrencyPatchFromSupplier(null);
       }
 
-      if (colName === "TransporterID") {
-        headerValuesRef.current.DestinationID = 0;
+      if (colName === "transporterid") {
+        headerValuesRef.current.destinationid = 0;
         clearDestinations();
         if (val && val !== "0") {
-          const divisionId = headerValuesRef.current.DivisionID;
+          const divisionId = headerValuesRef.current.divisionid;
           if (divisionId) void fetchDestinationOptions(divisionId, val);
         }
-        return { DestinationID: "" };
+        return { destinationid: "" };
       }
 
-      if (colName === "BasedOnID") {
-        void refreshItemGridMeta(headerValuesRef.current.DivisionID);
+      if (colName === "basedonid") {
+        void refreshItemGridMeta(headerValuesRef.current.divisionid);
       }
 
       return undefined;
@@ -699,7 +700,7 @@ export default function GoodsReceivedNoteForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0, {
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0, {
         existingRecordEdit: isEditRoute,
         masterRow: loadedMasterRow,
         fetchUnlockedDropdowns: true,
@@ -720,8 +721,8 @@ export default function GoodsReceivedNoteForm() {
     }
 
     const loginId = getUserSession().loginId;
-    const rbCode = resolveItemPickerRbCode(headerValues.BasedOnID);
-    const itemPickerSp = resolveItemPickerSpName(headerValues.BasedOnID);
+    const rbCode = resolveItemPickerRbCode(headerValues.basedonid);
+    const itemPickerSp = resolveItemPickerSpName(headerValues.basedonid);
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -737,15 +738,15 @@ export default function GoodsReceivedNoteForm() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const rbRow = rbRes?.Table?.[0];
+      const rbRow = rbRes?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.RBID,
+        prmMasterID: rbRow.rbid,
         prmLoginID: loginId,
       });
       setItemModalColumns(
-        buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false })
+        buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false })
       );
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -755,7 +756,7 @@ export default function GoodsReceivedNoteForm() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      setItemModalItems(rowRes?.Table || []);
+      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[GRN] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
@@ -769,7 +770,7 @@ export default function GoodsReceivedNoteForm() {
       if (!selectedItems?.length) return;
       setActiveTab("items");
 
-      const isIndentBase = Number(headerValuesRef.current?.BasedOnID) === 3;
+      const isIndentBase = Number(headerValuesRef.current?.basedonid) === 3;
 
       if (!isIndentBase) {
         const activeCols = await ensureItemColumns();
@@ -799,7 +800,7 @@ export default function GoodsReceivedNoteForm() {
         });
         const summaryRes = await summaryResponse.json();
 
-        const parents = summaryRes?.Table ?? [];
+        const parents = summaryRes ?? [];
         if (!parents.length) return;
 
         const indentChildColumns = await fetchIndentDetailColumns();
@@ -846,14 +847,14 @@ export default function GoodsReceivedNoteForm() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !itemGridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[GRN] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       itemGridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]
@@ -870,7 +871,7 @@ export default function GoodsReceivedNoteForm() {
         ...GRN_TRANSPORTER_FILTERS,
         ...GRN_DRIVER_FILTERS,
       ].map((f) => f.FilterParameterID));
-      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
       const headerErrors = validateApiColumns(hv, headerColsToValidate);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
@@ -887,15 +888,15 @@ export default function GoodsReceivedNoteForm() {
 
       const userSession = getUserSession();
       const masterColumnDefs = headerColumns.map((col) => ({
-        key: col.ColName,
-        colDataType: col.ColDataType || null,
+        key: col.colname,
+        colDataType: col.coldatatype || null,
       }));
       const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
-        LoginID: userSession.loginId,
-        UserID: userSession.userId,
+        loginid: userSession.loginId,
+        userid: userSession.userId,
       });
 
-      const sessionFields = { LoginID: userSession.loginId, UserID: userSession.userId };
+      const sessionFields = { loginid: userSession.loginId, userid: userSession.userId };
       const detRows = itemRows.map(({ id, ...rest }) =>
         buildSaveRowFromColumns(rest, allColumns, sessionFields)
       );
@@ -911,7 +912,7 @@ export default function GoodsReceivedNoteForm() {
           det: detRows,
           indtDet: indentDetailRows,
         }),
-        { divisionId: hv.DivisionID, isEdit: isEditRoute }
+        { divisionId: hv.divisionid, isEdit: isEditRoute }
       );
 
       setIsSaving(true);
@@ -1169,7 +1170,7 @@ export default function GoodsReceivedNoteForm() {
               title="Transporter Detail"
               staticFilters={syncedTransporterFilters}
               initialValues={filterInitialValues}
-              cascadeResets={{ TransporterID: ["DestinationID"] }}
+              cascadeResets={{ transporterid: ["destinationid"] }}
               onFilterChange={handleFilterChange}
               isSearching={filterPanelLoading}
               isMetaLoading={!headerMetaReady || recordLoading}

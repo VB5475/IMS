@@ -19,7 +19,7 @@ export function isMissingItemPickerFieldValue(field, value) {
  * @param {{ basedOnKey?: string }} [opts]
  */
 export function getMissingItemPickerHeaderFields(headerValues, fields, opts = {}) {
-  const { basedOnKey = "BasedOnID" } = opts;
+  const { basedOnKey = "basedonid" } = opts;
   const basedOn = Number(headerValues?.[basedOnKey]) || 0;
   const missing = [];
 
@@ -38,14 +38,14 @@ export function getMissingItemPickerHeaderFields(headerValues, fields, opts = {}
  */
 export function buildItemPickerJsonPayload(headerValues, loginId, { configYearId, tranBook }) {
   return {
-    prmDivisionID: Number(headerValues.DivisionID),
+    prmDivisionID: Number(headerValues.divisionid ?? headerValues.DivisionID),
     prmYearID: configYearId,
     prmLoginID: loginId,
-    prmTranDate: formatTranDate(headerValues.TranDate),
-    prmConfigID: Number(headerValues.ConfigID),
-    prmSupplierID: Number(headerValues.SupplierID ?? 0),
+    prmTranDate: formatTranDate(headerValues.trandate ?? headerValues.TranDate),
+    prmConfigID: Number(headerValues.configid ?? headerValues.ConfigID),
+    prmSupplierID: Number(headerValues.supplierid ?? headerValues.SupplierID ?? 0),
     prmTranBook: tranBook,
-    prmFrmOption: Number(headerValues.BasedOnID) || 0,
+    prmFrmOption: Number(headerValues.basedonid ?? headerValues.BasedOnID) || 0,
   };
 }
 

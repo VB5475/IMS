@@ -27,17 +27,17 @@ function buildListParams() {
     ObjType: AOP_CONFIG.LIST_OBJ_TYPE,
     ObjName: AOP_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
-      PrmDivisionID: AOP_CONFIG.LIST_DIVISION_ID,
-      PrmLoginID:    DEFAULT_LOGIN_ID,
-      PrmYearID:     AOP_CONFIG.CONFIG_YEAR_ID,
+      prmcompanyid:  DEFAULT_COMPANY_ID,
+      prmdivisionid: AOP_CONFIG.LIST_DIVISION_ID,
+      prmloginid:    DEFAULT_LOGIN_ID,
+      prmyearid:     AOP_CONFIG.CONFIG_YEAR_ID,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
   };
 }
 
-const HIDDEN_COLS = new Set(["IDNumber", "AopID"]);
+const HIDDEN_COLS = new Set(["idnumber", "aopid"]);
 
 function toLabel(key) {
   return key.replace(/([A-Z])/g, " $1").trim();
@@ -63,12 +63,12 @@ function buildColumnsFromData(data, navigate) {
         <button
           type="button"
           className="aop-list__edit-btn"
-          title={`Edit ${row.TranCode ?? ""}`}
-          aria-label={`Edit ${row.TranCode ?? ""}`}
+          title={`Edit ${row.trancode ?? ""}`}
+          aria-label={`Edit ${row.trancode ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
             navigate(
-              `/assets-item-opening/${row.AopID ?? row.IDNumber}/edit`,
+              `/assets-item-opening/${row.aopid ?? row.idnumber}/edit`,
               { state: { record: row } }
             );
           }}
@@ -103,7 +103,7 @@ export default function AssetsItemOpeningPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(json?.Table ?? []);
+      setData(json ?? []);
     } catch (err) {
       console.error("[AOP] list fetch failed:", err);
       setError("Failed to load Assets Item Opening records.");

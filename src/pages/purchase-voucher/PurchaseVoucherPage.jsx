@@ -22,12 +22,12 @@ function buildListParams() {
     ObjName: PV_CONFIG.SP_PV_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: PV_CONFIG.LIST_DIVISION_ID,
-        prmSupplierID: 0,
-        prmFromDate: `01-Jan-${year}`,
-        prmToDate: `31-Dec-${year}`,
-        PrmDepartmentId: 0,
+        prmcompanyid: DEFAULT_COMPANY_ID,
+        prmdivisionid: PV_CONFIG.LIST_DIVISION_ID,
+        prmsupplierid: 0,
+        prmfromdate: `01-Jan-${year}`,
+        prmtodate: `31-Dec-${year}`,
+        prmdepartmentid: 0,
       },
     ]),
     p_ErrCode: -1,
@@ -66,7 +66,7 @@ export default function PurchaseVoucherPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(normalizeListRows(json?.Table ?? []));
+      setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseVoucherPage] list fetch failed:", err);
       setError("Failed to load purchase vouchers.");

@@ -9,30 +9,11 @@ import {
 } from "../api/constants";
 import { SMGM_CONFIG } from "../pages/sub-main-group-master/constants";
 
-function mapMasterRowToHeaderValues(master, params) {
-  return {
-    IDNumber:                     Number(master.IDNumber ?? params.idNumber) || 0,
-    ItemTypeID:                   master.ItemTypeID          != null ? Number(master.ItemTypeID)          : 0,
-    MainGroupID:                  master.MainGroupID         != null ? Number(master.MainGroupID)         : 0,
-    SubMainGroupCode:             master.SubMainGroupCode             ?? "",
-    SubMainGroupName:             master.SubMainGroupName             ?? "",
-    SubMainGroupShortName:        master.SubMainGroupShortName        ?? "",
-    UsedInAutoItemCodeGeneration: (Boolean(master.UsedInAutoItemCodeGeneration)) ? 1 : 0,
-    SubMainGroupShortCode:        master.SubMainGroupShortCode        ?? "",
-    ISSrnoControlReq:             (Boolean(master.ISSrnoControlReq)) ? 1:0,
-    FixedAssetAccountID:          master.FixedAssetAccountID  != null ? Number(master.FixedAssetAccountID)  : 0,
-    CompanyID:                    Number(params.companyId)    || DEFAULT_COMPANY_ID,
-    YearID:                       Number(master.YearID   ?? params.yearId)    || SMGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                      Number(master.LoginID  ?? params.loginId)   || DEFAULT_LOGIN_ID,
-    SessionID:                    Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode:                     master.FuncCode ?? SMGM_CONFIG.RB_MASTER,
-  };
-}
-
 export function useSubMainGroupMaster() {
   const { get } = useApi(API_BASE_URL);
 
   const [headerColumns,        setHeaderColumns]        = useState([]);
+  const [allColumns,           setAllColumns]           = useState([]);
   const [headerFetching,       setHeaderFetching]       = useState(false);
   const [headerError,          setHeaderError]          = useState(null);
   const [itemTypeOptions,      setItemTypeOptions]      = useState([]);
@@ -52,19 +33,23 @@ export function useSubMainGroupMaster() {
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Sub Main Group Master RB metadata returned.");
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(SMGM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
-      // Phase 2 — field definitions from GetDetailColData
+      // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
+      setAllColumns(
+        (colData || []).map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
 
-      // Phase 3 — Item Type + Fixed Asset dropdowns at mount (Main Group is dynamic — see fetchMainGroupByItemType)
+      // Phase 3 — Item Type + Fixed Asset dropdowns at mount
+      // Main Group is dynamic — see fetchMainGroupByItemType (cascade from Item Type)
       const [itemTypeData, fixedAssetData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType:   2,
@@ -82,20 +67,20 @@ export function useSubMainGroupMaster() {
       ]);
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[SMGM] ItemType row sample:",      itemTypeData?.Table?.[0]);
-        console.log("[SMGM] FixedAssetAcc row sample:", fixedAssetData?.Table?.[0]);
+        console.log("[SMGM] ItemType row sample:",      itemTypeData?.[0]);
+        console.log("[SMGM] FixedAssetAcc row sample:", fixedAssetData?.[0]);
       }
 
       setItemTypeOptions(
-        (itemTypeData?.Table || []).map((r) => ({
-          value:  r.IDNumber ?? 0 ,
-          label: String(r.ItemTypeCode ?? ""),
+        (itemTypeData || []).map((r) => ({
+          value: r.idnumber ?? 0,
+          label: String(r.itemtypecode ?? ""),
         })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(
-        (fixedAssetData?.Table || []).map((r) => ({
-          value:  r.IDNUMBER ?? 0,
-          label: String( r.ACNAME ?? ""),
+        (fixedAssetData || []).map((r) => ({
+          value: r.idnumber ?? 0,
+          label: String(r.acname ?? ""),
         })).filter((o) => o.value != null)
       );
     } catch (err) {
@@ -106,7 +91,7 @@ export function useSubMainGroupMaster() {
     }
   }, [get]);
 
-  // Called when ItemTypeID changes — reloads Main Group options filtered by item type
+  // Cascade: Item Type → Main Group options
   const fetchMainGroupByItemType = useCallback(async (itemTypeId) => {
     if (!itemTypeId) { setMainGroupOptions([]); return; }
     setMainGroupLoading(true);
@@ -118,12 +103,12 @@ export function useSubMainGroupMaster() {
         p_ErrCode: -1, p_ErrMsg: "",
       });
       if (process.env.NODE_ENV !== "production") {
-        console.log("[SMGM] MainGroup row sample:", data?.Table?.[0]);
+        console.log("[SMGM] MainGroup row sample:", data?.[0]);
       }
       setMainGroupOptions(
-        (data?.Table || []).map((r) => ({
-          value: r.IDNumber ?? 0,
-          label: String(r.MainGroup ?? ""),
+        (data || []).map((r) => ({
+          value: r.idnumber ?? r.parentid ?? 0,
+          label: String(r.maingroup ?? ""),
         })).filter((o) => o.value != null)
       );
     } catch (err) {
@@ -134,6 +119,8 @@ export function useSubMainGroupMaster() {
     }
   }, [get]);
 
+  // Returns master spread directly (PG returns lowercase keys matching RB colnames).
+  // System context fields are overlaid so the save SP always gets consistent values.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
       Number(companyId)  || DEFAULT_COMPANY_ID,
@@ -148,34 +135,40 @@ export function useSubMainGroupMaster() {
       prmParameters,
       prmFuncCode:  SMGM_CONFIG.RB_MASTER,
     });
-    const master = mstRes?.Links?.[0] ?? null;
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master
-        ? mapMasterRowToHeaderValues(master, { companyId, yearId, loginId, sessionId, idNumber })
-        : null,
+      headerValues: master ? {
+        ...master,
+        yearid:    Number(master.yearid    ?? yearId)    || SMGM_CONFIG.CONFIG_YEAR_ID,
+        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
+        funccode:  master.funccode ?? SMGM_CONFIG.RB_MASTER,
+      } : null,
     };
   }, [get]);
 
+  // Seeds single-item dropdown options from the master fill response so that the
+  // selected value is visible in the dropdown even before the full list loads.
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.ItemTypeID != null && master.ItemTypeName) {
+    if (master.itemtypeid != null && master.itemtypename) {
       setItemTypeOptions((prev) =>
-        prev.some((o) => Number(o.value) === Number(master.ItemTypeID))
+        prev.some((o) => Number(o.value) === Number(master.itemtypeid))
           ? prev
-          : [{ value: String(master.ItemTypeID), label: master.ItemTypeName }, ...prev]
+          : [{ value: master.itemtypeid, label: master.itemtypename }, ...prev]
       );
     }
-    if (master.FixedAssetAccountID != null && master.FixedAssetAccountName) {
+    if (master.fixedassetaccountid != null && (master.fixedassetaccountname ?? master.acname)) {
       setFixedAssetAccOptions((prev) =>
-        prev.some((o) => Number(o.value) === Number(master.FixedAssetAccountID))
+        prev.some((o) => Number(o.value) === Number(master.fixedassetaccountid))
           ? prev
-          : [{ value: String(master.FixedAssetAccountID), label: master.FixedAssetAccountName }, ...prev]
+          : [{ value: master.fixedassetaccountid, label: master.fixedassetaccountname ?? master.acname }, ...prev]
       );
     }
   }, []);
 
   return {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
+    headerColumns, allColumns, headerFetching, headerError, fetchHeaderMeta,
     itemTypeOptions, mainGroupOptions, mainGroupLoading, fixedAssetAccOptions,
     fetchMainGroupByItemType, fetchEditRecord, seedOptionsFromMaster,
   };

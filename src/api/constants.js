@@ -5,7 +5,17 @@
 // The re-exports below keep existing hook/component import paths unchanged.
 
 // ── Base URLs ──────────────────────────────────────────────────────────
-const BASE_DOMAIN ="http://122.179.135.100:8095/IMS_LIVE";
+const PROJECT_STORAGE_KEY = "ims_base_project";
+export const BASE_PROJECT_OPTIONS = ["IMS_LIVE", "IMS_PGLIVE"];
+export const PROD_BASE_PROJECT =
+  localStorage.getItem(PROJECT_STORAGE_KEY) || "IMS_LIVE";
+
+export function switchBaseProject(name) {
+  localStorage.setItem(PROJECT_STORAGE_KEY, name);
+  window.location.reload();
+}
+
+const BASE_DOMAIN = "http://122.179.135.100:8095/" + PROD_BASE_PROJECT;
 export const API_BASE_URL = BASE_DOMAIN + "/webservice/WsIMS.asmx";
 
 export const API_BASE_URL_OLD = "http://122.179.135.100:8095/ERPWS_TB/webservice/WsIMS.asmx";
@@ -29,6 +39,7 @@ export const ENDPOINTS = {
   GET_MASTER_DATA_FILL: "/GetMasterDataFill",
   RB_REPORTBOARD_DETAIL_SAVE: "/RB_ReportBoardDetail_Save",
   FN_TBL_RB_GRID_EVENT: "/fn_tbl_RB_Grid_Event",
+  TRAN_FORM_EVENT: "/API/TransactionFormEvent/Post_RB_TransactionFormEvent",
   RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save",
 };
 
@@ -53,23 +64,43 @@ export const CBO_MODE = {
 
 // ── Column data-type identifiers (prefix-matched against ColDataType) ──
 export const COL_DATA_TYPE = {
-  NUMERIC: "numeric", // → default 0
-  VARCHAR: "varchar", // → default ''
+  NUMERIC: "numeric",   // → default 0
+  DECIMAL: "decimal",   // PG alias for numeric   → default 0
+  FLOAT:   "float",     // float4 / float8        → default 0
+  REAL:    "real",      // float4                 → default 0
+  DOUBLE:  "double",    // double precision       → default 0
+  INT:     "int",       // integer / bigint / smallint → default 0
+  MONEY:   "money",     // money                  → default 0
+  VARCHAR: "varchar",   // → default ''
+  TEXT:    "text",      // PG text                → default ''
   DATETIME: "datetime", // → default null
 };
+
+/** True if the lower-cased colDataType string represents any numeric PG type. */
+function isNumericTypeStr(lower) {
+  return (
+    lower.includes("numeric") ||
+    lower.includes("decimal") ||
+    lower.includes("float") ||
+    lower.includes("real") ||
+    lower.includes("double") ||
+    lower.includes("int") ||   // integer, bigint, smallint
+    lower.includes("money")
+  );
+}
 
 /**
  * Returns the correct server-side default value for a column based on its
  * ColDataType string from the GET_DETAIL_COL_DATA response.
- * @param {string|null|undefined} colDataType  e.g. "numeric(18,2)", "varchar(50)"
+ * @param {string|null|undefined} colDataType  e.g. "numeric(18,2)", "decimal(10,4)", "integer"
  * @returns {number|string|null}
  */
 export function getColDefault(colDataType) {
   if (!colDataType) return null;
   const lower = String(colDataType).toLowerCase();
-  if (lower.includes(COL_DATA_TYPE.NUMERIC)) return 0;
-  if (lower.includes(COL_DATA_TYPE.VARCHAR)) return "";
-  if (lower.includes(COL_DATA_TYPE.DATETIME) || lower.includes("date")) return null;
+  if (isNumericTypeStr(lower)) return 0;
+  if (lower.includes("varchar") || lower.includes("text") || lower.includes("char")) return "";
+  if (lower.includes("datetime") || lower.includes("date") || lower.includes("time")) return null;
   return null;
 }
 

@@ -14,7 +14,7 @@ import { useNotification } from "../../context/NotificationContext";
 import { SGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
 // Fields locked during edit mode (per MRD lock-on-edit spec)
-const LOCK_ON_EDIT = new Set(["SubGroupCode", "SubGroupName"]);
+const LOCK_ON_EDIT = new Set(["subgroupcode", "subgroupname"]);
 
 // Fields that render as checkbox despite API returning ColCtrlType 1 (textbox)
 const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration"]);
@@ -22,24 +22,24 @@ const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration"]);
 // Corrected display labels
 const DISPLAY_OVERRIDES = {
   usedinautoitemcodegeneration: "Used in Auto Item Code Gen.",
-  SubGroupShortCode:            "Sub Group Short Code",
-  SubGroupShortName:            "Sub Group Short Name",
+  subgroupshortcode:            "Sub Group Short Code",
+  subgroupshortname:            "Sub Group Short Name",
 };
-function getLabel(field) { return DISPLAY_OVERRIDES[field.ColName] || field.DisplayName; }
+function getLabel(field) { return DISPLAY_OVERRIDES[field.colname] || field.displayname; }
 
 function buildEmpty() {
   return {
-    IDNumber:                     0,
-    SubGroupCode:                 "",
-    SubGroupName:                 "",
-    SubGroupShortName:            "",
-    SubGroupShortCode:            "",
+    idnumber:                     0,
+    subgroupcode:                 "",
+    subgroupname:                 "",
+    subgroupshortname:            "",
+    subgroupshortcode:            "",
     usedinautoitemcodegeneration: 0,
-    CompanyID:                    DEFAULT_COMPANY_ID,
-    YearID:                       SGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                      DEFAULT_LOGIN_ID,
-    SessionID:                    DEFAULT_SESSION_ID,
-    FuncCode:                     SGM_CONFIG.RB_MASTER,
+    companyid:                    DEFAULT_COMPANY_ID,
+    yearid:                       SGM_CONFIG.CONFIG_YEAR_ID,
+    loginid:                      DEFAULT_LOGIN_ID,
+    sessionid:                    DEFAULT_SESSION_ID,
+    funccode:                     SGM_CONFIG.RB_MASTER,
   };
 }
 
@@ -92,14 +92,14 @@ export default function SubGroupMasterForm({
   // Visible fields sorted by ColSeqNo
   const visibleFields = useMemo(() =>
     fieldDefs
-      .filter((f) => f.IsVisible && f.ColSeqNo < 100)
-      .sort((a, b) => a.ColSeqNo - b.ColSeqNo),
+      .filter((f) => f.isvisible && f.colseqno < 100)
+      .sort((a, b) => a.colseqno - b.colseqno),
   [fieldDefs]);
 
   function isLocked(field) {
     if (!isEditMode) return true;
     if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.ColName);
+    return LOCK_ON_EDIT.has(field.colname);
   }
 
   const handleChange = useCallback((key, value) => {
@@ -107,7 +107,7 @@ export default function SubGroupMasterForm({
   }, []);
 
   function renderControl(field) {
-    const key    = field.ColName;
+    const key    = field.colname;
     const locked = isLocked(field);
 
     // Checkbox override
@@ -258,11 +258,11 @@ export default function SubGroupMasterForm({
           <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="sgm-form">
             {visibleFields.map((field) => (
-              <div key={field.ColName} className="sgm-form-row">
-                <span className={`sgm-form-label${field.IsMandatory && !CHECKBOX_OVERRIDES.has(field.ColName) ? " sgm-form-label--required" : ""}`}>
+              <div key={field.colname} className="sgm-form-row">
+                <span className={`sgm-form-label${field.ismandatory && !CHECKBOX_OVERRIDES.has(field.colname) ? " sgm-form-label--required" : ""}`}>
                   {getLabel(field)}
                 </span>
-                <div className={`sgm-form-control${CHECKBOX_OVERRIDES.has(field.ColName) ? " sgm-form-control--checkbox" : ""}`}>
+                <div className={`sgm-form-control${CHECKBOX_OVERRIDES.has(field.colname) ? " sgm-form-control--checkbox" : ""}`}>
                   {renderControl(field)}
                 </div>
               </div>

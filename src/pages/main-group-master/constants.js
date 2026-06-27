@@ -7,14 +7,14 @@ export const MODAL_SUBTITLE  = "Admin › Master › Item › Main Group Master"
 
 
 export const MGM_CONFIG = {
-  RB_MASTER:           "RB_PurMainGroupMst",
+  RB_MASTER:           "rb_purmaingroupmst",
   CONFIG_YEAR_ID:      2,             // ⚠️ CONFIRM with DBA
-  SP_RB_META:          "Fn_Fetch_RBDetailByRBCode",
-  SP_ITEM_TYPE:        "Fn_tbl_PUR_ITEMTYPEMST_Fetch",
-  SP_FIXED_ASSET_ACC:  "Fn_tbl_FixedAstAcc_Fetch",
-  SP_MASTER_FILL:      "fn_tbl_RB_PurMainGroupMst",
+  SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
+  SP_ITEM_TYPE:        "fn_tbl_pur_itemtypemst_fetch",
+  SP_FIXED_ASSET_ACC:  "fn_tbl_fixedastacc_fetch",
+  SP_MASTER_FILL:      "fn_tbl_rb_purmaingroupmst",
   LIST_OBJ_TYPE:       2,
-  SP_LIST:             "Fn_tbl_PurMainGroupMst_List",
+  SP_LIST:             "fn_tbl_purmaingroupmst_list",
   LIST_DIVISION_ID:    15,            // ⚠️ CONFIRM with DBA
   SAVE_ENDPOINT:       "/API/PurMainGroup/pr_RB_PurMainGroupMst_Save",
   STORAGE_HEADER_META: "mgmHeaderMeta",

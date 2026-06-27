@@ -40,7 +40,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -50,35 +50,26 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode:        master.TranCode       != null ? String(master.TranCode)       : "",
-    TranDate:        toDateInput(master.TranDate),
-    DivisionID:      master.DivisionID     != null ? Number(master.DivisionID)     : 0,
-    FixedAstAcID:    master.FixedAstAcID   != null ? Number(master.FixedAstAcID)   : 0,
-    TotalDepAmount:  master.TotalDepAmount  != null ? Number(master.TotalDepAmount)  : 0,
-    Remarks:         master.Remarks        ?? "",
-    FuncCode:        master.FuncCode       ?? DPC_CONFIG.RB_MASTER,
-    TranMstGenID:    master.TranMstGenID   != null ? Number(master.TranMstGenID)   : 0,
-    CompanyID:       Number(params.companyId)  || DEFAULT_COMPANY_ID,
-    YearID:          Number(master.Year_ID ?? params.yearId) || DPC_CONFIG.CONFIG_YEAR_ID,
-    LoginID:         Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID:       Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber:        Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID:          getUserSession().userId,
-    CompUniqueKey:   master.CompUniqueKey ?? master.IDNumber ?? params.idNumber ?? 0,
+    ...master,
+    trandate:  toDateInput(master.trandate),
+    yearid:    DPC_CONFIG.CONFIG_YEAR_ID,
+    funccode:  DPC_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) set.add(col.colname);
   });
   if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
   return set;
@@ -92,15 +83,15 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID:  DEFAULT_LOGIN_ID,
   });
-  return { meta, apiColumns: colData?.Links || [] };
+  return { meta, apiColumns: colData || [] };
 }
 
 export function useAstDepCA(baseURL = API_BASE_URL) {
@@ -133,17 +124,17 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: DPC_CONFIG.SP_ASSETS_ACC,
         JSon: JSON.stringify([{
-          PrmDivisionID:    Number(divisionId),
-          PrmAcMainGroupID: 7,           // ⚠️ DBA CONFIRM — Main Group ID for Fixed Asset accounts
-          PrmLoginID:       DEFAULT_LOGIN_ID,
-          PrmCompanyID:     DEFAULT_COMPANY_ID,
-          PrmYearID:        DPC_CONFIG.CONFIG_YEAR_ID,
+          prmdivisionid:    Number(divisionId),
+          prmacmaingroupid: 7,           // ⚠️ DBA CONFIRM — Main Group ID for Fixed Asset accounts
+          prmloginid:       DEFAULT_LOGIN_ID,
+          prmcompanyid:     DEFAULT_COMPANY_ID,
+          prmyearid:        DPC_CONFIG.CONFIG_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.AccountID ?? r.AcID ?? 0),
-        label: String((r.AcCode ?? "") + " | " + (r.AcName ?? "")),
+      const opts = (res || []).map((r) => ({
+        value: String(r.accountid ?? r.acid ?? 0),
+        label: String((r.accode ?? "") + " | " + (r.acname ?? "")),
       }));
       setAssetsAccOptions(opts);
       return opts;
@@ -167,17 +158,17 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{ prmRBCode: DPC_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No DPC header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(DPC_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      const hdrApiColumns = colData?.Links || [];
+      const hdrApiColumns = colData || [];
       setHeaderColumns(hdrApiColumns);
       console.log("%c[DPC] Header columns received:", "color:#8b5cf6;font-weight:600", hdrApiColumns.length);
 
@@ -191,15 +182,15 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: DPC_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([{
-          prmUserID:    DEFAULT_LOGIN_ID,
-          prmCompanyID: DEFAULT_COMPANY_ID,
-          prmYearID:    DPC_CONFIG.DIVISION_YEAR_ID,
+          prmuserid:    DEFAULT_LOGIN_ID,
+          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmyearid:    DPC_CONFIG.DIVISION_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       }).catch((err) => { console.warn("[DPC] Division fetch failed:", err); return null; });
 
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+        (divisionData || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))
       );
     } catch (err) {
       console.error("[DPC] fetchHeaderMeta failed:", err);
@@ -227,7 +218,7 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
       ["Qty", "Rate"].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
 
-      setAllColumns(apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null })));
+      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
       console.log("%c[DPC] Detail columns received:", "color:#6366f1;font-weight:600", apiColumns.length);
     } catch (err) {
       console.error("[DPC] fetchDetailMeta failed:", err);
@@ -277,13 +268,13 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.FixedAstAcID != null && (master.FixedAstAcName ?? master.AcName)) {
+    if (master.fixedastacid != null && (master.fixedastacname ?? master.acname)) {
       setAssetsAccOptions([{
-        value: String(master.FixedAstAcID),
-        label: String((master.AcCode ?? "") + " | " + (master.FixedAstAcName ?? master.AcName ?? "")),
+        value: String(master.fixedastacid),
+        label: String((master.accode ?? "") + " | " + (master.fixedastacname ?? master.acname ?? "")),
       }]);
     }
   }, []);
@@ -291,9 +282,9 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
   // ── fetchUnlockedHeaderDropdowns — enter edit mode: reload editable dropdowns
   const fetchUnlockedHeaderDropdowns = useCallback(async (divisionId) => {
     if (!headerColumns.length) return;
-    const isEditable    = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
-    const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID"   && isEditable(c));
-    const needsAssetAcc = headerColumns.some((c) => c.ColName === "FixedAstAcID" && isEditable(c));
+    const isEditable    = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
+    const needsDivision = headerColumns.some((c) => c.colname === "divisionid"   && isEditable(c));
+    const needsAssetAcc = headerColumns.some((c) => c.colname === "fixedastacid" && isEditable(c));
 
     const tasks = [];
     if (needsDivision) {
@@ -302,13 +293,13 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: DPC_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmUserID:    DEFAULT_LOGIN_ID,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID:    DPC_CONFIG.DIVISION_YEAR_ID,
+            prmuserid:    DEFAULT_LOGIN_ID,
+            prmcompanyid: DEFAULT_COMPANY_ID,
+            prmyearid:    DPC_CONFIG.DIVISION_YEAR_ID,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         })
-          .then((res) => setDivisionOptions((res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))))
+          .then((res) => setDivisionOptions((res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))))
           .catch(() => {})
       );
     }
@@ -331,12 +322,11 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
         prmFuncCode:  DPC_CONFIG.RB_DETAIL,
       }),
     ]);
-    const master = mstRes?.Links?.[0] ?? null;
-    const params = { companyId, yearId, loginId, sessionId, idNumber };
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-      details:      mapDetailRowsToGridRows(detRes?.Links || []),
+      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+      details:      mapDetailRowsToGridRows(detRes || []),
     };
   }, [get]);
 

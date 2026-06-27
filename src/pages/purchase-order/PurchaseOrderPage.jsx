@@ -22,15 +22,15 @@ function buildListParams() {
     ObjName: PO_CONFIG.SP_PO_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: PO_CONFIG.LIST_DIVISION_ID,
-        prmSupplierID: 0,
-        prmFromDate: `01-Jan-${year}`,
-        prmToDate: `31-Dec-${year}`,
-        PrmRefTypeID: 0,
-        PrmBasedOn: 0,
-        PrmDepartmentId: 0,
-        PrmStatus: 0,
+        prmcompanyid:    DEFAULT_COMPANY_ID,
+        prmdivisionid:   PO_CONFIG.LIST_DIVISION_ID,
+        prmsupplierid:   0,
+        prmfromdate:     `01-Jan-${year}`,
+        prmtodate:       `31-Dec-${year}`,
+        prmreftypeid:    0,
+        prmbasedon:      0,
+        prmdepartmentid: 0,
+        prmstatus:       0,
       },
     ]),
     p_ErrCode: -1,
@@ -69,7 +69,7 @@ export default function PurchaseOrderPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(normalizeListRows(json?.Table ?? []));
+      setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseOrderPage] list fetch failed:", err);
       setError("Failed to load purchase orders.");

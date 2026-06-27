@@ -50,9 +50,9 @@ export function useMainGroupMaster() {
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Main Group Master RB metadata returned.");
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(MGM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — header column definitions
@@ -60,7 +60,7 @@ export function useMainGroupMaster() {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
 
       // Phase 3 — Item Type + Fixed Asset A/C dropdowns in parallel
       const [itemTypeData, fixedAssetData] = await Promise.all([
@@ -80,20 +80,20 @@ export function useMainGroupMaster() {
       ]);
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[MGM] ItemType row sample:",      itemTypeData?.Table?.[0]);
-        console.log("[MGM] FixedAssetAcc row sample:", fixedAssetData?.Table?.[0]);
+        console.log("[MGM] ItemType row sample:",      itemTypeData?.[0]);
+        console.log("[MGM] FixedAssetAcc row sample:", fixedAssetData?.[0]);
       }
 
       setItemTypeOptions(
-        (itemTypeData?.Table || []).map((r) => ({
-          value: r.ItemTypeID ?? r.IDNumber ?? r.ID,
-          label: String(r.ItemTypeName ?? r.ItemTypeCode ?? r.Name ?? ""),
+        (itemTypeData || []).map((r) => ({
+          value: r.itemtypeid ?? r.idnumber ?? r.id,
+          label: String(r.itemtypename ?? r.itemtypecode ?? r.name ?? ""),
         })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(
-        (fixedAssetData?.Table || []).map((r) => ({
-          value: r.FixedAssetAccountID ?? r.AccountID ?? r.AccID ?? r.IDNUMBER ?? r.ID,
-          label: String(r.FixedAssetAccountName ?? r.AccountName ?? r.ACNAME ?? r.Name ?? ""),
+        (fixedAssetData || []).map((r) => ({
+          value: r.fixedassetaccountid ?? r.accountid ?? r.accid ?? r.idnumber ?? r.id,
+          label: String(r.fixedassetaccountname ?? r.accountname ?? r.acname ?? r.name ?? ""),
         })).filter((o) => o.value != null)
       );
     } catch (err) {
@@ -118,7 +118,7 @@ export function useMainGroupMaster() {
       prmParameters,
       prmFuncCode:  MGM_CONFIG.RB_MASTER,
     });
-    const master = mstRes?.Links?.[0] ?? null;
+    const master = mstRes?.[0] ?? null;
     return {
       master,
       headerValues: master
@@ -128,18 +128,18 @@ export function useMainGroupMaster() {
   }, [get]);
 
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.ItemTypeID != null && master.ItemTypeName) {
+    if (master.itemtypeid != null && master.itemtypename) {
       setItemTypeOptions((prev) =>
-        prev.some((o) => o.value === String(master.ItemTypeID))
+        prev.some((o) => o.value === String(master.itemtypeid))
           ? prev
-          : [{ value: String(master.ItemTypeID), label: master.ItemTypeName }, ...prev]
+          : [{ value: String(master.itemtypeid), label: master.itemtypename }, ...prev]
       );
     }
-    if (master.FixedAssetAccountID != null && master.FixedAssetAccountName) {
+    if (master.fixedassetaccountid != null && master.fixedassetaccountname) {
       setFixedAssetAccOptions((prev) =>
-        prev.some((o) => o.value === String(master.FixedAssetAccountID))
+        prev.some((o) => o.value === String(master.fixedassetaccountid))
           ? prev
-          : [{ value: String(master.FixedAssetAccountID), label: master.FixedAssetAccountName }, ...prev]
+          : [{ value: String(master.fixedassetaccountid), label: master.fixedassetaccountname }, ...prev]
       );
     }
   }, []);

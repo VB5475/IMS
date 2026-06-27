@@ -6,12 +6,12 @@ export const MODAL_SUBTITLE  = "Admin › Master › Item › Sub Group Master";
 
 
 export const SGM_CONFIG = {
-  RB_MASTER:           "RB_SubGroupMst",
+  RB_MASTER:           "rb_subgroupmst",
   CONFIG_YEAR_ID:      2,              // ⚠️ CONFIRM with DBA
-  SP_RB_META:          "Fn_Fetch_RBDetailByRBCode",
-  SP_MASTER_FILL:      "fn_tbl_RB_SubGroupMst",
+  SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
+  SP_MASTER_FILL:      "fn_tbl_rb_subgroupmst",
   LIST_OBJ_TYPE:       2,
-  SP_LIST:             "Fn_tbl_PurSubGroupMst_List",     // ⚠️ CONFIRM with DBA
+  SP_LIST:             "fn_tbl_pursubgroupmst_list",     // ⚠️ CONFIRM with DBA
   LIST_DIVISION_ID:    15,             // ⚠️ CONFIRM with DBA
   SAVE_ENDPOINT:       "/API/PurSubGroup/Post_RB_SubGroupMst_Save",
   STORAGE_HEADER_META: "sgmHeaderMeta",

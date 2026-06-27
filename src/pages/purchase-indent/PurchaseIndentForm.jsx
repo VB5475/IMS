@@ -62,11 +62,11 @@ const nextTempId = () => _indTempId--;
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? IND_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.IndentID ?? listRecord?.IDNumber ?? recordId,
+    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? session.yearId ?? IND_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.indentid ?? listRecord?.idnumber ?? recordId,
   };
 }
 
@@ -410,14 +410,14 @@ export default function PurchaseIndentForm() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !itemGridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[Indent] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[Indent] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       itemGridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]

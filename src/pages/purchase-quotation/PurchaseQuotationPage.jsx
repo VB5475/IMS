@@ -15,8 +15,8 @@ function buildListDateRange() {
   const now = new Date();
   const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   return {
-    PrmFromDate: formatTranDate(`${fyStartYear}-04-01`),
-    PrmToDate: formatTranDate(`${fyStartYear + 1}-03-31`),
+    prmfromdate: formatTranDate(`${fyStartYear}-04-01`),
+    prmtodate: formatTranDate(`${fyStartYear + 1}-03-31`),
   };
 }
 
@@ -28,12 +28,12 @@ function buildListParams() {
     JSon: JSON.stringify([
       {
         ...buildListDateRange(),
-        PrmDivisionID: 0,
-        PrmSupplierID: 0,
-        PrmQuotationTypeID: 0,
-        PrmLoginID: session.loginId,
-        PrmCompanyID: session.companyId ?? DEFAULT_COMPANY_ID,
-        PrmYearID: session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
+        prmdivisionid: 0,
+        prmsupplierid: 0,
+        prmquotationtypeid: 0,
+        prmloginid: session.loginId,
+        prmcompanyid: session.companyId ?? DEFAULT_COMPANY_ID,
+        prmyearid: session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
       },
     ]),
     p_ErrCode: -1,
@@ -72,7 +72,7 @@ export default function PurchaseQuotationPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(normalizeListRows(json?.Table ?? []));
+      setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseQuotationPage] list fetch failed:", err);
       setError("Failed to load purchase quotations.");

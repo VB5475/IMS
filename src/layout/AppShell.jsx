@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
+import { PROD_BASE_PROJECT, BASE_PROJECT_OPTIONS, switchBaseProject } from "../api/constants";
 import "./AppShell.css";
 
 const NAV_SECTIONS = [
@@ -79,6 +80,7 @@ export default function AppShell({ children }) {
   const title = header.title ?? getDefaultRouteTitle(location.pathname);
   const subtitle = header.subtitle ?? "FY 2025-26 · 01 Jun 2026";
   const profileInitial = (userName || userId || "U").charAt(0).toUpperCase();
+  const nextProject = BASE_PROJECT_OPTIONS.find((p) => p !== PROD_BASE_PROJECT);
 
   return (
     <div className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""}`}>
@@ -159,6 +161,14 @@ export default function AppShell({ children }) {
             </div>
           </div>
           <div className="ent-topbar__actions">
+            <button
+              type="button"
+              className={`ent-topbar__env-badge ent-topbar__env-badge--btn${PROD_BASE_PROJECT === "IMS_PGLIVE" ? " ent-topbar__env-badge--pg" : ""}`}
+              title={`Switch to ${nextProject}`}
+              onClick={() => switchBaseProject(nextProject)}
+            >
+              {PROD_BASE_PROJECT}
+            </button>
             <button type="button" className="ent-topbar__icon-btn" aria-label="Notifications">
               <Bell size={16} strokeWidth={1.5} />
               <span className="ent-topbar__badge">3</span>

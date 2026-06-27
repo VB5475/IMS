@@ -15,10 +15,11 @@
 
 import { useState, useCallback, useRef } from "react";
 import axios from "axios";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   API_TIMEOUT,
   DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
@@ -28,6 +29,7 @@ import { getUserSession } from "../session/userSession";
 import { PO_CONFIG } from "../pages/purchase-order/constants";
 import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -39,7 +41,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -48,50 +50,33 @@ function mapMasterRowToHeaderValues(master, params) {
     return d.toISOString().split("T")[0];
   };
 
-  // API returns "Currency" (not "CurrencyName") for the currency display label
-  const currencyName = master.CurrencyName ?? master.Currency ?? "";
+  // PG returns "currency" (not "currencyname") as the display label
+  const currencyName = master.currencyname ?? master.currency ?? "";
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    DeliveryDate: toDateInput(master.DeliveryDate) || null,
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
-    DeptID: master.DeptID != null ? Number(master.DeptID) : 0,
-    CurrencyID: master.CurrencyID != null ? Number(master.CurrencyID) : 0,
-    CurrencyName: currencyName,
-    CurrencyRate: master.CurrencyRate != null ? Number(master.CurrencyRate) : 0,
-    CreditDays: master.CreditDays != null ? Number(master.CreditDays) : 0,
-    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
-    Remarks: master.Remarks ?? "",
-    TranMstGenID: master.TranMstGenID != null ? Number(master.TranMstGenID) : 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(master.Year_ID ?? params.yearId) || PO_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? master.POID ?? params.idNumber) || 0,
-    IsAmend: master.IsAmend != null ? Number(master.IsAmend) : 0,
-    AmendPOID: master.AmendPOID != null ? Number(master.AmendPOID) : 0,
-    UserID: getUserSession().userId,
-    // Identifiers required by save endpoint to locate the existing record
-    CompUniqueKey: master.CompUniqueKey ?? master.IDNumber ?? master.POID ?? params.idNumber ?? 0,
-    FuncCode: master.FuncCode ?? PO_CONFIG.RB_MASTER,
+    ...master,
+    trandate: toDateInput(master.trandate),
+    deliverydate: toDateInput(master.deliverydate) || null,
+    currencyname: currencyName,
+    yearid: PO_CONFIG.CONFIG_YEAR_ID,
+    funccode: PO_CONFIG.RB_MASTER,
+    loginid: getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) {
-      set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
     }
   });
   if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
@@ -103,21 +88,21 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: PO_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
 
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID: DEFAULT_LOGIN_ID,
   });
-  const apiColumns = colData?.Links || [];
+  const apiColumns = colData || [];
   return { meta, apiColumns };
 }
 
@@ -157,15 +142,15 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const fetchDepartments = useCallback(async () => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 1,
+        ObjType: 2,
         ObjName: PO_CONFIG.SP_DEPT,
-        JSon: JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID }]),
+        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.DeptID ?? r.DepartmentID),
-        label: r.DeptName ?? r.DepartmentName ?? String(r.DeptID),
+      const opts = (res || []).map((r) => ({
+          value: r.departmentid,
+          label:  String(r.departmentid + " - " +r.departmentname),
       }));
       setDepartmentOptions(opts);
       return opts;
@@ -180,13 +165,13 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const fetchUniqueId = useCallback(async () => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 1,
+        ObjType: 2,
         ObjName: PO_CONFIG.SP_UNIQUE_ID,
-        JSon: JSON.stringify([{ PrmIDNumber: 0, PrmYearID: PO_CONFIG.CONFIG_YEAR_ID }]),
+        JSon: JSON.stringify([{ prmidnumber: 0, prmyearid: PO_CONFIG.CONFIG_YEAR_ID }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      return res?.Table?.[0]?.UniqueID ?? 0;
+      return (res || [])?.[0]?.uniqueid ?? 0;
     } catch (err) {
       console.warn("[PO] UniqueID fetch failed:", err);
       return 0;
@@ -207,20 +192,20 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           ObjName: PO_CONFIG.SP_PO_TYPES,
           JSon: JSON.stringify([
             {
-              PrmCompanyId: DEFAULT_COMPANY_ID,
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: PO_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: DEFAULT_LOGIN_ID,
-              PrmFormTag: PO_CONFIG.FORM_TAG,
-              PrmRefType: "",
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmdivisionid: Number(divisionId),
+              prmyearid: PO_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: DEFAULT_LOGIN_ID,
+              prmformtag: PO_CONFIG.FORM_TAG,
+              prmreftype: "",
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = (res?.Table || []).map((r) => ({
-          value: String(r.ConfigurationId),
-          label: r.Name,
+        const opts = (res || []).map((r) => ({
+          value: String(r.configurationid),
+          label: r.name,
         }));
         setPoTypeOptions(opts);
         return opts;
@@ -235,26 +220,25 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     [get]
   );
 
-  // ── fetchSupplierInfo — derive CurrencyID, CurrencyRate, CrDays ────
-  // Returns { CurrencyID, CurrencyRate, CrDays } or null on failure.
-  // CONFIRM: SP_SUPPLIER_INFO returns these fields for the given SupplierID.
+  // ── fetchSupplierInfo — derive currencyid, currencyrate, crdays ────
   const fetchSupplierInfo = useCallback(
     async (supplierId) => {
       if (!supplierId || supplierId === "0") return null;
       try {
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 1,
+          ObjType: 2,
           ObjName: PO_CONFIG.SP_SUPPLIER_INFO,
-          JSon: JSON.stringify([{ PrmSupplierID: Number(supplierId) }]),
+          JSon: JSON.stringify([{ prmsupplierid: Number(supplierId) }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const row = res?.Table?.[0];
+        const row = (res || [])?.[0];
         if (!row) return null;
         return {
-          CurrencyID: row.CurrencyID ?? 0,
-          CurrencyRate: row.CurrencyRate ?? 0,
-          CrDays: row.CrDays ?? 0,
+          currencyid:   row.currencyid   ?? 0,
+          currencyname: row.currencyname ?? "",
+          currencyrate: row.currencyrate ?? 0,
+          crdays:       row.crdays       ?? 0,
         };
       } catch (err) {
         console.warn("[PO] Supplier info fetch failed:", err);
@@ -281,9 +265,9 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.IDNumber ?? r.POId ?? r.TranID),
-        label: r.TranCode ?? r.PONo ?? String(r.IDNumber),
+      const opts = (res || []).map((r) => ({
+        value: String(r.idnumber ?? r.poid ?? r.tranid),
+        label: r.trancode ?? r.pono ?? String(r.idnumber),
       }));
       setExistingPOs(opts);
       return opts;
@@ -309,10 +293,10 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No PO header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       setHeaderRbMeta(hdrMeta);
       localStorage.setItem(PO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
       console.log("%c[PO] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
@@ -322,11 +306,11 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         prmLoginID: DEFAULT_LOGIN_ID,
       });
 
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
       console.log(
         "%c[PO] Header columns received:",
         "color:#8b5cf6;font-weight:600",
-        (colData?.Links || []).length
+        (colData || []).length
       );
 
       // On edit route, skip expensive list dropdowns — they are re-fetched
@@ -334,7 +318,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       if (skipListDropdowns) {
         setDivisionOptions([]);
         setSupplierOptions([]);
-        setCurrencyOptions([]);
         setDepartmentOptions([]);
         return;
       }
@@ -345,9 +328,9 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           ObjName: PO_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([
             {
-              prmUserID: DEFAULT_LOGIN_ID,
-              prmCompanyID: DEFAULT_COMPANY_ID,
-              prmYearID: PO_CONFIG.DIVISION_YEAR_ID,
+              prmuserid: DEFAULT_LOGIN_ID,
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmyearid: PO_CONFIG.DIVISION_YEAR_ID,
             },
           ]),
           p_ErrCode: -1,
@@ -361,10 +344,10 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           ObjName: PO_CONFIG.SUPPLIER_SP,
           JSon: JSON.stringify([
             {
-              PrmDivisionId: 0,
-              PrmLoginId: DEFAULT_LOGIN_ID,
-              PrmYearId: PO_CONFIG.CONFIG_YEAR_ID,
-              PrmPartyType: PO_CONFIG.SUPPLIER_PARTY_TYPE,
+              prmdivisionid: 0,
+              prmloginid: DEFAULT_LOGIN_ID,
+              prmyearid: PO_CONFIG.CONFIG_YEAR_ID,
+              prmpartytype: PO_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
           p_ErrCode: -1,
@@ -374,10 +357,10 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           return null;
         }),
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 1,
+          ObjType: 2,
           ObjName: PO_CONFIG.SP_DEPT,
           JSon: JSON.stringify([
-            { PrmCompanyID: DEFAULT_COMPANY_ID, PrmLoginID: DEFAULT_LOGIN_ID },
+            { prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
@@ -388,36 +371,36 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       ]);
 
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({
-          value: String(r.DivisionID),
-          label: r.DivisionName,
+        (divisionData || []).map((r) => ({
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
 
       setIsLoadingSuppliers(true);
-      const supplierRows = supplierData?.Table || [];
+      const supplierRows = supplierData || [];
       setSupplierOptions(
         supplierRows.map((r) => ({
-          value: String(r.SupplierID ?? r.PartyID),
-          label: r.SupplierName ?? r.PartyName,
+          value: String(r.supplierid ?? r.partyid),
+          label: r.suppliername ?? r.partyname,
         }))
       );
       supplierCurrencyMapRef.current = {};
       supplierRows.forEach((r) => {
-        const sid = String(r.SupplierID ?? r.PartyID);
+        const sid = String(r.supplierid ?? r.partyid);
         supplierCurrencyMapRef.current[sid] = {
-          CurrencyID: r.CurrencyID ?? 0,
-          CurrencyName: r.CurrencyName ?? "",
-          CurrencyRate: r.CurrencyRate ?? 0,
-          CrDays: r.CrDays ?? 0,
+          currencyid:   r.currencyid   ?? 0,
+          currencyname: r.currencyname ?? "",
+          currencyrate: r.currencyrate ?? 0,
+          crdays:       r.crdays       ?? 0,
         };
       });
       setIsLoadingSuppliers(false);
 
       setDepartmentOptions(
-        (deptData?.Table || []).map((r) => ({
-          value: String(r.DeptID ?? r.DepartmentID),
-          label: r.DeptName ?? r.DepartmentName ?? String(r.DeptID),
+        (deptData || []).map((r) => ({
+          value: r.departmentid,
+          label:  String(r.departmentid + " - " +r.departmentname),
         }))
       );
     } catch (err) {
@@ -442,29 +425,29 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
       const evtSet = buildEventColumnSet(apiColumns, [
-        "ItemID",
-        "ItemCode",
-        "TranQty",
-        "BaseQty",
-        "UnitConvRate",
-        "TranRate",
-        "BaseRate",
-        "TranUnit",
+        "itemid",
+        "itemcode",
+        "tranqty",
+        "baseqty",
+        "unitconvrate",
+        "tranrate",
+        "baserate",
+        "tranunit",
       ]);
-      // Force-add amount-driving columns regardless of API IsEventReq flags
+      // Force-add amount-driving columns regardless of API iseventreq flags
       [
-        "TranQty",
-        "BaseQty",
-        "TranRate",
-        "BaseRate",
-        "UnitConvRate",
-        "DiscPerc",
-        "Expense",
-        "GSTPerc",
+        "tranqty",
+        "baseqty",
+        "tranrate",
+        "baserate",
+        "unitconvrate",
+        "discperc",
+        "expense",
+        "gstperc",
       ].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
       console.log(
         "%c[PO] Detail columns received:",
@@ -552,7 +535,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
               p_ErrMsg: "",
             },
           }),
-          { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
+          { divisionId: headerValues.divisionid, isEdit: genIDNumber > 0 }
         );
 
         const result = await axios.post(`${baseURL}${ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE}`, body, {
@@ -580,12 +563,25 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     async (colName, rowData, headerValues) => {
       setIsEventFiring(true);
       try {
-        const { id, ...newRowData } = rowData;
-        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: PO_CONFIG.SP_GRID_EVENT,
-          EventColName: colName,
-          DetJSON: JSON.stringify([newRowData]),
-          MstJSon: JSON.stringify([headerValues]),
+        const { id, ...rawRowData } = rowData;
+
+        // Grid inputs return strings; coerce numeric columns to Number so the
+        // SP receives proper JSON numerics (e.g. tranqty: 124, not "124").
+        const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+        const newRowData = Object.fromEntries(
+          Object.entries(rawRowData).map(([k, v]) => {
+            if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "") {
+              return [k, Number(v)];
+            }
+            return [k, v];
+          })
+        );
+
+        const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+          prmobjname: PO_CONFIG.SP_GRID_EVENT,
+          prmmyeventcol: colName,
+          prmdetjson: buildDetJSON([newRowData], colTypeMap),
+          prmmstjson: JSON.stringify([headerValues]),
         });
         console.log("%c[PO] CellEvent response:", "color:#f59e0b;font-weight:600", {
           col: colName,
@@ -599,7 +595,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         setIsEventFiring(false);
       }
     },
-    [get]
+    [allColumns]
   );
 
   // ── seedOptionsFromMaster — seed single-item dropdown options from master fill response ──
@@ -607,24 +603,24 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   // For non-editable fields (IsEditAllow: false) these are the only options ever needed.
   // For editable fields, fetchUnlockedHeaderDropdowns replaces them with the full list.
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.SupplierID != null && master.SupplierName) {
-      setSupplierOptions([{ value: String(master.SupplierID), label: master.SupplierName }]);
-      const sid = String(master.SupplierID);
+    if (master.supplierid != null && master.suppliername) {
+      setSupplierOptions([{ value: String(master.supplierid), label: master.suppliername }]);
+      const sid = String(master.supplierid);
       supplierCurrencyMapRef.current[sid] = {
-        CurrencyID: master.CurrencyID ?? 0,
-        CurrencyName: master.Currency ?? master.CurrencyName ?? "",
-        CurrencyRate: master.CurrencyRate ?? 0,
-        CrDays: master.CreditDays ?? 0,
+        currencyid:   master.currencyid   ?? 0,
+        currencyname: master.currency ?? master.currencyname ?? "",
+        currencyrate: master.currencyrate ?? 0,
+        crdays:       master.creditdays   ?? 0,
       };
     }
-    if (master.ConfigID != null && master.ConfigName) {
-      setPoTypeOptions([{ value: String(master.ConfigID), label: master.ConfigName }]);
+    if (master.configid != null && master.configname) {
+      setPoTypeOptions([{ value: String(master.configid), label: master.configname }]);
     }
-    if (master.DeptID != null && master.DeptName) {
-      setDepartmentOptions([{ value: String(master.DeptID), label: master.DeptName }]);
+    if (master.deptid != null && (master.deptname ?? master.department)) {
+      setDepartmentOptions([{ value: String(master.deptid), label: master.deptname ?? master.department }]);
     }
   }, []);
 
@@ -638,12 +634,12 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       // Only fetch dropdowns for fields that are actually editable (IsEditAllow) AND
       // not locked in edit mode (IsLockOnEditModeAllow). Non-editable fields are
       // auto-filled from the master record — no dropdown API call needed.
-      const isEditable = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
+      const isEditable = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
 
-      const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID" && isEditable(c));
-      const needsSupplier = headerColumns.some((c) => c.ColName === "SupplierID" && isEditable(c));
-      const needsConfig = headerColumns.some((c) => c.ColName === "ConfigID" && isEditable(c));
-      const needsDept = headerColumns.some((c) => c.ColName === "DeptID" && isEditable(c));
+      const needsDivision = headerColumns.some((c) => c.colname === "divisionid" && isEditable(c));
+      const needsSupplier = headerColumns.some((c) => c.colname === "supplierid" && isEditable(c));
+      const needsConfig = headerColumns.some((c) => c.colname === "configid" && isEditable(c));
+      const needsDept = headerColumns.some((c) => c.colname === "deptid" && isEditable(c));
 
       const tasks = [];
 
@@ -653,39 +649,39 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
             ObjType: 2,
             ObjName: PO_CONFIG.SP_DIVISIONS,
             JSon: JSON.stringify([{
-              prmUserID: DEFAULT_LOGIN_ID,
-              prmCompanyID: DEFAULT_COMPANY_ID,
-              prmYearID: PO_CONFIG.DIVISION_YEAR_ID,
+              prmuserid: DEFAULT_LOGIN_ID,
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmyearid: PO_CONFIG.DIVISION_YEAR_ID,
             }]),
             p_ErrCode: -1, p_ErrMsg: "",
           }).then((res) => setDivisionOptions(
-            (res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+            (res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))
           )).catch(() => { }),
 
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: 2,
             ObjName: PO_CONFIG.SUPPLIER_SP,
             JSon: JSON.stringify([{
-              PrmDivisionId: 0,
-              PrmLoginId: DEFAULT_LOGIN_ID,
-              PrmYearId: PO_CONFIG.CONFIG_YEAR_ID,
-              PrmPartyType: PO_CONFIG.SUPPLIER_PARTY_TYPE,
+              prmdivisionid: 0,
+              prmloginid: DEFAULT_LOGIN_ID,
+              prmyearid: PO_CONFIG.CONFIG_YEAR_ID,
+              prmpartytype: PO_CONFIG.SUPPLIER_PARTY_TYPE,
             }]),
             p_ErrCode: -1, p_ErrMsg: "",
           }).then((res) => {
-            const rows = res?.Table || [];
+            const rows = res || [];
             setSupplierOptions(rows.map((r) => ({
-              value: String(r.SupplierID ?? r.PartyID),
-              label: r.SupplierName ?? r.PartyName,
+              value: String(r.supplierid ?? r.partyid),
+              label: r.suppliername ?? r.partyname,
             })));
             supplierCurrencyMapRef.current = {};
             rows.forEach((r) => {
-              const sid = String(r.SupplierID ?? r.PartyID);
+              const sid = String(r.supplierid ?? r.partyid);
               supplierCurrencyMapRef.current[sid] = {
-                CurrencyID: r.CurrencyID ?? 0,
-                CurrencyName: r.CurrencyName ?? "",
-                CurrencyRate: r.CurrencyRate ?? 0,
-                CrDays: r.CrDays ?? 0,
+                currencyid:   r.currencyid   ?? 0,
+                currencyname: r.currencyname ?? "",
+                currencyrate: r.currencyrate ?? 0,
+                crdays:       r.crdays       ?? 0,
               };
             });
           }).catch(() => { })
@@ -728,14 +724,13 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         }),
       ]);
 
-      const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
+      const master = mstRes?.[0] ?? null;
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-        details: mapDetailRowsToGridRows(detRes?.Links || []),
-        indentDetails: indtDetRes?.Links || [],
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+        details: mapDetailRowsToGridRows(detRes || []),
+        indentDetails: indtDetRes || [],
       };
     },
     [get]

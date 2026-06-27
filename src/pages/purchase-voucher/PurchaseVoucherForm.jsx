@@ -41,7 +41,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -70,31 +70,31 @@ const nextTempId = () => _pvTempId--;
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? PV_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.PVID ?? listRecord?.IDNumber ?? recordId,
+    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? session.yearId ?? PV_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.PVID ?? listRecord?.idnumber ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode: headerValues.TranCode ?? "",
-    TranDate: headerValues.TranDate ?? "",
-    DivisionID: String(headerValues.DivisionID ?? ""),
-    ConfigID: String(headerValues.ConfigID ?? ""),
-    BasedOnID: String(headerValues.BasedOnID ?? "2"),
-    SupplierID: String(headerValues.SupplierID ?? ""),
-    CurrencyName: headerValues.CurrencyName ?? headerValues.Currency ?? "",
-    CurrencyRate: String(headerValues.CurrencyRate ?? ""),
-    BillNo: headerValues.BillNo ?? "",
-    BillDate: headerValues.BillDate ?? "",
-    CostCenterID: String(headerValues.CostCenterID ?? ""),
-    CreditStartDate: headerValues.CreditStartDate ?? "",
-    Narration: headerValues.Narration ?? "",
-    Remarks: headerValues.Remarks ?? "",
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: String(headerValues.divisionid ?? ""),
+    configid: String(headerValues.configid ?? ""),
+    basedonid: String(headerValues.basedonid ?? "2"),
+    supplierid: String(headerValues.supplierid ?? ""),
+    currencyname: headerValues.currencyname ?? headerValues.currency ?? "",
+    currencyrate: String(headerValues.currencyrate ?? ""),
+    billno: headerValues.billno ?? "",
+    billdate: headerValues.billdate ?? "",
+    costcenterid: String(headerValues.costcenterid ?? ""),
+    creditstartdate: headerValues.creditstartdate ?? "",
+    narration: headerValues.narration ?? "",
+    remarks: headerValues.remarks ?? "",
   };
 }
 
@@ -111,7 +111,8 @@ function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    const lk = k.toLowerCase();
+    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -164,31 +165,31 @@ export default function PurchaseVoucherForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode: "",
-    TranDate: todayISO,
-    DivisionID: 0,
-    ConfigID: 0,
-    BasedOnID: "2",
-    SupplierID: 0,
-    CurrencyID: 0,
-    CurrencyRate: 0,
-    BillNo: "",
-    BillDate: null,
-    CostCenterID: 0,
-    CreditStartDate: todayISO,
-    Narration: "",
-    Remarks: "",
-    TranMstGenID: 0,
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: PV_CONFIG.DIVISION_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    IDNumber: recordId,
-    FuncCode: PV_CONFIG.RB_MASTER,
+    trancode: "",
+    trandate: todayISO,
+    divisionid: 0,
+    configid: 0,
+    basedonid: "2",
+    supplierid: 0,
+    currencyid: 0,
+    currencyrate: 0,
+    billno: "",
+    billdate: null,
+    costcenterid: 0,
+    creditstartdate: todayISO,
+    narration: "",
+    remarks: "",
+    tranmstgenid: 0,
+    companyid: DEFAULT_COMPANY_ID,
+    yearid: PV_CONFIG.DIVISION_YEAR_ID,
+    loginid: DEFAULT_LOGIN_ID,
+    idnumber: recordId,
+    funccode: PV_CONFIG.RB_MASTER,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { TranDate: todayISO, BasedOnID: "2", CreditStartDate: todayISO };
+    return { trandate: todayISO, basedonid: "2", creditstartdate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
@@ -256,7 +257,7 @@ export default function PurchaseVoucherForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -289,14 +290,14 @@ export default function PurchaseVoucherForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      if (headerValues.CurrencyName || headerValues.CurrencyRate) {
+      if (headerValues.currencyname || headerValues.currencyrate) {
         setCurrencyExternalValues({
-          CurrencyName: headerValues.CurrencyName ?? "",
-          CurrencyRate: String(headerValues.CurrencyRate ?? ""),
+          currencyname: headerValues.currencyname ?? "",
+          currencyrate: String(headerValues.currencyrate ?? ""),
         });
       }
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
+      const activeCols = await fetchGridColumns(headerValues.divisionid ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
@@ -323,12 +324,12 @@ export default function PurchaseVoucherForm() {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     const hv = headerValuesRef.current;
     fetchUnlockedHeaderDropdowns(
-      hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0,
-      hv.TranDate,
-      hv.ConfigID,
-      hv.SupplierID,
+      hv.divisionid ?? loadedMasterRow?.divisionid ?? 0,
+      hv.trandate,
+      hv.configid,
+      hv.supplierid,
     );
-    fetchGridColumns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0, {
+    fetchGridColumns(hv.divisionid ?? loadedMasterRow?.divisionid ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -344,10 +345,10 @@ export default function PurchaseVoucherForm() {
   const syncedFilters = useMemo(() => {
     const injectOptions = (filter) => {
       switch (filter.FilterParameterID) {
-        case "DivisionID": return { ...filter, staticOptions: divisionOptions };
-        case "ConfigID": return { ...filter, staticOptions: pvTypeOptions };
-        case "SupplierID": return { ...filter, staticOptions: supplierOptions };
-        case "CostCenterID": return { ...filter, staticOptions: costCenterOptions };
+        case "divisionid": return { ...filter, staticOptions: divisionOptions };
+        case "configid": return { ...filter, staticOptions: pvTypeOptions };
+        case "supplierid": return { ...filter, staticOptions: supplierOptions };
+        case "costcenterid": return { ...filter, staticOptions: costCenterOptions };
         default: return filter;
       }
     };
@@ -364,18 +365,18 @@ export default function PurchaseVoucherForm() {
       const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
       def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
         ? controlTypeMap.LABEL
-        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
+        : (apiCol.colctrltype ?? withOpts.FilterColCtrlType);
       return def;
     });
   }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
 
   const syncedSummaryFields = useMemo(() => {
     const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
+    headerColumns.forEach((col) => { colMap[col.colname] = col; });
     return PV_SUMMARY_FIELDS.map((f) => ({
       ...f,
       mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
+      label: colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
     }));
   }, [headerColumns]);
 
@@ -395,61 +396,62 @@ export default function PurchaseVoucherForm() {
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (colName === "DivisionID") {
-      headerValuesRef.current.ConfigID = 0;
-      headerValuesRef.current.SupplierID = 0;
+    if (colName === "divisionid") {
+      headerValuesRef.current.configid = 0;
+      headerValuesRef.current.supplierid = 0;
       clearPvTypes();
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
         await fetchPVTypes(val);
-        await fetchCostCenters(val, headerValuesRef.current.TranDate);
+        await fetchCostCenters(val, headerValuesRef.current.trandate);
         requestAnimationFrame(() =>
           filterPanelRef.current
-            ?.querySelector("#efq-ConfigID .search-select__trigger")
+            ?.querySelector("#efq-configid .search-select__trigger")
             ?.focus()
         );
       }
       return;
     }
 
-    if (colName === "SupplierID") {
+    if (colName === "supplierid") {
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
         const cached = getSupplierCurrency(val);
         if (cached) {
-          headerValuesRef.current.CurrencyID = cached.CurrencyID;
-          headerValuesRef.current.CurrencyName = cached.CurrencyName;
-          headerValuesRef.current.CurrencyRate = cached.CurrencyRate;
+          headerValuesRef.current.currencyid = cached.currencyid ?? cached.CurrencyID;
+          headerValuesRef.current.currencyname = cached.currencyname ?? cached.CurrencyName;
+          headerValuesRef.current.currencyrate = cached.currencyrate ?? cached.CurrencyRate;
           setCurrencyExternalValues({
-            CurrencyName: cached.CurrencyName ?? "",
-            CurrencyRate: String(cached.CurrencyRate ?? ""),
+            currencyname: cached.currencyname ?? cached.CurrencyName ?? "",
+            currencyrate: String(cached.currencyrate ?? cached.CurrencyRate ?? ""),
           });
         } else {
           const info = await fetchSupplierInfo(val);
           if (info) {
-            headerValuesRef.current.CurrencyID = info.CurrencyID;
-            headerValuesRef.current.CurrencyRate = info.CurrencyRate;
+            headerValuesRef.current.currencyid   = info.CurrencyID   ?? info.currencyid;
+            headerValuesRef.current.currencyname = info.CurrencyName ?? info.currencyname ?? "";
+            headerValuesRef.current.currencyrate = info.CurrencyRate ?? info.currencyrate;
             setCurrencyExternalValues({
-              CurrencyName: "",
-              CurrencyRate: String(info.CurrencyRate ?? ""),
+              currencyname: info.CurrencyName ?? info.currencyname ?? "",
+              currencyrate: String(info.CurrencyRate ?? info.currencyrate ?? ""),
             });
           }
         }
       } else {
-        headerValuesRef.current.CurrencyID = 0;
-        headerValuesRef.current.CurrencyName = "";
-        headerValuesRef.current.CurrencyRate = 0;
-        setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
+        headerValuesRef.current.currencyid = 0;
+        headerValuesRef.current.currencyname = "";
+        headerValuesRef.current.currencyrate = 0;
+        setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
       }
       return;
     }
 
-    if (colName === "ConfigID") {
+    if (colName === "configid") {
       itemGridRef.current?.clearRows?.();
       return;
     }
 
-    if (colName === "BasedOnID") {
+    if (colName === "basedonid") {
       setBasedOnId(String(val));
       itemGridRef.current?.clearRows?.();
     }
@@ -471,7 +473,7 @@ export default function PurchaseVoucherForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0);
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -483,14 +485,14 @@ export default function PurchaseVoucherForm() {
   const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
     const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
     if (!result || !itemGridRef.current) return;
-    const responseRow = result?.Links?.[0];
+    const responseRow = result?.[0];
     if (!responseRow) return;
-    const errCode = responseRow.ErrCode;
+    const errCode = responseRow.errcode;
     if (errCode !== 1 && errCode !== 1.0) {
-      console.warn("[PV] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+      console.warn("[PV] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
       return;
     }
-    const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+    const { errcode, errmsg, ...updatedFields } = responseRow;
     itemGridRef.current.updateRow?.(rowId, updatedFields);
   }, [fireCellEvent]);
 
@@ -502,8 +504,8 @@ export default function PurchaseVoucherForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { DivisionID, ConfigID, TranDate, BasedOnID, SupplierID } = headerValues;
-    const divisionID = DivisionID ?? 0;
+    const { divisionid, configid, trandate, basedonid, supplierid } = headerValues;
+    const divisionID = divisionid ?? 0;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -514,8 +516,8 @@ export default function PurchaseVoucherForm() {
     try {
       // Three-way picker: 0=GRN Base, 1=PO Base, 2=Direct
       let rbCode;
-      if (Number(BasedOnID) === 0) rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
-      else if (Number(BasedOnID) === 1) rbCode = PV_CONFIG.RB_ITEM_PICKER_PO;
+      if (Number(basedonid) === 0) rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
+      else if (Number(basedonid) === 1) rbCode = PV_CONFIG.RB_ITEM_PICKER_PO;
       else rbCode = PV_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -524,19 +526,19 @@ export default function PurchaseVoucherForm() {
         JSon: JSON.stringify([{ prmRBCode: rbCode }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const rbRow = rbRes?.Table?.[0];
+      const rbRow = rbRes?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.RBID,
+        prmMasterID: rbRow.rbid,
         prmLoginID: DEFAULT_LOGIN_ID,
       });
-      const gridColumns = buildGridColumns(colRes?.Links || [], {}, { filterable: false, allEditable: false });
+      const gridColumns = buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false });
       setItemModalColumns(gridColumns);
 
       let spItemPicker;
-      if (Number(BasedOnID) === 0) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
-      else if (Number(BasedOnID) === 1) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_PO;
+      if (Number(basedonid) === 0) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
+      else if (Number(basedonid) === 1) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_PO;
       else spItemPicker = PV_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -546,15 +548,15 @@ export default function PurchaseVoucherForm() {
           prmDivisionID: Number(divisionID),
           prmYearID: PV_CONFIG.CONFIG_YEAR_ID,
           prmLoginID: DEFAULT_LOGIN_ID,
-          prmTranDate: formatPVTranDate(TranDate),
-          prmConfigID: Number(ConfigID ?? 0),
-          prmSupplierID: Number(SupplierID ?? 0),
+          prmTranDate: formatPVTranDate(trandate),
+          prmConfigID: Number(configid ?? 0),
+          prmSupplierID: Number(supplierid ?? 0),
           prmTranBook: PV_CONFIG.TRAN_BOOK,
-          prmFrmOption: Number(BasedOnID) || 0,
+          prmFrmOption: Number(basedonid) || 0,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      setItemModalItems(rowRes?.Table || []);
+      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[PV] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
@@ -592,7 +594,7 @@ export default function PurchaseVoucherForm() {
 
   const handleSave = useCallback(async () => {
     const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
-    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible) && headerFieldNames.has(c.colname));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
@@ -605,21 +607,21 @@ export default function PurchaseVoucherForm() {
     }
 
     const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
+    headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.LoginID = DEFAULT_LOGIN_ID;
+    mstRow.loginid = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
     });
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "PV", mst: mstRow, det: detRows }),
-      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSavingPV(true);
@@ -657,20 +659,20 @@ export default function PurchaseVoucherForm() {
     localStorage.removeItem(PV_CONFIG.STORAGE_ENTRY_META);
 
     headerValuesRef.current = {
-      TranCode: "", TranDate: todayISO, DivisionID: 0, ConfigID: 0,
-      BasedOnID: "2", SupplierID: 0, CurrencyID: 0, CurrencyRate: 0,
-      BillNo: "", BillDate: null,
-      CostCenterID: 0, CreditStartDate: todayISO,
-      Narration: "", Remarks: "", TranMstGenID: 0,
-      CompanyID: DEFAULT_COMPANY_ID, YearID: PV_CONFIG.DIVISION_YEAR_ID,
-      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0, FuncCode: PV_CONFIG.RB_MASTER,
+      trancode: "", trandate: todayISO, divisionid: 0, configid: 0,
+      basedonid: "2", supplierid: 0, currencyid: 0, currencyrate: 0,
+      billno: "", billdate: null,
+      costcenterid: 0, creditstartdate: todayISO,
+      narration: "", remarks: "", tranmstgenid: 0,
+      companyid: DEFAULT_COMPANY_ID, yearid: PV_CONFIG.DIVISION_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID, idnumber: 0, funccode: PV_CONFIG.RB_MASTER,
     };
 
     queuedRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
     clearPvTypes();
     clearSaveError();
-    setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
+    setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
     setActiveTab("items");
     setIsGridLoading(false);
     setGridRows([]);

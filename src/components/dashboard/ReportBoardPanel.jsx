@@ -87,7 +87,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildReportBoardParams());
-      const rows = (json?.Table || []).map((row) => ({
+      const rows = (json || []).map((row) => ({
         ...row,
         Team: row.Team || "Default Team",
       }));

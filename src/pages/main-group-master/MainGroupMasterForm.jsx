@@ -14,38 +14,40 @@ import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { MGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
-// API ColName → formValues key (only where they differ)
+// API colname → formValues key (only where they differ)
+// Key is the lowercase PG colname returned from the API; value is the internal formValues key
 const COL_NAME_MAP = {
-  UsedInAutoItemCodeGeneration: "UsedCodeInCodeGeneration",
+  usedinautoitemcodegeneration: "usedcodeincodegen",
 };
 function formKey(colName) { return COL_NAME_MAP[colName] || colName; }
 
 // Corrected display labels (some API DisplayNames have backend typos)
+// Keys are lowercased to match field.colname (PG returns column names in lowercase)
 const DISPLAY_OVERRIDES = {
-  MainGroupShortCode:           "Main Group Short Code",
-  MainGroupShortName:           "Main Group Short Name",
-  UsedInAutoItemCodeGeneration: "Used in Code Generation",
+  maingroupshortcode:           "Main Group Short Code",
+  maingroupshortname:           "Main Group Short Name",
+  usedinautoitemcodegeneration: "Used in Code Generation",
 };
-function getLabel(field) { return DISPLAY_OVERRIDES[field.ColName] || field.DisplayName; }
+function getLabel(field) { return DISPLAY_OVERRIDES[field.colname] || field.displayname; }
 
-// Fields locked during edit mode regardless of API IsLockOnEditModeAllow (all false in API)
-const LOCK_ON_EDIT = new Set(["ItemTypeID", "MainGroupCode", "FixedAssetAccountID"]);
+// Fields locked during edit mode regardless of API islockoneditmodeallow (all false in API)
+const LOCK_ON_EDIT = new Set(["itemtypeid", "maingroupcode", "fixedassetaccountid"]);
 
 function buildEmpty() {
   return {
-    IDNumber:                 0,
-    ItemTypeID:               0,
-    MainGroupCode:            "",
-    MainGroupName:            "",
-    MainGroupShortName:       "",
-    UsedCodeInCodeGeneration: 0,
-    MainGroupShortCode:       "",
-    FixedAssetAccountID:      0,
-    CompanyID:                DEFAULT_COMPANY_ID,
-    YearID:                   MGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                  DEFAULT_LOGIN_ID,
-    SessionID:                DEFAULT_SESSION_ID,
-    FuncCode:                 MGM_CONFIG.RB_MASTER,
+    idnumber:                 0,
+    itemtypeid:               0,
+    maingroupcode:            "",
+    maingroupname:            "",
+    maingroupshortname:       "",
+    usedcodeincodegen:        0,
+    maingroupshortcode:       "",
+    fixedassetaccountid:      0,
+    companyid:                DEFAULT_COMPANY_ID,
+    yearid:                   MGM_CONFIG.CONFIG_YEAR_ID,
+    loginid:                  DEFAULT_LOGIN_ID,
+    sessionid:                DEFAULT_SESSION_ID,
+    funccode:                 MGM_CONFIG.RB_MASTER,
   };
 }
 
@@ -97,51 +99,51 @@ export default function MainGroupMasterForm({
       .finally(() => setRecordLoading(false));
   }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster]);
 
-  // Visible fields sorted by ColSeqNo from GetDetailColData response
+  // Visible fields sorted by colseqno from GetDetailColData response
   const visibleFields = useMemo(() =>
     fieldDefs
-      .filter((f) => f.IsVisible && f.ColSeqNo < 100)
-      .sort((a, b) => a.ColSeqNo - b.ColSeqNo),
+      .filter((f) => f.isvisible && f.colseqno < 100)
+      .sort((a, b) => a.colseqno - b.colseqno),
   [fieldDefs]);
 
-  // Dropdown options lookup keyed by ColName
+  // Dropdown options lookup keyed by colname
   const optionsMap = useMemo(() => ({
-    ItemTypeID:          itemTypeOptions,
-    FixedAssetAccountID: fixedAssetAccOptions,
+    itemtypeid:          itemTypeOptions,
+    fixedassetaccountid: fixedAssetAccOptions,
   }), [itemTypeOptions, fixedAssetAccOptions]);
 
   // Returns true if this field should be non-interactive
   function isLocked(field) {
     if (!isEditMode) return true;
     if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.ColName);
+    return LOCK_ON_EDIT.has(field.colname);
   }
 
-  // Field value change — includes cascade for MainGroupShortCode auto-fill
+  // Field value change — includes cascade for maingroupshortcode auto-fill
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
-      if (key === "UsedCodeInCodeGeneration") {
-        next.MainGroupShortCode = value ? (next.MainGroupCode || "") : "";
+      if (key === "usedcodeincodegen") {
+        next.maingroupshortcode = value ? (next.maingroupcode || "") : "";
       }
       return next;
     });
   }, []);
 
-  // Render the right control based on ColCtrlType from API
+  // Render the right control based on colctrltype from API
   function renderControl(field) {
-    const key    = formKey(field.ColName);
+    const key    = formKey(field.colname);
     const locked = isLocked(field);
 
-    // MainGroupShortCode — always read-only, auto-filled from UsedCodeInCodeGeneration
-    if (field.ColName === "MainGroupShortCode") {
+    // maingroupshortcode — always read-only, auto-filled from usedcodeincodegen
+    if (field.colname === "maingroupshortcode") {
       return (
         <span className="mgm-form-value">{formValues[key] || "—"}</span>
       );
     }
 
-    // UsedInAutoItemCodeGeneration — API says ColCtrlType 1 (textbox) but renders as checkbox
-    if (field.ColName === "UsedInAutoItemCodeGeneration") {
+    // usedinautoitemcodegeneration — API says colctrltype 1 (textbox) but renders as checkbox
+    if (field.colname === "usedinautoitemcodegeneration") {
       return (
         <div className="mgm-form-control--checkbox">
           <input
@@ -158,20 +160,20 @@ export default function MainGroupMasterForm({
       );
     }
 
-    // ColCtrlType 4 — Dropdown
-    if (field.ColCtrlType === 4) {
+    // colctrltype 4 — Dropdown
+    if (field.colctrltype === 4) {
       return (
         <SearchSelect
           value={formValues[key] ? String(formValues[key]) : ""}
           onChange={(val) => handleChange(key, Number(val) || 0)}
-          options={optionsMap[field.ColName] || []}
+          options={optionsMap[field.colname] || []}
           placeholder="Select..."
           disabled={locked}
         />
       );
     }
 
-    // ColCtrlType 1 — TextBox (default)
+    // colctrltype 1 — TextBox (default)
     return (
       <input
         className="mgm-form-input"
@@ -185,13 +187,13 @@ export default function MainGroupMasterForm({
     );
   }
 
-  // Save — validation driven by IsMandatory from API
+  // Save — validation driven by ismandatory from API
   const handleSave = useCallback(async () => {
-    const fieldsToValidate = visibleFields.filter((f) => f.ColName !== "MainGroupShortCode");
+    const fieldsToValidate = visibleFields.filter((f) => f.colname !== "maingroupshortcode");
     const normalizedValues = Object.fromEntries(
       fieldsToValidate.map((f) => {
-        const val = formValues[formKey(f.ColName)];
-        return [f.ColName, f.ColCtrlType === 4 && val === 0 ? "" : val];
+        const val = formValues[formKey(f.colname)];
+        return [f.colname, f.colctrltype === 4 && val === 0 ? "" : val];
       })
     );
     const errors = validateApiColumns(normalizedValues, fieldsToValidate);
@@ -202,7 +204,7 @@ export default function MainGroupMasterForm({
     try {
       const payload = withSaveContextFields(
         {
-          prmStrMstJSON: JSON.stringify([{ ...formValues }]),
+          prmStrMstJSON: JSON.stringify([Object.fromEntries(Object.entries(formValues).map(([k, v]) => [k, v]))]),
           prmStrDetJSON: JSON.stringify([]),
         },
         { divisionId: 0, isEdit: !isAddMode }
@@ -303,16 +305,16 @@ export default function MainGroupMasterForm({
           <div className="mgm-form">
             {visibleFields.map((field) => (
               <div
-                key={field.ColName}
+                key={field.colname}
                 className={[
                   "mgm-form-row",
-                  field.ColName === "MainGroupShortCode" ? "mgm-form-row--view" : "",
+                  field.colname === "maingroupshortcode" ? "mgm-form-row--view" : "",
                 ].join(" ").trim()}
               >
-                <span className={`mgm-form-label${field.IsMandatory && field.ColName !== "MainGroupShortCode" && field.ColName !== "UsedInAutoItemCodeGeneration" ? " mgm-form-label--required" : ""}`}>
+                <span className={`mgm-form-label${field.ismandatory && field.colname !== "maingroupshortcode" && field.colname !== "usedinautoitemcodegeneration" ? " mgm-form-label--required" : ""}`}>
                   {getLabel(field)}
                 </span>
-                <div className={`mgm-form-control${field.ColName === "UsedInAutoItemCodeGeneration" ? " mgm-form-control--checkbox" : ""}`}>
+                <div className={`mgm-form-control${field.colname === "usedinautoitemcodegeneration" ? " mgm-form-control--checkbox" : ""}`}>
                   {renderControl(field)}
                 </div>
               </div>

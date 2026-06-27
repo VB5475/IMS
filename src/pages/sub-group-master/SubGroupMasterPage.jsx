@@ -109,7 +109,7 @@ export default function SubGroupMasterPage() {
       setLoading(true);
       setError(null);
       const res = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(res?.Table ?? res?.Links ?? []);
+      setData(res ?? res ?? []);
     } catch (err) {
       console.error("[SGM] List fetch failed:", err);
       setError("Failed to load Sub Group list.");

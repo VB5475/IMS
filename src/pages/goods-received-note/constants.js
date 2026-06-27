@@ -56,11 +56,11 @@ export const GRN_CONFIG = {
 
 
 
-  RB_MASTER: "RB_PurGRNMst",
+  RB_MASTER: "rb_purgrnmst",
 
-  RB_DETAIL: "RB_PurGRNDet",
+  RB_DETAIL: "rb_purgrndet",
 
-  RB_INDT_DETAIL: "RB_PurGRNIndtDet",
+  RB_INDT_DETAIL: "rb_purgrnindtdet",
 
 
 
@@ -70,35 +70,35 @@ export const GRN_CONFIG = {
 
 
 
-  RB_ITEM_PICKER_DIRECT: "RB_PurGRNSelOnlyItem",
+  RB_ITEM_PICKER_DIRECT: "rb_purgrnselonlyitem",
 
-  RB_ITEM_PICKER_PO: "RB_PurGRNSelPODet",
+  RB_ITEM_PICKER_PO: "rb_purgrnselpodet",
 
-  RB_ITEM_PICKER_INDENT: "RB_PurGRNSelIndtDet",
-
-
-
-  SP_MASTER_FILL: "fn_tbl_RB_PurGRNMst",
-
-  SP_DETAIL_FILL: "fn_tbl_RB_PurGRNDet",
-
-  SP_INDT_FILL: "fn_tbl_RB_PurGRNIndtDet",
+  RB_ITEM_PICKER_INDENT: "rb_purgrnselindtdet",
 
 
 
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurGRNSelOnlyItem",
+  SP_MASTER_FILL: "fn_tbl_rb_purgrnmst",
 
-  SP_ITEM_PICKER_PO: "fn_tbl_RB_PurGRNSelPODet",
+  SP_DETAIL_FILL: "fn_tbl_rb_purgrndet",
 
-  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurGRNSelIndtDet",
+  SP_INDT_FILL: "fn_tbl_rb_purgrnindtdet",
 
-  SP_GRID_EVENT: "fn_tbl_RB_PurGRNDet_Event",
 
-  SP_TRANSPORTERS: "Fn_tbl_Gen_FetchTransporter",
 
-  SP_DESTINATIONS: "Fn_tbl_Gen_FetchDestination",
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purgrnselonlyitem",
 
-  SP_INDENT_SUMMARY: "Fn_tbl_FetchIndentSummaryItem4GRN",
+  SP_ITEM_PICKER_PO: "fn_tbl_rb_purgrnselpodet",
+
+  SP_ITEM_PICKER_INDENT: "fn_tbl_rb_purgrnselindtdet",
+
+  SP_GRID_EVENT: "fn_tbl_rb_purgrndet_event",
+
+  SP_TRANSPORTERS: "fn_tbl_gen_fetchtransporter",
+
+  SP_DESTINATIONS: "fn_tbl_gen_fetchdestination",
+
+  SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4grn",
 
 
 
@@ -118,7 +118,7 @@ export const GRN_CONFIG = {
 
 
 
-  SP_GRN_LIST: "Fn_tbl_Pur_GRNMst_List",
+  SP_GRN_LIST: "fn_tbl_pur_grnmst_list",
 
   LIST_DIVISION_ID: 15,
 
@@ -128,17 +128,17 @@ export const GRN_CONFIG = {
 
 export const GRN_LIST_DROPDOWN_FIELDS = new Set([
 
-  "DivisionID",
+  "divisionid",
 
-  "ConfigID",
+  "configid",
 
-  "SupplierID",
+  "supplierid",
 
-  "TransporterID",
+  "transporterid",
 
-  "DestinationID",
+  "destinationid",
 
-  "VehicleTypeId",
+  "vehicletypeid",
 
 ]);
 
@@ -146,13 +146,13 @@ export const GRN_LIST_DROPDOWN_FIELDS = new Set([
 
 export const GRN_HEADER_FILTERS = [
 
-  { FilterParameterID: "TranCode", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "trancode", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
-  { FilterParameterID: "TranDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "trandate", FilterColCtrlType: controlTypeMap.DATE },
 
   {
 
-    FilterParameterID: "DivisionID",
+    FilterParameterID: "divisionid",
 
     FilterColCtrlType: controlTypeMap.DROPDOWN,
 
@@ -160,11 +160,11 @@ export const GRN_HEADER_FILTERS = [
 
   },
 
-  { FilterParameterID: "ConfigID", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: "configid", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
 
   {
 
-    FilterParameterID: "SupplierID",
+    FilterParameterID: "supplierid",
 
     FilterColCtrlType: controlTypeMap.DROPDOWN,
 
@@ -172,13 +172,13 @@ export const GRN_HEADER_FILTERS = [
 
   },
 
-  { FilterParameterID: "CurrencyID", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "currencyname", FilterColCtrlType: controlTypeMap.LABEL },
 
-  { FilterParameterID: "CurrencyRate", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "currencyrate", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
   {
 
-    FilterParameterID: "BasedOnID",
+    FilterParameterID: "basedonid",
 
     FilterColCtrlType: controlTypeMap.DROPDOWN,
 
@@ -186,15 +186,15 @@ export const GRN_HEADER_FILTERS = [
 
   },
 
-  { FilterParameterID: "BillNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "billno", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
-  { FilterParameterID: "BillDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "billdate", FilterColCtrlType: controlTypeMap.DATE },
 
-  { FilterParameterID: "ChallanNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "challanno", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
-  { FilterParameterID: "ChallanDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "challandate", FilterColCtrlType: controlTypeMap.DATE },
 
-  { FilterParameterID: "Remarks", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "remarks", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
 ];
 
@@ -204,7 +204,7 @@ export const GRN_TRANSPORTER_FILTERS = [
 
   {
 
-    FilterParameterID: "TransporterID",
+    FilterParameterID: "transporterid",
 
     FilterColCtrlType: controlTypeMap.DROPDOWN,
 
@@ -214,7 +214,7 @@ export const GRN_TRANSPORTER_FILTERS = [
 
   {
 
-    FilterParameterID: "DestinationID",
+    FilterParameterID: "destinationid",
 
     FilterColCtrlType: controlTypeMap.DROPDOWN,
 
@@ -222,15 +222,15 @@ export const GRN_TRANSPORTER_FILTERS = [
 
   },
 
-  { FilterParameterID: "LRNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "lrno", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
-  { FilterParameterID: "LRDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "lrdate", FilterColCtrlType: controlTypeMap.DATE },
 
-  { FilterParameterID: "VehicleNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "vehicleno", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
   {
 
-    FilterParameterID: "VehicleTypeId",
+    FilterParameterID: "vehicletypeid",
 
     FilterColCtrlType: controlTypeMap.DROPDOWN,
 
@@ -238,7 +238,7 @@ export const GRN_TRANSPORTER_FILTERS = [
 
   },
 
-  { FilterParameterID: "NoOfPerson", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "noofperson", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
 ];
 
@@ -246,11 +246,11 @@ export const GRN_TRANSPORTER_FILTERS = [
 
 export const GRN_DRIVER_FILTERS = [
 
-  { FilterParameterID: "DriverName", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "drivername", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
-  { FilterParameterID: "DriverContactNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "drivercontactno", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
-  { FilterParameterID: "DriverLicenceNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "driverlicenceno", FilterColCtrlType: controlTypeMap.TEXTBOX },
 
 ];
 
@@ -270,23 +270,23 @@ export const GRN_GRID_TABS = [
 
 export const GRN_FILTER_CASCADE_RESETS = {
 
-  DivisionID: [
+  divisionid: [
 
-    "ConfigID",
+    "configid",
 
-    "SupplierID",
+    "supplierid",
 
-    "CurrencyID",
+    "currencyname",
 
-    "CurrencyRate",
+    "currencyrate",
 
-    "TransporterID",
+    "transporterid",
 
-    "DestinationID",
+    "destinationid",
 
   ],
 
-  TransporterID: ["DestinationID"],
+  transporterid: ["destinationid"],
 
 };
 
@@ -296,15 +296,15 @@ export const GRN_FILTER_CASCADE_RESETS = {
 
 export const GRN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
 
-  "DivisionID",
+  "divisionid",
 
-  "TranDate",
+  "trandate",
 
-  "ConfigID",
+  "configid",
 
-  "SupplierID",
+  "supplierid",
 
-  "BasedOnID",
+  "basedonid",
 
 ]);
 
@@ -312,15 +312,15 @@ export const GRN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
 
 export const GRN_ITEM_PICKER_JSON_FIELDS = [
 
-  { headerKey: "DivisionID", label: "Division" },
+  { headerKey: "divisionid", label: "Division" },
 
-  { headerKey: "TranDate", label: "GRN Date", isDate: true },
+  { headerKey: "trandate", label: "GRN Date", isDate: true },
 
-  { headerKey: "ConfigID", label: "GRN Type" },
+  { headerKey: "configid", label: "GRN Type" },
 
-  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
+  { headerKey: "basedonid", label: "Based On", allowZero: true },
 
-  { headerKey: "SupplierID", label: "Supplier", requiredWhenBasedOn: 1 },
+  { headerKey: "supplierid", label: "Supplier", requiredWhenBasedOn: 1 },
 
 ];
 
@@ -387,5 +387,4 @@ export function resolveItemPickerSpName(basedOnId) {
   });
 
 }
-
 

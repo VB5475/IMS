@@ -38,9 +38,9 @@ export function useSubGroupMaster() {
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Sub Group Master RB metadata returned.");
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(SGM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — field definitions from GetDetailColData
@@ -48,7 +48,7 @@ export function useSubGroupMaster() {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
       // No Phase 3 — Sub Group Master has no dropdown options to prefetch
     } catch (err) {
       console.error("[SGM] fetchHeaderMeta failed:", err);
@@ -72,7 +72,7 @@ export function useSubGroupMaster() {
       prmParameters,
       prmFuncCode:  SGM_CONFIG.RB_MASTER,
     });
-    const master = mstRes?.Links?.[0] ?? null;
+    const master = mstRes?.[0] ?? null;
     return {
       master,
       headerValues: master ? mapMasterRowToHeaderValues(master) : null,

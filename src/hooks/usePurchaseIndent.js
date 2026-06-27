@@ -13,10 +13,11 @@
 
 import { useState, useCallback, useRef } from "react";
 import axios from "axios";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   API_TIMEOUT,
   DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
@@ -26,6 +27,7 @@ import { getUserSession } from "../session/userSession";
 import { IND_CONFIG } from "../pages/purchase-indent/constants";
 import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -328,9 +330,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      const evtSet = buildEventColumnSet(apiColumns, ["Qty", "TranQty", "BaseQty", "Rate", "TranRate"]);
+      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "unitconvrate"]);
       // Force-add quantity and rate columns that drive Amount recalculation
-      ["Qty", "TranQty", "BaseQty", "Rate", "TranRate", "UnitConvRate"].forEach((k) => evtSet.add(k));
+      ["tranqty", "baseqty", "tranrate", "unitconvrate"].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
 
       setAllColumns(
@@ -397,12 +399,20 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
     async (colName, rowData, headerValues) => {
       setIsEventFiring(true);
       try {
-        const { id, ...newRowData } = rowData;
-        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: IND_CONFIG.SP_GRID_EVENT,
-          EventColName: colName,
-          DetJSON: JSON.stringify([newRowData]),
-          MstJSon: JSON.stringify([headerValues]),
+        const { id, ...rawRowData } = rowData;
+        const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+        const newRowData = Object.fromEntries(
+          Object.entries(rawRowData).map(([k, v]) => {
+            if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+              return [k, Number(v)];
+            return [k, v];
+          })
+        );
+        const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+          prmobjname: IND_CONFIG.SP_GRID_EVENT,
+          prmmyeventcol: colName,
+          prmdetjson: buildDetJSON([newRowData], colTypeMap),
+          prmmstjson: JSON.stringify([headerValues]),
         });
         console.log("%c[Indent] CellEvent response:", "color:#f59e0b;font-weight:600", {
           col: colName,
@@ -416,7 +426,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         setIsEventFiring(false);
       }
     },
-    [get]
+    [allColumns]
   );
 
   // ── saveTxn ─────────────────────────────────────────────────────────

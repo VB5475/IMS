@@ -179,7 +179,7 @@ export default function TxnEntryPage() {
     })
       .then((res) => {
         setDepartmentOptions(
-          (res?.Table || []).map((r) => ({
+          (res || []).map((r) => ({
             value: String(r.DepartmentID),
             label: r.DepartmentName,
           }))
@@ -196,7 +196,7 @@ export default function TxnEntryPage() {
     })
       .then((res) => {
         setSupplierOptions(
-          (res?.Table || []).map((r) => ({ value: String(r.SupplierID), label: r.SupplierName }))
+          (res || []).map((r) => ({ value: String(r.SupplierID), label: r.SupplierName }))
         );
       })
       .catch((err) => console.warn("[TxnEntry] Supplier fetch failed:", err));
@@ -221,7 +221,7 @@ export default function TxnEntryPage() {
     })
       .then((res) => {
         setInvoiceTypeOptions(
-          (res?.Table || []).map((r) => ({ value: String(r.InvoiceTypeID), label: r.Name }))
+          (res || []).map((r) => ({ value: String(r.InvoiceTypeID), label: r.Name }))
         );
       })
       .catch((err) => console.warn("[TxnEntry] InvoiceType fetch failed:", err));
@@ -294,7 +294,7 @@ export default function TxnEntryPage() {
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        setOrderItems(response?.Table || []);
+        setOrderItems(response || []);
       } catch (err) {
         console.error("[TxnEntry] Order item fetch failed:", err);
         setOrderItemsError(err?.message || "Failed to fetch items. Please try again.");
@@ -343,14 +343,14 @@ export default function TxnEntryPage() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !gridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[TxnEntry] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[TxnEntry] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       gridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]
