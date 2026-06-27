@@ -62,6 +62,10 @@
 .modal-dialog--xl {
   max-width: 1200px;
 }
+
+.modal-dialog--company {
+  max-width: min(1440px, calc(100vw - 32px));
+}
 .modal-dialog--full {
   max-width: calc(100vw - 32px);
 }

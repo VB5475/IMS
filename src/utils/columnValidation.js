@@ -30,12 +30,41 @@ export function isNumericColDataType(colDataType) {
   return getColDataKind(colDataType) === "numeric";
 }
 
+function hasNumericRangeMeta(apiCol) {
+  return apiCol?.ValueMinRange != null || apiCol?.ValueMaxRange != null;
+}
+
+function looksLikeNumericFormat(inputFormat) {
+  if (!inputFormat) return false;
+  const normalized = String(inputFormat).trim().toUpperCase();
+  return ["IN", "INR", "US", "USD"].includes(normalized);
+}
+
+function inferColumnDataKind(apiCol, colDataType) {
+  const explicitKind = getColDataKind(colDataType);
+
+  if (explicitKind === "numeric") return "numeric";
+  if (explicitKind === "date") return "date";
+  if (explicitKind === "varchar") return "varchar";
+
+  if (hasNumericRangeMeta(apiCol) || looksLikeNumericFormat(apiCol?.InputFormat ?? apiCol?.inputFormat)) {
+    return "numeric";
+  }
+
+  if (isTruthyApiFlag(apiCol?.IsCrossYearEntryAllow) || isTruthyApiFlag(apiCol?.IsFutureDateAllow)) {
+    return "date";
+  }
+
+  return null;
+}
+
 /** True when a grid column definition represents a numeric column. */
 export function isNumericColumnDef(col) {
   if (!col) return false;
   if (col.columnMeta?.dataKind === "numeric") return true;
-  const colDataType = col.colDataType ?? col.coldatatype ?? col.columnMeta?.colDataType;
-  return isNumericColDataType(colDataType);
+  const colDataType = col.colDataType ?? col.ColDataType ?? col.columnMeta?.colDataType;
+  if (isNumericColDataType(colDataType)) return true;
+  return inferColumnDataKind(col, colDataType) === "numeric";
 }
 
 /** Extract decimal places (N) from ColDataType like "numeric(M,N)". */
@@ -45,25 +74,55 @@ export function getNumericDecimalPlaces(colDataType) {
   return match ? Number(match[1]) : 0;
 }
 
+/** Extract max length from ColDataType like "varchar(N)" / "Varchar(50)". */
+export function getVarcharMaxLen(colDataType) {
+  if (!colDataType) return null;
+  const match = String(colDataType).match(/varchar\s*\(\s*(\d+)\s*\)/i);
+  return match ? Number(match[1]) : null;
+}
+
+function resolveEffectiveMaxLen(apiCol, colDataType) {
+  const fromType = getVarcharMaxLen(colDataType);
+  if (fromType != null) return fromType;
+  const fromApi = apiCol?.MaxLen != null ? Number(apiCol.MaxLen) : null;
+  if (fromApi != null && !Number.isNaN(fromApi)) return fromApi;
+  return null;
+}
+
+function isDropdownEmpty(value) {
+  return value == null || value === "" || Number(value) === 0;
+}
+
+/** API often sends ValueMinRange/ValueMaxRange as 0/0 when no numeric range is configured. */
+function isNumericRangeConfigured(meta) {
+  const min = meta?.valueMinRange;
+  const max = meta?.valueMaxRange;
+  if (min == null && max == null) return false;
+  if (min === 0 && max === 0) return false;
+  return true;
+}
+
 /** Build normalized validation/display metadata from a GET_DETAIL_COL_DATA column. */
 export function buildColumnMeta(apiCol) {
   if (!apiCol) return null;
-  const colDataType = apiCol.coldatatype ?? apiCol.colDataType ?? null;
+  const colDataType = apiCol.ColDataType ?? apiCol.colDataType ?? null;
+  const dataKind = inferColumnDataKind(apiCol, colDataType);
   return {
-    key: apiCol.colname ?? apiCol.key,
-    displayName: apiCol.displayname ?? apiCol.name ?? apiCol.colname ?? apiCol.key ?? "Field",
-    isMandatory: isTruthyApiFlag(apiCol.ismandatory),
-    isValidationReq: isTruthyApiFlag(apiCol.isvalidationreq),
+    key: apiCol.ColName ?? apiCol.key,
+    displayName: apiCol.DisplayName ?? apiCol.name ?? apiCol.ColName ?? apiCol.key ?? "Field",
+    isMandatory: isTruthyApiFlag(apiCol.IsMandatory),
+    isValidationReq: isTruthyApiFlag(apiCol.IsValidationReq),
+    isDropdown: Number(apiCol.ColCtrlType) === 4,
     colDataType,
-    dataKind: getColDataKind(colDataType),
-    inputFormat: apiCol.inputformat ?? apiCol.inputFormat ?? "",
+    dataKind,
+    inputFormat: apiCol.InputFormat ?? apiCol.inputFormat ?? "",
     decimalPlaces: getNumericDecimalPlaces(colDataType),
-    minLen: apiCol.minlen != null ? Number(apiCol.minlen) : null,
-    maxLen: apiCol.maxlen != null ? Number(apiCol.maxlen) : null,
-    valueMinRange: apiCol.valueminrange != null ? Number(apiCol.valueminrange) : null,
-    valueMaxRange: apiCol.valuemaxrange != null ? Number(apiCol.valuemaxrange) : null,
-    isCrossYearEntryAllow: isTruthyApiFlag(apiCol.iscrossyearentryallow),
-    isFutureDateAllow: isTruthyApiFlag(apiCol.isfuturedateallow),
+    minLen: apiCol.MinLen != null ? Number(apiCol.MinLen) : null,
+    maxLen: resolveEffectiveMaxLen(apiCol, colDataType),
+    valueMinRange: apiCol.ValueMinRange != null ? Number(apiCol.ValueMinRange) : null,
+    valueMaxRange: apiCol.ValueMaxRange != null ? Number(apiCol.ValueMaxRange) : null,
+    isCrossYearEntryAllow: isTruthyApiFlag(apiCol.IsCrossYearEntryAllow),
+    isFutureDateAllow: isTruthyApiFlag(apiCol.IsFutureDateAllow),
   };
 }
 
@@ -131,16 +190,22 @@ export function getDateInputConstraints(meta) {
 
 /**
  * Validate a single field value against column metadata.
+ * @param {object} [options]
+ * @param {boolean} [options.skipMandatory] — when true, required checks are skipped (e.g. on blur)
  * @returns {{ valid: boolean, message: string }}
  */
-export function validateColumnValue(value, colOrMeta) {
+export function validateColumnValue(value, colOrMeta, options = {}) {
+  const { skipMandatory = false } = options;
   const meta = resolveColumnMeta(colOrMeta);
   if (!meta) return { valid: true, message: "" };
 
   const label = meta.displayName || meta.key || "Field";
 
-  if (meta.isMandatory && isEmptyValue(value)) {
-    return { valid: false, message: `${label} is required.` };
+  if (!skipMandatory && meta.isMandatory) {
+    const empty = meta.isDropdown ? isDropdownEmpty(value) : isEmptyValue(value);
+    if (empty) {
+      return { valid: false, message: `${label} is required.` };
+    }
   }
 
   if (!meta.isValidationReq || isEmptyValue(value)) {
@@ -171,17 +236,19 @@ export function validateColumnValue(value, colOrMeta) {
     if (Number.isNaN(num)) {
       return { valid: false, message: `${label} must be a valid number.` };
     }
-    if (meta.valueMinRange != null && !Number.isNaN(meta.valueMinRange) && num < meta.valueMinRange) {
-      return {
-        valid: false,
-        message: `${label} must be at least ${meta.valueMinRange}.`,
-      };
-    }
-    if (meta.valueMaxRange != null && !Number.isNaN(meta.valueMaxRange) && num > meta.valueMaxRange) {
-      return {
-        valid: false,
-        message: `${label} must be at most ${meta.valueMaxRange}.`,
-      };
+    if (isNumericRangeConfigured(meta)) {
+      if (meta.valueMinRange != null && !Number.isNaN(meta.valueMinRange) && num < meta.valueMinRange) {
+        return {
+          valid: false,
+          message: `${label} must be at least ${meta.valueMinRange}.`,
+        };
+      }
+      if (meta.valueMaxRange != null && !Number.isNaN(meta.valueMaxRange) && num > meta.valueMaxRange) {
+        return {
+          valid: false,
+          message: `${label} must be at most ${meta.valueMaxRange}.`,
+        };
+      }
     }
     return { valid: true, message: "" };
   }

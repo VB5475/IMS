@@ -1,0 +1,89 @@
+/* Shared master-form control primitives (toggle, checkbox) */
+
+.master-form-control--toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.master-form-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: 999px;
+  background: #e2e8f0;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.master-form-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease;
+}
+
+.master-form-toggle--on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.master-form-toggle--on::after {
+  transform: translateX(18px);
+}
+
+.master-form-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.master-form-toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.master-form-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.master-form-checkbox:disabled {
+  cursor: not-allowed;
+}
+
+.master-form-textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.master-form-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30, 74, 122, 0.12);
+}
+
+.master-form-textarea[readonly] {
+  background: var(--field-view-bg, #e6f1fc);
+  cursor: default;
+}

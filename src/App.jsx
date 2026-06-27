@@ -5,32 +5,38 @@ import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
 
-const LoginPage              = lazy(() => import("./pages/login/LoginPage"));
-const EnterpriseDashboard    = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
-const ReportWorkspacePage    = lazy(() => import("./pages/report-workspace/ReportWorkspacePage"));
-const TxnEntryPage           = lazy(() => import("./pages/txn-entry/TxnEntryPage"));
-const PurchaseInquiryPage    = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryPage"));
-const PurchaseInquiryForm    = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryForm"));
-const PurchaseQuotationPage  = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationPage"));
-const PurchaseQuotationForm  = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
-const PurchaseOrderPage      = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
-const PurchaseOrderForm      = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
-const PurchaseIndentPage     = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
-const PurchaseIndentForm     = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
-const PurchaseVoucherPage    = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
-const PurchaseVoucherForm    = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
-const GoodsReceivedNotePage  = lazy(() => import("./pages/goods-received-note/GoodsReceivedNotePage"));
-const GoodsReceivedNoteForm  = lazy(() => import("./pages/goods-received-note/GoodsReceivedNoteForm"));
-const CWIPToFAPage               = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
-const CWIPToFAForm               = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
-const AssetsDepreciationPage     = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
-const AssetsDepreciationForm     = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
-const AssetsItemOpeningPage      = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
-const AssetsItemOpeningForm      = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
-const MainGroupMasterPage    = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
-const LocationMasterPage     = lazy(() => import("./pages/location-master/LocationMasterPage"));
+const LoginPage = lazy(() => import("./pages/login/LoginPage"));
+const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
+const ReportWorkspacePage = lazy(() => import("./pages/report-workspace/ReportWorkspacePage"));
+const TxnEntryPage = lazy(() => import("./pages/txn-entry/TxnEntryPage"));
+const PurchaseInquiryPage = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryPage"));
+const PurchaseInquiryForm = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryForm"));
+const PurchaseQuotationPage = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationPage"));
+const PurchaseQuotationForm = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
+const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
+const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
+const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
+const PurchaseIndentForm = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
+const PurchaseVoucherPage = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
+const PurchaseVoucherForm = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
+const GoodsReceivedNotePage = lazy(() => import("./pages/goods-received-note/GoodsReceivedNotePage"));
+const GoodsReceivedNoteForm = lazy(() => import("./pages/goods-received-note/GoodsReceivedNoteForm"));
+const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
+const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
+const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
+const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
+const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
+const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
+const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
+const LocationMasterPage = lazy(() => import("./pages/location-master/LocationMasterPage"));
 const SubMainGroupMasterPage = lazy(() => import("./pages/sub-main-group-master/SubMainGroupMasterPage"));
-const SubGroupMasterPage     = lazy(() => import("./pages/sub-group-master/SubGroupMasterPage"));
+const SubGroupMasterPage = lazy(() => import("./pages/sub-group-master/SubGroupMasterPage"));
+const UserMasterPage = lazy(() => import("./pages/user-master/UserMasterPage"));
+const UserGroupPage = lazy(() => import("./pages/user-group/UserGroupPage"));
+const DivisionWiseRightsPage = lazy(() => import("./pages/division-wise-rights/DivisionWiseRightsPage"));
+const ItemMasterPage = lazy(() => import("./pages/item-master/ItemMasterPage"));
+const DepartmentMasterPage = lazy(() => import("./pages/department-master/DepartmentMasterPage"));
+const CompanyPage = lazy(() => import("./pages/company/CompanyPage"));
 
 function AppLayout() {
   return (
@@ -99,10 +105,16 @@ function AppRoutes() {
           <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
           {/* Admin — Master modules */}
-          <Route path="admin/main-group-master"                    element={<MainGroupMasterPage />} />
-          <Route path="admin/master/item/sub-main-group-master"    element={<SubMainGroupMasterPage />} />
-          <Route path="admin/master/item/sub-group-master"         element={<SubGroupMasterPage />} />
-          <Route path="admin/company/location-master"              element={<LocationMasterPage />} />
+          <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
+          <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
+          <Route path="admin/master/item/sub-group-master" element={<SubGroupMasterPage />} />
+          <Route path="admin/company/location-master" element={<LocationMasterPage />} />
+          <Route path="admin/user-master" element={<UserMasterPage />} />
+          <Route path="admin/user-group" element={<UserGroupPage />} />
+          <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />
+          <Route path="admin/item-master" element={<ItemMasterPage />} />
+          <Route path="admin/department-master" element={<DepartmentMasterPage />} />
+          <Route path="admin/company" element={<CompanyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
