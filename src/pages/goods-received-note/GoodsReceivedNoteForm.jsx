@@ -162,7 +162,7 @@ export default function GoodsReceivedNoteForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
-  const { post: postSave } = useApi(API_BASE_URL_IMS);
+  const { post } = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns,
@@ -787,18 +787,13 @@ export default function GoodsReceivedNoteForm() {
 
       setIsGridLoading(true);
       try {
-        const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ObjType: OBJ_TYPE.FUNCTION,
-            ObjName: GRN_CONFIG.SP_INDENT_SUMMARY,
-            JSon: [{ prmJSon: cleanItems }],
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          }),
+        const summaryRes = await post(ENDPOINTS.API_VALUES, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SP_INDENT_SUMMARY,
+          JSon: [{ prmJSon: cleanItems }],
+          p_ErrCode: -1,
+          p_ErrMsg: "",
         });
-        const summaryRes = await summaryResponse.json();
 
         const parents = summaryRes ?? [];
         if (!parents.length) return;
@@ -823,7 +818,7 @@ export default function GoodsReceivedNoteForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, fetchIndentDetailColumns]
+    [ensureItemColumns, allColumns, addItemRow, fetchIndentDetailColumns, post]
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -917,7 +912,7 @@ export default function GoodsReceivedNoteForm() {
 
       setIsSaving(true);
       try {
-        const result = await postSave(GRN_CONFIG.SAVE_ENDPOINT, payload);
+        const result = await post(GRN_CONFIG.SAVE_ENDPOINT, payload);
         const { success, message } = parseApiErrMsg(result);
         if (!success) { setFormErrors([message]); return false; }
         notify.success(message);
@@ -938,7 +933,7 @@ export default function GoodsReceivedNoteForm() {
       childRowsMap,
       childColumns,
       columns,
-      postSave,
+      post,
       completeSuccessfulSave,
       isEditRoute,
     ]

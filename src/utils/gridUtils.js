@@ -184,6 +184,38 @@ export function buildDropdownOptionFromRow(apiCol, rowData) {
   return [{ value: String(value), label: String(label ?? "") }];
 }
 
+/**
+ * Merge dropdown options from a master-fill row into an options map
+ * using GET_DETAIL_COL_DATA column metadata (CtrlValueCol / CtrlDisplayCol).
+ */
+export function seedMasterDropdownOptions(fieldDefs, master, prev = {}) {
+  const next = { ...prev };
+  (fieldDefs || []).forEach((field) => {
+    if (Number(field.ColCtrlType) !== 4 || !field.ColName) return;
+    const opts = buildDropdownOptionFromRow(field, master);
+    if (!opts.length) return;
+    const key = field.ColName;
+    const existing = next[key] || [];
+    const merged = [...existing];
+    opts.forEach((opt) => {
+      if (!merged.some((o) => o.value === opt.value)) merged.unshift(opt);
+    });
+    next[key] = merged;
+  });
+  return next;
+}
+
+/** Map a master-fill / grid row to form values using GET_DETAIL_COL_DATA columns. */
+export function mapRowToFieldValues(row, fieldDefs, context = {}) {
+  const values = { ...context };
+  (fieldDefs || []).forEach((field) => {
+    const key = field.ColName;
+    if (!key || row[key] === undefined) return;
+    values[key] = row[key];
+  });
+  return values;
+}
+
 /** Read the display text for a dropdown column from a grid row (master-fill display col only). */
 export function getRowDropdownDisplay(row, col) {
   const displayCol = col?.ctrlDisplayCol || col?.ctrldisplaycol;
@@ -342,9 +374,9 @@ export function resolveEditDivisionId(listRecord, fallback = 0) {
   return (
     Number(
       listRecord?.DivisionID ??
-        listRecord?.DivisionId ??
-        listRecord?.prmDivisionID ??
-        fallback
+      listRecord?.DivisionId ??
+      listRecord?.prmDivisionID ??
+      fallback
     ) || 0
   );
 }

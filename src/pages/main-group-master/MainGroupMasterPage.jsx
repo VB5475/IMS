@@ -5,15 +5,16 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
+import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import MainGroupMasterForm from "./MainGroupMasterForm";
 import { MGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./MainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function todayFormatted() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -22,51 +23,14 @@ function buildListParams() {
     ObjType: MGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: MGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
+      PrmCompanyID: DEFAULT_COMPANY_ID,
       prmDivisionID: MGM_CONFIG.LIST_DIVISION_ID,
-      prmFromDate:   today,
-      prmToDate:     today,
+      prmFromDate: today,
+      prmToDate: today,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
-}
-
-const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
-
-const LABEL_MAP = {
-  ISAutoCodeGen: "Auto Code Gen",
-  RegName:       "Reg Name",
-};
-
-function toLabel(key) {
-  if (LABEL_MAP[key]) return LABEL_MAP[key];
-  return key.replace(/([A-Z])/g, " $1").trim();
-}
-
-function buildColumnsFromData(data, onEdit) {
-  if (!data || data.length === 0) return [];
-  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
-  return [
-    ...keys.map((key) => ({ key, label: toLabel(key), filterable: true, align: "left" })),
-    {
-      key:   "_actions",
-      label: "Edit",
-      width: "80px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="mgm-list__edit-btn"
-          title={`Edit ${row.MainGroupCode ?? row.Code ?? ""}`}
-          aria-label={`Edit ${row.MainGroupCode ?? row.Code ?? ""}`}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
-  ];
 }
 
 export default function MainGroupMasterPage() {
@@ -80,20 +44,20 @@ export default function MainGroupMasterPage() {
     fetchEditRecord, seedOptionsFromMaster,
   } = useMainGroupMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Main Group Master",
+    title: "Main Group Master",
     subtitle: "Browse main groups or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -131,7 +95,32 @@ export default function MainGroupMasterPage() {
     fetchList();
   }, [fetchList]);
 
-  const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
+  const columns = useMemo(
+    () =>
+      buildListColumnsFromApi({
+        data,
+        fieldDefs,
+        onEdit: (row) => {
+          const id = resolveListRowId(row);
+          if (id != null) handleEdit(id);
+        },
+        renderEditCell: (row, onEdit) => (
+          <button
+            type="button"
+            className="mgm-list__edit-btn"
+            title={`Edit ${row.MainGroupCode ?? row.MainGroupName ?? ""}`}
+            aria-label={`Edit ${row.MainGroupCode ?? row.MainGroupName ?? ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(row);
+            }}
+          >
+            <Pencil size={13} strokeWidth={2} />
+          </button>
+        ),
+      }),
+    [data, fieldDefs, handleEdit]
+  );
 
   return (
     <div className="workspace-page mgm-list-page">

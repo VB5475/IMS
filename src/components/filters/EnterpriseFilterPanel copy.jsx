@@ -175,8 +175,8 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
               if (opt.value !== undefined) {
                 return { value: String(opt.value), label: opt.label };
               }
-              const valKey = opt.filterctrlvaluecol || "IDNumber";
-              const labelKey = opt.filterctrldisplaycol || "Name";
+              const valKey = opt.FilterCtrlValueCol || "IDNumber";
+              const labelKey = opt.FilterCtrlDisplayCol || "Name";
               return { value: String(opt[valKey]), label: opt[labelKey] };
             })}
             placeholder={`Select…`}
@@ -393,7 +393,7 @@ export default function EnterpriseFilterPanel({
         const data = await get(ENDPOINTS.GET_FILTERS, { prmMasterID: masterID });
         if (signal?.aborted) return;
 
-        const filterList = data || [];
+        const filterList = data?.Links || [];
         setFilters(filterList);
         onFiltersLoaded?.(filterList.length > 0);
 
@@ -427,7 +427,7 @@ export default function EnterpriseFilterPanel({
                 prmDivisionID: divisionID,
                 prmLoginID: loginID,
               });
-              optionsMap[f.FilterParameterID] = detailData || [];
+              optionsMap[f.FilterParameterID] = detailData?.Links || [];
             } catch {
               optionsMap[f.FilterParameterID] = [];
             }
@@ -553,12 +553,12 @@ export default function EnterpriseFilterPanel({
           if (f.FilterColCtrlType === controlTypeMap.DROPDOWN) {
             const opts = dropdownOptions[f.FilterParameterID] || f.staticOptions || [];
             const match = opts.find((o) => {
-              const val = o.value ?? o[o.filterctrlvaluecol || "IDNumber"];
+              const val = o.value ?? o[o.FilterCtrlValueCol || "IDNumber"];
               return String(val) === String(values[f.FilterColName]);
             });
             if (match) {
               display =
-                match.label || match.Name || match[match.filterctrldisplaycol || "Name"] || display;
+                match.label || match.Name || match[match.FilterCtrlDisplayCol || "Name"] || display;
             }
           }
           return { colName: f.FilterColName, caption: f.FilterCaption, display };
