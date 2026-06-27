@@ -19,7 +19,6 @@ import {
   KeyRound,
   Building2,
   Building,
-  Package,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -42,6 +41,12 @@ const NAV_SECTIONS = [
   {
     label: "Master",
     items: [
+      { to: "/admin/user-master", icon: Users, label: "User Master", end: false },
+      { to: "/admin/user-group", icon: Shield, label: "User Group", end: false },
+      { to: "/admin/division-wise-rights", icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: "/admin/item-master", icon: Package, label: "Item Master", end: false },
+      { to: "/admin/department-master", icon: Building2, label: "Department Master", end: false },
+      { to: "/admin/company", icon: Building, label: "Company", end: false },
       { to: "/admin/main-group-master", icon: Tag, label: "Main Group Master", end: false },
       { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master", end: false },
       { to: "/admin/master/item/sub-group-master", icon: Package, label: "Sub Group Master", end: false },
@@ -66,12 +71,6 @@ const NAV_SECTIONS = [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
       { to: "/assets-depreciation", icon: TrendingDown, label: "Depreciation", end: false },
       { to: "/assets-item-opening", icon: Package2, label: "Assets Item Opening", end: false },
-      { to: "/admin/user-master", icon: Users, label: "User Master", end: false },
-      { to: "/admin/user-group", icon: Shield, label: "User Group", end: false },
-      { to: "/admin/division-wise-rights", icon: KeyRound, label: "Division Wise Rights", end: false },
-      { to: "/admin/item-master", icon: Package, label: "Item Master", end: false },
-      { to: "/admin/department-master", icon: Building2, label: "Department Master", end: false },
-      { to: "/admin/company", icon: Building, label: "Company", end: false },
     ],
   },
 
