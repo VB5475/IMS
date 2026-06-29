@@ -6,9 +6,8 @@ import { useUserGroup } from "../../hooks/useUserGroup";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import UserGroupForm from "./UserGroupForm";
 import { UG_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./UserGroupPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   return {
@@ -35,7 +34,7 @@ export default function UserGroupPage() {
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");

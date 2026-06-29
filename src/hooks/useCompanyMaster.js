@@ -104,7 +104,7 @@ async function fetchSpTable(get, spName, jsonRow = {}) {
     console.warn(`[CO] ${spName} fetch failed:`, err);
     return null;
   });
-  return Array.isArray(res) ? res : (res?.Table ?? res?.Links ?? []);
+  return Array.isArray(res) ? res : (res ?? res ?? []);
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ export function useCompanyMaster() {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      const rawLinks = Array.isArray(colData) ? colData : (colData?.Links || []);
+      const rawLinks = Array.isArray(colData) ? colData : (colData || []);
       const links    = rawLinks.map(normalizeColumn);
       setHeaderColumns(links);
       setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
@@ -305,7 +305,7 @@ export function useCompanyMaster() {
 
   const fetchListRows = useCallback(async (listParams) => {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, listParams);
-    return Array.isArray(res) ? res : (res?.Table ?? res?.Links ?? []);
+    return Array.isArray(res) ? res : (res ?? res ?? []);
   }, [get]);
 
   // After loading an edit record: reload base dropdowns, then seed cascaded

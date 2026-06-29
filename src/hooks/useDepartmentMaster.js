@@ -112,7 +112,7 @@ export function useDepartmentMaster() {
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
       // PG returns a flat array; old SQL Server returned { Links: [...] }
-      const rawLinks = Array.isArray(colData) ? colData : (colData?.Links || []);
+      const rawLinks = Array.isArray(colData) ? colData : (colData || []);
       const links = rawLinks.map(normalizeColumn);
       setHeaderColumns(links);
       setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
@@ -125,7 +125,7 @@ export function useDepartmentMaster() {
         p_ErrCode: -1,
         p_ErrMsg:  "",
       }).catch(() => []);
-      const userRows = Array.isArray(userRes) ? userRes : (userRes?.Table ?? userRes?.Links ?? []);
+      const userRows = Array.isArray(userRes) ? userRes : (userRes ?? userRes ?? []);
       setDropdownOptions({ [DEPT_HEAD_KEY]: mapDeptHeadUserOptions(userRows) });
     } catch (err) {
       console.error("[DM] fetchHeaderMeta failed:", err);
@@ -167,7 +167,7 @@ export function useDepartmentMaster() {
 
   const fetchListRows = useCallback(async (listParams) => {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, listParams);
-    return Array.isArray(res) ? res : (res?.Table ?? res?.Links ?? []);
+    return Array.isArray(res) ? res : (res ?? res ?? []);
   }, [get]);
 
   // Ensures the selected DeptHead appears in the dropdown even if they're

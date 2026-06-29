@@ -13,7 +13,7 @@ function mapItemTypeOptions(rows) {
   return (rows ?? []).map((r) => {
     const value = r.idnumber ?? r.itemtypeid;
     if (value == null || value === "") return null;
-    return { value: String(value), label: String(r.itemtypecode ?? r.itemtypename ?? r.name ?? "") };
+    return { value: String(value), label: String(r.idnumber) + " - " + String(r.itemtypecode ?? r.itemtypename ?? r.name ?? "") };
   }).filter(Boolean);
 }
 
@@ -23,7 +23,7 @@ function mapMainGroupOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.maingroup ?? r.maingroupname ?? r.maingroupcode ?? r.code ?? r.name ?? ""),
+      label: String(r.code) + " - " + String(r.maingroup ?? r.maingroupname ?? r.maingroupcode ?? r.code ?? r.name ?? ""),
     };
   }).filter(Boolean);
 }
@@ -34,7 +34,7 @@ function mapSubGroupOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.subgroup ?? r.subgroupname ?? r.submaingroupname ?? r.code ?? r.subgroupcode ?? r.name ?? ""),
+      label: String(r.code) + " - " + String(r.submaingroup ?? r.subgroup),
     };
   }).filter(Boolean);
 }
@@ -45,7 +45,7 @@ function mapTaxOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.texabilityname ?? r.texability ?? r.code ?? r.taxname ?? r.name ?? ""),
+      label: String(r.code) + " - " + String(r.texabilityname ?? r.texability ?? r.code ?? r.taxname ?? r.name ?? ""),
     };
   }).filter(Boolean);
 }
@@ -56,7 +56,7 @@ function mapUnitOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.tranunit ?? r.baseunit ?? r.unitname ?? r.tranunitname ?? r.baseunitname ?? r.code ?? r.unitcode ?? r.name ?? ""),
+      label: String(r.code) + " - " + String(r.tranunit ?? r.baseunit ?? r.unitname ?? r.tranunitname ?? r.baseunitname ?? r.code ?? r.unitcode ?? r.name ?? ""),
     };
   }).filter(Boolean);
 }
@@ -95,7 +95,7 @@ export function useItemMaster() {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 2,
       ObjName: IM_CONFIG.SP_MAIN_GROUP,
-      JSon: JSON.stringify([{}]),
+      JSon: JSON.stringify([{prmitemtypeid : itemTypeId}]),
       p_ErrCode: -1,
       p_ErrMsg: "",
     }).catch(() => null);
@@ -108,8 +108,8 @@ export function useItemMaster() {
     if (!mainGroupId) { setSubMainGroupOptions([]); return []; }
     const res = await get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 2,
-      ObjName: IM_CONFIG.SP_SUB_GROUP,
-      JSon: JSON.stringify([{}]),
+      ObjName: IM_CONFIG.SP_SUB_MAIN_GROUP,
+      JSon: JSON.stringify([{prmitemtypeid : itemTypeId,prmmaingroupid: mainGroupId}]),
       p_ErrCode: -1,
       p_ErrMsg: "",
     }).catch(() => null);
@@ -151,7 +151,7 @@ export function useItemMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IM_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: IM_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: IM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

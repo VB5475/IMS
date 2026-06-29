@@ -12,9 +12,8 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import ItemMasterForm from "./ItemMasterForm";
 import { IM_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./ItemMasterPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -23,10 +22,10 @@ function buildListParams() {
     ObjName: IM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: IM_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: today,
-        prmToDate: today,
+        // prmcompanyid: DEFAULT_COMPANY_ID,
+        // prmdivisionid: IM_CONFIG.LIST_DIVISION_ID,
+        // prmfromdate: today,
+        // prmtodate: today,
       },
     ]),
     p_ErrCode: -1,
@@ -59,7 +58,7 @@ export default function ItemMasterPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");

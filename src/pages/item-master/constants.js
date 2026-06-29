@@ -1,29 +1,30 @@
 // Item Master — admin module config (MRD_Template4ItemMst.docx)
 
 export const IM_CONFIG = {
-  RB_MASTER: "RB_PurItemMst",
-  FORM_TAG: "RB_PurItemMst",
+  RB_MASTER: "rb_puritemmst",
+  FORM_TAG: "rb_puritemmst",
   TRAN_BOOK: "CR",
 
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_MASTER_FILL: "fn_tbl_RB_PurItemMst",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
+  SP_MASTER_FILL: "fn_tbl_rb_puritemmst",
 
-  SP_ITEM_TYPE: "Fn_tbl_PUR_ITEMTYPEMST_Fetch",
-  SP_MAIN_GROUP: "Fn_tbl_Fetch_MainGroup",
-  SP_SUB_GROUP: "Fn_tbl_Fetch_SubGroup",
-  SP_TAX: "Fn_tbl_Fetch_Texability",
-  SP_TRAN_UNIT: "Fn_tbl_Fetch_TranUnit",
-  SP_BASE_UNIT: "Fn_tbl_Fetch_BaseUnit",
+  SP_ITEM_TYPE:      "fn_tbl_pur_itemtypemst_fetch",
+  SP_MAIN_GROUP:     "fn_tbl_fetch_maingroup",
+  SP_SUB_MAIN_GROUP: "fn_tbl_fetch_submaingroup",
+  SP_SUB_GROUP:      "fn_tbl_fetch_subgroup",
+  SP_TAX: "fn_tbl_fetch_texability",
+  SP_TRAN_UNIT: "fn_tbl_fetch_tranunit",
+  SP_BASE_UNIT: "fn_tbl_fetch_baseunit",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "Fn_tbl_Mnt_ItemMst_List",
+  SP_LIST: "fn_tbl_mnt_itemmst_list",
   LIST_DIVISION_ID: 15,
 
   SAVE_ENDPOINT: "/API/PurItemMst/Post_RB_PurItemMst_Save",
-  STORAGE_HEADER_META: "imItemHeaderMeta",
+  STORAGE_HEADER_META: "imitemheadermeta",
 };
 
 /** RB colnames for Sub Group levels (all lowercase — PG returns lowercase keys). */
