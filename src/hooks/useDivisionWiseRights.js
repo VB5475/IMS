@@ -118,7 +118,7 @@ export function useDivisionWiseRights() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow?.RBID) {
         throw new Error("No Division Wise Rights RB metadata returned.");
       }

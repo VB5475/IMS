@@ -272,6 +272,60 @@
   gap: 8px;
 }
 
+/* ── Env switcher — segmented pill showing both options ── */
+.ent-env-switcher {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-tint);
+}
+
+.ent-env-switcher__btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--border-dark);
+}
+
+.ent-env-switcher__btn:last-child {
+  border-right: none;
+}
+
+.ent-env-switcher__btn:hover:not(.ent-env-switcher__btn--active) {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* IMS_LIVE active */
+.ent-env-switcher__btn--active {
+  background: var(--primary-light, #e8f0fe);
+  color: var(--primary, #1a56db);
+  cursor: default;
+}
+
+/* IMS_PGLIVE active — amber */
+.ent-env-switcher__btn--pg.ent-env-switcher__btn--active {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* IMS_PGLIVE inactive hover */
+.ent-env-switcher__btn--pg:hover:not(.ent-env-switcher__btn--active) {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+/* Legacy single badge — kept for fallback but replaced by ent-env-switcher */
 .ent-topbar__env-badge {
   display: inline-flex;
   align-items: center;

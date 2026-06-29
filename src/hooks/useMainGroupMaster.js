@@ -9,38 +9,14 @@ import {
 } from "../api/constants";
 import { MGM_CONFIG } from "../pages/main-group-master/constants";
 
-function mapMasterRowToHeaderValues(master, params) {
-
-
-  return {
-    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
-    ItemTypeID: master.ItemTypeID != null ? Number(master.ItemTypeID) : 0,
-    MainGroupCode: master.MainGroupCode ?? "",
-    MainGroupName: master.MainGroupName ?? "",
-    MainGroupShortName: master.MainGroupShortName ?? "",
-    UsedCodeInCodeGeneration:
-      master.UsedCodeInCodeGeneration === true ||
-        master.UsedCodeInCodeGeneration === 1 ||
-        master.UsedCodeInCodeGeneration === "1"
-        ? 1
-        : 0,
-    MainGroupShortCode: master.MainGroupShortCode ?? "",
-    FixedAssetAccountID: master.FixedAssetAccountID != null ? Number(master.FixedAssetAccountID) : 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(master.YearID ?? params.yearId) || MGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(master.LoginID ?? params.loginId) || DEFAULT_LOGIN_ID,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode: master.FuncCode ?? MGM_CONFIG.RB_MASTER,
-  };
-}
-
 export function useMainGroupMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns, setHeaderColumns] = useState([]);
-  const [headerFetching, setHeaderFetching] = useState(false);
-  const [headerError, setHeaderError] = useState(null);
-  const [itemTypeOptions, setItemTypeOptions] = useState([]);
+  const [headerColumns,        setHeaderColumns]        = useState([]);
+  const [allColumns,           setAllColumns]           = useState([]);
+  const [headerFetching,       setHeaderFetching]       = useState(false);
+  const [headerError,          setHeaderError]          = useState(null);
+  const [itemTypeOptions,      setItemTypeOptions]      = useState([]);
   const [fixedAssetAccOptions, setFixedAssetAccOptions] = useState([]);
 
   const fetchHeaderMeta = useCallback(async () => {
@@ -49,37 +25,40 @@ export function useMainGroupMaster() {
     try {
       // Phase 1 — RB metadata → RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: MGM_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: MGM_CONFIG.RB_MASTER }]),
+        ObjType:   2,
+        ObjName:   MGM_CONFIG.SP_RB_META,
+        JSon:      JSON.stringify([{ prmRBCode: MGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg: "",
+        p_ErrMsg:  "",
       });
       const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Main Group Master RB metadata returned.");
       const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(MGM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
-      // Phase 2 — header column definitions
+      // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID:  DEFAULT_LOGIN_ID,
       });
       setHeaderColumns(colData || []);
+      setAllColumns(
+        (colData || []).map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
 
       // Phase 3 — Item Type + Fixed Asset A/C dropdowns in parallel
       const [itemTypeData, fixedAssetData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
-          ObjName: MGM_CONFIG.SP_ITEM_TYPE,
-          JSon: JSON.stringify([{}]),
+          ObjType:   2,
+          ObjName:   MGM_CONFIG.SP_ITEM_TYPE,
+          JSon:      JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Item Type fetch failed:", err); return null; }),
 
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
-          ObjName: MGM_CONFIG.SP_FIXED_ASSET_ACC,
-          JSon: JSON.stringify([{}]),
+          ObjType:   2,
+          ObjName:   MGM_CONFIG.SP_FIXED_ASSET_ACC,
+          JSon:      JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Fixed Asset A/C fetch failed:", err); return null; }),
       ]);
@@ -91,14 +70,14 @@ export function useMainGroupMaster() {
 
       setItemTypeOptions(
         (itemTypeData || []).map((r) => ({
-          value: r.itemtypeid ?? r.idnumber ?? r.id,
-          label: String(r.itemtypename ?? r.itemtypecode ?? r.name ?? ""),
+          value: r.idnumber ?? 0,
+          label: String(r.itemtypecode ?? r.itemtypename ?? ""),
         })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(
         (fixedAssetData || []).map((r) => ({
-          value: r.fixedassetaccountid ?? r.accountid ?? r.accid ?? r.idnumber ?? r.id,
-          label: String(r.fixedassetaccountname ?? r.accountname ?? r.acname ?? r.name ?? ""),
+          value: r.idnumber ?? 0,
+          label: String(r.acname ?? r.accountname ?? ""),
         })).filter((o) => o.value != null)
       );
     } catch (err) {
@@ -109,48 +88,54 @@ export function useMainGroupMaster() {
     }
   }, [get]);
 
+  // Returns master spread directly (PG returns lowercase keys matching RB colnames).
+  // System context fields are overlaid so the save SP always gets consistent values.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
-      Number(companyId) || DEFAULT_COMPANY_ID,
-      Number(yearId) || MGM_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId) || DEFAULT_LOGIN_ID,
-      Number(sessionId) || DEFAULT_SESSION_ID,
-      Number(idNumber) || 0,
+      Number(companyId)  || DEFAULT_COMPANY_ID,
+      Number(yearId)     || MGM_CONFIG.CONFIG_YEAR_ID,
+      Number(loginId)    || DEFAULT_LOGIN_ID,
+      Number(sessionId)  || DEFAULT_SESSION_ID,
+      Number(idNumber)   || 0,
     ].join(",");
 
     const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
       prmProcedure: MGM_CONFIG.SP_MASTER_FILL,
       prmParameters,
-      prmFuncCode: MGM_CONFIG.RB_MASTER,
+      prmFuncCode:  MGM_CONFIG.RB_MASTER,
     });
     const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master
-        ? mapMasterRowToHeaderValues(master, { companyId, yearId, loginId, sessionId, idNumber })
-        : null,
+      headerValues: master ? {
+        ...master,
+        yearid:    Number(master.yearid    ?? yearId)    || MGM_CONFIG.CONFIG_YEAR_ID,
+        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
+        funccode:  master.funccode ?? MGM_CONFIG.RB_MASTER,
+      } : null,
     };
   }, [get]);
 
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.itemtypeid != null && master.itemtypename) {
+    if (master.itemtypeid != null && (master.itemtypename ?? master.itemtypecode)) {
       setItemTypeOptions((prev) =>
-        prev.some((o) => o.value === String(master.itemtypeid))
+        prev.some((o) => Number(o.value) === Number(master.itemtypeid))
           ? prev
-          : [{ value: String(master.itemtypeid), label: master.itemtypename }, ...prev]
+          : [{ value: master.itemtypeid, label: master.itemtypename ?? master.itemtypecode }, ...prev]
       );
     }
-    if (master.fixedassetaccountid != null && master.fixedassetaccountname) {
+    if (master.fixedassetaccountid != null && (master.fixedassetaccountname ?? master.acname)) {
       setFixedAssetAccOptions((prev) =>
-        prev.some((o) => o.value === String(master.fixedassetaccountid))
+        prev.some((o) => Number(o.value) === Number(master.fixedassetaccountid))
           ? prev
-          : [{ value: String(master.fixedassetaccountid), label: master.fixedassetaccountname }, ...prev]
+          : [{ value: master.fixedassetaccountid, label: master.fixedassetaccountname ?? master.acname }, ...prev]
       );
     }
   }, []);
 
   return {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
+    headerColumns, allColumns, headerFetching, headerError, fetchHeaderMeta,
     itemTypeOptions, fixedAssetAccOptions,
     fetchEditRecord, seedOptionsFromMaster,
   };

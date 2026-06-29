@@ -6,10 +6,14 @@ export function resolveListRowId(row) {
   if (!row || typeof row !== "object") return null;
   const id =
     row.IDNumber ??
+    row.idnumber ??
     row.id ??
     row.UserID ??
+    row.userid ??
     row.GroupID ??
-    row.Itemcode;
+    row.groupid ??
+    row.Itemcode ??
+    row.itemcode;
   return id != null && id !== "" ? id : null;
 }
 
@@ -44,10 +48,13 @@ export function buildListColumnsFromApi({
 }) {
   const excludeSet = new Set(excludeKeys);
   const labelMap = new Map(
-    (fieldDefs || []).map((field) => [
-      field.ColName,
-      field.DisplayName?.trim() ? field.DisplayName : field.ColName,
-    ])
+    (fieldDefs || []).flatMap((field) => {
+      const colName    = field.ColName    ?? field.colname;
+      const displayName = (field.DisplayName ?? field.displayname)?.trim();
+      if (!colName) return [];
+      const label = displayName || colName;
+      return [[colName, label], [colName.toLowerCase(), label]];
+    })
   );
 
   const orderedKeys = extractListKeys(data, excludeSet);

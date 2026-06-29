@@ -7,120 +7,126 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
-import { fetchDropdownOptions, seedMasterDropdownOptions } from "../utils/gridUtils";
-import { getVisibleHeaderFields } from "../utils/masterFormUtils";
 import { DM_CONFIG } from "../pages/department-master/constants";
 
-const EMPTY_JSON = JSON.stringify([{}]);
+// DeptHeadID dropdown is keyed by lowercase colname in dropdownOptions
+const DEPT_HEAD_KEY = DM_CONFIG.DEPT_HEAD_COL.toLowerCase(); // "deptheadid"
 
-function mapDeptHeadUserOptions(table) {
-  return (table ?? [])
+function mapDeptHeadUserOptions(rows) {
+  return (rows ?? [])
     .map((row) => {
-      const value = row.UserID ?? row.DeptHeadID ?? row.IDNumber ?? row.Idnumber;
+      const value = row.idnumber ?? row.UserID ?? row.userid;
       if (value == null || value === "") return null;
-      const num = Number(value);
-      const valueStr = Number.isFinite(num) ? String(Math.round(num)) : String(value);
       return {
-        value: valueStr,
-        label: String(row.UserName ?? row.Name ?? row.DeptHeadName ?? row.UserID ?? valueStr),
+        value: String(Math.round(Number(value))),
+        label: String(row.username ?? row.UserName ?? row.name ?? value),
       };
     })
     .filter(Boolean);
 }
 
-async function fetchDeptHeadUserOptions(get) {
-  const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-    ObjType: 2,
-    ObjName: DM_CONFIG.SP_USER_FETCH,
-    JSon: EMPTY_JSON,
-    p_ErrCode: -1,
-    p_ErrMsg: "",
-  }).catch((err) => {
-    console.warn("[DM] Dept head user list fetch failed:", err);
-    return null;
-  });
-  return mapDeptHeadUserOptions(res?.Table ?? res?.Links);
-}
-
-function mapMasterRowToHeaderValues(master, fieldDefs, params) {
-  const header = {
-    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(master.YearID ?? params.yearId) || DM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(master.LoginID ?? params.loginId) || DEFAULT_LOGIN_ID,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode: master.FuncCode ?? DM_CONFIG.RB_MASTER,
+/**
+ * Normalize a GET_DETAIL_COL_DATA column from PG (lowercase) to dual-case so that
+ * both MasterFormField (PascalCase) and dropdown lookups (lowercase)
+ * work from the same column object.
+ */
+function normalizeColumn(col) {
+  const colname               = col.colname               ?? col.ColName               ?? "";
+  const colseqno              = col.colseqno              ?? col.ColSeqNo              ?? 999;
+  const isvisible             = col.isvisible             ?? col.IsVisible             ?? false;
+  const colctrltype           = col.colctrltype           ?? col.ColCtrlType           ?? 0;
+  const updatekeycolname      = col.updatekeycolname      ?? col.UpdateKeyColName      ?? "";
+  const displayname           = col.displayname           ?? col.DisplayName           ?? colname;
+  const iseditallow           = col.iseditallow           ?? col.IsEditAllow           ?? false;
+  const islockoneditmodeallow = col.islockoneditmodeallow ?? col.IsLockOnEditModeAllow ?? false;
+  const objdetid              = col.objdetid              ?? col.ObjDetID              ?? null;
+  const ismandatory           = col.ismandatory           ?? col.IsMandatory           ?? false;
+  const coldatatype           = col.coldatatype           ?? col.ColDataType           ?? null;
+  const ctrlvaluecol          = col.ctrlvaluecol          ?? col.CtrlValueCol          ?? colname;
+  const ctrldisplaycol        = col.ctrldisplaycol        ?? col.CtrlDisplayCol        ?? colname;
+  return {
+    ...col,
+    colname, colseqno, isvisible, colctrltype, updatekeycolname,
+    displayname, iseditallow, islockoneditmodeallow, objdetid,
+    ismandatory, coldatatype, ctrlvaluecol, ctrldisplaycol,
+    ColName:               colname,
+    ColSeqNo:              colseqno,
+    IsVisible:             isvisible,
+    ColCtrlType:           colctrltype,
+    UpdateKeyColName:      updatekeycolname,
+    DisplayName:           displayname,
+    IsEditAllow:           iseditallow,
+    IsLockOnEditModeAllow: islockoneditmodeallow,
+    ObjDetID:              objdetid,
+    IsMandatory:           ismandatory,
+    ColDataType:           coldatatype,
   };
-
-  getVisibleHeaderFields(fieldDefs).forEach((field) => {
-    const key = field.ColName;
-    if (!key || master[key] === undefined) return;
-    header[key] = master[key];
-  });
-
-  return header;
 }
 
 /** fn_tbl_RB_DepartmentMst — @prmCompanyID, @prmYearID, @prmLoginID, @prmSessionID, @prmMasterID */
 function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || DM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || DEFAULT_LOGIN_ID,
-    Number(sessionId) || DEFAULT_SESSION_ID,
-    Number(masterId) || 0,
+    Number(companyId)  || DEFAULT_COMPANY_ID,
+    Number(yearId)     || DM_CONFIG.CONFIG_YEAR_ID,
+    Number(loginId)    || DEFAULT_LOGIN_ID,
+    Number(sessionId)  || DEFAULT_SESSION_ID,
+    Number(masterId)   || 0,
   ].join(",");
 }
 
 export function useDepartmentMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns, setHeaderColumns] = useState([]);
+  const [headerColumns,   setHeaderColumns]   = useState([]);
+  const [allColumns,      setAllColumns]      = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});
-  const [headerFetching, setHeaderFetching] = useState(false);
-  const [headerError, setHeaderError] = useState(null);
-  const [rbId, setRbId] = useState(null);
+  const [headerFetching,  setHeaderFetching]  = useState(false);
+  const [headerError,     setHeaderError]     = useState(null);
 
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
     setHeaderError(null);
     try {
+      // Phase 1 — RB metadata → RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: DM_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: DM_CONFIG.RB_MASTER }]),
+        ObjType:   2,
+        ObjName:   DM_CONFIG.SP_RB_META,
+        JSon:      JSON.stringify([{ prmrbcode: DM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg: "",
+        p_ErrMsg:  "",
       });
-      const tableRow = metaData?.Table?.[0];
-      if (!tableRow?.RBID) throw new Error("No Department Master RB metadata returned.");
+      const tableRow = metaData?.[0];
+      // PG returns lowercase keys
+      const rbidVal = tableRow?.rbid ?? tableRow?.RBID;
+      if (!rbidVal) throw new Error("No Department Master RB metadata returned.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = {
+        RBID:         rbidVal,
+        SaveProcName: tableRow.saveprocname ?? tableRow.SaveProcName,
+      };
       localStorage.setItem(DM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
-      setRbId(hdrMeta.RBID);
 
+      // Phase 2 — column definitions (drives visible fields, defaults, save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      const links = colData?.Links || [];
+      // PG returns a flat array; old SQL Server returned { Links: [...] }
+      const rawLinks = Array.isArray(colData) ? colData : (colData?.Links || []);
+      const links = rawLinks.map(normalizeColumn);
       setHeaderColumns(links);
+      setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
 
-      const headerCols = links.filter((c) => c.ColSeqNo < 100 && c.IsVisible);
-      const otherDropdownCols = headerCols.filter(
-        (c) => c.ColName !== DM_CONFIG.DEPT_HEAD_COL
-      );
-      const [dropdownOpts, deptHeadOptions] = await Promise.all([
-        fetchDropdownOptions(get, otherDropdownCols, hdrMeta.RBID, {
-          funcCode: DM_CONFIG.RB_MASTER,
-          divisionID: DM_CONFIG.LIST_DIVISION_ID,
-        }),
-        fetchDeptHeadUserOptions(get),
-      ]);
-      setDropdownOptions({
-        ...dropdownOpts,
-        [DM_CONFIG.DEPT_HEAD_COL]: deptHeadOptions,
-      });
+      // Phase 3 — manual SP call for DeptHead user list
+      const userRes = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType:   2,
+        ObjName:   DM_CONFIG.SP_USER_FETCH,
+        JSon:      JSON.stringify([{}]),
+        p_ErrCode: -1,
+        p_ErrMsg:  "",
+      }).catch(() => []);
+      const userRows = Array.isArray(userRes) ? userRes : (userRes?.Table ?? userRes?.Links ?? []);
+      setDropdownOptions({ [DEPT_HEAD_KEY]: mapDeptHeadUserOptions(userRows) });
     } catch (err) {
       console.error("[DM] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Department Master configuration.");
@@ -129,84 +135,58 @@ export function useDepartmentMaster() {
     }
   }, [get]);
 
-  const refreshDropdownOptions = useCallback(
-    async (parentColName) => {
-      if (!rbId) return;
-      const childNames = (headerColumns ?? [])
-        .filter((c) => String(c.UpdateKeyColName ?? "").trim() === parentColName)
-        .map((c) => c.ColName)
-        .filter(Boolean);
-      if (!childNames.length) return;
+  const refreshDropdownOptions = useCallback(async () => {
+    // No cascaded dropdowns in Department Master — no-op for now
+  }, []);
 
-      const colsToRefresh = headerColumns.filter((c) => childNames.includes(c.ColName));
-      const refreshed = await fetchDropdownOptions(get, colsToRefresh, rbId, {
-        funcCode: DM_CONFIG.RB_MASTER,
-        divisionID: DM_CONFIG.LIST_DIVISION_ID,
-      });
-      setDropdownOptions((prev) => ({ ...prev, ...refreshed }));
-    },
-    [get, headerColumns, rbId]
-  );
-
+  // PG returns lowercase column names directly — spread master as headerValues.
+  // Override system context fields so the save SP always receives consistent values.
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: DM_CONFIG.SP_MASTER_FILL,
+        prmProcedure:  DM_CONFIG.SP_MASTER_FILL,
         prmParameters: buildMasterFillParameterString({
-          companyId,
-          yearId,
-          loginId,
-          sessionId,
-          masterId: idNumber,
+          companyId, yearId, loginId, sessionId, masterId: idNumber,
         }),
         prmFuncCode: DM_CONFIG.RB_MASTER,
       });
-      const master = mstRes?.Links?.[0] ?? null;
+      const master = mstRes?.[0] ?? null;
       return {
         master,
-        headerValues: master
-          ? mapMasterRowToHeaderValues(master, headerColumns, {
-            companyId,
-            yearId,
-            loginId,
-            sessionId,
-            idNumber,
-          })
-          : null,
+        headerValues: master ? {
+          ...master,
+          yearid:    Number(master.yearid    ?? yearId)    || DM_CONFIG.CONFIG_YEAR_ID,
+          loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+          sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
+          funccode:  master.funccode ?? DM_CONFIG.RB_MASTER,
+        } : null,
       };
     },
-    [get, headerColumns]
+    [get]
   );
 
   const fetchListRows = useCallback(async (listParams) => {
-    const listRes = await get(ENDPOINTS.FN_FETCH_DATA, listParams);
-    return listRes?.Table ?? listRes?.Links ?? [];
+    const res = await get(ENDPOINTS.FN_FETCH_DATA, listParams);
+    return Array.isArray(res) ? res : (res?.Table ?? res?.Links ?? []);
   }, [get]);
 
-  const seedOptionsFromMaster = useCallback(
-    (master) => {
-      if (!master) return;
-      setDropdownOptions((prev) => {
-        let next = seedMasterDropdownOptions(headerColumns, master, prev);
-        const headId = master.DeptHeadID ?? master.UserID;
-        const headName = master.DeptHeadName ?? master.UserName ?? master.Name;
-        if (headId != null && headName != null && headName !== "") {
-          const opt = { value: String(headId), label: String(headName) };
-          if (!next[DM_CONFIG.DEPT_HEAD_COL]?.some((o) => o.value === opt.value)) {
-            next = {
-              ...next,
-              [DM_CONFIG.DEPT_HEAD_COL]: [opt, ...(next[DM_CONFIG.DEPT_HEAD_COL] || [])],
-            };
-          }
-        }
-        return next;
-      });
-    },
-    [headerColumns]
-  );
+  // Ensures the selected DeptHead appears in the dropdown even if they're
+  // an inactive user not returned by SP_USER_FETCH.
+  const seedOptionsFromMaster = useCallback((master) => {
+    if (!master) return;
+    setDropdownOptions((prev) => {
+      const headId   = master[DEPT_HEAD_KEY] ?? master.DeptHeadID;
+      const headName = master.deptHeadname   ?? master.deptHeadName ?? master.DeptHeadName;
+      if (headId == null || !headName) return prev;
+      const opt = { value: String(headId), label: String(headName) };
+      if (prev[DEPT_HEAD_KEY]?.some((o) => o.value === opt.value)) return prev;
+      return { ...prev, [DEPT_HEAD_KEY]: [opt, ...(prev[DEPT_HEAD_KEY] || [])] };
+    });
+  }, []);
 
   return {
     headerColumns,
+    allColumns,
     dropdownOptions,
     headerFetching,
     headerError,

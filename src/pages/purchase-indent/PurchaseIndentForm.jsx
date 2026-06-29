@@ -34,6 +34,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -542,13 +543,9 @@ export default function PurchaseIndentForm() {
     });
     mstRow.loginid = DEFAULT_LOGIN_ID;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => {
-        row[key] = getColDefault(colDataType);
-      });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "Indent", mst: mstRow, det: detRows }),

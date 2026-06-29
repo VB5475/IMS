@@ -79,7 +79,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: DPC_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
@@ -213,9 +213,10 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      // Qty + Rate drive Amount auto-calc (client-side fallback when SP_GRID_EVENT is null)
-      const evtSet = buildEventColumnSet(apiColumns, ["Qty", "Rate"]);
-      ["Qty", "Rate"].forEach((k) => evtSet.add(k));
+      // qty + rate drive amount auto-calc (client-side fallback when SP_GRID_EVENT is null)
+      // Keys are lowercase to match col.key from PG API (EntryGrid uses col.key for activeEventColumns)
+      const evtSet = buildEventColumnSet(apiColumns, ["qty", "rate"]);
+      ["qty", "rate"].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));

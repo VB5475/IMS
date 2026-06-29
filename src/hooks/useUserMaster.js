@@ -148,7 +148,7 @@ export function useUserMaster() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No User Master RB metadata returned.");
 
       const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
@@ -197,7 +197,7 @@ export function useUserMaster() {
         prmParameters,
         prmFuncCode: UM_CONFIG.RB_MASTER,
       });
-      const master = mstRes?.Links?.[0] ?? null;
+      const master = mstRes?.[0] ?? null;
       return {
         master,
         headerValues: master

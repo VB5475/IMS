@@ -38,6 +38,7 @@ export default function ItemMasterPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
+    allColumns,
     headerFetching,
     headerError,
     itemTypeOptions,
@@ -96,16 +97,12 @@ export default function ItemMasterPage() {
   }, [fetchList]);
 
   const handleItemTypeChange = useCallback(
-    (itemTypeId) => {
-      fetchMainGroupOptions(itemTypeId);
-    },
+    (itemTypeId) => { fetchMainGroupOptions(itemTypeId); },
     [fetchMainGroupOptions]
   );
 
   const handleMainGroupChange = useCallback(
-    ({ itemTypeId, mainGroupId }) => {
-      fetchSubMainGroupOptions({ itemTypeId, mainGroupId });
-    },
+    ({ itemTypeId, mainGroupId }) => { fetchSubMainGroupOptions({ itemTypeId, mainGroupId }); },
     [fetchSubMainGroupOptions]
   );
 
@@ -147,14 +144,14 @@ export default function ItemMasterPage() {
         }
 
         seedOptionsFromMaster(result.master);
-        const { ItemTypeID, MainGroupID, SubMainGroupID } = result.headerValues;
+        const { itemtypeid, maingroupid, submaingroupid } = result.headerValues;
         await Promise.all([
-          fetchMainGroupOptions(ItemTypeID),
-          fetchSubMainGroupOptions({ itemTypeId: ItemTypeID, mainGroupId: MainGroupID }),
+          fetchMainGroupOptions(itemtypeid),
+          fetchSubMainGroupOptions({ itemTypeId: itemtypeid, mainGroupId: maingroupid }),
           fetchSubGroupLevelOptions({
-            itemTypeId: ItemTypeID,
-            mainGroupId: MainGroupID,
-            subMainGroupId: SubMainGroupID,
+            itemTypeId: itemtypeid,
+            mainGroupId: maingroupid,
+            subMainGroupId: submaingroupid,
           }),
         ]);
         setEditPrefill(result);
@@ -194,8 +191,8 @@ export default function ItemMasterPage() {
           <button
             type="button"
             className="im-list__edit-btn"
-            title={`Edit ${row.Itemcode ?? row.ItemName ?? ""}`}
-            aria-label={`Edit ${row.Itemcode ?? row.ItemName ?? ""}`}
+            title={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
+            aria-label={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -261,6 +258,7 @@ export default function ItemMasterPage() {
         onClose={handleCloseModal}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         itemTypeOptions={itemTypeOptions}

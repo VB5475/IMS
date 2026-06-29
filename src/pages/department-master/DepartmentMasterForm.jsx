@@ -1,130 +1,151 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Building2, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
   DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
+  getColDefault,
+  buildSaveRowFromColumns,
 } from "../../api/constants";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { validateApiColumns } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import {
-  buildMasterCascadeDropdownRefresh,
-  buildMasterCascadeResets,
-  buildMasterFormEmpty,
-  getCheckboxValue,
-  getMasterFieldDefaultValue,
   getMasterFieldLabel,
-  getToggleValue,
-  getVisibleHeaderFields,
   isMasterCheckboxField,
   isMasterFieldLocked,
-  isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
 } from "../../utils/masterFormUtils";
 import { DM_CONFIG } from "./constants";
 import "./DepartmentMasterPage.css";
 
-function buildSaveContext() {
-  return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: DM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: DM_CONFIG.RB_MASTER,
-  };
-}
-
 export default function DepartmentMasterForm({
   isOpen,
   mode,
+  recordId,
   onClose,
   onSaved,
   fieldDefs = [],
+  allColumns = [],
   defsLoading = false,
   defsError = null,
   dropdownOptions = {},
   onRefreshDropdowns,
-  editPrefill = null,
-  recordLoading = false,
-  recordLoadError = null,
+  fetchEditRecord,
+  seedOptionsFromMaster,
 }) {
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
-  const [isEditMode, setIsEditMode] = useState(true);
-  const [formValues, setFormValues] = useState(() =>
-    buildMasterFormEmpty(fieldDefs, buildSaveContext())
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
+  const [isEditMode,      setIsEditMode]      = useState(true);
+  const [formValues,      setFormValues]      = useState({});
+  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [recordLoadError, setRecordLoadError] = useState(null);
+  const [isSaving,        setIsSaving]        = useState(false);
+  const [saveError,       setSaveError]       = useState(null);
+  const [formErrors,      setFormErrors]      = useState([]);
+  const [discardAction,   setDiscardAction]   = useState(null);
 
-  const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
-  const cascadeResets = useMemo(() => buildMasterCascadeResets(fieldDefs), [fieldDefs]);
-  const cascadeDropdownRefresh = useMemo(
-    () => buildMasterCascadeDropdownRefresh(fieldDefs),
-    [fieldDefs]
-  );
+  // Build a blank row seeded from ALL RB columns (not just visible) + system context fields
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => {
+      row[key] = getColDefault(colDataType);
+    });
+    return {
+      ...row,
+      yearid:    DM_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  DM_CONFIG.RB_MASTER,
+    };
+  }, [allColumns]);
 
+  // Visible header fields sorted by colseqno — driven entirely by RB response
+  const visibleFields = useMemo(() =>
+    fieldDefs
+      .filter((f) => f.isvisible && Number(f.colseqno) < 100)
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno)),
+  [fieldDefs]);
+
+  // Cascade: parent colname → child colnames to reset on change
+  const cascadeResets = useMemo(() => {
+    const map = {};
+    fieldDefs.forEach((f) => {
+      const parent = String(f.updatekeycolname ?? "").trim();
+      if (!parent || !f.colname) return;
+      (map[parent] ??= []).push(f.colname);
+    });
+    return map;
+  }, [fieldDefs]);
+
+  // Cascade: parent colname → child colnames whose dropdowns need refreshing
+  const cascadeDropdownRefresh = useMemo(() => {
+    const map = {};
+    fieldDefs.forEach((f) => {
+      if (Number(f.colctrltype) !== 4) return;
+      const parent = String(f.updatekeycolname ?? "").trim();
+      if (!parent || !f.colname) return;
+      (map[parent] ??= []).push(f.colname);
+    });
+    return map;
+  }, [fieldDefs]);
+
+  // Reset form each time modal opens
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
-    const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
-    if (isAddMode) {
-      setFormValues(empty);
-    } else if (editPrefill?.headerValues) {
-      setFormValues({ ...empty, ...editPrefill.headerValues });
-    }
-  }, [isOpen, isAddMode, editPrefill, fieldDefs]);
+    setFormErrors([]);
+    setRecordLoadError(null);
+    setFormValues(buildEmptyFromColumns());
+  }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
+  // Load existing record when opening in edit mode
   useEffect(() => {
-    if (!isOpen || !fieldDefs.length) return;
+    if (!isOpen || isAddMode || !recordId) return;
+    setRecordLoading(true);
+    setRecordLoadError(null);
+    fetchEditRecord?.({
+      companyId: DEFAULT_COMPANY_ID,
+      yearId:    DM_CONFIG.CONFIG_YEAR_ID,
+      loginId:   DEFAULT_LOGIN_ID,
+      sessionId: DEFAULT_SESSION_ID,
+      idNumber:  recordId,
+    })
+      .then(({ master, headerValues }) => {
+        if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
+        seedOptionsFromMaster?.(master);
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
+      })
+      .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
+      .finally(() => setRecordLoading(false));
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster, buildEmptyFromColumns]);
+
+  const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      fieldDefs.forEach((f) => {
-        if (isMasterToggleField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-        if (isMasterCheckboxField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [isOpen, fieldDefs]);
-
-  const handleChange = useCallback(
-    (key, value) => {
-      setFormValues((prev) => {
-        const next = { ...prev, [key]: value };
-        const resetKeys = cascadeResets[key];
-        if (resetKeys?.length) {
-          resetKeys.forEach((resetKey) => {
-            const field = fieldDefs.find((f) => f.ColName === resetKey);
-            next[resetKey] = field ? getMasterFieldDefaultValue(field) : "";
-          });
-        }
-        return next;
-      });
-
-      if (cascadeDropdownRefresh[key]?.length) {
-        onRefreshDropdowns?.(key);
+      const next = { ...prev, [key]: value };
+      const resetKeys = cascadeResets[key];
+      if (resetKeys?.length) {
+        resetKeys.forEach((rk) => { next[rk] = 0; });
       }
-    },
-    [cascadeResets, cascadeDropdownRefresh, fieldDefs, onRefreshDropdowns]
-  );
+      return next;
+    });
+    if (cascadeDropdownRefresh[key]?.length) {
+      onRefreshDropdowns?.(key);
+    }
+  }, [cascadeResets, cascadeDropdownRefresh, onRefreshDropdowns]);
 
   function renderControl(field) {
-    const key = field.ColName;
+    const key = field.colname;
     return (
       <MasterFormField
         field={field}
@@ -140,29 +161,14 @@ export default function DepartmentMasterForm({
   }
 
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
-      skipMandatoryFor: new Set(
-        visibleFields
-          .filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f))
-          .map((f) => f.ColName)
-      ),
-    });
+    const errors = validateApiColumns(formValues, visibleFields);
+    if (errors.length > 0) { setFormErrors(errors); return; }
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
-
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
-      const saveRow = { ...formValues };
-      visibleFields.forEach((f) => {
-        if (isMasterToggleField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getToggleValue(saveRow[f.ColName]);
-        }
-        if (isMasterCheckboxField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getCheckboxValue(saveRow[f.ColName]);
-        }
-      });
-
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
       const payload = withSaveContextFields(
         {
           prmStrMstJSON: JSON.stringify([saveRow]),
@@ -170,9 +176,13 @@ export default function DepartmentMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-
-      await post(DM_CONFIG.SAVE_ENDPOINT, payload);
-      alert("Department saved successfully!");
+      console.log("prmStrMstJSON Payload",saveRow);
+      console.log("prmStrDetJSON Payload",{});
+      console.log("Department Payload",payload);
+      const result = await post(DM_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message || "Department saved successfully.");
       onSaved?.();
     } catch (err) {
       console.error("[DM Save] Failed:", err);
@@ -180,55 +190,46 @@ export default function DepartmentMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, onSaved, post]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, post, notify]);
+
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose();
+    } else {
+      if (isAddMode) { onClose(); return; }
+      setIsEditMode(false);
+      setSaveError(null);
+    }
+  }, [discardAction, isAddMode, onClose]);
 
   const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (isEditMode && !window.confirm("Discard changes?")) return;
-      onClose();
-    });
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
   }, [isEditMode, onClose]);
 
   const handleCancelEdit = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
-      if (isAddMode) {
-        onClose();
-        return;
-      }
-      setIsEditMode(false);
-      setSaveError(null);
-    });
-  }, [isAddMode, onClose]);
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
       return (
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--edit"
-          onClick={() => setIsEditMode(true)}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--edit"
+                onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
     }
     return (
       <div className="master-modal-footer-actions">
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--cancel"
-          onClick={handleCancelEdit}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+                onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--save"
-          onClick={handleSave}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--save"
+                onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -236,8 +237,8 @@ export default function DepartmentMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading = defsLoading || recordLoading;
-  const combinedErr = defsError || recordLoadError;
+  const isLoading   = defsLoading || recordLoading;
+  const combinedErr = defsError   || recordLoadError;
 
   return (
     <Modal
@@ -250,6 +251,12 @@ export default function DepartmentMasterForm({
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -258,35 +265,30 @@ export default function DepartmentMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="dm-form-scroll">
             <div className="dm-form">
               {visibleFields.map((field) => (
-              <div
-                key={field.ColName}
-                className={[
-                  "dm-form-row",
-                  isMasterToggleField(field) ? "dm-form-row--toggle" : "",
-                  isMasterCheckboxField(field) ? "dm-form-row--checkbox" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                <span
-                  className={`dm-form-label${
-                    isMasterFieldRequired(field) ? " dm-form-label--required" : ""
-                  }`}
-                >
-                  {getMasterFieldLabel(field)}
-                </span>
                 <div
-                  className={`dm-form-control${
-                    isMasterToggleField(field) ? " dm-form-control--toggle-wrap" : ""
-                  }${isMasterCheckboxField(field) ? " dm-form-control--checkbox" : ""}`}
+                  key={field.colname}
+                  className={[
+                    "dm-form-row",
+                    isMasterToggleField(field)   ? "dm-form-row--toggle"   : "",
+                    isMasterCheckboxField(field) ? "dm-form-row--checkbox" : "",
+                  ].filter(Boolean).join(" ")}
                 >
-                  {renderControl(field)}
+                  <span className={`dm-form-label${field.ismandatory ? " dm-form-label--required" : ""}`}>
+                    {getMasterFieldLabel(field)}
+                  </span>
+                  <div className={[
+                    "dm-form-control",
+                    isMasterToggleField(field)   ? "dm-form-control--toggle-wrap" : "",
+                    isMasterCheckboxField(field) ? "dm-form-control--checkbox"    : "",
+                  ].filter(Boolean).join(" ")}>
+                    {renderControl(field)}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
           </div>
 

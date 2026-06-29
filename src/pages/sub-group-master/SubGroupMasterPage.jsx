@@ -82,7 +82,7 @@ export default function SubGroupMasterPage() {
 
   const {
     fetchHeaderMeta,
-    headerColumns: fieldDefs, headerFetching, headerError,
+    headerColumns: fieldDefs, allColumns, headerFetching, headerError,
     fetchEditRecord,
   } = useSubGroupMaster();
 
@@ -190,6 +190,7 @@ export default function SubGroupMasterPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         fetchEditRecord={fetchEditRecord}

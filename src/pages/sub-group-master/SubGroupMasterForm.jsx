@@ -6,6 +6,7 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
+  getColDefault, buildSaveRowFromColumns,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -13,10 +14,10 @@ import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { SGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
-// Fields locked during edit mode (per MRD lock-on-edit spec)
+// Fields locked during edit mode (RB colnames — all lowercase)
 const LOCK_ON_EDIT = new Set(["subgroupcode", "subgroupname"]);
 
-// Fields that render as checkbox despite API returning ColCtrlType 1 (textbox)
+// Fields that render as checkbox despite colctrltype=1 (API returns numeric 0/1)
 const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration"]);
 
 // Corrected display labels
@@ -27,31 +28,15 @@ const DISPLAY_OVERRIDES = {
 };
 function getLabel(field) { return DISPLAY_OVERRIDES[field.colname] || field.displayname; }
 
-function buildEmpty() {
-  return {
-    idnumber:                     0,
-    subgroupcode:                 "",
-    subgroupname:                 "",
-    subgroupshortname:            "",
-    subgroupshortcode:            "",
-    usedinautoitemcodegeneration: 0,
-    companyid:                    DEFAULT_COMPANY_ID,
-    yearid:                       SGM_CONFIG.CONFIG_YEAR_ID,
-    loginid:                      DEFAULT_LOGIN_ID,
-    sessionid:                    DEFAULT_SESSION_ID,
-    funccode:                     SGM_CONFIG.RB_MASTER,
-  };
-}
-
 export default function SubGroupMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
-  fieldDefs = [], defsLoading = false, defsError = null,
+  fieldDefs = [], allColumns = [], defsLoading = false, defsError = null,
   fetchEditRecord,
 }) {
   const isAddMode = mode === "add";
 
   const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState(buildEmpty());
+  const [formValues,      setFormValues]      = useState({});
   const [recordLoading,   setRecordLoading]   = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
@@ -60,14 +45,30 @@ export default function SubGroupMasterForm({
   const [formErrors,    setFormErrors]    = useState([]);
   const [discardAction, setDiscardAction] = useState(null);
 
+  // Build a blank row seeded from RB column defaults + context fields
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => {
+      row[key] = getColDefault(colDataType);
+    });
+    return {
+      ...row,
+      yearid:    SGM_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  SGM_CONFIG.RB_MASTER,
+    };
+  }, [allColumns]);
+
   // Reset form each time modal opens
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
     setRecordLoadError(null);
-    setFormValues(buildEmpty());
-  }, [isOpen, isAddMode]);
+    setFormErrors([]);
+    setFormValues(buildEmptyFromColumns());
+  }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
   // Load existing record when opening in edit mode
   useEffect(() => {
@@ -83,13 +84,13 @@ export default function SubGroupMasterForm({
     })
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
-        setFormValues({ ...buildEmpty(), ...headerValues });
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
       })
       .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
       .finally(() => setRecordLoading(false));
-  }, [isOpen, isAddMode, recordId, fetchEditRecord]);
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, buildEmptyFromColumns]);
 
-  // Visible fields sorted by ColSeqNo
+  // Visible fields sorted by colseqno from GetDetailColData
   const visibleFields = useMemo(() =>
     fieldDefs
       .filter((f) => f.isvisible && f.colseqno < 100)
@@ -110,7 +111,7 @@ export default function SubGroupMasterForm({
     const key    = field.colname;
     const locked = isLocked(field);
 
-    // Checkbox override
+    // Checkbox override — numeric 0/1 stored but rendered as checkbox
     if (CHECKBOX_OVERRIDES.has(key)) {
       return (
         <div className="sgm-form-control--checkbox">
@@ -128,12 +129,12 @@ export default function SubGroupMasterForm({
       );
     }
 
-    // ColCtrlType 1 — TextBox (default; no dropdowns in Sub Group Master)
+    // colctrltype 1 — TextBox (no dropdowns in Sub Group Master)
     return (
       <input
         className="sgm-form-input"
         type="text"
-        value={formValues[key] || ""}
+        value={formValues[key] ?? ""}
         onChange={(e) => handleChange(key, e.target.value)}
         placeholder={`Enter ${getLabel(field)}...`}
         readOnly={locked}
@@ -142,23 +143,18 @@ export default function SubGroupMasterForm({
     );
   }
 
-  // Validation driven by RB field metadata via shared columnValidation utility
+  // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
     const errors = validateApiColumns(formValues, visibleFields);
-    if (errors.length > 0) {
-      setFormErrors(errors);
-      return;
-    }
+    if (errors.length > 0) { setFormErrors(errors); return; }
 
     setSaveError(null);
     setIsSaving(true);
     try {
-      const mstRow = Object.fromEntries(
-        Object.entries(formValues).map(([k, v]) => [k.toLowerCase(), v])
-      );
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
       const payload = withSaveContextFields(
         {
-          prmStrMstJSON: JSON.stringify([mstRow]),
+          prmStrMstJSON: JSON.stringify([saveRow]),
           prmStrDetJSON: JSON.stringify([]),
         },
         { divisionId: 0, isEdit: !isAddMode }
@@ -180,7 +176,7 @@ export default function SubGroupMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, onSaved]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;

@@ -39,7 +39,7 @@ export default function MainGroupMasterPage() {
   // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
   const {
     fetchHeaderMeta,
-    headerColumns: fieldDefs, headerFetching, headerError,
+    headerColumns: fieldDefs, allColumns, headerFetching, headerError,
     itemTypeOptions, fixedAssetAccOptions,
     fetchEditRecord, seedOptionsFromMaster,
   } = useMainGroupMaster();
@@ -108,8 +108,8 @@ export default function MainGroupMasterPage() {
           <button
             type="button"
             className="mgm-list__edit-btn"
-            title={`Edit ${row.MainGroupCode ?? row.MainGroupName ?? ""}`}
-            aria-label={`Edit ${row.MainGroupCode ?? row.MainGroupName ?? ""}`}
+            title={`Edit ${row.maingroupcode ?? row.maingroupname ?? ""}`}
+            aria-label={`Edit ${row.maingroupcode ?? row.maingroupname ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -173,6 +173,7 @@ export default function MainGroupMasterPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         itemTypeOptions={itemTypeOptions}

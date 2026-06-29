@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Building2, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDepartmentMaster } from "../../hooks/useDepartmentMaster";
 import { formatTranDate } from "../../utils/dateFormat";
@@ -23,14 +19,14 @@ function buildListParams() {
     ObjName: DM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: DM_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: today,
-        prmToDate: today,
+        prmcompanyid:  DEFAULT_COMPANY_ID,
+        prmdivisionid: DM_CONFIG.LIST_DIVISION_ID,
+        prmfromdate:   today,
+        prmtodate:     today,
       },
     ]),
     p_ErrCode: -1,
-    p_ErrMsg: "",
+    p_ErrMsg:  "",
   };
 }
 
@@ -38,6 +34,7 @@ export default function DepartmentMasterPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
+    allColumns,
     dropdownOptions,
     headerFetching,
     headerError,
@@ -47,27 +44,23 @@ export default function DepartmentMasterPage() {
     seedOptionsFromMaster,
   } = useDepartmentMaster();
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data,     setData]     = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(8);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("add");
-  const [editPrefill, setEditPrefill] = useState(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editLoadError, setEditLoadError] = useState(null);
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [modalMode,    setModalMode]    = useState("add");
+  const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title: "Department Master",
+    title:    "Department Master",
     subtitle: "Browse departments or create a new department record.",
     showBack: true,
-    backTo: "/",
+    backTo:   "/",
   });
 
-  useEffect(() => {
-    fetchHeaderMeta();
-  }, [fetchHeaderMeta]);
+  useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -83,73 +76,40 @@ export default function DepartmentMasterPage() {
     }
   }, [fetchListRows]);
 
-  useEffect(() => {
-    fetchList();
-  }, [fetchList]);
+  useEffect(() => { fetchList(); }, [fetchList]);
 
   const handleAddNew = useCallback(() => {
     setModalMode("add");
-    setEditPrefill(null);
-    setEditLoadError(null);
+    setEditRecordId(null);
     setModalOpen(true);
   }, []);
 
-  const handleEdit = useCallback(
-    async (row) => {
-      const idNumber = resolveListRowId(row);
-      setModalMode("edit");
-      setEditPrefill(null);
-      setEditLoadError(null);
-      setModalOpen(true);
-      setEditLoading(true);
-      console.log("see idNumber:", idNumber)
-      console.log("see row:", row)
-      try {
-        const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: DM_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
-          sessionId: DEFAULT_SESSION_ID,
-          idNumber,
-        });
-        if (!result.master || !result.headerValues) {
-          setEditLoadError("Record not found.");
-          return;
-        }
-        seedOptionsFromMaster(result.master);
-        setEditPrefill(result);
-      } catch (err) {
-        setEditLoadError(err?.message || "Failed to load record.");
-      } finally {
-        setEditLoading(false);
-      }
-    },
-    [fetchEditRecord, seedOptionsFromMaster]
-  );
-
-  const handleCloseModal = useCallback(() => {
-    setModalOpen(false);
-    setEditPrefill(null);
-    setEditLoadError(null);
+  const handleEdit = useCallback((idNumber) => {
+    setModalMode("edit");
+    setEditRecordId(idNumber);
+    setModalOpen(true);
   }, []);
 
   const handleSaved = useCallback(() => {
-    handleCloseModal();
+    setModalOpen(false);
     fetchList();
-  }, [fetchList, handleCloseModal]);
+  }, [fetchList]);
 
   const columns = useMemo(
     () =>
       buildListColumnsFromApi({
         data,
         fieldDefs,
-        onEdit: handleEdit,
+        onEdit: (row) => {
+          const id = resolveListRowId(row);
+          if (id != null) handleEdit(id);
+        },
         renderEditCell: (row, onEdit) => (
           <button
             type="button"
             className="dm-list__edit-btn"
-            title={`Edit ${row.DeptName ?? row.DeptCode ?? ""}`}
-            aria-label={`Edit ${row.DeptName ?? row.DeptCode ?? ""}`}
+            title={`Edit ${row.deptname ?? row.DeptName ?? row.deptcode ?? ""}`}
+            aria-label={`Edit ${row.deptname ?? row.DeptName ?? row.deptcode ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -185,9 +145,7 @@ export default function DepartmentMasterPage() {
               aria-label="Rows per page"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
+                <option key={n} value={n}>{n}</option>
               ))}
             </select>
           </div>
@@ -212,16 +170,17 @@ export default function DepartmentMasterPage() {
       <DepartmentMasterForm
         isOpen={modalOpen}
         mode={modalMode}
-        onClose={handleCloseModal}
+        recordId={editRecordId}
+        onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         dropdownOptions={dropdownOptions}
         onRefreshDropdowns={refreshDropdownOptions}
-        editPrefill={editPrefill}
-        recordLoading={editLoading}
-        recordLoadError={editLoadError}
+        fetchEditRecord={fetchEditRecord}
+        seedOptionsFromMaster={seedOptionsFromMaster}
       />
     </div>
   );

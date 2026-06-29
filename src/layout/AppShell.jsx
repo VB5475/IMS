@@ -91,7 +91,6 @@ export default function AppShell({ children }) {
   const title = header.title ?? getDefaultRouteTitle(location.pathname);
   const subtitle = header.subtitle ?? "FY 2025-26 · 01 Jun 2026";
   const profileInitial = (userName || userId || "U").charAt(0).toUpperCase();
-  const nextProject = BASE_PROJECT_OPTIONS.find((p) => p !== PROD_BASE_PROJECT);
 
   return (
     <div className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""}`}>
@@ -172,14 +171,23 @@ export default function AppShell({ children }) {
             </div>
           </div>
           <div className="ent-topbar__actions">
-            <button
-              type="button"
-              className={`ent-topbar__env-badge ent-topbar__env-badge--btn${PROD_BASE_PROJECT === "IMS_PGLIVE" ? " ent-topbar__env-badge--pg" : ""}`}
-              title={`Switch to ${nextProject}`}
-              onClick={() => switchBaseProject(nextProject)}
-            >
-              {PROD_BASE_PROJECT}
-            </button>
+            <div className="ent-env-switcher" role="group" aria-label="API environment">
+              {BASE_PROJECT_OPTIONS.map((opt) => {
+                const isActive = opt === PROD_BASE_PROJECT;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`ent-env-switcher__btn${isActive ? " ent-env-switcher__btn--active" : ""}${opt === "IMS_PGLIVE" ? " ent-env-switcher__btn--pg" : ""}`}
+                    title={isActive ? `Active: ${opt}` : `Switch to ${opt}`}
+                    onClick={() => { if (!isActive) switchBaseProject(opt); }}
+                    aria-pressed={isActive}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
             <button type="button" className="ent-topbar__icon-btn" aria-label="Notifications">
               <Bell size={16} strokeWidth={1.5} />
               <span className="ent-topbar__badge">3</span>
