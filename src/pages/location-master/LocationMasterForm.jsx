@@ -200,6 +200,9 @@ export default function LocationMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[LM Save] Failed:", err);

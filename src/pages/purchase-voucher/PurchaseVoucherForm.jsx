@@ -592,7 +592,16 @@ export default function PurchaseVoucherForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingPV, setIsSavingPV] = useState(false);
 
-  const handleSave = useCallback(async () => {
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) navigate("/purchase-voucher");
+    else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible) && headerFieldNames.has(c.colname));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
@@ -636,19 +645,22 @@ export default function PurchaseVoucherForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
+      return true;
     } catch (err) {
       console.error("[PV Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSavingPV(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

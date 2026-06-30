@@ -11,6 +11,7 @@ import {
   Layers,
   Tag,
   MapPin,
+  Network,
   Package,
   TrendingDown,
   Package2,
@@ -51,6 +52,7 @@ const NAV_SECTIONS = [
       { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master", end: false },
       { to: "/admin/master/item/sub-group-master", icon: Package, label: "Sub Group Master", end: false },
       { to: "/admin/company/location-master", icon: MapPin, label: "Location Master", end: false },
+      { to: "/admin/company/division-master", icon: Network, label: "Division Master", end: false },
     ],
   },
   {

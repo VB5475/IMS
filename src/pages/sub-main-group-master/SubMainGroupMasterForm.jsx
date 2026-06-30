@@ -221,6 +221,9 @@ export default function SubMainGroupMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[SMGM Save] Failed:", err);

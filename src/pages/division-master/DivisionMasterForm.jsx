@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Building, Save, Pencil, AlertCircle } from "lucide-react";
+import { Network, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
@@ -24,32 +24,19 @@ import {
   isMasterToggleField,
 } from "../../utils/masterFormUtils";
 import {
-  CO_CONFIG,
-  CO_FORM_LAYOUT,
-  CO_LABEL_OVERRIDES,
+  DV_CONFIG,
+  DV_FORM_LAYOUT,
+  DV_CASCADE_RESETS,
+  DV_CASCADE_DROPDOWN_REFRESH,
+  MODAL_TITLE_ADD,
+  MODAL_TITLE_EDIT,
+  MODAL_SUBTITLE,
 } from "./constants";
-import "./CompanyPage.css";
+import "./DivisionMasterPage.css";
 
 // ---------------------------------------------------------------------------
-// Cascade maps — lowercase colnames (PG)
-// ---------------------------------------------------------------------------
-const CO_CASCADE_RESETS_LC = {
-  countryid:           ["stateid", "cityid"],
-  stateid:             ["cityid"],
-  respersoncountryid:  ["respersonstateid", "respersoncityid"],
-  respersonstateid:    ["respersoncityid"],
-};
-
-const CO_CASCADE_REFRESH_LC = {
-  countryid:           ["stateid"],
-  stateid:             ["cityid"],
-  respersoncountryid:  ["respersonstateid"],
-  respersonstateid:    ["respersoncityid"],
-};
-
-// ---------------------------------------------------------------------------
-// Layout helpers — CO_FORM_LAYOUT uses PascalCase names; PG columns are lowercase.
-// resolveField tries both exact and lowercase match.
+// Layout helpers — DV_FORM_LAYOUT names are lowercase PG colnames already,
+// but resolve case-insensitively for resilience (mirrors CompanyForm.jsx).
 // ---------------------------------------------------------------------------
 function buildFieldMap(fieldDefs) {
   const map = {};
@@ -57,9 +44,6 @@ function buildFieldMap(fieldDefs) {
     const key = f.colname ?? f.ColName ?? "";
     if (!key) return;
     map[key] = f;
-    // Currency alias: BasCurrencyID ↔ BaseCurrencyID (RB has both spellings)
-    if (key === "bascurrencyid")  map["basecurrencyid"] = f;
-    if (key === "basecurrencyid") map["bascurrencyid"]  = f;
   });
   return map;
 }
@@ -75,10 +59,13 @@ function resolveLayoutRows(rows, fieldMap) {
     .filter((row) => row.length > 0);
 }
 
-// ---------------------------------------------------------------------------
-// Form component
-// ---------------------------------------------------------------------------
-export default function CompanyForm({
+// Premises Name — shown in the screen design but absent from the MRD's Header
+// Fields table (no Field ID / control type / SP given). Per PM sign-off this
+// renders as a plain UI-only checkbox: local state, NOT part of formValues,
+// NOT sent in the save payload. Flagged for DBA follow-up if it needs to persist.
+const PREMISES_LOCAL_LABEL = "Premises Name";
+
+export default function DivisionMasterForm({
   isOpen,
   mode,
   recordId,
@@ -105,18 +92,15 @@ export default function CompanyForm({
   const [saveError,       setSaveError]       = useState(null);
   const [formErrors,      setFormErrors]      = useState([]);
   const [discardAction,   setDiscardAction]   = useState(null);
+  const [premisesChecked, setPremisesChecked] = useState(false);
 
-  // fieldMap keyed by lowercase colname (PG)
   const fieldMap = useMemo(() => buildFieldMap(fieldDefs), [fieldDefs]);
 
-  // Layout resolved with case-insensitive lookup (CO_FORM_LAYOUT uses PascalCase)
   const layout = useMemo(() => ({
-    mainRows:        resolveLayoutRows(CO_FORM_LAYOUT.left.main.rows,          fieldMap),
-    contactRows:     resolveLayoutRows(CO_FORM_LAYOUT.left.contact.rows,       fieldMap),
-    responsibleRows: resolveLayoutRows(CO_FORM_LAYOUT.right.responsible.rows,  fieldMap),
+    mainRows: resolveLayoutRows(DV_FORM_LAYOUT.main.rows, fieldMap),
+    bankRows: resolveLayoutRows(DV_FORM_LAYOUT.bank.rows, fieldMap),
   }), [fieldMap]);
 
-  // Ordered list of visible fields for validation (from layout definition)
   const visibleFields = useMemo(() => {
     const seen = new Set();
     const fields = [];
@@ -128,12 +112,10 @@ export default function CompanyForm({
       });
     };
     collect(layout.mainRows);
-    collect(layout.contactRows);
-    collect(layout.responsibleRows);
+    collect(layout.bankRows);
     return fields;
   }, [layout]);
 
-  // Build empty row seeded from ALL RB columns + context fields (all lowercase)
   const buildEmptyFromColumns = useCallback(() => {
     const row = {};
     allColumns.forEach(({ key, colDataType }) => {
@@ -141,31 +123,30 @@ export default function CompanyForm({
     });
     return {
       ...row,
-      yearid:    CO_CONFIG.CONFIG_YEAR_ID,
+      yearid:    DV_CONFIG.CONFIG_YEAR_ID,
       loginid:   DEFAULT_LOGIN_ID,
       sessionid: DEFAULT_SESSION_ID,
-      funccode:  CO_CONFIG.RB_MASTER,
+      funccode:  DV_CONFIG.RB_MASTER,
     };
   }, [allColumns]);
 
-  // Reset on modal open
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
     setFormErrors([]);
     setRecordLoadError(null);
+    setPremisesChecked(false);
     setFormValues(buildEmptyFromColumns());
   }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
-  // Load edit record when modal opens in edit mode
   useEffect(() => {
     if (!isOpen || isAddMode || !recordId) return;
     setRecordLoading(true);
     setRecordLoadError(null);
     fetchEditRecord?.({
       companyId: DEFAULT_COMPANY_ID,
-      yearId:    CO_CONFIG.CONFIG_YEAR_ID,
+      yearId:    DV_CONFIG.CONFIG_YEAR_ID,
       loginId:   DEFAULT_LOGIN_ID,
       sessionId: DEFAULT_SESSION_ID,
       idNumber:  recordId,
@@ -182,22 +163,19 @@ export default function CompanyForm({
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
-      // Reset dependent dropdowns to default
-      const resetKeys = CO_CASCADE_RESETS_LC[key];
+      const resetKeys = DV_CASCADE_RESETS[key];
       if (resetKeys?.length) {
         resetKeys.forEach((rk) => { next[rk] = 0; });
       }
       return next;
     });
-    // Refresh child dropdown options — pass only the changed key/value since
-    // each child binding's parentCol IS the changed field itself.
-    if (CO_CASCADE_REFRESH_LC[key]?.length) {
+    if (DV_CASCADE_DROPDOWN_REFRESH[key]?.length) {
       onRefreshDropdowns?.(key, { [key]: value });
     }
   }, [onRefreshDropdowns]);
 
   function renderControl(field) {
-    const key = field.colname; // lowercase (PG)
+    const key = field.colname;
     return (
       <MasterFormField
         field={field}
@@ -205,24 +183,23 @@ export default function CompanyForm({
         onChange={(val) => handleChange(key, val)}
         locked={isMasterFieldLocked(field, { isAddMode, isEditMode })}
         options={dropdownOptions[key] || []}
-        labelOverrides={CO_LABEL_OVERRIDES}
-        inputClassName="co-form-input"
-        valueClassName="co-form-value"
-        toggleClassName="co-form-toggle"
+        inputClassName="dv-form-input"
+        valueClassName="dv-form-value"
+        toggleClassName="dv-form-toggle"
       />
     );
   }
 
   function renderFieldCell(field) {
     return (
-      <div key={field.colname} className="co-form-field">
-        <span className={`co-form-label${field.ismandatory ? " co-form-label--required" : ""}`}>
-          {getMasterFieldLabel(field, CO_LABEL_OVERRIDES)}
+      <div key={field.colname} className="dv-form-field">
+        <span className={`dv-form-label${field.ismandatory ? " dv-form-label--required" : ""}`}>
+          {getMasterFieldLabel(field)}
         </span>
         <div className={[
-          "co-form-control",
-          isMasterToggleField(field)   ? "co-form-control--toggle-wrap" : "",
-          isMasterCheckboxField(field) ? "co-form-control--checkbox"    : "",
+          "dv-form-control",
+          isMasterToggleField(field)   ? "dv-form-control--toggle-wrap" : "",
+          isMasterCheckboxField(field) ? "dv-form-control--checkbox"    : "",
         ].filter(Boolean).join(" ")}>
           {renderControl(field)}
         </div>
@@ -232,10 +209,10 @@ export default function CompanyForm({
 
   function renderLayoutRow(rowFields, rowKey) {
     if (rowFields.length === 1) {
-      return <div key={rowKey} className="co-form-row">{renderFieldCell(rowFields[0])}</div>;
+      return <div key={rowKey} className="dv-form-row">{renderFieldCell(rowFields[0])}</div>;
     }
     return (
-      <div key={rowKey} className="co-form-row co-form-row--split">
+      <div key={rowKey} className="dv-form-row dv-form-row--split">
         {rowFields.map((field) => renderFieldCell(field))}
       </div>
     );
@@ -261,25 +238,22 @@ export default function CompanyForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-
-      console.log("prmStrMstJSON",saveRow);
-      console.log("prmStrDetJSON",{});
-      console.log("payload",payload);
-      const result = await post(CO_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await post(DV_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
-      notify.success(message || "Company saved successfully.");
+      notify.success(message || "Division saved successfully.");
       setFormValues(buildEmptyFromColumns());
       setFormErrors([]);
       setSaveError(null);
+      setPremisesChecked(false);
       onSaved?.();
     } catch (err) {
-      console.error("[CO Save] Failed:", err);
+      console.error("[DV Save] Failed:", err);
       setSaveError(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, post, notify]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, post, notify, buildEmptyFromColumns]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -331,12 +305,12 @@ export default function CompanyForm({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isAddMode ? "New Company" : "Edit Company"}
-      subtitle="Admin › Master › Company"
-      icon={<Building size={16} strokeWidth={2} />}
+      title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
+      subtitle={MODAL_SUBTITLE}
+      icon={<Network size={16} strokeWidth={2} />}
       size="xl"
       variant="enterprise"
-      dialogClassName="modal-dialog--company"
+      dialogClassName="modal-dialog--division"
       footer={footer}
     >
       <ConfirmDialog
@@ -354,33 +328,35 @@ export default function CompanyForm({
       ) : (
         <>
           <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
-          <div className="co-form-scroll">
-            <div className="co-form-layout">
-              <div className="co-form-layout__left">
-                <section className="co-form-section co-form-section--main">
-                  <div className="co-form-section__body">
-                    {renderPanelBody(layout.mainRows, "main")}
+          <div className="dv-form-scroll">
+            <div className="dv-form-layout">
+              <section className="dv-form-section dv-form-section--main">
+                <div className="dv-form-section__body">
+                  {renderPanelBody(layout.mainRows, "main")}
+                  <div className="dv-form-row">
+                    <div className="dv-form-field">
+                      <span className="dv-form-label">Premises</span>
+                      <div className="dv-form-control dv-form-control--checkbox">
+                        <label className="dv-form-premises-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={premisesChecked}
+                            onChange={(e) => setPremisesChecked(e.target.checked)}
+                            disabled={!isEditMode}
+                          />
+                          {PREMISES_LOCAL_LABEL}
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                </section>
-                <section className="co-form-section co-form-section--contact">
-                  <h3 className="co-form-section__title">
-                    {CO_FORM_LAYOUT.left.contact.title}
-                  </h3>
-                  <div className="co-form-section__body">
-                    {renderPanelBody(layout.contactRows, "contact")}
-                  </div>
-                </section>
-              </div>
-              <div className="co-form-layout__right">
-                <section className="co-form-section co-form-section--responsible">
-                  <h3 className="co-form-section__title">
-                    {CO_FORM_LAYOUT.right.responsible.title}
-                  </h3>
-                  <div className="co-form-section__body">
-                    {renderPanelBody(layout.responsibleRows, "responsible")}
-                  </div>
-                </section>
-              </div>
+                </div>
+              </section>
+              <section className="dv-form-section dv-form-section--bank">
+                <h3 className="dv-form-section__title">{DV_FORM_LAYOUT.bank.title}</h3>
+                <div className="dv-form-section__body">
+                  {renderPanelBody(layout.bankRows, "bank")}
+                </div>
+              </section>
             </div>
           </div>
           {saveError && (

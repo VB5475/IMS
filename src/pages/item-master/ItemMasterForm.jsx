@@ -205,12 +205,12 @@ export default function ItemMasterForm({
   }
 
   const handleGenerateCode = useCallback(() => {
-    alert("Generate Code will call the Item Master code-generation API once connected.");
-  }, []);
+    notify.success("Generate Code will be available once the code-generation API is connected.");
+  }, [notify]);
 
   const handleGenerateName = useCallback(() => {
-    alert("Generate Name will call the Item Master name-generation API once connected.");
-  }, []);
+    notify.success("Generate Name will be available once the name-generation API is connected.");
+  }, [notify]);
 
   const handleConversionExample = useCallback(() => {
     const conversion = String(formValues.unitconvrate || "").trim();
@@ -218,8 +218,8 @@ export default function ItemMasterForm({
       tranUnitOptions.find((o) => o.value === String(formValues.tranunitid))?.label || "Tran Unit";
     const baseUnit =
       baseUnitOptions.find((o) => o.value === String(formValues.baseunitid))?.label || "Base Unit";
-    if (!conversion) { alert("Enter a conversion value first."); return; }
-    alert(`Example: 1 ${tranUnit} = ${conversion} ${baseUnit}`);
+    if (!conversion) { notify.error("Enter a conversion value first."); return; }
+    notify.success(`Example: 1 ${tranUnit} = ${conversion} ${baseUnit}`);
   }, [formValues, tranUnitOptions, baseUnitOptions]);
 
   const handleSave = useCallback(async () => {
@@ -250,6 +250,9 @@ export default function ItemMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[IM Save] Failed:", err);

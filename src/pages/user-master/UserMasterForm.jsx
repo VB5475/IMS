@@ -210,6 +210,9 @@ export default function UserMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message || "User saved successfully.");
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[UM Save] Failed:", err);

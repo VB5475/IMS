@@ -30,6 +30,7 @@ import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from "../../api/
 import { getUserSession } from "../../session/userSession";
 import { TXN_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useNotification } from "../../context/NotificationContext";
 import "./TxnEntryPage.css";
 
 // Field order + control types; captions from GET_DETAIL_COL_DATA (DisplayName).
@@ -69,6 +70,7 @@ export default function TxnEntryPage() {
   const { id: routeId } = useParams();
   const genIDNumber = routeId ? 1 : 0;
   const { get } = useApi(API_BASE_URL_OLD);
+  const notify = useNotification();
   const gridRef = useRef(null);
 
   const [departmentOptions, setDepartmentOptions] = useState([]);
@@ -273,7 +275,7 @@ export default function TxnEntryPage() {
     async (panelValues) => {
       const divisionID = panelValues?.DivisionID ?? headerValuesRef.current?.DivisionID ?? 0;
       if (!divisionID || divisionID === "0" || divisionID === 0) {
-        alert("Please select a Division before ordering items.");
+        notify.error("Please select a Division before ordering items.");
         return;
       }
       setOrderModalOpen(true);
@@ -363,14 +365,14 @@ export default function TxnEntryPage() {
   const handleSave = useCallback(async () => {
     const selectedRows = gridRef.current?.getSelectedRows?.() ?? [];
     if (selectedRows.length === 0) {
-      alert("No rows selected. Please check at least one row to save.");
+      notify.error("No rows selected. Please check at least one row to save.");
       return;
     }
     try {
       const result = await saveTxn(headerValuesRef.current, selectedRows, genIDNumber);
-      if (result) alert("Transaction saved successfully!");
+      if (result) notify.success("Transaction saved successfully.");
     } catch (err) {
-      alert(saveError || err?.message || "Save failed.");
+      notify.error(saveError || err?.message || "Save failed.");
     }
   }, [saveTxn, genIDNumber, saveError]);
 

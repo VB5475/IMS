@@ -8,9 +8,8 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import CompanyForm from "./CompanyForm";
 import { CO_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./CompanyPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -47,7 +46,7 @@ export default function CompanyPage() {
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");
@@ -162,6 +161,7 @@ export default function CompanyPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No companies found."
+          searchable
           hideHeader
           fill
         />

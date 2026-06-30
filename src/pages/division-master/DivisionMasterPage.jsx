@@ -1,25 +1,35 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Shield, Plus, Pencil } from "lucide-react";
+import { Network, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import { DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { useUserGroup } from "../../hooks/useUserGroup";
+import { useDivisionMaster } from "../../hooks/useDivisionMaster";
+import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
-import UserGroupForm from "./UserGroupForm";
-import { UG_CONFIG } from "./constants";
+import DivisionMasterForm from "./DivisionMasterForm";
+import { DV_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import "./UserGroupPage.css";
+import "./DivisionMasterPage.css";
 
 function buildListParams() {
+  const today = formatTranDate(new Date(), { invalidValue: "" });
   return {
-    ObjType: UG_CONFIG.LIST_OBJ_TYPE,
-    ObjName: UG_CONFIG.SP_LIST,
-    JSon: JSON.stringify([{}]),
+    ObjType: DV_CONFIG.LIST_OBJ_TYPE,
+    ObjName: DV_CONFIG.SP_LIST,
+    JSon: JSON.stringify([
+      {
+        prmcompanyid:  DEFAULT_COMPANY_ID,
+        prmdivisionid: DV_CONFIG.LIST_DIVISION_ID,
+        prmfromdate:   today,
+        prmtodate:     today,
+      },
+    ]),
     p_ErrCode: -1,
-    p_ErrMsg: "",
+    p_ErrMsg:  "",
   };
 }
 
-export default function UserGroupPage() {
+export default function DivisionMasterPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -29,7 +39,9 @@ export default function UserGroupPage() {
     headerError,
     fetchEditRecord,
     fetchListRows,
-  } = useUserGroup();
+    refreshDropdownOptions,
+    seedOptionsFromMaster,
+  } = useDivisionMaster();
 
   const [data,     setData]     = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -41,10 +53,10 @@ export default function UserGroupPage() {
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title: "User Group",
-    subtitle: "Browse groups or create a new user access group.",
+    title:    "Division Master",
+    subtitle: "Browse divisions or create a new division record.",
     showBack: true,
-    backTo: "/",
+    backTo:   "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -56,8 +68,8 @@ export default function UserGroupPage() {
       const rows = await fetchListRows(buildListParams());
       setData(rows);
     } catch (err) {
-      console.error("[UG] List fetch failed:", err);
-      setError("Failed to load User Group list.");
+      console.error("[DV] List fetch failed:", err);
+      setError("Failed to load Division Master list.");
     } finally {
       setLoading(false);
     }
@@ -94,9 +106,9 @@ export default function UserGroupPage() {
         renderEditCell: (row, onEdit) => (
           <button
             type="button"
-            className="ug-list__edit-btn"
-            title={`Edit ${row.groupcode ?? row.groupname ?? ""}`}
-            aria-label={`Edit ${row.groupcode ?? row.groupname ?? ""}`}
+            className="dv-list__edit-btn"
+            title={`Edit ${row.divisionname ?? row.DivisionName ?? row.divisioncode ?? ""}`}
+            aria-label={`Edit ${row.divisionname ?? row.DivisionName ?? row.divisioncode ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -110,31 +122,29 @@ export default function UserGroupPage() {
   );
 
   return (
-    <div className="workspace-page ug-list-page">
-      <section className="ug-list-panel ug-list-panel--fill">
-        <header className="ug-list-panel__header">
-          <div className="ug-list-panel__title">
-            <Shield size={14} strokeWidth={2} />
-            <span>User Group</span>
+    <div className="workspace-page dv-list-page">
+      <section className="dv-list-panel dv-list-panel--fill">
+        <header className="dv-list-panel__header">
+          <div className="dv-list-panel__title">
+            <Network size={14} strokeWidth={2} />
+            <span>Division Master</span>
           </div>
-          <div className="ug-list-panel__toolbar">
-            <button type="button" className="ug-list-panel__add-btn" onClick={handleAddNew}>
+          <div className="dv-list-panel__toolbar">
+            <button type="button" className="dv-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
-            <label htmlFor="ug-list-page-size" className="ug-list-panel__pagesize-label">
+            <label htmlFor="dv-list-page-size" className="dv-list-panel__pagesize-label">
               Rows per page
             </label>
             <select
-              id="ug-list-page-size"
-              className="ng-select ug-list-panel__pagesize-select"
+              id="dv-list-page-size"
+              className="ng-select dv-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               aria-label="Rows per page"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
+                <option key={n} value={n}>{n}</option>
               ))}
             </select>
           </div>
@@ -146,18 +156,18 @@ export default function UserGroupPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading user groups…"
+          loaderText="Loading divisions…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No user groups found."
+          emptyMessage="No divisions found."
           searchable
           hideHeader
           fill
         />
       </section>
 
-      <UserGroupForm
+      <DivisionMasterForm
         isOpen={modalOpen}
         mode={modalMode}
         recordId={editRecordId}
@@ -168,7 +178,9 @@ export default function UserGroupPage() {
         defsLoading={headerFetching}
         defsError={headerError}
         dropdownOptions={dropdownOptions}
+        onRefreshDropdowns={refreshDropdownOptions}
         fetchEditRecord={fetchEditRecord}
+        seedOptionsFromMaster={seedOptionsFromMaster}
       />
     </div>
   );

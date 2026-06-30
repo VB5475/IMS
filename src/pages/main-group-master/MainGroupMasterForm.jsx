@@ -217,6 +217,9 @@ export default function MainGroupMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[MGM Save] Failed:", err);

@@ -204,6 +204,7 @@ export default function UserMasterPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No users found."
+          searchable
           hideHeader
           fill
         />

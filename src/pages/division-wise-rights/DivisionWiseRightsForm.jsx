@@ -21,6 +21,7 @@ import {
 } from "../../utils/masterFormUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { validateApiColumns, validateColumnValue } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import { UDR_CONFIG } from "./constants";
 
 function buildSaveContext() {
@@ -249,6 +250,7 @@ export default function DivisionWiseRightsForm({
   onUserChange,
 }) {
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
   const [headerValues, setHeaderValues] = useState(() =>
     buildMasterFormEmpty(fieldDefs, buildSaveContext())
@@ -353,7 +355,7 @@ export default function DivisionWiseRightsForm({
       );
 
       await post(UDR_CONFIG.SAVE_ENDPOINT, payload);
-      alert("Division wise rights saved successfully!");
+      notify.success("Division wise rights saved successfully.");
       await reloadGridsForUser(headerValues[userCol]);
     } catch (err) {
       console.error("[UDR Save] Failed:", err);

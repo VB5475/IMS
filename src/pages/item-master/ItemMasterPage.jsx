@@ -246,6 +246,7 @@ export default function ItemMasterPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No items found."
+          searchable
           hideHeader
           fill
         />

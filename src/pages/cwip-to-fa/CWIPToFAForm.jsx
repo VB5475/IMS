@@ -619,7 +619,16 @@ export default function CWIPToFAForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
-  const handleSave = useCallback(async () => {
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) navigate("/cwip-to-fa");
+    else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
@@ -662,6 +671,7 @@ export default function CWIPToFAForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[C2F Save] Failed:", err);
@@ -670,13 +680,14 @@ export default function CWIPToFAForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen,   setDiscardOpen]   = useState(false);
   const [clearRowsOpen, setClearRowsOpen] = useState(false);
