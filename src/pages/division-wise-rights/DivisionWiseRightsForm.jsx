@@ -9,6 +9,7 @@ import {
 } from "../../api/constants";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import {
   buildMasterFormEmpty,
   getCheckboxValue,
@@ -354,8 +355,13 @@ export default function DivisionWiseRightsForm({
         { divisionId: 0, isEdit: Number(headerValues[userCol]) > 0 }
       );
 
-      await post(UDR_CONFIG.SAVE_ENDPOINT, payload);
-      notify.success("Division wise rights saved successfully.");
+      const result = await post(UDR_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        setSaveError(message);
+        return;
+      }
+      notify.success(message || "Division wise rights saved successfully.");
       await reloadGridsForUser(headerValues[userCol]);
     } catch (err) {
       console.error("[UDR Save] Failed:", err);

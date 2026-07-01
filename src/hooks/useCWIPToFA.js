@@ -310,10 +310,9 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      // Build event column set — Qty and Rate drive Amount auto-calc
-      const evtSet = buildEventColumnSet(apiColumns, ["Qty", "Rate"]);
-      ["Qty", "Rate"].forEach((k) => evtSet.add(k));
-      setEventColumns(evtSet);
+      // Build event column set from RB metadata (iseventreq/iseventcol flags).
+      // No SP_GRID_EVENT configured for CWIP today, so this is empty until one is added.
+      setEventColumns(buildEventColumnSet(apiColumns));
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
       console.log("%c[C2F] Detail columns received:", "color:#6366f1;font-weight:600", apiColumns.length);

@@ -111,7 +111,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: OBJ_TYPE.FUNCTION,
     ObjName: PI_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
@@ -207,7 +207,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: PI_CONFIG.SP_RB_META,
-          JSon: JSON.stringify([{ prmRBCode: PI_CONFIG.RB_MASTER }]),
+          JSon: JSON.stringify([{ prmrbcode: PI_CONFIG.RB_MASTER }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
@@ -380,16 +380,16 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
+      // Fallback keys match the live rb_purinquirydet schema (lowercase) — verified
+      // via GetDetailColData; "expense"/"gstperc" don't exist as columns in this RB.
       setEventColumns(
         buildEventColumnSet(apiColumns, [
-          "ItemID",
-          "TranQty",
-          "BaseQty",
-          "BaseRate",
-          "TranRate",
-          "DiscPerc",
-          "Expense",
-          "GSTPerc",
+          "itemid",
+          "tranqty",
+          "baseqty",
+          "baserate",
+          "tranrate",
+          "discperc",
         ])
       );
       setAllColumns(

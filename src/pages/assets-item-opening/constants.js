@@ -7,7 +7,7 @@ export const PAGE_TITLE_NEW = "New Assets Item Opening";
 export const AOP_CONFIG = {
   // RB board codes
   RB_MASTER: "rb_astitemopemst",
-  RB_DETAIL: "rb_astitemopedет",
+  RB_DETAIL: "rb_astitemopedet",
 
   // Form identifiers
   FORM_TAG:  "rb_astitemopemst",
@@ -25,7 +25,7 @@ export const AOP_CONFIG = {
 
   // Edit flow
   SP_MASTER_FILL: "fn_tbl_rb_astitemopemst",
-  SP_DETAIL_FILL: "fn_tbl_rb_astitemopedет",
+  SP_DETAIL_FILL: "fn_tbl_rb_astitemopedet",
 
   // Save endpoint
   SAVE_ENDPOINT: "/API/AstItemOpeMst/Post_RB_AstItemOpeMst_Save",
@@ -43,10 +43,13 @@ export const AOP_CONFIG = {
 export const AOP_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 // Summary panel: sums from grid rows
-// ⚠️ DBA CONFIRM — verify ColName keys match RB_AstItemOpeDet API response
+// detKey verified against live RB_AstItemOpeDet API response (puramount/curramount).
+// ⚠️ DBA CONFIRM — RB_AstItemOpeMst has no matching master column for either total today
+// (PurchaseTotalAmt/CurrentTotalAmt are not real columns), so these totals display but
+// are not persisted on save until the master schema adds them.
 export const AOP_SUMMARY_FIELDS = [
-  { SummaryParameterID: "PurchaseTotalAmt", detKey: "PurchaseAmount", label: "Purchase Total Amount" },
-  { SummaryParameterID: "CurrentTotalAmt",  detKey: "CurrentAmount",  label: "Current Total Amount"  },
+  { SummaryParameterID: "PurchaseTotalAmt", detKey: "puramount", label: "Purchase Total Amount" },
+  { SummaryParameterID: "CurrentTotalAmt",  detKey: "curramount",  label: "Current Total Amount"  },
 ];
 
 // Cascade resets

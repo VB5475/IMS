@@ -499,18 +499,9 @@ export default function CWIPToFAForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  // ── Cell event — Qty / Rate → Amount  ─────────────────────────────────────
-  // If SP_GRID_EVENT is null (TBD), compute Amount client-side as Qty × Rate.
+  // ── Cell event — server-driven via SP_GRID_EVENT (none configured for CWIP today) ──
   const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
-    if (!C2F_CONFIG.SP_GRID_EVENT) {
-      // Client-side fallback: Amount = Qty × Rate
-      if (colKey === "Qty" || colKey === "Rate") {
-        const qty  = Number(rowData.Qty)  || 0;
-        const rate = Number(rowData.Rate) || 0;
-        itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
-      }
-      return;
-    }
+    if (!C2F_CONFIG.SP_GRID_EVENT) return;
     const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
     if (!result || !itemGridRef.current) return;
     const responseRow = result?.[0];

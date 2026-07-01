@@ -89,12 +89,14 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: OBJ_TYPE.FUNCTION,
     ObjName: GRN_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
   const tableRow = metaData?.[0];
-  if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
+  if (!tableRow || !tableRow.rbid) {
+    throw new Error(tableRow?.ErrMsg || `No RB metadata returned for ${rbCode}.`);
+  }
 
   const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
@@ -346,7 +348,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: GRN_CONFIG.SP_RB_META,
-          JSon: JSON.stringify([{ prmRBCode: GRN_CONFIG.RB_MASTER }]),
+          JSon: JSON.stringify([{ prmrbcode: GRN_CONFIG.RB_MASTER }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
@@ -428,18 +430,21 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
-      setEventColumns(
-        buildEventColumnSet(apiColumns, [
-          "ItemID",
-          "Qty",
-          "Rate",
-          "Amount",
-          "TranQty",
-          "BaseQty",
-          "BaseRate",
-          "TranRate",
-        ])
+      const evtSet = buildEventColumnSet(apiColumns, [
+        "itemid",
+        "itemcode",
+        "tranqty",
+        "baseqty",
+        "tranrate",
+        "baserate",
+        "unitconv",
+        "discperc",
+      ]);
+      // Force-add amount-driving columns regardless of API iseventreq flags
+      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc"].forEach((k) =>
+        evtSet.add(k)
       );
+      setEventColumns(evtSet);
       setAllColumns(
         apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
@@ -534,7 +539,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const fetchIndentDetailColumns = useCallback(async () => {
     const { apiColumns } = await loadRbDetailGridMeta(
       get,
-      GRN_CONFIG.RB_INDT_DETAIL,
+      GRN_CONFIG.RB_ITEM_PICKER_INDENT,
       GRN_CONFIG.STORAGE_INDT_META
     );
     setAllIndentColumns(
@@ -568,7 +573,11 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           prmdetjson: buildDetJSON([newRowData], colTypeMap),
           prmmstjson: JSON.stringify([headerValues]),
         });
-        return result;
+        // fn_tbl_rb_purgrndet_event returns PascalCase keys (ErrCode, TranAmount, ...),
+        // unlike sibling modules' event SPs — normalize so callers can rely on lowercase.
+        return (result || []).map((row) =>
+          Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase(), v]))
+        );
       } catch (err) {
         console.error("[GRN] fireCellEvent failed:", err);
         return null;

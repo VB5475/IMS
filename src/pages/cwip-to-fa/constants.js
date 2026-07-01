@@ -10,7 +10,7 @@ export const C2F_CONFIG = {
   // RB board codes
   RB_MASTER:      "rb_astcwip2famst",
   RB_DETAIL:      "rb_astcwip2fadet",
-  RB_ITEM_PICKER: "rb_astcwip2fadetselо",
+  RB_ITEM_PICKER: "rb_astcwip2fadetselo",
 
   // Form identifiers
   FORM_TAG:   "C2F",
@@ -63,7 +63,7 @@ export const C2F_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 // detKey  — grid column key to sum across all item rows
 // SummaryParameterID — master save payload key the value is written to
 export const C2F_SUMMARY_FIELDS = [
-  { SummaryParameterID: "NetTotal", detKey: "Amount" },
+  { SummaryParameterID: "nettotal", detKey: "netamount" },
 ];
 
 // Cascade resets — DivisionID clears LocationID + CWIPAccID (grid cleared in form handler)

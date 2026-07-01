@@ -167,7 +167,7 @@ export default function AssetsDepreciationForm() {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, assetsAccOptions,
     fetchAssetsAccByDivision, clearAssetsAccOptions,
-    columns, allColumns, eventColumns, isFetching, metaError,
+    columns, allColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
@@ -438,15 +438,6 @@ export default function AssetsDepreciationForm() {
       setIsGridLoading(false);
     }
   }, [columns, allColumns, fetchGridColumns]);
-
-  // ── Cell event — Amount = Qty × Rate (client-side; no SP_GRID_EVENT in MRD) ──
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    if (colKey === "Qty" || colKey === "Rate") {
-      const qty  = Number(rowData.Qty)  || 0;
-      const rate = Number(rowData.Rate) || 0;
-      itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
-    }
-  }, []);
 
   // ── Select Item ────────────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
@@ -789,8 +780,6 @@ export default function AssetsDepreciationForm() {
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
             onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
           />

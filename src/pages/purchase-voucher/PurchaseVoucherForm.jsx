@@ -38,6 +38,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -523,7 +524,7 @@ export default function PurchaseVoucherForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PV_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        JSon: JSON.stringify([{ prmrbcode: rbCode }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.[0];
@@ -545,14 +546,14 @@ export default function PurchaseVoucherForm() {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: spItemPicker,
         JSon: JSON.stringify([{
-          prmDivisionID: Number(divisionID),
-          prmYearID: PV_CONFIG.CONFIG_YEAR_ID,
-          prmLoginID: DEFAULT_LOGIN_ID,
-          prmTranDate: formatPVTranDate(trandate),
-          prmConfigID: Number(configid ?? 0),
-          prmSupplierID: Number(supplierid ?? 0),
-          prmTranBook: PV_CONFIG.TRAN_BOOK,
-          prmFrmOption: Number(basedonid) || 0,
+          prmdivisionid: Number(divisionID),
+          prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
+          prmloginid: DEFAULT_LOGIN_ID,
+          prmtrandate: formatPVTranDate(trandate),
+          prmconfigid: Number(configid ?? 0),
+          prmsupplierid: Number(supplierid ?? 0),
+          prmtranbook: PV_CONFIG.TRAN_BOOK,
+          prmfrmoption: Number(basedonid) || 0,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -604,7 +605,9 @@ export default function PurchaseVoucherForm() {
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible) && headerFieldNames.has(c.colname));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(detailRows, columns);
@@ -615,18 +618,19 @@ export default function PurchaseVoucherForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
-    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = DEFAULT_LOGIN_ID;
-
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype || null,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      ...(summaryRef.current?.getSummary?.() ?? {}),
+      loginid: DEFAULT_LOGIN_ID,
     });
+
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "PV", mst: mstRow, det: detRows }),

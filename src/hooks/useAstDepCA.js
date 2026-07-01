@@ -155,7 +155,7 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: DPC_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: DPC_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: DPC_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
@@ -213,11 +213,9 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      // qty + rate drive amount auto-calc (client-side fallback when SP_GRID_EVENT is null)
-      // Keys are lowercase to match col.key from PG API (EntryGrid uses col.key for activeEventColumns)
-      const evtSet = buildEventColumnSet(apiColumns, ["qty", "rate"]);
-      ["qty", "rate"].forEach((k) => evtSet.add(k));
-      setEventColumns(evtSet);
+      // Build event column set from RB metadata (iseventreq/iseventcol flags).
+      // No SP_GRID_EVENT configured for DPC today, so this is empty until one is added.
+      setEventColumns(buildEventColumnSet(apiColumns));
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
       console.log("%c[DPC] Detail columns received:", "color:#6366f1;font-weight:600", apiColumns.length);

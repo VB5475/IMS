@@ -28,6 +28,7 @@ import {
 } from "../../utils/gridUtils";
 import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { TXN_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useNotification } from "../../context/NotificationContext";
@@ -370,7 +371,12 @@ export default function TxnEntryPage() {
     }
     try {
       const result = await saveTxn(headerValuesRef.current, selectedRows, genIDNumber);
-      if (result) notify.success("Transaction saved successfully.");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        notify.error(message);
+        return;
+      }
+      notify.success(message || "Transaction saved successfully.");
     } catch (err) {
       notify.error(saveError || err?.message || "Save failed.");
     }

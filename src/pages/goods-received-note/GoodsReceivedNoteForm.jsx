@@ -92,6 +92,7 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     billdate: headerValues.billdate ?? "",
     challanno: headerValues.challanno ?? "",
     challandate: headerValues.challandate ?? "",
+    remarks: headerValues.remarks ?? "",
     transporterid: String(headerValues.transporterid ?? ""),
     destinationid: String(headerValues.destinationid ?? ""),
     lrno: headerValues.lrno ?? "",
@@ -734,7 +735,7 @@ export default function GoodsReceivedNoteForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: GRN_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        JSon: JSON.stringify([{ prmrbcode: rbCode }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -867,7 +868,9 @@ export default function GoodsReceivedNoteForm() {
         ...GRN_DRIVER_FILTERS,
       ].map((f) => f.FilterParameterID));
       const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate);
+      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+        zeroValidFields: new Set(["basedonid"]),
+      });
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
       const detailErrors = validateGridRows(itemRows, columns);

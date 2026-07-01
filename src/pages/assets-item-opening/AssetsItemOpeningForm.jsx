@@ -406,15 +406,6 @@ export default function AssetsItemOpeningForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  // ── Cell event — Amount = Qty × Rate ─────────────────────────────────────
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    if (colKey === "Qty" || colKey === "Rate") {
-      const qty  = Number(rowData.Qty)  || 0;
-      const rate = Number(rowData.Rate) || 0;
-      itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
-    }
-  }, []);
-
   // ── Add New Row ───────────────────────────────────────────────────────────
   const handleAddNewRow = useCallback(async () => {
     const activeCols = await ensureItemColumns();
@@ -669,7 +660,6 @@ export default function AssetsItemOpeningForm() {
             emptyMessage="No items yet. Click Add New above."
             onSelectionChange={setItemSelectionCount}
             onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
           />

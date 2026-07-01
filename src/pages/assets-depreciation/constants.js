@@ -47,7 +47,7 @@ export const DPC_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 // ── Summary panel fields ──────────────────────────────────────────────────────
 // detKey = grid column to sum; SummaryParameterID = master save payload key
 export const DPC_SUMMARY_FIELDS = [
-  { SummaryParameterID: "TotalDepAmount", detKey: "Amount" },
+  { SummaryParameterID: "totaldepamount", detKey: "depreciationvalue" },
 ];
 
 // ── Cascade resets (MRD § 3) ─────────────────────────────────────────────────

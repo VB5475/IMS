@@ -641,7 +641,7 @@ export default function PurchaseInquiryForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        JSon: JSON.stringify([{ prmrbcode: rbCode }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -729,7 +729,7 @@ export default function PurchaseInquiryForm() {
         const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: PI_CONFIG.SP_RB_META,
-          JSon: JSON.stringify([{ prmRBCode: PI_CONFIG.RB_INDT_DETAIL }]),
+          JSon: JSON.stringify([{ prmrbcode: PI_CONFIG.RB_INDT_DETAIL }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
@@ -872,7 +872,9 @@ export default function PurchaseInquiryForm() {
       // ── Validation (header + detail grids) ───────────────────────────
       const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
       const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate);
+      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+        zeroValidFields: new Set(["basedonid"]),
+      });
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
       const detailErrors = validateGridRows(itemRows, columns);

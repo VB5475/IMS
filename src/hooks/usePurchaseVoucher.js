@@ -77,12 +77,14 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: PV_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
   const tableRow = metaData?.[0];
-  if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
+  if (!tableRow || !tableRow.rbid) {
+    throw new Error(tableRow?.ErrMsg || `No RB metadata returned for ${rbCode}.`);
+  }
   const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
@@ -210,7 +212,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: PV_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: PV_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: PV_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
@@ -291,8 +293,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      const evtSet = buildEventColumnSet(apiColumns, ["TranQty", "BaseQty", "TranRate", "BaseRate", "UnitConvRate", "DiscPerc", "GSTPerc"]);
-      ["TranQty", "BaseQty", "TranRate", "BaseRate", "UnitConvRate", "DiscPerc", "GSTPerc"].forEach((k) => evtSet.add(k));
+      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"]);
+      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));

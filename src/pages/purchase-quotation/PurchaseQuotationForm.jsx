@@ -729,7 +729,9 @@ export default function PurchaseQuotationForm() {
       // ── Validation (header + detail grid) ────────────────────────────
       const headerFieldNames = new Set(QTN_HEADER_FILTERS.map((f) => f.FilterParameterID));
       const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate);
+      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+        zeroValidFields: new Set(["basedonid"]),
+      });
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
       const detailErrors = validateGridRows(itemRows, columns);

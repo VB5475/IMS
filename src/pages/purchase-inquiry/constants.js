@@ -113,14 +113,14 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return {
-    prmDivisionID: Number(headerValues.divisionid) || 0,
-    prmYearID:     PI_CONFIG.CONFIG_YEAR_ID,
-    prmLoginID:    loginId,
-    prmTranDate:   formatTranDate(headerValues.trandate),
-    prmConfigID:   Number(headerValues.configid) || 0,
-    prmSupplierID: Number(headerValues.supplierid ?? 0),
-    prmTranBook:   PI_CONFIG.TRAN_BOOK,
-    prmFrmOption:  Number(headerValues.basedonid) || 0,
+    prmdivisionid: Number(headerValues.divisionid) || 0,
+    prmyearid:     PI_CONFIG.CONFIG_YEAR_ID,
+    prmloginid:    loginId,
+    prmtrandate:   formatTranDate(headerValues.trandate),
+    prmconfigid:   Number(headerValues.configid) || 0,
+    prmsupplierid: Number(headerValues.supplierid ?? 0),
+    prmtranbook:   PI_CONFIG.TRAN_BOOK,
+    prmfrmoption:  Number(headerValues.basedonid) || 0,
   };
 }
 

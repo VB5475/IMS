@@ -15,6 +15,7 @@ import {
   Package,
   TrendingDown,
   Package2,
+  LayoutList,
   Users,
   Shield,
   KeyRound,
@@ -73,6 +74,7 @@ const NAV_SECTIONS = [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
       { to: "/assets-depreciation", icon: TrendingDown, label: "Depreciation", end: false },
       { to: "/assets-item-opening", icon: Package2, label: "Assets Item Opening", end: false },
+      { to: "/account/master/asset-item-master", icon: LayoutList, label: "Asset Item Master", end: false },
     ],
   },
 

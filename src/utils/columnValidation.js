@@ -41,7 +41,8 @@ export function isNumericColDataType(colDataType) {
 }
 
 function hasNumericRangeMeta(apiCol) {
-  return apiCol?.ValueMinRange != null || apiCol?.ValueMaxRange != null;
+  return (apiCol?.valueminrange ?? apiCol?.ValueMinRange) != null
+    || (apiCol?.valuemaxrange ?? apiCol?.ValueMaxRange) != null;
 }
 
 function looksLikeNumericFormat(inputFormat) {
@@ -57,11 +58,12 @@ function inferColumnDataKind(apiCol, colDataType) {
   if (explicitKind === "date") return "date";
   if (explicitKind === "varchar") return "varchar";
 
-  if (hasNumericRangeMeta(apiCol) || looksLikeNumericFormat(apiCol?.InputFormat ?? apiCol?.inputFormat)) {
+  if (hasNumericRangeMeta(apiCol) || looksLikeNumericFormat(apiCol?.inputformat ?? apiCol?.InputFormat)) {
     return "numeric";
   }
 
-  if (isTruthyApiFlag(apiCol?.IsCrossYearEntryAllow) || isTruthyApiFlag(apiCol?.IsFutureDateAllow)) {
+  if (isTruthyApiFlag(apiCol?.iscrossyearentryallow ?? apiCol?.IsCrossYearEntryAllow)
+    || isTruthyApiFlag(apiCol?.isfuturedateallow ?? apiCol?.IsFutureDateAllow)) {
     return "date";
   }
 
@@ -94,13 +96,19 @@ export function getVarcharMaxLen(colDataType) {
 function resolveEffectiveMaxLen(apiCol, colDataType) {
   const fromType = getVarcharMaxLen(colDataType);
   if (fromType != null) return fromType;
-  const fromApi = apiCol?.MaxLen != null ? Number(apiCol.MaxLen) : null;
+  const maxLenRaw = apiCol?.maxlen ?? apiCol?.MaxLen;
+  const fromApi = maxLenRaw != null ? Number(maxLenRaw) : null;
   if (fromApi != null && !Number.isNaN(fromApi)) return fromApi;
   return null;
 }
 
-function isDropdownEmpty(value) {
-  return value == null || value === "" || Number(value) === 0;
+// "0" is the placeholder/unselected sentinel for most ID-based dropdowns, but some
+// static enum dropdowns (e.g. "Based On") use "0" as a real, selectable option —
+// callers flag those columns via options.allowZero / zeroValidFields.
+function isDropdownEmpty(value, allowZero = false) {
+  if (value == null || value === "") return true;
+  if (allowZero) return false;
+  return Number(value) === 0;
 }
 
 /** API often sends ValueMinRange/ValueMaxRange as 0/0 when no numeric range is configured. */
@@ -139,27 +147,31 @@ export function buildDetJSON(rows, colTypeMap = {}) {
   return `[${inner}]`;
 }
 
-/** Build normalized validation/display metadata from a GET_DETAIL_COL_DATA column. */
+/** Build normalized validation/display metadata from a GET_DETAIL_COL_DATA column.
+ * The live API returns column metadata fully lowercase (colname, ismandatory,
+ * coldatatype, etc.) — PascalCase fallbacks are kept only for callers that pass
+ * already-normalized objects (e.g. column defs built elsewhere in the app).
+ */
 export function buildColumnMeta(apiCol) {
   if (!apiCol) return null;
-  const colDataType = apiCol.ColDataType ?? apiCol.colDataType ?? null;
+  const colDataType = apiCol.coldatatype ?? apiCol.ColDataType ?? apiCol.colDataType ?? null;
   const dataKind = inferColumnDataKind(apiCol, colDataType);
   return {
-    key: apiCol.ColName ?? apiCol.key,
-    displayName: apiCol.DisplayName ?? apiCol.name ?? apiCol.ColName ?? apiCol.key ?? "Field",
-    isMandatory: isTruthyApiFlag(apiCol.IsMandatory),
-    isValidationReq: isTruthyApiFlag(apiCol.IsValidationReq),
-    isDropdown: Number(apiCol.ColCtrlType) === 4,
+    key: apiCol.colname ?? apiCol.ColName ?? apiCol.key,
+    displayName: apiCol.displayname ?? apiCol.DisplayName ?? apiCol.name ?? apiCol.colname ?? apiCol.key ?? "Field",
+    isMandatory: isTruthyApiFlag(apiCol.ismandatory ?? apiCol.IsMandatory),
+    isValidationReq: isTruthyApiFlag(apiCol.isvalidationreq ?? apiCol.IsValidationReq),
+    isDropdown: Number(apiCol.colctrltype ?? apiCol.ColCtrlType) === 4,
     colDataType,
     dataKind,
-    inputFormat: apiCol.InputFormat ?? apiCol.inputFormat ?? "",
+    inputFormat: apiCol.inputformat ?? apiCol.InputFormat ?? apiCol.inputFormat ?? "",
     decimalPlaces: getNumericDecimalPlaces(colDataType),
-    minLen: apiCol.MinLen != null ? Number(apiCol.MinLen) : null,
+    minLen: (apiCol.minlen ?? apiCol.MinLen) != null ? Number(apiCol.minlen ?? apiCol.MinLen) : null,
     maxLen: resolveEffectiveMaxLen(apiCol, colDataType),
-    valueMinRange: apiCol.ValueMinRange != null ? Number(apiCol.ValueMinRange) : null,
-    valueMaxRange: apiCol.ValueMaxRange != null ? Number(apiCol.ValueMaxRange) : null,
-    isCrossYearEntryAllow: isTruthyApiFlag(apiCol.IsCrossYearEntryAllow),
-    isFutureDateAllow: isTruthyApiFlag(apiCol.IsFutureDateAllow),
+    valueMinRange: (apiCol.valueminrange ?? apiCol.ValueMinRange) != null ? Number(apiCol.valueminrange ?? apiCol.ValueMinRange) : null,
+    valueMaxRange: (apiCol.valuemaxrange ?? apiCol.ValueMaxRange) != null ? Number(apiCol.valuemaxrange ?? apiCol.ValueMaxRange) : null,
+    isCrossYearEntryAllow: isTruthyApiFlag(apiCol.iscrossyearentryallow ?? apiCol.IsCrossYearEntryAllow),
+    isFutureDateAllow: isTruthyApiFlag(apiCol.isfuturedateallow ?? apiCol.IsFutureDateAllow),
   };
 }
 
@@ -232,14 +244,14 @@ export function getDateInputConstraints(meta) {
  * @returns {{ valid: boolean, message: string }}
  */
 export function validateColumnValue(value, colOrMeta, options = {}) {
-  const { skipMandatory = false } = options;
+  const { skipMandatory = false, allowZero = false } = options;
   const meta = resolveColumnMeta(colOrMeta);
   if (!meta) return { valid: true, message: "" };
 
   const label = meta.displayName || meta.key || "Field";
 
   if (!skipMandatory && meta.isMandatory) {
-    const empty = meta.isDropdown ? isDropdownEmpty(value) : isEmptyValue(value);
+    const empty = meta.isDropdown ? isDropdownEmpty(value, allowZero) : isEmptyValue(value);
     if (empty) {
       return { valid: false, message: `${label} is required.` };
     }
@@ -356,15 +368,20 @@ export function validateGridRows(rows, columns) {
 
 /**
  * Validate a flat values object against raw GET_DETAIL_COL_DATA columns.
+ * @param {Set<string>} [opts.zeroValidFields] — colnames where "0" is a real dropdown
+ *   option, not an unselected placeholder (e.g. "basedonid" with a "Direct" = 0 choice).
  * @returns {string[]} error messages
  */
-export function validateApiColumns(values, apiColumns) {
+export function validateApiColumns(values, apiColumns, opts = {}) {
+  const { zeroValidFields } = opts;
   const errors = [];
   (apiColumns || []).forEach((apiCol) => {
     if (!isTruthyApiFlag(apiCol.isvisible)) return;
     const key = apiCol.colname;
     if (!key) return;
-    const result = validateColumnValue(values[key], apiCol);
+    const result = validateColumnValue(values[key], apiCol, {
+      allowZero: zeroValidFields?.has(key),
+    });
     if (!result.valid) errors.push(result.message);
   });
   return errors;

@@ -38,6 +38,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -806,12 +807,24 @@ export default function PurchaseOrderForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingPO, setIsSavingPO] = useState(false);
 
-  const handleSave = useCallback(async () => {
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) {
+      navigate("/purchase-order");
+    } else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const hv = headerValuesRef.current;
 
     // ── Validation (header + detail + indent) ────────────────────────
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors = validateApiColumns(hv, headerColsToValidate);
+    const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
 
     const itemRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(itemRows, columns);
@@ -825,24 +838,19 @@ export default function PurchaseOrderForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
-    });
-    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     const { loginId } = getUserSession();
-    mstRow.loginid = loginId;
-
-    const detRows = itemRows.map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => {
-        row[key] = getColDefault(colDataType);
-      });
-      return { ...row, ...rest, loginid: loginId };
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype || null,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      ...(summaryRef.current?.getSummary?.() ?? {}),
+      loginid: loginId,
     });
+
+    const detRows = itemRows.map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: loginId })
+    );
 
     const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, loginid: loginId }));
 
@@ -868,19 +876,23 @@ export default function PurchaseOrderForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
+      return true;
     } catch (err) {
       console.error("[PO Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
+      return false;
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

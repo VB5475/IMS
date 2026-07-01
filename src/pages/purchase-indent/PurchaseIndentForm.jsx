@@ -81,8 +81,10 @@ function mapHeaderValuesToFilterValues(headerValues) {
     expecteddate:     headerValues.expecteddate     ?? "",
     deptid:           String(headerValues.deptid           ?? ""),
     locationid:       String(headerValues.locationid       ?? ""),
+    costcenterid:     String(headerValues.costcenterid     ?? ""),
     remarks:          headerValues.remarks          ?? "",
     indentrefrenceno: headerValues.indentrefrenceno ?? "",
+    enteredby:        headerValues.enteredby        ?? "",
   };
 }
 
@@ -175,8 +177,10 @@ export default function PurchaseIndentForm() {
     expecteddate:     null,
     deptid:           0,
     locationid:       0,
+    costcenterid:     0,
     remarks:          "",
     indentrefrenceno: "",
+    enteredby:        "",
     tranmstgenid:     0,
     companyid:        DEFAULT_COMPANY_ID,
     yearid:           IND_CONFIG.DIVISION_YEAR_ID,
