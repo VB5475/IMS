@@ -22,6 +22,20 @@ export function isTruthyApiFlag(val) {
   return false;
 }
 
+/** Column is shown in UI per API IsVisible / isvisible flag. */
+export function isVisibleApiCol(col) {
+  return isTruthyApiFlag(col?.isvisible ?? col?.IsVisible);
+}
+
+/** True when any column matching colNames exists and is visible. */
+export function hasVisibleCol(apiColumns, ...colNames) {
+  const names = new Set(colNames.map((n) => String(n).toLowerCase()));
+  return (apiColumns || []).some((col) => {
+    const key = String(col.colname ?? col.ColName ?? "").toLowerCase();
+    return names.has(key) && isVisibleApiCol(col);
+  });
+}
+
 /**
  * Maps a ColCtrlType numeric code to a filter-type string understood by GridForm.
  * @param {number} ctrlType
@@ -310,7 +324,9 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
     fetchUnlockedDropdowns = true,
   } = opts;
 
-  const dropdownCols = apiColumns.filter((c) => c.colctrltype === 4);
+  const dropdownCols = apiColumns.filter(
+    (c) => c.colctrltype === 4 && isVisibleApiCol(c)
+  );
   const colDropdownOptions = {};
 
   if (dropdownCols.length === 0) return colDropdownOptions;
@@ -342,7 +358,7 @@ export async function fetchDropdownOptions(get, apiColumns, masterID, opts = {})
         // metadata (filterctrlvaluecol / filterctrldisplaycol) with no actual value.
         // Extract the column names once, then skip rows that have no actual value.
         const metaRow = rows.find((r) => r.filterctrlvaluecol) ?? rows[0] ?? {};
-        const valKey   = metaRow.filterctrlvaluecol   ?? "idnumber";
+        const valKey = metaRow.filterctrlvaluecol ?? "idnumber";
         const labelKey = metaRow.filterctrldisplaycol ?? "name";
         colDropdownOptions[col.colname] = rows
           .filter((r) => r[valKey] != null)
@@ -433,6 +449,8 @@ export function mergePreservedUnlockedDropdowns(
     const prev = prevByKey.get(apiCol.colname);
     if (prev?.length) merged[apiCol.colname] = prev;
   });
+
+  console.log("see merged:", merged)
   return merged;
 }
 

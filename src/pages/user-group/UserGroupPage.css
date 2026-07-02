@@ -145,6 +145,16 @@
   align-items: center;
 }
 
+.ug-form-control--toggle-wrap {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.ug-form-control--checkbox {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
 .ug-form-input {
   width: 100%;
   height: 30px;

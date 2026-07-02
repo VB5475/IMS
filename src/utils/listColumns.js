@@ -1,6 +1,6 @@
 /**
  * Resolve the primary key for opening a list row in edit mode.
- * Uses common API id fields — no module-specific hardcoding.
+ * Uses common API id fields — casing may differ per endpoint.
  */
 export function resolveListRowId(row) {
   if (!row || typeof row !== "object") return null;
@@ -49,7 +49,7 @@ export function buildListColumnsFromApi({
   const excludeSet = new Set(excludeKeys);
   const labelMap = new Map(
     (fieldDefs || []).flatMap((field) => {
-      const colName    = field.ColName    ?? field.colname;
+      const colName = field.ColName ?? field.colname;
       const displayName = (field.DisplayName ?? field.displayname)?.trim();
       if (!colName) return [];
       const label = displayName || colName;

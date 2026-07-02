@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box,
   ShieldCheck,
   Lock,
   CheckCircle2,
@@ -19,6 +18,8 @@ import { useUser } from "../../context/UserContext";
 import { LOGIN_CONFIG } from "./constants";
 import Loader from "../../components/ui/Loader";
 import "./LoginPage.css";
+
+const BRAND_LOGO_SRC = "/test.png";
 
 function buildBootstrapParams(loginId) {
   return {
@@ -105,8 +106,8 @@ function LoginForm({
               required
             >
               {companies.map((row) => (
-                <option key={row.CompanyID} value={String(row.CompanyID)}>
-                  {row.companyname}
+                <option key={row.companyid ?? row.CompanyID} value={String(row.companyid ?? row.CompanyID)}>
+                  {row.companyname ?? row.CompanyName}
                 </option>
               ))}
             </select>
@@ -228,7 +229,8 @@ export default function LoginPage() {
       setYears(yearRows);
 
       if (companyRows.length > 0) {
-        setCompanyId(String(companyRows[0].companyid));
+        const firstId = companyRows[0].companyid ?? companyRows[0].CompanyID;
+        if (firstId != null) setCompanyId(String(firstId));
       }
       const activeYear = findFinancialYearForDate(yearRows);
       if (activeYear?.yearid != null) {
@@ -273,7 +275,9 @@ export default function LoginPage() {
         return;
       }
 
-      const company = companies.find((row) => String(row.CompanyID) === companyId) ?? null;
+      const company = companies.find(
+        (row) => String(row.companyid ?? row.CompanyID) === companyId
+      ) ?? null;
       const year = years.find((row) => String(row.yearid) === yearId) ?? null;
 
       login(authRow, { companyId, yearId, company, year });
@@ -314,11 +318,11 @@ export default function LoginPage() {
         <div className="login-hero__content">
           <div className="login-hero__brand">
             <div className="login-hero__logo">
-              <Box size={28} strokeWidth={1.5} />
+              <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />
             </div>
             <div>
-              <h1>Horizon Enterprise</h1>
-              <p className="login-hero__tagline">Business Suite</p>
+              <h1>IMS Group</h1>
+              <p className="login-hero__tagline">Asset Management System</p>
             </div>
           </div>
 
@@ -375,9 +379,9 @@ export default function LoginPage() {
           <div className="login-card-wrap">
             <div className="login-card">
               <div className="login-card__header">
-                <div className="login-card__logo">
-                  <Box size={20} strokeWidth={1.5} />
-                </div>
+                {/* <div className="login-card__logo">
+                  <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />
+                </div> */}
                 <h3>Sign in to workspace</h3>
                 <p>Select company and financial year, then enter your credentials.</p>
               </div>
@@ -386,7 +390,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="login-footer">© 2026 Horizon Enterprise · All Rights Reserved</p>
+          <p className="login-footer">© 2026 IMS Group · All Rights Reserved</p>
         </div>
       </section>
     </main>

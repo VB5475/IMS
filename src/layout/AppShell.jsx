@@ -14,6 +14,9 @@ import {
   Network,
   Package,
   TrendingDown,
+  UserRound,
+  RotateCcw,
+  FileX,
   Package2,
   LayoutList,
   Users,
@@ -21,9 +24,10 @@ import {
   KeyRound,
   Building2,
   Building,
+  FolderTree,
+  Landmark,
   PanelLeftClose,
   PanelLeft,
-  Box,
   Bell,
   Search,
   Settings,
@@ -34,6 +38,8 @@ import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeade
 import { useUser } from "../context/UserContext";
 import { PROD_BASE_PROJECT, BASE_PROJECT_OPTIONS, switchBaseProject } from "../api/constants";
 import "./AppShell.css";
+
+const BRAND_LOGO_SRC = "/test.png";
 
 const NAV_SECTIONS = [
   {
@@ -73,8 +79,14 @@ const NAV_SECTIONS = [
     items: [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
       { to: "/assets-depreciation", icon: TrendingDown, label: "Depreciation", end: false },
+      { to: "/assets-write-off", icon: FileX, label: "Assets Write Off", end: false },
+      { to: "/assets-employee-issue", icon: UserRound, label: "Assets Employee Issue", end: false },
+      { to: "/assets-employee-return", icon: RotateCcw, label: "Assets Employee Return", end: false },
+      { to: "/assets-department-issue", icon: Building2, label: "Assets Department Issue", end: false },
       { to: "/assets-item-opening", icon: Package2, label: "Assets Item Opening", end: false },
       { to: "/account/master/asset-item-master", icon: LayoutList, label: "Asset Item Master", end: false },
+      { to: "/admin/account-group-master", icon: FolderTree, label: "Account Group Master", end: false },
+      { to: "/admin/account-master", icon: Landmark, label: "Account Master", end: false },
     ],
   },
 
@@ -102,12 +114,12 @@ export default function AppShell({ children }) {
         <div className="ent-sidebar__header">
           <div className="ent-sidebar__brand">
             <div className="ent-sidebar__logo">
-              <Box size={16} strokeWidth={2} />
+              <img src={BRAND_LOGO_SRC} alt="IMS logo" className="ent-sidebar__logo-image" />
             </div>
             {!collapsed && (
               <div>
-                <div className="ent-sidebar__name">Horizon Enterprise</div>
-                <div className="ent-sidebar__tag">Business Suite</div>
+                <div className="ent-sidebar__name">IMS Group</div>
+                <div className="ent-sidebar__tag">Asset Management System</div>
               </div>
             )}
           </div>

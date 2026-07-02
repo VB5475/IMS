@@ -66,6 +66,9 @@
 .modal-dialog--company {
   max-width: min(1440px, calc(100vw - 32px));
 }
+.modal-dialog--account-master {
+  max-width: min(1280px, calc(100vw - 32px));
+}
 .modal-dialog--full {
   max-width: calc(100vw - 32px);
 }

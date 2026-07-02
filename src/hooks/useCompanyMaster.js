@@ -31,17 +31,17 @@ function normalizeColumn(col) {
     colname, colseqno, isvisible, colctrltype, updatekeycolname,
     displayname, iseditallow, islockoneditmodeallow, objdetid,
     ismandatory, coldatatype, ctrlvaluecol, ctrldisplaycol,
-    ColName:               colname,
-    ColSeqNo:              colseqno,
-    IsVisible:             isvisible,
-    ColCtrlType:           colctrltype,
-    UpdateKeyColName:      updatekeycolname,
-    DisplayName:           displayname,
-    IsEditAllow:           iseditallow,
+    ColName: colname,
+    ColSeqNo: colseqno,
+    IsVisible: isvisible,
+    ColCtrlType: colctrltype,
+    UpdateKeyColName: updatekeycolname,
+    DisplayName: displayname,
+    IsEditAllow: iseditallow,
     IsLockOnEditModeAllow: islockoneditmodeallow,
-    ObjDetID:              objdetid,
-    IsMandatory:           ismandatory,
-    ColDataType:           coldatatype,
+    ObjDetID: objdetid,
+    IsMandatory: ismandatory,
+    ColDataType: coldatatype,
   };
 }
 
@@ -95,11 +95,11 @@ function mapCurrencyOptions(table) {
 // ---------------------------------------------------------------------------
 async function fetchSpTable(get, spName, jsonRow = {}) {
   const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-    ObjType:   CO_CONFIG.LIST_OBJ_TYPE,
-    ObjName:   spName,
-    JSon:      JSON.stringify([jsonRow]),
+    ObjType: CO_CONFIG.LIST_OBJ_TYPE,
+    ObjName: spName,
+    JSon: JSON.stringify([jsonRow]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   }).catch((err) => {
     console.warn(`[CO] ${spName} fetch failed:`, err);
     return null;
@@ -111,24 +111,24 @@ async function fetchSpTable(get, spName, jsonRow = {}) {
 // Cascade maps (lowercase PG colnames)
 // ---------------------------------------------------------------------------
 const CO_CASCADE_RESETS_LC = {
-  countryid:            ["stateid", "cityid"],
-  stateid:              ["cityid"],
-  respersoncountryid:   ["respersonstateid", "respersoncityid"],
-  respersonstateid:     ["respersoncityid"],
+  countryid: ["stateid", "cityid"],
+  stateid: ["cityid"],
+  respersoncountryid: ["respersonstateid", "respersoncityid"],
+  respersonstateid: ["respersoncityid"],
 };
 
 const CO_CASCADE_REFRESH_LC = {
-  countryid:            ["stateid"],
-  stateid:              ["cityid"],
-  respersoncountryid:   ["respersonstateid"],
-  respersonstateid:     ["respersoncityid"],
+  countryid: ["stateid"],
+  stateid: ["cityid"],
+  respersoncountryid: ["respersonstateid"],
+  respersonstateid: ["respersoncityid"],
 };
 
 const CO_PARENT_BINDINGS_LC = {
-  stateid:            { sp: "state", parentCol: "countryid" },
-  cityid:             { sp: "city",  parentCol: "stateid" },
-  respersonstateid:   { sp: "state", parentCol: "respersoncountryid" },
-  respersoncityid:    { sp: "city",  parentCol: "respersonstateid" },
+  stateid: { sp: "state", parentCol: "countryid" },
+  cityid: { sp: "city", parentCol: "stateid" },
+  respersonstateid: { sp: "state", parentCol: "respersoncountryid" },
+  respersoncityid: { sp: "city", parentCol: "respersonstateid" },
 };
 
 // ---------------------------------------------------------------------------
@@ -137,11 +137,11 @@ const CO_PARENT_BINDINGS_LC = {
 export function useCompanyMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,   setHeaderColumns]   = useState([]);
-  const [allColumns,      setAllColumns]      = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});
-  const [headerFetching,  setHeaderFetching]  = useState(false);
-  const [headerError,     setHeaderError]     = useState(null);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
 
   // Fetch Country and Currency — the two base dropdowns that don't depend on parent value.
   // Stored under lowercase keys to match field.colname from PG.
@@ -150,17 +150,17 @@ export function useCompanyMaster() {
       fetchSpTable(get, CO_CONFIG.SP_COUNTRY, {}),
       fetchSpTable(get, CO_CONFIG.SP_CURRENCY, {}),
     ]);
-    const countryOpts  = mapCountryOptions(countryTable);
+    const countryOpts = mapCountryOptions(countryTable);
     const currencyOpts = mapCurrencyOptions(currencyTable);
     return {
-      countryid:           countryOpts,
-      respersoncountryid:  countryOpts,
-      bascurrencyid:       currencyOpts,
-      basecurrencyid:      currencyOpts,
-      stateid:             [],
-      cityid:              [],
-      respersonstateid:    [],
-      respersoncityid:     [],
+      countryid: countryOpts,
+      respersoncountryid: countryOpts,
+      bascurrencyid: currencyOpts,
+      basecurrencyid: currencyOpts,
+      stateid: [],
+      cityid: [],
+      respersonstateid: [],
+      respersoncityid: [],
     };
   }, [get]);
 
@@ -170,29 +170,29 @@ export function useCompanyMaster() {
     try {
       // Phase 1 — RB metadata → RBID (PG returns lowercase keys)
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   CO_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmrbcode: CO_CONFIG.RB_MASTER }]),
+        ObjType: 2,
+        ObjName: CO_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: CO_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
-      const rbidVal  = tableRow?.rbid ?? tableRow?.RBID;
+      const rbidVal = tableRow?.rbid ?? tableRow?.RBID;
       if (!rbidVal) throw new Error("No Company RB metadata returned.");
 
       const hdrMeta = {
-        RBID:         rbidVal,
+        RBID: rbidVal,
         SaveProcName: tableRow.saveprocname ?? tableRow.SaveProcName,
       };
       localStorage.setItem(CO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — column definitions
-      const colData  = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       const rawLinks = Array.isArray(colData) ? colData : (colData || []);
-      const links    = rawLinks.map(normalizeColumn);
+      const links = rawLinks.map(normalizeColumn);
       setHeaderColumns(links);
       setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
 
@@ -216,7 +216,7 @@ export function useCompanyMaster() {
 
       const patches = {};
       for (const childCol of children) {
-        const binding  = CO_PARENT_BINDINGS_LC[childCol];
+        const binding = CO_PARENT_BINDINGS_LC[childCol];
         if (!binding) continue;
         const parentId = Number(formValues[binding.parentCol]) || 0;
         if (!parentId) {
@@ -243,10 +243,10 @@ export function useCompanyMaster() {
   const loadCascadedDropdowns = useCallback(
     async (values = {}) => {
       const patches = {};
-      const countryId    = Number(values.countryid)           || 0;
-      const stateId      = Number(values.stateid)             || 0;
-      const resCountryId = Number(values.respersoncountryid)  || 0;
-      const resStateId   = Number(values.respersonstateid)    || 0;
+      const countryId = Number(values.countryid) || 0;
+      const stateId = Number(values.stateid) || 0;
+      const resCountryId = Number(values.respersoncountryid) || 0;
+      const resStateId = Number(values.respersonstateid) || 0;
 
       if (countryId) {
         const t = await fetchSpTable(get, CO_CONFIG.SP_STATE, { prmCountryID: countryId });
@@ -276,27 +276,27 @@ export function useCompanyMaster() {
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const prmParameters = [
-        Number(companyId)  || DEFAULT_COMPANY_ID,
-        Number(yearId)     || CO_CONFIG.CONFIG_YEAR_ID,
-        Number(loginId)    || DEFAULT_LOGIN_ID,
-        Number(sessionId)  || DEFAULT_SESSION_ID,
-        Number(idNumber)   || 0,
+        Number(companyId) || DEFAULT_COMPANY_ID,
+        Number(yearId) || CO_CONFIG.CONFIG_YEAR_ID,
+        Number(loginId) || DEFAULT_LOGIN_ID,
+        Number(sessionId) || DEFAULT_SESSION_ID,
+        Number(idNumber) || 0,
       ].join(",");
 
       const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
         prmProcedure: CO_CONFIG.SP_MASTER_FILL,
         prmParameters,
-        prmFuncCode:  CO_CONFIG.RB_MASTER,
+        prmFuncCode: CO_CONFIG.RB_MASTER,
       });
       const master = mstRes?.[0] ?? null;
       return {
         master,
         headerValues: master ? {
           ...master,
-          yearid:    Number(master.yearid    ?? yearId)    || CO_CONFIG.CONFIG_YEAR_ID,
-          loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+          yearid: Number(master.yearid ?? yearId) || CO_CONFIG.CONFIG_YEAR_ID,
+          loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
-          funccode:  master.funccode ?? CO_CONFIG.RB_MASTER,
+          funccode: master.funccode ?? CO_CONFIG.RB_MASTER,
         } : null,
       };
     },
@@ -317,10 +317,10 @@ export function useCompanyMaster() {
       setDropdownOptions(baseOpts);
       // Load cascaded dropdowns using lowercase PG keys from master
       await loadCascadedDropdowns({
-        countryid:           master.countryid           ?? master.CountryID,
-        stateid:             master.stateid             ?? master.StateID,
-        respersoncountryid:  master.respersoncountryid  ?? master.ResPersonCountryID,
-        respersonstateid:    master.respersonstateid    ?? master.ResPersonStateID,
+        countryid: master.countryid ?? master.CountryID,
+        stateid: master.stateid ?? master.StateID,
+        respersoncountryid: master.respersoncountryid ?? master.ResPersonCountryID,
+        respersonstateid: master.respersonstateid ?? master.ResPersonStateID,
       });
     },
     [fetchBaseDropdowns, loadCascadedDropdowns]

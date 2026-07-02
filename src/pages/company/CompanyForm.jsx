@@ -34,17 +34,17 @@ import "./CompanyPage.css";
 // Cascade maps — lowercase colnames (PG)
 // ---------------------------------------------------------------------------
 const CO_CASCADE_RESETS_LC = {
-  countryid:           ["stateid", "cityid"],
-  stateid:             ["cityid"],
-  respersoncountryid:  ["respersonstateid", "respersoncityid"],
-  respersonstateid:    ["respersoncityid"],
+  countryid: ["stateid", "cityid"],
+  stateid: ["cityid"],
+  respersoncountryid: ["respersonstateid", "respersoncityid"],
+  respersonstateid: ["respersoncityid"],
 };
 
 const CO_CASCADE_REFRESH_LC = {
-  countryid:           ["stateid"],
-  stateid:             ["cityid"],
-  respersoncountryid:  ["respersonstateid"],
-  respersonstateid:    ["respersoncityid"],
+  countryid: ["stateid"],
+  stateid: ["cityid"],
+  respersoncountryid: ["respersonstateid"],
+  respersonstateid: ["respersoncityid"],
 };
 
 // ---------------------------------------------------------------------------
@@ -58,8 +58,8 @@ function buildFieldMap(fieldDefs) {
     if (!key) return;
     map[key] = f;
     // Currency alias: BasCurrencyID ↔ BaseCurrencyID (RB has both spellings)
-    if (key === "bascurrencyid")  map["basecurrencyid"] = f;
-    if (key === "basecurrencyid") map["bascurrencyid"]  = f;
+    if (key === "bascurrencyid") map["basecurrencyid"] = f;
+    if (key === "basecurrencyid") map["bascurrencyid"] = f;
   });
   return map;
 }
@@ -97,23 +97,23 @@ export default function CompanyForm({
   const { post } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
 
-  const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState({});
-  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
+  const [formValues, setFormValues] = useState({});
+  const [recordLoading, setRecordLoading] = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
-  const [isSaving,        setIsSaving]        = useState(false);
-  const [saveError,       setSaveError]       = useState(null);
-  const [formErrors,      setFormErrors]      = useState([]);
-  const [discardAction,   setDiscardAction]   = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // fieldMap keyed by lowercase colname (PG)
   const fieldMap = useMemo(() => buildFieldMap(fieldDefs), [fieldDefs]);
 
   // Layout resolved with case-insensitive lookup (CO_FORM_LAYOUT uses PascalCase)
   const layout = useMemo(() => ({
-    mainRows:        resolveLayoutRows(CO_FORM_LAYOUT.left.main.rows,          fieldMap),
-    contactRows:     resolveLayoutRows(CO_FORM_LAYOUT.left.contact.rows,       fieldMap),
-    responsibleRows: resolveLayoutRows(CO_FORM_LAYOUT.right.responsible.rows,  fieldMap),
+    mainRows: resolveLayoutRows(CO_FORM_LAYOUT.left.main.rows, fieldMap),
+    contactRows: resolveLayoutRows(CO_FORM_LAYOUT.left.contact.rows, fieldMap),
+    responsibleRows: resolveLayoutRows(CO_FORM_LAYOUT.right.responsible.rows, fieldMap),
   }), [fieldMap]);
 
   // Ordered list of visible fields for validation (from layout definition)
@@ -141,10 +141,10 @@ export default function CompanyForm({
     });
     return {
       ...row,
-      yearid:    CO_CONFIG.CONFIG_YEAR_ID,
-      loginid:   DEFAULT_LOGIN_ID,
+      yearid: CO_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID,
       sessionid: DEFAULT_SESSION_ID,
-      funccode:  CO_CONFIG.RB_MASTER,
+      funccode: CO_CONFIG.RB_MASTER,
     };
   }, [allColumns]);
 
@@ -165,10 +165,10 @@ export default function CompanyForm({
     setRecordLoadError(null);
     fetchEditRecord?.({
       companyId: DEFAULT_COMPANY_ID,
-      yearId:    CO_CONFIG.CONFIG_YEAR_ID,
-      loginId:   DEFAULT_LOGIN_ID,
+      yearId: CO_CONFIG.CONFIG_YEAR_ID,
+      loginId: DEFAULT_LOGIN_ID,
       sessionId: DEFAULT_SESSION_ID,
-      idNumber:  recordId,
+      idNumber: recordId,
     })
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
@@ -221,8 +221,8 @@ export default function CompanyForm({
         </span>
         <div className={[
           "co-form-control",
-          isMasterToggleField(field)   ? "co-form-control--toggle-wrap" : "",
-          isMasterCheckboxField(field) ? "co-form-control--checkbox"    : "",
+          isMasterToggleField(field) ? "co-form-control--toggle-wrap" : "",
+          isMasterCheckboxField(field) ? "co-form-control--checkbox" : "",
         ].filter(Boolean).join(" ")}>
           {renderControl(field)}
         </div>
@@ -262,9 +262,9 @@ export default function CompanyForm({
         { divisionId: 0, isEdit: !isAddMode }
       );
 
-      console.log("prmStrMstJSON",saveRow);
-      console.log("prmStrDetJSON",{});
-      console.log("payload",payload);
+      console.log("prmStrMstJSON", saveRow);
+      console.log("prmStrDetJSON", {});
+      console.log("payload", payload);
       const result = await post(CO_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
@@ -304,7 +304,7 @@ export default function CompanyForm({
     if (!isEditMode) {
       return (
         <button type="button" className="master-modal-btn master-modal-btn--edit"
-                onClick={() => setIsEditMode(true)}>
+          onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
@@ -312,11 +312,11 @@ export default function CompanyForm({
     return (
       <div className="master-modal-footer-actions">
         <button type="button" className="master-modal-btn master-modal-btn--cancel"
-                onClick={handleCancelEdit} disabled={isSaving}>
+          onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
-                onClick={handleSave} disabled={isSaving}>
+          onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -324,8 +324,8 @@ export default function CompanyForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading   = defsLoading || recordLoading;
-  const combinedErr = defsError   || recordLoadError;
+  const isLoading = defsLoading || recordLoading;
+  const combinedErr = defsError || recordLoadError;
 
   return (
     <Modal

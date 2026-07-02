@@ -6,6 +6,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, CBO_MODE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
+import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
 import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
 import { formatColumnDisplayValue, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
@@ -163,6 +164,52 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             tabIndex={readOnly ? -1 : 0}
           />
         );
+
+      case controlTypeMap.CHECKBOX:
+      case controlTypeMap.CHECKBOX_ALT:
+        if (readOnly) {
+          const checked = getCheckboxValue(value) === 1;
+          return <span className="efq-cell__value">{checked ? "Yes" : "No"}</span>;
+        }
+        return (
+          <div className="efq-cell__checkbox-wrap">
+            <input
+              id={`efq-${FilterColName}`}
+              type="checkbox"
+              className="efq-cell__checkbox"
+              checked={getCheckboxValue(value) === 1}
+              onChange={(e) => onChange(FilterColName, e.target.checked ? 1 : 0)}
+              disabled={isLoading}
+              tabIndex={0}
+              aria-label={FilterCaption}
+            />
+          </div>
+        );
+
+      case controlTypeMap.TOGGLE:
+        if (readOnly) {
+          const on = getToggleValue(value) === 1;
+          return <span className="efq-cell__value">{on ? "Yes" : "No"}</span>;
+        }
+        {
+          const on = getToggleValue(value) === 1;
+          return (
+            <div className="efq-cell__toggle-wrap">
+              <button
+                type="button"
+                role="switch"
+                id={`efq-${FilterColName}`}
+                aria-checked={on === 1}
+                aria-label={FilterCaption}
+                className={`efq-cell__toggle${on ? " efq-cell__toggle--on" : ""}`}
+                onClick={() => onChange(FilterColName, on ? 0 : 1)}
+                disabled={isLoading}
+                tabIndex={0}
+              />
+              <span className="efq-cell__toggle-label">{on ? "Yes" : "No"}</span>
+            </div>
+          );
+        }
 
       case controlTypeMap.DROPDOWN:
         return (
@@ -459,6 +506,7 @@ export default function EnterpriseFilterPanel({
     const selector = [
       "input:not([disabled]):not([readonly])",
       "textarea:not([disabled]):not([readonly])",
+      "button[role='switch']:not([disabled])",
       ".search-select__trigger:not([disabled])",
     ].join(", ");
 
@@ -550,7 +598,14 @@ export default function EnterpriseFilterPanel({
         })
         .map((f) => {
           let display = String(values[f.FilterColName]);
-          if (f.FilterColCtrlType === controlTypeMap.DROPDOWN) {
+          if (
+            f.FilterColCtrlType === controlTypeMap.CHECKBOX
+            || f.FilterColCtrlType === controlTypeMap.CHECKBOX_ALT
+          ) {
+            display = getCheckboxValue(values[f.FilterColName]) === 1 ? "Yes" : "No";
+          } else if (f.FilterColCtrlType === controlTypeMap.TOGGLE) {
+            display = getToggleValue(values[f.FilterColName]) === 1 ? "Yes" : "No";
+          } else if (f.FilterColCtrlType === controlTypeMap.DROPDOWN) {
             const opts = dropdownOptions[f.FilterParameterID] || f.staticOptions || [];
             const match = opts.find((o) => {
               const val = o.value ?? o[o.filterctrlvaluecol || "IDNumber"];
