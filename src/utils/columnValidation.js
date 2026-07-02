@@ -7,6 +7,20 @@ import { parseFlexibleDate, inputFormatToDayjs } from "./dateFormat";
 
 dayjs.extend(customParseFormat);
 
+/** Read GET_DETAIL_COL_DATA field regardless of key casing; empty string counts as absent. */
+export function pickApiField(obj, ...keys) {
+  if (!obj || typeof obj !== "object") return undefined;
+  const isPresent = (v) => v !== undefined && v !== null && v !== "";
+  for (const key of keys) {
+    if (isPresent(obj[key])) return obj[key];
+  }
+  const lowerKeys = keys.map((k) => String(k).toLowerCase());
+  for (const [k, v] of Object.entries(obj)) {
+    if (isPresent(v) && lowerKeys.includes(k.toLowerCase())) return v;
+  }
+  return undefined;
+}
+
 /** API bit flags often arrive as 1/0, "true", or "Y" — not only boolean true. */
 function isTruthyApiFlag(val) {
   if (val === true || val === 1) return true;
@@ -173,6 +187,7 @@ export function buildColumnMeta(apiCol) {
     isCrossYearEntryAllow: isTruthyApiFlag(apiCol.iscrossyearentryallow ?? apiCol.IsCrossYearEntryAllow),
     isFutureDateAllow: isTruthyApiFlag(apiCol.isfuturedateallow ?? apiCol.IsFutureDateAllow),
   };
+  return meta;
 }
 
 /** Read column meta from a grid column def or raw API column. */

@@ -27,6 +27,14 @@ const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/As
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
+const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
+const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
+const AssetsEmployeeIssuePage = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssuePage"));
+const AssetsEmployeeIssueForm = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssueForm"));
+const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnPage"));
+const AssetsEmployeeReturnForm = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnForm"));
+const AssetsDepartmentIssuePage = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssuePage"));
+const AssetsDepartmentIssueForm = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssueForm"));
 const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
 const LocationMasterPage = lazy(() => import("./pages/location-master/LocationMasterPage"));
 const SubMainGroupMasterPage = lazy(() => import("./pages/sub-main-group-master/SubMainGroupMasterPage"));
@@ -37,6 +45,8 @@ const DivisionWiseRightsPage = lazy(() => import("./pages/division-wise-rights/D
 const ItemMasterPage = lazy(() => import("./pages/item-master/ItemMasterPage"));
 const DepartmentMasterPage = lazy(() => import("./pages/department-master/DepartmentMasterPage"));
 const CompanyPage = lazy(() => import("./pages/company/CompanyPage"));
+const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/AccountGroupMasterPage"));
+const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetItemMasterPage"));
 
@@ -106,6 +116,22 @@ function AppRoutes() {
           <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
+          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
+          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
+          <Route path="assets-employee-issue" element={<AssetsEmployeeIssuePage />} />
+          <Route path="assets-employee-issue/new" element={<AssetsEmployeeIssueForm />} />
+          <Route path="assets-employee-issue/:id" element={<AssetsEmployeeIssueForm />} />
+          <Route path="assets-employee-issue/:id/edit" element={<AssetsEmployeeIssueForm />} />
+          <Route path="assets-employee-return" element={<AssetsEmployeeReturnPage />} />
+          <Route path="assets-employee-return/new" element={<AssetsEmployeeReturnForm />} />
+          <Route path="assets-employee-return/:id" element={<AssetsEmployeeReturnForm />} />
+          <Route path="assets-employee-return/:id/edit" element={<AssetsEmployeeReturnForm />} />
+          <Route path="assets-department-issue" element={<AssetsDepartmentIssuePage />} />
+          <Route path="assets-department-issue/new" element={<AssetsDepartmentIssueForm />} />
+          <Route path="assets-department-issue/:id" element={<AssetsDepartmentIssueForm />} />
+          <Route path="assets-department-issue/:id/edit" element={<AssetsDepartmentIssueForm />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
@@ -119,6 +145,8 @@ function AppRoutes() {
           <Route path="admin/item-master" element={<ItemMasterPage />} />
           <Route path="admin/department-master" element={<DepartmentMasterPage />} />
           <Route path="admin/company" element={<CompanyPage />} />
+          <Route path="admin/account-group-master" element={<AccountGroupMasterPage />} />
+          <Route path="admin/account-master" element={<AccountMasterPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

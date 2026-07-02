@@ -64,18 +64,18 @@ function mapUnitOptions(rows) {
 export function useItemMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,  setHeaderColumns]  = useState([]);
-  const [allColumns,     setAllColumns]     = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);
-  const [headerError,    setHeaderError]    = useState(null);
+  const [headerError, setHeaderError] = useState(null);
 
-  const [itemTypeOptions,    setItemTypeOptions]    = useState([]);
-  const [mainGroupOptions,   setMainGroupOptions]   = useState([]);
-  const [subMainGroupOptions,setSubMainGroupOptions]= useState([]);
-  const [subGroupOptions,    setSubGroupOptions]    = useState([]);
-  const [taxOptions,         setTaxOptions]         = useState([]);
-  const [tranUnitOptions,    setTranUnitOptions]    = useState([]);
-  const [baseUnitOptions,    setBaseUnitOptions]    = useState([]);
+  const [itemTypeOptions, setItemTypeOptions] = useState([]);
+  const [mainGroupOptions, setMainGroupOptions] = useState([]);
+  const [subMainGroupOptions, setSubMainGroupOptions] = useState([]);
+  const [subGroupOptions, setSubGroupOptions] = useState([]);
+  const [taxOptions, setTaxOptions] = useState([]);
+  const [tranUnitOptions, setTranUnitOptions] = useState([]);
+  const [baseUnitOptions, setBaseUnitOptions] = useState([]);
 
   const fetchItemTypeOptions = useCallback(async () => {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, {
@@ -95,7 +95,7 @@ export function useItemMaster() {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 2,
       ObjName: IM_CONFIG.SP_MAIN_GROUP,
-      JSon: JSON.stringify([{prmitemtypeid : itemTypeId}]),
+      JSon: JSON.stringify([{ prmitemtypeid: itemTypeId }]),
       p_ErrCode: -1,
       p_ErrMsg: "",
     }).catch(() => null);
@@ -109,7 +109,7 @@ export function useItemMaster() {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, {
       ObjType: 2,
       ObjName: IM_CONFIG.SP_SUB_MAIN_GROUP,
-      JSon: JSON.stringify([{prmitemtypeid : itemTypeId,prmmaingroupid: mainGroupId}]),
+      JSon: JSON.stringify([{ prmitemtypeid: itemTypeId, prmmaingroupid: mainGroupId }]),
       p_ErrCode: -1,
       p_ErrMsg: "",
     }).catch(() => null);
@@ -135,7 +135,7 @@ export function useItemMaster() {
   const fetchStaticDropdowns = useCallback(async () => {
     const emptyJson = JSON.stringify([{}]);
     const [taxRes, tranRes, baseRes] = await Promise.all([
-      get(ENDPOINTS.FN_FETCH_DATA, { ObjType: 2, ObjName: IM_CONFIG.SP_TAX,       JSon: emptyJson, p_ErrCode: -1, p_ErrMsg: "" }).catch(() => null),
+      get(ENDPOINTS.FN_FETCH_DATA, { ObjType: 2, ObjName: IM_CONFIG.SP_TAX, JSon: emptyJson, p_ErrCode: -1, p_ErrMsg: "" }).catch(() => null),
       get(ENDPOINTS.FN_FETCH_DATA, { ObjType: 2, ObjName: IM_CONFIG.SP_TRAN_UNIT, JSon: emptyJson, p_ErrCode: -1, p_ErrMsg: "" }).catch(() => null),
       get(ENDPOINTS.FN_FETCH_DATA, { ObjType: 2, ObjName: IM_CONFIG.SP_BASE_UNIT, JSon: emptyJson, p_ErrCode: -1, p_ErrMsg: "" }).catch(() => null),
     ]);
@@ -180,11 +180,11 @@ export function useItemMaster() {
 
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
-      Number(companyId)  || DEFAULT_COMPANY_ID,
-      Number(yearId)     || IM_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId)    || DEFAULT_LOGIN_ID,
-      Number(sessionId)  || DEFAULT_SESSION_ID,
-      Number(idNumber)   || 0,
+      Number(companyId) || DEFAULT_COMPANY_ID,
+      Number(yearId) || IM_CONFIG.CONFIG_YEAR_ID,
+      Number(loginId) || DEFAULT_LOGIN_ID,
+      Number(sessionId) || DEFAULT_SESSION_ID,
+      Number(idNumber) || 0,
     ].join(",");
 
     const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
@@ -197,9 +197,9 @@ export function useItemMaster() {
       master,
       headerValues: master ? {
         ...master,
-        yearid:    IM_CONFIG.CONFIG_YEAR_ID,
-        funccode:  IM_CONFIG.RB_MASTER,
-        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        yearid: IM_CONFIG.CONFIG_YEAR_ID,
+        funccode: IM_CONFIG.RB_MASTER,
+        loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
         sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
       } : null,
     };
@@ -215,7 +215,7 @@ export function useItemMaster() {
     if (itemTypeId != null && (master.itemtypename || master.itemtypecode)) {
       setItemTypeOptions((prev) =>
         prev.some((o) => o.value === String(itemTypeId)) ? prev :
-        [{ value: String(itemTypeId), label: String(master.itemtypename ?? master.itemtypecode ?? "") }, ...prev]
+          [{ value: String(itemTypeId), label: String(master.itemtypename ?? master.itemtypecode ?? "") }, ...prev]
       );
     }
 
@@ -223,7 +223,7 @@ export function useItemMaster() {
     if (mainGroupId != null && (master.maingroupname || master.maingroupcode)) {
       setMainGroupOptions((prev) =>
         prev.some((o) => o.value === String(mainGroupId)) ? prev :
-        [{ value: String(mainGroupId), label: String(master.maingroupname ?? master.maingroupcode ?? "") }, ...prev]
+          [{ value: String(mainGroupId), label: String(master.maingroupname ?? master.maingroupcode ?? "") }, ...prev]
       );
     }
 
@@ -231,7 +231,7 @@ export function useItemMaster() {
     if (subMainGroupId != null && (master.submaingroupname || master.subgroup)) {
       setSubMainGroupOptions((prev) =>
         prev.some((o) => o.value === String(subMainGroupId)) ? prev :
-        [{ value: String(subMainGroupId), label: String(master.submaingroupname ?? master.subgroup ?? "") }, ...prev]
+          [{ value: String(subMainGroupId), label: String(master.submaingroupname ?? master.subgroup ?? "") }, ...prev]
       );
     }
 
@@ -239,7 +239,7 @@ export function useItemMaster() {
     if (taxabilityId != null && (master.taxabilityname || master.texabilityname)) {
       setTaxOptions((prev) =>
         prev.some((o) => o.value === String(taxabilityId)) ? prev :
-        [{ value: String(taxabilityId), label: String(master.taxabilityname ?? master.texabilityname ?? "") }, ...prev]
+          [{ value: String(taxabilityId), label: String(master.taxabilityname ?? master.texabilityname ?? "") }, ...prev]
       );
     }
 
@@ -247,7 +247,7 @@ export function useItemMaster() {
     if (tranUnitId != null && (master.tranunitname || master.tranunit)) {
       setTranUnitOptions((prev) =>
         prev.some((o) => o.value === String(tranUnitId)) ? prev :
-        [{ value: String(tranUnitId), label: String(master.tranunitname ?? master.tranunit ?? "") }, ...prev]
+          [{ value: String(tranUnitId), label: String(master.tranunitname ?? master.tranunit ?? "") }, ...prev]
       );
     }
 
@@ -255,7 +255,7 @@ export function useItemMaster() {
     if (baseUnitId != null && (master.baseunitname || master.baseunit)) {
       setBaseUnitOptions((prev) =>
         prev.some((o) => o.value === String(baseUnitId)) ? prev :
-        [{ value: String(baseUnitId), label: String(master.baseunitname ?? master.baseunit ?? "") }, ...prev]
+          [{ value: String(baseUnitId), label: String(master.baseunitname ?? master.baseunit ?? "") }, ...prev]
       );
     }
   }, []);

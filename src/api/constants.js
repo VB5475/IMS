@@ -66,13 +66,13 @@ export const CBO_MODE = {
 export const COL_DATA_TYPE = {
   NUMERIC: "numeric",   // → default 0
   DECIMAL: "decimal",   // PG alias for numeric   → default 0
-  FLOAT:   "float",     // float4 / float8        → default 0
-  REAL:    "real",      // float4                 → default 0
-  DOUBLE:  "double",    // double precision       → default 0
-  INT:     "int",       // integer / bigint / smallint → default 0
-  MONEY:   "money",     // money                  → default 0
+  FLOAT: "float",     // float4 / float8        → default 0
+  REAL: "real",      // float4                 → default 0
+  DOUBLE: "double",    // double precision       → default 0
+  INT: "int",       // integer / bigint / smallint → default 0
+  MONEY: "money",     // money                  → default 0
   VARCHAR: "varchar",   // → default ''
-  TEXT:    "text",      // PG text                → default ''
+  TEXT: "text",      // PG text                → default ''
   DATETIME: "datetime", // → default null
 };
 

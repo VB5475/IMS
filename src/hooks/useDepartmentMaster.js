@@ -31,57 +31,57 @@ function mapDeptHeadUserOptions(rows) {
  * work from the same column object.
  */
 function normalizeColumn(col) {
-  const colname               = col.colname               ?? col.ColName               ?? "";
-  const colseqno              = col.colseqno              ?? col.ColSeqNo              ?? 999;
-  const isvisible             = col.isvisible             ?? col.IsVisible             ?? false;
-  const colctrltype           = col.colctrltype           ?? col.ColCtrlType           ?? 0;
-  const updatekeycolname      = col.updatekeycolname      ?? col.UpdateKeyColName      ?? "";
-  const displayname           = col.displayname           ?? col.DisplayName           ?? colname;
-  const iseditallow           = col.iseditallow           ?? col.IsEditAllow           ?? false;
+  const colname = col.colname ?? col.ColName ?? "";
+  const colseqno = col.colseqno ?? col.ColSeqNo ?? 999;
+  const isvisible = col.isvisible ?? col.IsVisible ?? false;
+  const colctrltype = col.colctrltype ?? col.ColCtrlType ?? 0;
+  const updatekeycolname = col.updatekeycolname ?? col.UpdateKeyColName ?? "";
+  const displayname = col.displayname ?? col.DisplayName ?? colname;
+  const iseditallow = col.iseditallow ?? col.IsEditAllow ?? false;
   const islockoneditmodeallow = col.islockoneditmodeallow ?? col.IsLockOnEditModeAllow ?? false;
-  const objdetid              = col.objdetid              ?? col.ObjDetID              ?? null;
-  const ismandatory           = col.ismandatory           ?? col.IsMandatory           ?? false;
-  const coldatatype           = col.coldatatype           ?? col.ColDataType           ?? null;
-  const ctrlvaluecol          = col.ctrlvaluecol          ?? col.CtrlValueCol          ?? colname;
-  const ctrldisplaycol        = col.ctrldisplaycol        ?? col.CtrlDisplayCol        ?? colname;
+  const objdetid = col.objdetid ?? col.ObjDetID ?? null;
+  const ismandatory = col.ismandatory ?? col.IsMandatory ?? false;
+  const coldatatype = col.coldatatype ?? col.ColDataType ?? null;
+  const ctrlvaluecol = col.ctrlvaluecol ?? col.CtrlValueCol ?? colname;
+  const ctrldisplaycol = col.ctrldisplaycol ?? col.CtrlDisplayCol ?? colname;
   return {
     ...col,
     colname, colseqno, isvisible, colctrltype, updatekeycolname,
     displayname, iseditallow, islockoneditmodeallow, objdetid,
     ismandatory, coldatatype, ctrlvaluecol, ctrldisplaycol,
-    ColName:               colname,
-    ColSeqNo:              colseqno,
-    IsVisible:             isvisible,
-    ColCtrlType:           colctrltype,
-    UpdateKeyColName:      updatekeycolname,
-    DisplayName:           displayname,
-    IsEditAllow:           iseditallow,
+    ColName: colname,
+    ColSeqNo: colseqno,
+    IsVisible: isvisible,
+    ColCtrlType: colctrltype,
+    UpdateKeyColName: updatekeycolname,
+    DisplayName: displayname,
+    IsEditAllow: iseditallow,
     IsLockOnEditModeAllow: islockoneditmodeallow,
-    ObjDetID:              objdetid,
-    IsMandatory:           ismandatory,
-    ColDataType:           coldatatype,
+    ObjDetID: objdetid,
+    IsMandatory: ismandatory,
+    ColDataType: coldatatype,
   };
 }
 
 /** fn_tbl_RB_DepartmentMst — @prmCompanyID, @prmYearID, @prmLoginID, @prmSessionID, @prmMasterID */
 function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
   return [
-    Number(companyId)  || DEFAULT_COMPANY_ID,
-    Number(yearId)     || DM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId)    || DEFAULT_LOGIN_ID,
-    Number(sessionId)  || DEFAULT_SESSION_ID,
-    Number(masterId)   || 0,
+    Number(companyId) || DEFAULT_COMPANY_ID,
+    Number(yearId) || DM_CONFIG.CONFIG_YEAR_ID,
+    Number(loginId) || DEFAULT_LOGIN_ID,
+    Number(sessionId) || DEFAULT_SESSION_ID,
+    Number(masterId) || 0,
   ].join(",");
 }
 
 export function useDepartmentMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,   setHeaderColumns]   = useState([]);
-  const [allColumns,      setAllColumns]      = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});
-  const [headerFetching,  setHeaderFetching]  = useState(false);
-  const [headerError,     setHeaderError]     = useState(null);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
 
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
@@ -89,11 +89,11 @@ export function useDepartmentMaster() {
     try {
       // Phase 1 — RB metadata → RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   DM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmrbcode: DM_CONFIG.RB_MASTER }]),
+        ObjType: 2,
+        ObjName: DM_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: DM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
       // PG returns lowercase keys
@@ -101,7 +101,7 @@ export function useDepartmentMaster() {
       if (!rbidVal) throw new Error("No Department Master RB metadata returned.");
 
       const hdrMeta = {
-        RBID:         rbidVal,
+        RBID: rbidVal,
         SaveProcName: tableRow.saveprocname ?? tableRow.SaveProcName,
       };
       localStorage.setItem(DM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
@@ -109,7 +109,7 @@ export function useDepartmentMaster() {
       // Phase 2 — column definitions (drives visible fields, defaults, save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       // PG returns a flat array; old SQL Server returned { Links: [...] }
       const rawLinks = Array.isArray(colData) ? colData : (colData || []);
@@ -119,11 +119,11 @@ export function useDepartmentMaster() {
 
       // Phase 3 — manual SP call for DeptHead user list
       const userRes = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   DM_CONFIG.SP_USER_FETCH,
-        JSon:      JSON.stringify([{}]),
+        ObjType: 2,
+        ObjName: DM_CONFIG.SP_USER_FETCH,
+        JSon: JSON.stringify([{}]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       }).catch(() => []);
       const userRows = Array.isArray(userRes) ? userRes : (userRes ?? userRes ?? []);
       setDropdownOptions({ [DEPT_HEAD_KEY]: mapDeptHeadUserOptions(userRows) });
@@ -144,7 +144,7 @@ export function useDepartmentMaster() {
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure:  DM_CONFIG.SP_MASTER_FILL,
+        prmProcedure: DM_CONFIG.SP_MASTER_FILL,
         prmParameters: buildMasterFillParameterString({
           companyId, yearId, loginId, sessionId, masterId: idNumber,
         }),
@@ -155,10 +155,10 @@ export function useDepartmentMaster() {
         master,
         headerValues: master ? {
           ...master,
-          yearid:    Number(master.yearid    ?? yearId)    || DM_CONFIG.CONFIG_YEAR_ID,
-          loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+          yearid: Number(master.yearid ?? yearId) || DM_CONFIG.CONFIG_YEAR_ID,
+          loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
-          funccode:  master.funccode ?? DM_CONFIG.RB_MASTER,
+          funccode: master.funccode ?? DM_CONFIG.RB_MASTER,
         } : null,
       };
     },
@@ -175,8 +175,8 @@ export function useDepartmentMaster() {
   const seedOptionsFromMaster = useCallback((master) => {
     if (!master) return;
     setDropdownOptions((prev) => {
-      const headId   = master[DEPT_HEAD_KEY] ?? master.DeptHeadID;
-      const headName = master.deptHeadname   ?? master.deptHeadName ?? master.DeptHeadName;
+      const headId = master[DEPT_HEAD_KEY] ?? master.DeptHeadID;
+      const headName = master.deptHeadname ?? master.deptHeadName ?? master.DeptHeadName;
       if (headId == null || !headName) return prev;
       const opt = { value: String(headId), label: String(headName) };
       if (prev[DEPT_HEAD_KEY]?.some((o) => o.value === opt.value)) return prev;

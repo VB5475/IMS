@@ -66,11 +66,11 @@ export default function ItemMasterForm({
   const isAddMode = mode === "add";
   const notify = useNotification();
 
-  const [isEditMode,    setIsEditMode]    = useState(true);
-  const [formValues,    setFormValues]    = useState({});
-  const [isSaving,      setIsSaving]      = useState(false);
-  const [saveError,     setSaveError]     = useState(null);
-  const [formErrors,    setFormErrors]    = useState([]);
+  const [isEditMode, setIsEditMode] = useState(true);
+  const [formValues, setFormValues] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
   const [discardAction, setDiscardAction] = useState(null);
 
   const buildEmptyFromColumns = useCallback(() => {
@@ -78,10 +78,10 @@ export default function ItemMasterForm({
     allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
     return {
       ...row,
-      yearid:    IM_CONFIG.CONFIG_YEAR_ID,
-      loginid:   DEFAULT_LOGIN_ID,
+      yearid: IM_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID,
       sessionid: DEFAULT_SESSION_ID,
-      funccode:  IM_CONFIG.RB_MASTER,
+      funccode: IM_CONFIG.RB_MASTER,
     };
   }, [allColumns]);
 
@@ -107,12 +107,12 @@ export default function ItemMasterForm({
 
   const optionsMap = useMemo(
     () => ({
-      itemtypeid:    itemTypeOptions,
-      maingroupid:   mainGroupOptions,
-      submaingroupid:subMainGroupOptions,
-      taxabilityid:  taxOptions,
-      tranunitid:    tranUnitOptions,
-      baseunitid:    baseUnitOptions,
+      itemtypeid: itemTypeOptions,
+      maingroupid: mainGroupOptions,
+      submaingroupid: subMainGroupOptions,
+      taxabilityid: taxOptions,
+      tranunitid: tranUnitOptions,
+      baseunitid: baseUnitOptions,
       ...Object.fromEntries(IM_SUB_GROUP_FIELDS.map((key) => [key, subGroupOptions])),
     }),
     [itemTypeOptions, mainGroupOptions, subMainGroupOptions, subGroupOptions, taxOptions, tranUnitOptions, baseUnitOptions]
@@ -149,7 +149,7 @@ export default function ItemMasterForm({
   );
 
   function renderControl(field) {
-    const key    = field.colname;
+    const key = field.colname;
     const locked = isLocked(field);
 
     // Itemcode — always auto-generated, shown as display text
@@ -318,8 +318,8 @@ export default function ItemMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading   = defsLoading || recordLoading;
-  const combinedErr = defsError   || recordLoadError;
+  const isLoading = defsLoading || recordLoading;
+  const combinedErr = defsError || recordLoadError;
 
   return (
     <Modal
@@ -373,20 +373,18 @@ export default function ItemMasterForm({
                     .join(" ")}
                 >
                   <span
-                    className={`im-form-label${
-                      field.ismandatory &&
-                      !CHECKBOX_OVERRIDES.has(field.colname) &&
-                      field.colname !== "itemcode"
+                    className={`im-form-label${field.ismandatory &&
+                        !CHECKBOX_OVERRIDES.has(field.colname) &&
+                        field.colname !== "itemcode"
                         ? " im-form-label--required"
                         : ""
-                    }`}
+                      }`}
                   >
                     {getLabel(field)}
                   </span>
                   <div
-                    className={`im-form-control${
-                      CHECKBOX_OVERRIDES.has(field.colname) ? " im-form-control--checkbox" : ""
-                    }`}
+                    className={`im-form-control${CHECKBOX_OVERRIDES.has(field.colname) ? " im-form-control--checkbox" : ""
+                      }`}
                   >
                     {field.colname === "unitconvrate" && isEditMode ? (
                       <div className="im-form-inline">

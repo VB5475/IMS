@@ -45,14 +45,14 @@ export default function DepartmentMasterForm({
   const { post } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
 
-  const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState({});
-  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
+  const [formValues, setFormValues] = useState({});
+  const [recordLoading, setRecordLoading] = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
-  const [isSaving,        setIsSaving]        = useState(false);
-  const [saveError,       setSaveError]       = useState(null);
-  const [formErrors,      setFormErrors]      = useState([]);
-  const [discardAction,   setDiscardAction]   = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // Build a blank row seeded from ALL RB columns (not just visible) + system context fields
   const buildEmptyFromColumns = useCallback(() => {
@@ -62,10 +62,10 @@ export default function DepartmentMasterForm({
     });
     return {
       ...row,
-      yearid:    DM_CONFIG.CONFIG_YEAR_ID,
-      loginid:   DEFAULT_LOGIN_ID,
+      yearid: DM_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID,
       sessionid: DEFAULT_SESSION_ID,
-      funccode:  DM_CONFIG.RB_MASTER,
+      funccode: DM_CONFIG.RB_MASTER,
     };
   }, [allColumns]);
 
@@ -74,7 +74,7 @@ export default function DepartmentMasterForm({
     fieldDefs
       .filter((f) => f.isvisible && Number(f.colseqno) < 100)
       .sort((a, b) => Number(a.colseqno) - Number(b.colseqno)),
-  [fieldDefs]);
+    [fieldDefs]);
 
   // Cascade: parent colname → child colnames to reset on change
   const cascadeResets = useMemo(() => {
@@ -116,10 +116,10 @@ export default function DepartmentMasterForm({
     setRecordLoadError(null);
     fetchEditRecord?.({
       companyId: DEFAULT_COMPANY_ID,
-      yearId:    DM_CONFIG.CONFIG_YEAR_ID,
-      loginId:   DEFAULT_LOGIN_ID,
+      yearId: DM_CONFIG.CONFIG_YEAR_ID,
+      loginId: DEFAULT_LOGIN_ID,
       sessionId: DEFAULT_SESSION_ID,
-      idNumber:  recordId,
+      idNumber: recordId,
     })
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
@@ -176,9 +176,9 @@ export default function DepartmentMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-      console.log("prmStrMstJSON Payload",saveRow);
-      console.log("prmStrDetJSON Payload",{});
-      console.log("Department Payload",payload);
+      console.log("prmStrMstJSON Payload", saveRow);
+      console.log("prmStrDetJSON Payload", {});
+      console.log("Department Payload", payload);
       const result = await post(DM_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
@@ -220,7 +220,7 @@ export default function DepartmentMasterForm({
     if (!isEditMode) {
       return (
         <button type="button" className="master-modal-btn master-modal-btn--edit"
-                onClick={() => setIsEditMode(true)}>
+          onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
@@ -228,11 +228,11 @@ export default function DepartmentMasterForm({
     return (
       <div className="master-modal-footer-actions">
         <button type="button" className="master-modal-btn master-modal-btn--cancel"
-                onClick={handleCancelEdit} disabled={isSaving}>
+          onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
-                onClick={handleSave} disabled={isSaving}>
+          onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -240,8 +240,8 @@ export default function DepartmentMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading   = defsLoading || recordLoading;
-  const combinedErr = defsError   || recordLoadError;
+  const isLoading = defsLoading || recordLoading;
+  const combinedErr = defsError || recordLoadError;
 
   return (
     <Modal
@@ -276,7 +276,7 @@ export default function DepartmentMasterForm({
                   key={field.colname}
                   className={[
                     "dm-form-row",
-                    isMasterToggleField(field)   ? "dm-form-row--toggle"   : "",
+                    isMasterToggleField(field) ? "dm-form-row--toggle" : "",
                     isMasterCheckboxField(field) ? "dm-form-row--checkbox" : "",
                   ].filter(Boolean).join(" ")}
                 >
@@ -285,8 +285,8 @@ export default function DepartmentMasterForm({
                   </span>
                   <div className={[
                     "dm-form-control",
-                    isMasterToggleField(field)   ? "dm-form-control--toggle-wrap" : "",
-                    isMasterCheckboxField(field) ? "dm-form-control--checkbox"    : "",
+                    isMasterToggleField(field) ? "dm-form-control--toggle-wrap" : "",
+                    isMasterCheckboxField(field) ? "dm-form-control--checkbox" : "",
                   ].filter(Boolean).join(" ")}>
                     {renderControl(field)}
                   </div>

@@ -22,6 +22,12 @@ export function resolveListRecordId(row) {
     row.POID ??
     row.PVID ??
     row.IndentID ??
+    row.astempissid ??
+    row.AstEmpIssID ??
+    row.astempretid ??
+    row.AstEmpRetID ??
+    row.astwriteoffid ??
+    row.AstWriteOffID ??
     row.IDNUMBER ??
     row.IDNumber ??
     row.idnumber ??

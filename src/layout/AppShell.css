@@ -43,12 +43,19 @@
   width: 32px;
   height: 32px;
   border-radius: var(--radius);
-  background: var(--navy-light);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   flex-shrink: 0;
+}
+
+.ent-sidebar__logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .ent-sidebar__name {
@@ -293,7 +300,9 @@
   border: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   border-right: 1px solid var(--border-dark);
 }
 
@@ -344,7 +353,9 @@
 
 .ent-topbar__env-badge--btn {
   cursor: pointer;
-  transition: opacity 0.15s, box-shadow 0.15s;
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
 }
 
 .ent-topbar__env-badge--btn:hover {

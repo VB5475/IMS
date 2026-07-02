@@ -126,12 +126,20 @@
 .login-hero__logo {
   width: 52px;
   height: 52px;
+  padding: 4px;
   display: grid;
   place-items: center;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.login-brand-logo__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .login-hero__brand h1 {
@@ -289,12 +297,13 @@
   width: 44px;
   height: 44px;
   margin-bottom: 16px;
+  padding: 4px;
   border-radius: 12px;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: linear-gradient(145deg, #226db4, #1e4a7a);
-  box-shadow: 0 6px 16px rgba(30, 74, 122, 0.35);
+  background: #fff;
+  border: 1px solid rgba(34, 109, 180, 0.16);
+  box-shadow: 0 6px 16px rgba(15, 45, 74, 0.14);
 }
 
 .login-card__header h3 {

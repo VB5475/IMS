@@ -272,6 +272,57 @@
   }
 }
 
+.tef-control input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--secondary, #72b1fd);
+  cursor: pointer;
+}
+
+.tef-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tef-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.tef-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.tef-toggle--on {
+  background: var(--secondary, #72b1fd);
+  border-color: var(--secondary, #72b1fd);
+}
+
+.tef-toggle--on::after {
+  transform: translateX(16px);
+}
+
+.tef-toggle-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .tef-panel-controls {
