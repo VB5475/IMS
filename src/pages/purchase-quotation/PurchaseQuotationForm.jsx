@@ -644,7 +644,7 @@ export default function PurchaseQuotationForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: QTN_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        JSon: JSON.stringify([{ prmrbcode: rbCode }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

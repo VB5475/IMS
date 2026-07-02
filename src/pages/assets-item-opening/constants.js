@@ -63,8 +63,8 @@ export const AOP_ITEM_TYPE_ID = 1;
 
 // Item picker required header fields (gate before opening item picker)
 const AOP_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "DivisionID",  label: "Division" },
-  { headerKey: "ItemGroupID", label: "Item Group" },
+  { headerKey: "divisionid",  label: "Division" },
+  { headerKey: "itemgroupid", label: "Item Group" },
 ];
 
 function isMissingValue(field, value) {

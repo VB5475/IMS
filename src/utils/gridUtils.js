@@ -258,6 +258,7 @@ export function resolveDropdownLabel(col, row, rawValue) {
   const rowDisplay = row ? getRowDropdownDisplay(row, col) : "";
   if (rowDisplay) return rowDisplay;
 
+  if (Number(value) === 0) return "";
   return String(value);
 }
 
@@ -286,7 +287,7 @@ export function syncEditGridDropdownValues(rows, gridColumns) {
 export function mergeRowDropdownOptions(col, row, baseOpts = []) {
   const opts = [...baseOpts];
   const value = resolveRowCellValue(row, col);
-  if (value === "") return opts;
+  if (value === "" || Number(value) === 0) return opts;
   const strVal = String(value);
   if (opts.some((o) => String(o.value) === strVal)) return opts;
   const label = resolveDropdownLabel(col, row, value);
