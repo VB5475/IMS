@@ -185,59 +185,13 @@
 }
 
 .um-form-control--toggle-wrap {
-  gap: 0;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
-.um-form-control--toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.um-form-toggle {
-  position: relative;
-  width: 40px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--border-dark, #c3c6d0);
-  border-radius: 999px;
-  background: #e2e8f0;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.um-form-toggle::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transition: transform 0.15s ease;
-}
-
-.um-form-toggle--on {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-
-.um-form-toggle--on::after {
-  transform: translateX(18px);
-}
-
-.um-form-toggle:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.um-form-toggle-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  min-width: 24px;
+.um-form-control--checkbox {
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 .um-hierarchy-panel {

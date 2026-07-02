@@ -13,46 +13,46 @@ import { UG_CONFIG } from "../pages/user-group/constants";
 // Dual-case normalization — PG returns lowercase; legacy utilities need ColName
 // ---------------------------------------------------------------------------
 function normalizeColumn(col) {
-  const colname               = col.colname               ?? col.ColName               ?? "";
-  const colseqno              = col.colseqno              ?? col.ColSeqNo              ?? 999;
-  const isvisible             = col.isvisible             ?? col.IsVisible             ?? false;
-  const colctrltype           = col.colctrltype           ?? col.ColCtrlType           ?? 0;
-  const updatekeycolname      = col.updatekeycolname      ?? col.UpdateKeyColName      ?? "";
-  const displayname           = col.displayname           ?? col.DisplayName           ?? colname;
-  const iseditallow           = col.iseditallow           ?? col.IsEditAllow           ?? false;
+  const colname = col.colname ?? col.ColName ?? "";
+  const colseqno = col.colseqno ?? col.ColSeqNo ?? 999;
+  const isvisible = col.isvisible ?? col.IsVisible ?? false;
+  const colctrltype = col.colctrltype ?? col.ColCtrlType ?? 0;
+  const updatekeycolname = col.updatekeycolname ?? col.UpdateKeyColName ?? "";
+  const displayname = col.displayname ?? col.DisplayName ?? colname;
+  const iseditallow = col.iseditallow ?? col.IsEditAllow ?? false;
   const islockoneditmodeallow = col.islockoneditmodeallow ?? col.IsLockOnEditModeAllow ?? false;
-  const objdetid              = col.objdetid              ?? col.ObjDetID              ?? null;
-  const ismandatory           = col.ismandatory           ?? col.IsMandatory           ?? false;
-  const coldatatype           = col.coldatatype           ?? col.ColDataType           ?? null;
-  const ctrlvaluecol          = col.ctrlvaluecol          ?? col.CtrlValueCol          ?? colname;
-  const ctrldisplaycol        = col.ctrldisplaycol        ?? col.CtrlDisplayCol        ?? colname;
+  const objdetid = col.objdetid ?? col.ObjDetID ?? null;
+  const ismandatory = col.ismandatory ?? col.IsMandatory ?? false;
+  const coldatatype = col.coldatatype ?? col.ColDataType ?? null;
+  const ctrlvaluecol = col.ctrlvaluecol ?? col.CtrlValueCol ?? colname;
+  const ctrldisplaycol = col.ctrldisplaycol ?? col.CtrlDisplayCol ?? colname;
   return {
     ...col,
     colname, colseqno, isvisible, colctrltype, updatekeycolname,
     displayname, iseditallow, islockoneditmodeallow, objdetid,
     ismandatory, coldatatype, ctrlvaluecol, ctrldisplaycol,
-    ColName:               colname,
-    ColSeqNo:              colseqno,
-    IsVisible:             isvisible,
-    ColCtrlType:           colctrltype,
-    UpdateKeyColName:      updatekeycolname,
-    DisplayName:           displayname,
-    IsEditAllow:           iseditallow,
+    ColName: colname,
+    ColSeqNo: colseqno,
+    IsVisible: isvisible,
+    ColCtrlType: colctrltype,
+    UpdateKeyColName: updatekeycolname,
+    DisplayName: displayname,
+    IsEditAllow: iseditallow,
     IsLockOnEditModeAllow: islockoneditmodeallow,
-    ObjDetID:              objdetid,
-    IsMandatory:           ismandatory,
-    ColDataType:           coldatatype,
+    ObjDetID: objdetid,
+    IsMandatory: ismandatory,
+    ColDataType: coldatatype,
   };
 }
 
 export function useUserGroup() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,   setHeaderColumns]   = useState([]);
-  const [allColumns,      setAllColumns]      = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});
-  const [headerFetching,  setHeaderFetching]  = useState(false);
-  const [headerError,     setHeaderError]     = useState(null);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
 
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
@@ -60,11 +60,11 @@ export function useUserGroup() {
     try {
       // Phase 1 — RB metadata → RBID (lowercase param key for PG)
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   UG_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmrbcode: UG_CONFIG.RB_MASTER }]),
+        ObjType: 2,
+        ObjName: UG_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: UG_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No User Group RB metadata returned.");
@@ -74,18 +74,18 @@ export function useUserGroup() {
       if (!rbidVal) throw new Error("No User Group RB metadata returned.");
 
       const hdrMeta = {
-        RBID:         rbidVal,
+        RBID: rbidVal,
         SaveProcName: tableRow.saveprocname ?? tableRow.SaveProcName,
       };
       localStorage.setItem(UG_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — column definitions; PG returns flat array (not { Links: [...] })
-      const colData  = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       const rawLinks = Array.isArray(colData) ? colData : (colData || []);
-      const links    = rawLinks.map(normalizeColumn);
+      const links = rawLinks.map(normalizeColumn);
       setHeaderColumns(links);
       setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
 
@@ -102,26 +102,26 @@ export function useUserGroup() {
   // PG returns lowercase keys — spread master directly as headerValues.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
-      Number(companyId)  || DEFAULT_COMPANY_ID,
-      Number(yearId)     || UG_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId)    || DEFAULT_LOGIN_ID,
-      Number(sessionId)  || DEFAULT_SESSION_ID,
-      Number(idNumber)   || 0,
+      Number(companyId) || DEFAULT_COMPANY_ID,
+      Number(yearId) || UG_CONFIG.CONFIG_YEAR_ID,
+      Number(loginId) || DEFAULT_LOGIN_ID,
+      Number(sessionId) || DEFAULT_SESSION_ID,
+      Number(idNumber) || 0,
     ].join(",");
 
     const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
       prmProcedure: UG_CONFIG.SP_MASTER_FILL,
       prmParameters,
-      prmFuncCode:  UG_CONFIG.RB_MASTER,
+      prmFuncCode: UG_CONFIG.RB_MASTER,
     });
     const master = Array.isArray(mstRes) ? mstRes[0] : (mstRes?.[0] ?? null);
     return {
       master,
       headerValues: master ? {
         ...master,
-        yearid:    UG_CONFIG.CONFIG_YEAR_ID,
-        funccode:  UG_CONFIG.RB_MASTER,
-        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        yearid: UG_CONFIG.CONFIG_YEAR_ID,
+        funccode: UG_CONFIG.RB_MASTER,
+        loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
         sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
       } : null,
     };

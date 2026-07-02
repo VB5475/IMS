@@ -30,14 +30,14 @@ export default function UserGroupForm({
   const isAddMode = mode === "add";
   const notify = useNotification();
 
-  const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState({});
-  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
+  const [formValues, setFormValues] = useState({});
+  const [recordLoading, setRecordLoading] = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
-  const [isSaving,        setIsSaving]        = useState(false);
-  const [saveError,       setSaveError]       = useState(null);
-  const [formErrors,      setFormErrors]      = useState([]);
-  const [discardAction,   setDiscardAction]   = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   // Build a blank row seeded from RB column defaults + context fields
   const buildEmptyFromColumns = useCallback(() => {
@@ -45,10 +45,10 @@ export default function UserGroupForm({
     allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
     return {
       ...row,
-      yearid:    UG_CONFIG.CONFIG_YEAR_ID,
-      loginid:   DEFAULT_LOGIN_ID,
+      yearid: UG_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID,
       sessionid: DEFAULT_SESSION_ID,
-      funccode:  UG_CONFIG.RB_MASTER,
+      funccode: UG_CONFIG.RB_MASTER,
     };
   }, [allColumns]);
 
@@ -69,10 +69,10 @@ export default function UserGroupForm({
     setRecordLoadError(null);
     fetchEditRecord({
       companyId: DEFAULT_COMPANY_ID,
-      yearId:    UG_CONFIG.CONFIG_YEAR_ID,
-      loginId:   DEFAULT_LOGIN_ID,
+      yearId: UG_CONFIG.CONFIG_YEAR_ID,
+      loginId: DEFAULT_LOGIN_ID,
       sessionId: DEFAULT_SESSION_ID,
-      idNumber:  recordId,
+      idNumber: recordId,
     })
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
@@ -87,7 +87,7 @@ export default function UserGroupForm({
     fieldDefs
       .filter((f) => f.isvisible && f.colseqno < 100)
       .sort((a, b) => a.colseqno - b.colseqno),
-  [fieldDefs]);
+    [fieldDefs]);
 
   function isLocked(field) {
     if (!isEditMode) return true;
@@ -99,7 +99,7 @@ export default function UserGroupForm({
   }, []);
 
   function renderControl(field) {
-    const key    = field.colname;
+    const key = field.colname;
     const locked = isLocked(field);
 
     // Checkbox override — numeric 0/1 stored but rendered as checkbox
@@ -163,9 +163,9 @@ export default function UserGroupForm({
         { divisionId: 0, isEdit: !isAddMode }
       );
       const res = await fetch(`${API_BASE_URL_IMS}${UG_CONFIG.SAVE_ENDPOINT}`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
@@ -209,7 +209,7 @@ export default function UserGroupForm({
     if (!isEditMode) {
       return (
         <button type="button" className="master-modal-btn master-modal-btn--edit"
-                onClick={() => setIsEditMode(true)}>
+          onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
@@ -217,11 +217,11 @@ export default function UserGroupForm({
     return (
       <div className="master-modal-footer-actions">
         <button type="button" className="master-modal-btn master-modal-btn--cancel"
-                onClick={handleCancelEdit} disabled={isSaving}>
+          onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
-                onClick={handleSave} disabled={isSaving}>
+          onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -229,8 +229,8 @@ export default function UserGroupForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading   = defsLoading || recordLoading;
-  const combinedErr = defsError   || recordLoadError;
+  const isLoading = defsLoading || recordLoading;
+  const combinedErr = defsError || recordLoadError;
 
   return (
     <Modal

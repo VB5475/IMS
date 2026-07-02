@@ -29,6 +29,26 @@ export function isTextareaColCtrlType(colCtrlType) {
   return Number(colCtrlType) === controlTypeMap.TEXTAREA;
 }
 
+/** ColCtrlType 14 → toggle switch. */
+export function isToggleColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.TOGGLE;
+}
+
+/** ColCtrlType 0 → read-only label. */
+export function isLabelColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.LABEL;
+}
+
+/** ColCtrlType 2 → date picker. */
+export function isDateColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.DATE;
+}
+
+/** ColCtrlType 1 → single-line text (numeric subtype from ColDataType). */
+export function isTextboxColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.TEXTBOX;
+}
+
 export const gridMeta = {
   title: "RB Marketing Action",
   division: "INDIAN CHEMICAL",

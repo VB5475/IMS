@@ -16,6 +16,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 import { controlTypeMap } from "../../data/dummyData";
+import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
 import { Plus, Table2, ShoppingCart } from "lucide-react";
 import "./TxnHeaderPanel.css";
@@ -65,6 +66,44 @@ function FilterControl({ filter, value, options, onChange }) {
           />
         </div>
       );
+
+    case controlTypeMap.CHECKBOX:
+    case controlTypeMap.CHECKBOX_ALT:
+      return (
+        <div className="tef-control tef-control--checkbox">
+          <label className="tef-label" htmlFor={`tef-${FilterColName}`}>
+            {FilterCaption}
+          </label>
+          <input
+            id={`tef-${FilterColName}`}
+            type="checkbox"
+            checked={getCheckboxValue(value) === 1}
+            onChange={(e) => onChange(FilterColName, e.target.checked ? 1 : 0)}
+            aria-label={FilterCaption}
+          />
+        </div>
+      );
+
+    case controlTypeMap.TOGGLE: {
+      const on = getToggleValue(value) === 1;
+      return (
+        <div className="tef-control tef-control--toggle">
+          <span className="tef-label">{FilterCaption}</span>
+          <div className="tef-toggle-wrap">
+            <button
+              type="button"
+              role="switch"
+              id={`tef-${FilterColName}`}
+              aria-checked={on === 1}
+              aria-label={FilterCaption}
+              className={`tef-toggle${on ? " tef-toggle--on" : ""}`}
+              onClick={() => onChange(FilterColName, on ? 0 : 1)}
+            />
+            <span className="tef-toggle-label">{on ? "Yes" : "No"}</span>
+          </div>
+        </div>
+      );
+    }
 
     case controlTypeMap.DROPDOWN:
       return (

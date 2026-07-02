@@ -21,6 +21,7 @@ import {
   getMasterFieldLabel,
   isMasterFieldLocked,
   isMasterFieldRequired,
+  isMasterCheckboxField,
   isMasterToggleField,
 } from "../../utils/masterFormUtils";
 import { UM_CONFIG } from "./constants";
@@ -30,8 +31,8 @@ function buildVerifyPasswordField(pwdField) {
   if (!pwdField) return null;
   return {
     ...pwdField,
-    colname:     "verifypwd",
-    ColName:     "verifypwd",
+    colname: "verifypwd",
+    ColName: "verifypwd",
     displayname: "Verify Password",
     DisplayName: "Verify Password",
   };
@@ -56,11 +57,11 @@ export default function UserMasterForm({
   const { post } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
 
-  const [isEditMode,    setIsEditMode]    = useState(true);
-  const [formValues,    setFormValues]    = useState({});
-  const [isSaving,      setIsSaving]      = useState(false);
-  const [saveError,     setSaveError]     = useState(null);
-  const [formErrors,    setFormErrors]    = useState([]);
+  const [isEditMode, setIsEditMode] = useState(true);
+  const [formValues, setFormValues] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
   const [discardAction, setDiscardAction] = useState(null);
 
   // Seed blank row from ALL RB columns (lowercase) + context + synthetic password fields
@@ -69,17 +70,17 @@ export default function UserMasterForm({
     allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
     return {
       ...row,
-      yearid:    UM_CONFIG.CONFIG_YEAR_ID,
-      loginid:   DEFAULT_LOGIN_ID,
+      yearid: UM_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID,
       sessionid: DEFAULT_SESSION_ID,
-      funccode:  UM_CONFIG.RB_MASTER,
-      pwd:       "",
+      funccode: UM_CONFIG.RB_MASTER,
+      pwd: "",
       verifypwd: "",
     };
   }, [allColumns]);
 
   // PG returns lowercase colnames — find password field by lowercase colname
-  const pwdField    = useMemo(() => fieldDefs.find((f) => f.colname === "pwd"),  [fieldDefs]);
+  const pwdField = useMemo(() => fieldDefs.find((f) => f.colname === "pwd"), [fieldDefs]);
   const verifyField = useMemo(() => buildVerifyPasswordField(pwdField), [pwdField]);
 
   // Visible fields sorted by colseqno — exclude pwd (rendered separately below)
@@ -87,7 +88,7 @@ export default function UserMasterForm({
     fieldDefs
       .filter((f) => f.isvisible && Number(f.colseqno) < 100 && f.colname !== "pwd")
       .sort((a, b) => Number(a.colseqno) - Number(b.colseqno)),
-  [fieldDefs]);
+    [fieldDefs]);
 
   // Cascade: parent colname → child colnames to reset (from RB updatekeycolname)
   const cascadeResets = useMemo(() => {
@@ -167,7 +168,6 @@ export default function UserMasterForm({
         options={dropdownOptions[key] || []}
         inputClassName="um-form-input"
         valueClassName="um-form-value"
-        toggleClassName="um-form-toggle"
       />
     );
   }
@@ -247,7 +247,7 @@ export default function UserMasterForm({
     if (!isEditMode) {
       return (
         <button type="button" className="master-modal-btn master-modal-btn--edit"
-                onClick={() => setIsEditMode(true)}>
+          onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
@@ -255,11 +255,11 @@ export default function UserMasterForm({
     return (
       <div className="master-modal-footer-actions">
         <button type="button" className="master-modal-btn master-modal-btn--cancel"
-                onClick={handleCancelEdit} disabled={isSaving}>
+          onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
-                onClick={handleSave} disabled={isSaving}>
+          onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -267,9 +267,9 @@ export default function UserMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading   = defsLoading || recordLoading;
-  const combinedErr = defsError   || recordLoadError;
-  const showVerify  = isAddMode && verifyField;
+  const isLoading = defsLoading || recordLoading;
+  const combinedErr = defsError || recordLoadError;
+  const showVerify = isAddMode && verifyField;
 
   return (
     <Modal

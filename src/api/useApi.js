@@ -142,31 +142,9 @@ export function useApi(baseURL = API_BASE_URL) {
   // GET with a JSON request body (mirrors: --request GET --header 'Content-Type: application/json' --data '{...}').
   // Uses client.request() instead of client.get() to guarantee Axios serialises
   // and sends the body even though the HTTP verb is GET.
-  const getWithBody = useCallback(
-    async (url, body = {}) => {
-      activeRequests.current += 1;
-      setLoading(true);
-      setError(null);
-      try {
-        return await client.request({
-          method: "GET",
-          url,
-          data: body,
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (err) {
-        if (!axios.isCancel(err)) setError(err);
-        throw err;
-      } finally {
-        activeRequests.current -= 1;
-        if (activeRequests.current === 0) setLoading(false);
-      }
-    },
-    [client]
-  );
 
   return useMemo(
-    () => ({ get, post, getWithBody, loading, error, client, baseURL }),
-    [get, post, getWithBody, loading, error, client, baseURL]
+    () => ({ get, post, loading, error, client, baseURL }),
+    [get, post, loading, error, client, baseURL]
   );
 }

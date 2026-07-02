@@ -1,40 +1,55 @@
+import { buildSaveRowFromColumns, getColDefault } from "../api/constants";
 import {
   controlTypeMap,
   isCheckboxColCtrlType,
   isDropdownColCtrlType,
   isTextareaColCtrlType,
+  isToggleColCtrlType,
 } from "../data/dummyData";
 import {
   buildColumnMeta,
   isColumnMandatory,
+  pickApiField,
   validateColumnValue,
 } from "./columnValidation";
+import { resolveRowFieldValue } from "./gridUtils";
 
-/** Display label for a GET_DETAIL_COL_DATA field. */
+/** Display label for a GET_DETAIL_COL_DATA field (DisplayName from API). */
 export function getMasterFieldLabel(field, labelOverrides = {}) {
   if (!field) return "Field";
-  return labelOverrides[field.ColName] ?? field.DisplayName ?? field.ColName ?? "Field";
+  const colName = pickApiField(field, "ColName", "colname");
+  if (colName && labelOverrides[colName]) return labelOverrides[colName];
+  const displayName = pickApiField(field, "DisplayName", "displayname");
+  if (displayName) return String(displayName);
+  if (colName) return String(colName);
+  return "Field";
+}
+
+/** ColCtrlType from GET_DETAIL_COL_DATA (any API key casing). */
+export function getFieldColCtrlType(field) {
+  const raw = pickApiField(field, "ColCtrlType", "colctrltype");
+  return raw != null && raw !== "" ? Number(raw) : null;
 }
 
 /** Resolve form control type from GET_DETAIL_COL_DATA ColCtrlType. */
 export function resolveFieldControlType(field) {
-  return field?.ColCtrlType ?? controlTypeMap.TEXTBOX;
+  return getFieldColCtrlType(field) ?? controlTypeMap.TEXTBOX;
 }
 
 export function isMasterToggleField(field) {
-  return Number(field?.ColCtrlType) === controlTypeMap.TOGGLE;
+  return isToggleColCtrlType(getFieldColCtrlType(field));
 }
 
 export function isMasterCheckboxField(field) {
-  return isCheckboxColCtrlType(field?.ColCtrlType);
+  return isCheckboxColCtrlType(getFieldColCtrlType(field));
 }
 
 export function isMasterDropdownField(field) {
-  return isDropdownColCtrlType(field?.ColCtrlType);
+  return isDropdownColCtrlType(getFieldColCtrlType(field));
 }
 
 export function isMasterTextareaField(field) {
-  return isTextareaColCtrlType(field?.ColCtrlType);
+  return isTextareaColCtrlType(getFieldColCtrlType(field));
 }
 
 export function getToggleValue(raw) {
@@ -73,15 +88,74 @@ export function buildMasterCascadeDropdownRefresh(fieldDefs) {
 /** Visible header fields from GET_DETAIL_COL_DATA (ColSeqNo < 100). */
 export function getVisibleHeaderFields(fieldDefs) {
   return (fieldDefs || [])
-    .filter((f) => f.IsVisible && Number(f.ColSeqNo) < 100)
-    .sort((a, b) => Number(a.ColSeqNo) - Number(b.ColSeqNo));
+    .filter(
+      (f) =>
+        isTruthyApiFlag(pickApiField(f, "IsVisible", "isvisible")) &&
+        Number(pickApiField(f, "ColSeqNo", "colseqno")) < 100
+    )
+    .sort(
+      (a, b) =>
+        Number(pickApiField(a, "ColSeqNo", "colseqno")) -
+        Number(pickApiField(b, "ColSeqNo", "colseqno"))
+    );
 }
 
-/** Default empty value for a field from ColCtrlType. */
+/** Default empty value from GET_DETAIL_COL_DATA ColCtrlType + ColDataType. */
 export function getMasterFieldDefaultValue(field) {
   if (isMasterDropdownField(field)) return 0;
   if (isMasterToggleField(field) || isMasterCheckboxField(field)) return 0;
-  return "";
+  const colDataType = pickApiField(field, "ColDataType", "colDataType", "coldatatype");
+  const typedDefault = getColDefault(colDataType);
+  return typedDefault !== null && typedDefault !== undefined ? typedDefault : "";
+}
+
+/**
+ * Build a master header save row: seed every GET_DETAIL_COL_DATA column (incl. hidden)
+ * with ColDataType defaults, then overlay form values.
+ */
+export function buildMasterHeaderSaveRow(fieldDefs, formValues, { includeHidden = true } = {}) {
+  const columnDefs = (fieldDefs || [])
+    .filter((field) => {
+      if (!field?.ColName) return false;
+      if (includeHidden) return true;
+      return field.IsVisible && Number(field.ColSeqNo) < 100;
+    })
+    .map((field) => ({
+      key: field.ColName,
+      colDataType: pickApiField(field, "ColDataType", "colDataType", "coldatatype") ?? null,
+    }));
+  return buildSaveRowFromColumns(formValues, columnDefs);
+}
+
+/**
+ * Build save row with ColDataType defaults, then normalize toggle/checkbox fields.
+ */
+export function finalizeMasterHeaderSaveRow(
+  fieldDefs,
+  formValues,
+  { includeHidden = true, fieldsToFinalize = null, omitKeys = null } = {}
+) {
+  const saveRow = buildMasterHeaderSaveRow(fieldDefs, formValues, { includeHidden });
+
+  if (omitKeys?.size) {
+    omitKeys.forEach((key) => {
+      delete saveRow[key];
+    });
+  }
+
+  const fields = fieldsToFinalize ?? getVisibleHeaderFields(fieldDefs);
+  fields.forEach((field) => {
+    const key = field.ColName;
+    if (!key || !(key in saveRow)) return;
+    if (isMasterToggleField(field)) {
+      saveRow[key] = getToggleValue(saveRow[key]);
+    }
+    if (isMasterCheckboxField(field)) {
+      saveRow[key] = getCheckboxValue(saveRow[key]);
+    }
+  });
+
+  return saveRow;
 }
 
 /** Build initial form values from GET_DETAIL_COL_DATA + save context keys. */
@@ -126,8 +200,10 @@ function isTruthyApiFlag(val) {
  */
 export function isMasterFieldLocked(field, { isAddMode, isEditMode }) {
   if (!isEditMode) return true;
-  if (!isTruthyApiFlag(field?.IsEditAllow)) return true;
-  if (!isAddMode && isTruthyApiFlag(field?.IsLockOnEditModeAllow)) return true;
+  const isEditAllow = field?.IsEditAllow ?? field?.iseditallow;
+  if (!isTruthyApiFlag(isEditAllow)) return true;
+  const isLockOnEdit = field?.IsLockOnEditModeAllow ?? field?.islockoneditmodeallow;
+  if (!isAddMode && isTruthyApiFlag(isLockOnEdit)) return true;
   return false;
 }
 
@@ -212,4 +288,68 @@ export function alertMasterFormValidationErrors(errors) {
 /** Defer action until after field blur handlers (avoids validation alerts before discard confirm). */
 export function runAfterFieldBlur(fn) {
   window.setTimeout(fn, 0);
+}
+
+/** Normalize GET_DETAIL_COL_DATA link — API may return PascalCase or camelCase keys. */
+export function normalizeDetailColField(field) {
+  if (!field || typeof field !== "object") return field;
+  const normalized = {
+    ...field,
+    ColName: pickApiField(field, "ColName", "colname"),
+    DisplayName: pickApiField(field, "DisplayName", "displayname"),
+    ColCtrlType: pickApiField(field, "ColCtrlType", "colctrltype"),
+    ColSeqNo: pickApiField(field, "ColSeqNo", "colseqno"),
+    IsVisible: pickApiField(field, "IsVisible", "isvisible"),
+    IsMandatory: pickApiField(field, "IsMandatory", "ismandatory"),
+    IsValidationReq: pickApiField(field, "IsValidationReq", "isvalidationreq"),
+    IsEditAllow: pickApiField(field, "IsEditAllow", "iseditallow"),
+    IsLockOnEditModeAllow: pickApiField(field, "IsLockOnEditModeAllow", "islockoneditmodeallow"),
+    UpdateKeyColName: pickApiField(field, "UpdateKeyColName", "updatekeycolname"),
+    ColDataType: pickApiField(field, "ColDataType", "colDataType", "coldatatype"),
+    ObjDetID: pickApiField(field, "ObjDetID", "objdetid"),
+    CtrlValueCol: pickApiField(field, "CtrlValueCol", "ctrlvaluecol"),
+    CtrlDisplayCol: pickApiField(field, "CtrlDisplayCol", "ctrldisplaycol"),
+    InputFormat: pickApiField(field, "InputFormat", "inputformat"),
+    ValueMinRange: pickApiField(field, "ValueMinRange", "valueminrange"),
+    ValueMaxRange: pickApiField(field, "ValueMaxRange", "valuemaxrange"),
+    MinLen: pickApiField(field, "MinLen", "minlen"),
+    MaxLen: pickApiField(field, "MaxLen", "maxlen"),
+    IsCrossYearEntryAllow: pickApiField(field, "IsCrossYearEntryAllow", "iscrossyearentryallow"),
+    IsFutureDateAllow: pickApiField(field, "IsFutureDateAllow", "isfuturedateallow"),
+  };
+  return normalized;
+}
+
+export function normalizeDetailColLinks(links = []) {
+  return (links || []).map(normalizeDetailColField);
+}
+
+/** Parse GET_DETAIL_COL_DATA payload — array, Links, or Table wrapper. */
+export function resolveDetailColLinks(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.Links)) return payload.Links;
+  if (Array.isArray(payload?.Table)) return payload.Table;
+  return [];
+}
+
+/** Map master-fill row to header form values with case-insensitive field lookup. */
+export function mapMasterRowToHeaderValues(master, fieldDefs, context = {}) {
+  const header = {
+    IDNumber: Number(resolveRowFieldValue(master, "IDNumber") ?? context.idNumber) || 0,
+    CompanyID: Number(context.companyId) || 0,
+    YearID: Number(resolveRowFieldValue(master, "YearID") ?? context.yearId) || 0,
+    LoginID: Number(resolveRowFieldValue(master, "LoginID") ?? context.loginId) || 0,
+    SessionID: Number(resolveRowFieldValue(master, "SessionID") ?? context.sessionId) || 0,
+    FuncCode: resolveRowFieldValue(master, "FuncCode") ?? context.funcCode ?? "",
+  };
+
+  getVisibleHeaderFields(fieldDefs).forEach((field) => {
+    const key = field.ColName;
+    if (!key) return;
+    const raw = resolveRowFieldValue(master, key);
+    if (raw === undefined) return;
+    header[key] = raw;
+  });
+
+  return header;
 }

@@ -15,35 +15,35 @@ const EMPTY_JSON = JSON.stringify([{}]);
 // Dual-case normalization — PG returns lowercase; MasterFormField needs ColName
 // ---------------------------------------------------------------------------
 function normalizeColumn(col) {
-  const colname               = col.colname               ?? col.ColName               ?? "";
-  const colseqno              = col.colseqno              ?? col.ColSeqNo              ?? 999;
-  const isvisible             = col.isvisible             ?? col.IsVisible             ?? false;
-  const colctrltype           = col.colctrltype           ?? col.ColCtrlType           ?? 0;
-  const updatekeycolname      = col.updatekeycolname      ?? col.UpdateKeyColName      ?? "";
-  const displayname           = col.displayname           ?? col.DisplayName           ?? colname;
-  const iseditallow           = col.iseditallow           ?? col.IsEditAllow           ?? false;
+  const colname = col.colname ?? col.ColName ?? "";
+  const colseqno = col.colseqno ?? col.ColSeqNo ?? 999;
+  const isvisible = col.isvisible ?? col.IsVisible ?? false;
+  const colctrltype = col.colctrltype ?? col.ColCtrlType ?? 0;
+  const updatekeycolname = col.updatekeycolname ?? col.UpdateKeyColName ?? "";
+  const displayname = col.displayname ?? col.DisplayName ?? colname;
+  const iseditallow = col.iseditallow ?? col.IsEditAllow ?? false;
   const islockoneditmodeallow = col.islockoneditmodeallow ?? col.IsLockOnEditModeAllow ?? false;
-  const objdetid              = col.objdetid              ?? col.ObjDetID              ?? null;
-  const ismandatory           = col.ismandatory           ?? col.IsMandatory           ?? false;
-  const coldatatype           = col.coldatatype           ?? col.ColDataType           ?? null;
-  const ctrlvaluecol          = col.ctrlvaluecol          ?? col.CtrlValueCol          ?? colname;
-  const ctrldisplaycol        = col.ctrldisplaycol        ?? col.CtrlDisplayCol        ?? colname;
+  const objdetid = col.objdetid ?? col.ObjDetID ?? null;
+  const ismandatory = col.ismandatory ?? col.IsMandatory ?? false;
+  const coldatatype = col.coldatatype ?? col.ColDataType ?? null;
+  const ctrlvaluecol = col.ctrlvaluecol ?? col.CtrlValueCol ?? colname;
+  const ctrldisplaycol = col.ctrldisplaycol ?? col.CtrlDisplayCol ?? colname;
   return {
     ...col,
     colname, colseqno, isvisible, colctrltype, updatekeycolname,
     displayname, iseditallow, islockoneditmodeallow, objdetid,
     ismandatory, coldatatype, ctrlvaluecol, ctrldisplaycol,
-    ColName:               colname,
-    ColSeqNo:              colseqno,
-    IsVisible:             isvisible,
-    ColCtrlType:           colctrltype,
-    UpdateKeyColName:      updatekeycolname,
-    DisplayName:           displayname,
-    IsEditAllow:           iseditallow,
+    ColName: colname,
+    ColSeqNo: colseqno,
+    IsVisible: isvisible,
+    ColCtrlType: colctrltype,
+    UpdateKeyColName: updatekeycolname,
+    DisplayName: displayname,
+    IsEditAllow: iseditallow,
     IsLockOnEditModeAllow: islockoneditmodeallow,
-    ObjDetID:              objdetid,
-    IsMandatory:           ismandatory,
-    ColDataType:           coldatatype,
+    ObjDetID: objdetid,
+    IsMandatory: ismandatory,
+    ColDataType: coldatatype,
   };
 }
 
@@ -51,9 +51,9 @@ function normalizeColumn(col) {
 // Dropdown SP map — keyed by lowercase PG colname
 // ---------------------------------------------------------------------------
 const UM_DROPDOWN_SP = {
-  desgid:  UM_CONFIG.SP_DESIGNATION,
+  desgid: UM_CONFIG.SP_DESIGNATION,
   groupid: UM_CONFIG.SP_GROUP,
-  deptid:  UM_CONFIG.SP_DEPARTMENT,
+  deptid: UM_CONFIG.SP_DEPARTMENT,
 };
 
 // ---------------------------------------------------------------------------
@@ -93,9 +93,9 @@ function mapDepartmentOptions(table) {
 }
 
 function mapDropdownTable(colName, table) {
-  if (colName === "desgid")  return mapDesignationOptions(table);
+  if (colName === "desgid") return mapDesignationOptions(table);
   if (colName === "groupid") return mapGroupOptions(table);
-  if (colName === "deptid")  return mapDepartmentOptions(table);
+  if (colName === "deptid") return mapDepartmentOptions(table);
   return [];
 }
 
@@ -105,19 +105,19 @@ function mapDropdownTable(colName, table) {
 export function useUserMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,   setHeaderColumns]   = useState([]);
-  const [allColumns,      setAllColumns]      = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});
-  const [headerFetching,  setHeaderFetching]  = useState(false);
-  const [headerError,     setHeaderError]     = useState(null);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
 
   const fetchSpTable = useCallback(async (spName) => {
     const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-      ObjType:   2,
-      ObjName:   spName,
-      JSon:      EMPTY_JSON,
+      ObjType: 2,
+      ObjName: spName,
+      JSon: EMPTY_JSON,
       p_ErrCode: -1,
-      p_ErrMsg:  "",
+      p_ErrMsg: "",
     }).catch((err) => {
       console.warn(`[UM] ${spName} fetch failed:`, err);
       return null;
@@ -148,11 +148,11 @@ export function useUserMaster() {
     try {
       // Phase 1 — RB metadata → RBID (lowercase param key for PG)
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   UM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmrbcode: UM_CONFIG.RB_MASTER }]),
+        ObjType: 2,
+        ObjName: UM_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: UM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No User Master RB metadata returned.");
@@ -162,18 +162,18 @@ export function useUserMaster() {
       if (!rbidVal) throw new Error("No User Master RB metadata returned.");
 
       const hdrMeta = {
-        RBID:         rbidVal,
+        RBID: rbidVal,
         SaveProcName: tableRow.saveprocname ?? tableRow.SaveProcName,
       };
       localStorage.setItem(UM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — column definitions; PG returns flat array (not { Links: [...] })
-      const colData  = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       const rawLinks = Array.isArray(colData) ? colData : (colData?.Links || []);
-      const links    = rawLinks.map(normalizeColumn);
+      const links = rawLinks.map(normalizeColumn);
       setHeaderColumns(links);
       setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
 
@@ -199,28 +199,28 @@ export function useUserMaster() {
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const prmParameters = [
-        Number(companyId)  || DEFAULT_COMPANY_ID,
-        Number(yearId)     || UM_CONFIG.CONFIG_YEAR_ID,
-        Number(loginId)    || DEFAULT_LOGIN_ID,
-        Number(sessionId)  || DEFAULT_SESSION_ID,
-        Number(idNumber)   || 0,
+        Number(companyId) || DEFAULT_COMPANY_ID,
+        Number(yearId) || UM_CONFIG.CONFIG_YEAR_ID,
+        Number(loginId) || DEFAULT_LOGIN_ID,
+        Number(sessionId) || DEFAULT_SESSION_ID,
+        Number(idNumber) || 0,
       ].join(",");
 
       const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
         prmProcedure: UM_CONFIG.SP_MASTER_FILL,
         prmParameters,
-        prmFuncCode:  UM_CONFIG.RB_MASTER,
+        prmFuncCode: UM_CONFIG.RB_MASTER,
       });
       const master = Array.isArray(mstRes) ? mstRes[0] : (mstRes?.[0] ?? null);
       return {
         master,
         headerValues: master ? {
           ...master,
-          yearid:    UM_CONFIG.CONFIG_YEAR_ID,
-          loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+          yearid: UM_CONFIG.CONFIG_YEAR_ID,
+          loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
-          funccode:  master.funccode ?? UM_CONFIG.RB_MASTER,
-          pwd:       "",       // never prefill password from API
+          funccode: master.funccode ?? UM_CONFIG.RB_MASTER,
+          pwd: "",       // never prefill password from API
           verifypwd: "",       // synthetic confirm field
         } : null,
       };
@@ -240,7 +240,7 @@ export function useUserMaster() {
     setDropdownOptions((prev) => {
       let next = { ...prev };
 
-      const desgId    = master.desgid   ?? master.DesgID;
+      const desgId = master.desgid ?? master.DesgID;
       const desgLabel = master.desgination ?? master.Desgination ?? master.desgname ?? master.DesgName;
       if (desgId != null && desgLabel) {
         const opt = { value: String(desgId), label: String(desgLabel) };
@@ -248,7 +248,7 @@ export function useUserMaster() {
           next = { ...next, desgid: [opt, ...(next.desgid || [])] };
       }
 
-      const groupId    = master.groupid ?? master.GroupID;
+      const groupId = master.groupid ?? master.GroupID;
       const groupLabel = master.groupname ?? master.GroupName;
       if (groupId != null && groupLabel) {
         const opt = { value: String(groupId), label: String(groupLabel) };
@@ -256,7 +256,7 @@ export function useUserMaster() {
           next = { ...next, groupid: [opt, ...(next.groupid || [])] };
       }
 
-      const deptId    = master.deptid ?? master.DeptID;
+      const deptId = master.deptid ?? master.DeptID;
       const deptLabel = master.deptname ?? master.DeptName ?? master.department ?? master.Department;
       if (deptId != null && deptLabel) {
         const opt = { value: String(deptId), label: String(deptLabel) };

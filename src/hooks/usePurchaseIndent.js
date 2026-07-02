@@ -25,7 +25,7 @@ import {
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { IND_CONFIG } from "../pages/purchase-indent/constants";
-import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
+import { fetchDropdownOptions, buildGridColumns, isTruthyApiFlag, isLockOnEditModeCol, isVisibleApiCol, hasVisibleCol } from "../utils/gridUtils";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
@@ -245,11 +245,12 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         prmMasterID: hdrMeta.RBID,
         prmLoginID: DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData || []);
+      const cols = colData || [];
+      setHeaderColumns(cols);
       console.log(
         "%c[Indent] Header columns received:",
         "color:#8b5cf6;font-weight:600",
-        (colData || []).length
+        cols.length
       );
 
       if (skipListDropdowns) {
@@ -259,56 +260,92 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         return;
       }
 
-      // Phase 1: divisions + departments + locations in parallel
-      const [divisionData, deptData, locationData] = await Promise.all([
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
-          ObjName: IND_CONFIG.SP_DIVISIONS,
-          JSon: JSON.stringify([
-            {
-              prmuserid: DEFAULT_LOGIN_ID,
-              prmcompanyid: DEFAULT_COMPANY_ID,
-              prmyearid: IND_CONFIG.DIVISION_YEAR_ID,
-            },
-          ]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }).catch((err) => { console.warn("[Indent] Division fetch failed:", err); return null; }),
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
-          ObjName: IND_CONFIG.SP_DEPT,
-          // JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID }]),
-          JSon: JSON.stringify([{ prmdeptid:0, prmloginid: DEFAULT_LOGIN_ID }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }).catch((err) => { console.warn("[Indent] Department fetch failed:", err); return null; }),
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: 2,
-          ObjName: IND_CONFIG.SP_LOCATION,
-          JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID, prmlocationtype: "" }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }).catch((err) => { console.warn("[Indent] Location fetch failed:", err); return null; }),
-      ]);
+      const needDivision = hasVisibleCol(cols, "divisionid");
+      const needDept = hasVisibleCol(cols, "deptid");
+      const needLocation = hasVisibleCol(cols, "locationid");
 
-      setDivisionOptions(
-        (divisionData || []).map((r) => ({
-          value: String(r.divisionid),
-          label: r.divisionname,
-        }))
-      );
-      setDepartmentOptions(
-        (deptData || []).map((r) => ({
-          value: String(r.deptid ?? r.departmentid),
-          label: r.deptname ?? r.departmentname,
-        }))
-      );
-      setLocationOptions(
-        (locationData || []).map((r) => ({
-          value: r.locationid,
-          label: r.locationname,
-        }))
-      );
+      const tasks = [];
+      if (needDivision) {
+        tasks.push(
+          get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: 2,
+            ObjName: IND_CONFIG.SP_DIVISIONS,
+            JSon: JSON.stringify([
+              {
+                prmuserid: DEFAULT_LOGIN_ID,
+                prmcompanyid: DEFAULT_COMPANY_ID,
+                prmyearid: IND_CONFIG.DIVISION_YEAR_ID,
+              },
+            ]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          })
+            .then((divisionData) => {
+              setDivisionOptions(
+                (divisionData || []).map((r) => ({
+                  value: String(r.divisionid),
+                  label: r.divisionname,
+                }))
+              );
+            })
+            .catch((err) => {
+              console.warn("[Indent] Division fetch failed:", err);
+              setDivisionOptions([]);
+            })
+        );
+      }
+      if (needDept) {
+        tasks.push(
+          get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: 2,
+            ObjName: IND_CONFIG.SP_DEPT,
+            JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          })
+            .then((deptData) => {
+              setDepartmentOptions(
+                (deptData || []).map((r) => ({
+                  value: String(r.deptid ?? r.departmentid),
+                  label: r.deptname ?? r.departmentname,
+                }))
+              );
+            })
+            .catch((err) => {
+              console.warn("[Indent] Department fetch failed:", err);
+              setDepartmentOptions([]);
+            })
+        );
+      }
+      if (needLocation) {
+        tasks.push(
+          get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: 2,
+            ObjName: IND_CONFIG.SP_LOCATION,
+            JSon: JSON.stringify([{
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmloginid: DEFAULT_LOGIN_ID,
+              prmlocationtype: "",
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          })
+            .then((locationData) => {
+              setLocationOptions(
+                (locationData || []).map((r) => ({
+                  value: r.locationid,
+                  label: r.locationname,
+                }))
+              );
+            })
+            .catch((err) => {
+              console.warn("[Indent] Location fetch failed:", err);
+              setLocationOptions([]);
+            })
+        );
+      }
+
+      await Promise.all(tasks);
     } catch (err) {
       console.error("[Indent] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Indent header configuration.");
@@ -502,16 +539,18 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
     async (divisionId) => {
       if (!headerColumns.length) return;
 
-      const isEditable = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
-
-      const needsDivision = headerColumns.some((c) => c.colname === "divisionid" && isEditable(c));
-      const needsConfig   = headerColumns.some((c) => c.colname === "configid"   && isEditable(c));
-      const needsDept     = headerColumns.some((c) => c.colname === "deptid"     && isEditable(c));
-      const needsLocation = headerColumns.some((c) => c.colname === "locationid" && isEditable(c));
+      const needsCol = (colname) =>
+        headerColumns.some(
+          (c) =>
+            String(c.colname).toLowerCase() === String(colname).toLowerCase()
+            && isVisibleApiCol(c)
+            && isTruthyApiFlag(c.iseditallow)
+            && !isLockOnEditModeCol(c)
+        );
 
       const tasks = [];
 
-      if (needsDivision) {
+      if (needsCol("divisionid")) {
         tasks.push(
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: 2,
@@ -530,9 +569,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
           ).catch(() => { })
         );
       }
-      if (needsConfig && divisionId) tasks.push(fetchIndentTypes(divisionId));
-      if (needsDept) tasks.push(fetchDepartments());
-      if (needsLocation) tasks.push(fetchLocations());
+      if (needsCol("configid") && divisionId) tasks.push(fetchIndentTypes(divisionId));
+      if (needsCol("deptid")) tasks.push(fetchDepartments());
+      if (needsCol("locationid")) tasks.push(fetchLocations());
       await Promise.all(tasks);
     },
     [headerColumns, get, fetchIndentTypes, fetchDepartments, fetchLocations]

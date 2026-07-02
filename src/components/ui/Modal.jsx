@@ -111,7 +111,7 @@ export default function Modal({
     >
       <div
         ref={dialogRef}
-        className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""}`}
+        className={`modal-dialog modal-dialog--${size} ${headerless ? "modal-dialog--headerless" : ""} ${variant === "enterprise" ? "modal-dialog--enterprise" : ""} ${dialogClassName}`.trim()}
       >
         {/* Header — hidden when headerless */}
         {!headerless && (
