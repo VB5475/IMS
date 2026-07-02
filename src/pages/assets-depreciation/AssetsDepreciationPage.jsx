@@ -31,20 +31,20 @@ function buildListParams() {
     ObjType: DPC_CONFIG.LIST_OBJ_TYPE,
     ObjName: DPC_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
-      PrmDivisionID: DPC_CONFIG.LIST_DIVISION_ID,
-      PrmLoginID:    DEFAULT_LOGIN_ID,
-      PrmYearID:     DPC_CONFIG.CONFIG_YEAR_ID,
-      PrmFromDate:   `01-Jan-${year}`,
-      PrmToDate:     `31-Dec-${year}`,
-      PrmAccountID : 0,
+      prmcompanyid:  DEFAULT_COMPANY_ID,
+      prmdivisionid: DPC_CONFIG.LIST_DIVISION_ID,
+      prmloginid:    DEFAULT_LOGIN_ID,
+      prmyearid:     DPC_CONFIG.CONFIG_YEAR_ID,
+      prmfromdate:   `01-Jan-${year}`,
+      prmtodate:     `31-Dec-${year}`,
+      prmaccountid:  0,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
   };
 }
 
-const HIDDEN_COLS = new Set(["AstDepID", "IDNumber"]);
+const HIDDEN_COLS = new Set(["astdepid", "idnumber"]);
 
 function toLabel(key) {
   return key.replace(/([A-Z])/g, " $1").trim();
@@ -70,12 +70,12 @@ function buildColumnsFromData(data, navigate) {
         <button
           type="button"
           className="dpc-list__edit-btn"
-          title={`Edit Depreciation ${row.TranCode ?? ""}`}
-          aria-label={`Edit Depreciation ${row.TranCode ?? ""}`}
+          title={`Edit Depreciation ${row.trancode ?? ""}`}
+          aria-label={`Edit Depreciation ${row.trancode ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
             navigate(
-              `/assets-depreciation/${row.AstDepID ?? row.IDNumber}/edit`,
+              `/assets-depreciation/${row.astdepid ?? row.idnumber}/edit`,
               { state: { record: row } }
             );
           }}
@@ -110,7 +110,7 @@ export default function AssetsDepreciationPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(json?.Table ?? []);
+      setData(json ?? []);
     } catch (err) {
       console.error("[AssetsDepreciation] list fetch failed:", err);
       setError("Failed to load Assets Depreciation records.");

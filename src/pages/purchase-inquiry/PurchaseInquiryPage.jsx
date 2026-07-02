@@ -18,12 +18,12 @@ function buildListParams() {
     ObjName: PI_CONFIG.SP_INQUIRY_LIST,
     JSon: JSON.stringify([
       {
-        prmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: PI_CONFIG.LIST_DIVISION_ID,
-        prmFroDate: `${year}-01-01`,
-        prmToDate: `${year}-12-31`,
-        prmLoginID: getUserSession().loginId,
-        prmYearID: PI_CONFIG.CONFIG_YEAR_ID,
+        prmcompanyid: DEFAULT_COMPANY_ID,
+        prmdivisionid: PI_CONFIG.LIST_DIVISION_ID,
+        prmfrodate: `${year}-01-01`,
+        prmtodate: `${year}-12-31`,
+        prmloginid: getUserSession().loginId,
+        prmyearid: PI_CONFIG.CONFIG_YEAR_ID,
       },
     ]),
     p_ErrCode: -1,
@@ -62,7 +62,7 @@ export default function PurchaseInquiryPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(normalizeListRows(json?.Table ?? []));
+      setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseInquiryPage] list fetch failed:", err);
       setError("Failed to load purchase inquiries.");

@@ -9,20 +9,11 @@ import {
 } from "../api/constants";
 import { SGM_CONFIG } from "../pages/sub-group-master/constants";
 
-function mapMasterRowToHeaderValues(master) {
-  return {
-    ...master,
-    yearid:    SGM_CONFIG.CONFIG_YEAR_ID,
-    funccode:  SGM_CONFIG.RB_MASTER,
-    loginid:   DEFAULT_LOGIN_ID,
-    sessionid: DEFAULT_SESSION_ID,
-  };
-}
-
 export function useSubGroupMaster() {
   const { get } = useApi(API_BASE_URL);
 
   const [headerColumns,  setHeaderColumns]  = useState([]);
+  const [allColumns,     setAllColumns]     = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError,    setHeaderError]    = useState(null);
 
@@ -38,17 +29,20 @@ export function useSubGroupMaster() {
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Sub Group Master RB metadata returned.");
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(SGM_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
-      // Phase 2 — field definitions from GetDetailColData
+      // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
+      setAllColumns(
+        (colData || []).map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
       // No Phase 3 — Sub Group Master has no dropdown options to prefetch
     } catch (err) {
       console.error("[SGM] fetchHeaderMeta failed:", err);
@@ -58,6 +52,8 @@ export function useSubGroupMaster() {
     }
   }, [get]);
 
+  // Returns master spread directly (PG returns lowercase keys matching RB colnames).
+  // System context fields are overlaid so the save SP always gets consistent values.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = [
       Number(companyId)  || DEFAULT_COMPANY_ID,
@@ -72,15 +68,21 @@ export function useSubGroupMaster() {
       prmParameters,
       prmFuncCode:  SGM_CONFIG.RB_MASTER,
     });
-    const master = mstRes?.Links?.[0] ?? null;
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+      headerValues: master ? {
+        ...master,
+        yearid:    SGM_CONFIG.CONFIG_YEAR_ID,
+        funccode:  SGM_CONFIG.RB_MASTER,
+        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
+      } : null,
     };
   }, [get]);
 
   return {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
+    headerColumns, allColumns, headerFetching, headerError, fetchHeaderMeta,
     fetchEditRecord,
   };
 }

@@ -22,7 +22,7 @@ function buildListParams() {
   };
 }
 
-const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
+const HIDDEN_COLS = new Set(["idnumber", "systemconfigured"]);
 
 const LABEL_MAP = {
   RegName: "Reg Name",
@@ -49,8 +49,8 @@ function buildColumnsFromData(data, onEdit) {
           className="lm-list__edit-btn"
           title={`Edit ${row.Location_Code ?? row.Loc_Code ?? ""}`}
           aria-label={`Edit ${row.Location_Code ?? row.Loc_Code ?? ""}`}
-          disabled={!row.IDNumber}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
+          disabled={!row.idnumber}
+          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
         </button>
@@ -65,7 +65,7 @@ export default function LocationMasterPage() {
   // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
   const {
     fetchHeaderMeta,
-    headerColumns: fieldDefs, headerFetching, headerError,
+    headerColumns: fieldDefs, allColumns, headerFetching, headerError,
     locationTypeOptions, premisesOptions,
     fetchEditRecord,
   } = useLocationMaster();
@@ -93,7 +93,7 @@ export default function LocationMasterPage() {
       setLoading(true);
       setError(null);
       const res = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(res?.Table ?? res?.Links ?? []);
+      setData(res ?? res ?? []);
     } catch (err) {
       console.error("[LM] List fetch failed:", err);
       setError("Failed to load Location list.");
@@ -175,6 +175,7 @@ export default function LocationMasterPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         locationTypeOptions={locationTypeOptions}

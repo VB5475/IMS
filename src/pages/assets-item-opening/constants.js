@@ -6,33 +6,33 @@ export const PAGE_TITLE_NEW = "New Assets Item Opening";
 
 export const AOP_CONFIG = {
   // RB board codes
-  RB_MASTER: "RB_AstItemOpeMst",
-  RB_DETAIL: "RB_AstItemOpeDet",
+  RB_MASTER: "rb_astitemopemst",
+  RB_DETAIL: "rb_astitemopedet",
 
   // Form identifiers
-  FORM_TAG:  "RB_AstItemOpeMst",
+  FORM_TAG:  "rb_astitemopemst",
   TRAN_BOOK: "AOP",
 
   CONFIG_YEAR_ID:   2,   // ⚠️ DBA CONFIRM
   DIVISION_YEAR_ID: 2,   // ⚠️ DBA CONFIRM
 
   // SP names
-  SP_RB_META:    "Fn_Fetch_RBDetailByRBCode",
-  SP_DIVISIONS:  "Fn_tbl_FetchUserWsDivision",
-  SP_ITEM_GROUP: "fn_tbl_Filter_MainGroup",       // params: prmItemTypeID
-  SP_ITEM:       "FN_tbl_FetchDivisionWSItem",    // params: prmDivisionID, prmItemGroupID, prmLoginID
-  SP_ASSETS_ACC: "Fn_tbl_Fetch_AssetsAccount",    // params: PrmDivisionID, PrmAcMainGroupID, PrmLoginID, PrmCompanyID, PrmYearID
+  SP_RB_META:    "fn_fetch_rbdetailbyrbcode",
+  SP_DIVISIONS:  "fn_tbl_fetchuserwsdivision",
+  SP_ITEM_GROUP: "fn_tbl_filter_maingroup",       // params: prmItemTypeID
+  SP_ITEM:       "fn_tbl_fetchdivisionwsitem",    // params: prmDivisionID, prmItemGroupID, prmLoginID
+  SP_ASSETS_ACC: "fn_tbl_fetch_assetsaccount",    // params: PrmDivisionID, PrmAcMainGroupID, PrmLoginID, PrmCompanyID, PrmYearID
 
   // Edit flow
-  SP_MASTER_FILL: "fn_tbl_RB_AstItemOpeMst",
-  SP_DETAIL_FILL: "fn_tbl_RB_AstItemOpeDet",
+  SP_MASTER_FILL: "fn_tbl_rb_astitemopemst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astitemopedet",
 
   // Save endpoint
   SAVE_ENDPOINT: "/API/AstItemOpeMst/Post_RB_AstItemOpeMst_Save",
 
   // Listing
   LIST_OBJ_TYPE:    2,
-  SP_LIST:          "Fn_tbl_RB_AstItemOpeMst_List",  // ⚠️ DBA CONFIRM
+  SP_LIST:          "fn_tbl_rb_astitemopemst_list",  // ⚠️ DBA CONFIRM
   LIST_DIVISION_ID: 0,                                // ⚠️ DBA CONFIRM (MRD says 15)
 
   // localStorage keys for cached RB meta
@@ -43,10 +43,13 @@ export const AOP_CONFIG = {
 export const AOP_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 // Summary panel: sums from grid rows
-// ⚠️ DBA CONFIRM — verify ColName keys match RB_AstItemOpeDet API response
+// detKey verified against live RB_AstItemOpeDet API response (puramount/curramount).
+// ⚠️ DBA CONFIRM — RB_AstItemOpeMst has no matching master column for either total today
+// (PurchaseTotalAmt/CurrentTotalAmt are not real columns), so these totals display but
+// are not persisted on save until the master schema adds them.
 export const AOP_SUMMARY_FIELDS = [
-  { SummaryParameterID: "PurchaseTotalAmt", detKey: "PurchaseAmount", label: "Purchase Total Amount" },
-  { SummaryParameterID: "CurrentTotalAmt",  detKey: "CurrentAmount",  label: "Current Total Amount"  },
+  { SummaryParameterID: "PurchaseTotalAmt", detKey: "puramount", label: "Purchase Total Amount" },
+  { SummaryParameterID: "CurrentTotalAmt",  detKey: "curramount",  label: "Current Total Amount"  },
 ];
 
 // Cascade resets

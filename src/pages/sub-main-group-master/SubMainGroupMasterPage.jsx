@@ -32,7 +32,7 @@ function buildListParams() {
   };
 }
 
-const HIDDEN_COLS = new Set(["IDNumber", "SystemConfigured"]);
+const HIDDEN_COLS = new Set(["IDNumber", "idnumber", "SystemConfigured", "systemconfigured"]);
 
 const LABEL_MAP = {
   ISAutoCodeGen: "Auto Code Gen",
@@ -58,9 +58,9 @@ function buildColumnsFromData(data, onEdit) {
         <button
           type="button"
           className="smgm-list__edit-btn"
-          title={`Edit ${row.SubMainGroupCode ?? row.Code ?? ""}`}
-          aria-label={`Edit ${row.SubMainGroupCode ?? row.Code ?? ""}`}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber); }}
+          title={`Edit ${row.SubMainGroupCode ?? row.submaingroupcode ?? ""}`}
+          aria-label={`Edit ${row.SubMainGroupCode ?? row.submaingroupcode ?? ""}`}
+          onClick={(e) => { e.stopPropagation(); onEdit(row.IDNumber ?? row.idnumber); }}
         >
           <Pencil size={13} strokeWidth={2} />
         </button>
@@ -74,7 +74,7 @@ export default function SubMainGroupMasterPage() {
 
   const {
     fetchHeaderMeta,
-    headerColumns: fieldDefs, headerFetching, headerError,
+    headerColumns: fieldDefs, allColumns, headerFetching, headerError,
     itemTypeOptions, mainGroupOptions, mainGroupLoading, fixedAssetAccOptions,
     fetchMainGroupByItemType, fetchEditRecord, seedOptionsFromMaster,
   } = useSubMainGroupMaster();
@@ -102,7 +102,7 @@ export default function SubMainGroupMasterPage() {
       setLoading(true);
       setError(null);
       const res = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(res?.Table ?? res?.Links ?? []);
+      setData(res ?? res ?? []);
     } catch (err) {
       console.error("[SMGM] List fetch failed:", err);
       setError("Failed to load Sub Main Group list.");
@@ -183,6 +183,7 @@ export default function SubMainGroupMasterPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         itemTypeOptions={itemTypeOptions}

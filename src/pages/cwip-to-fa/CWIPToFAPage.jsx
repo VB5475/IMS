@@ -31,21 +31,21 @@ function buildListParams() {
     ObjType: C2F_CONFIG.LIST_OBJ_TYPE,
     ObjName: C2F_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
-      PrmDivisionID: C2F_CONFIG.LIST_DIVISION_ID,
-      PrmLocationID: 0,
-      PrmLoginID:    DEFAULT_LOGIN_ID,
-      PrmYearID:     C2F_CONFIG.CONFIG_YEAR_ID,
-      PrmFromDate:   `01-Jan-${year}`,
-      PrmToDate:     `31-Dec-${year}`,
-      PrmConvTypeID: 0,
+      prmcompanyid:  DEFAULT_COMPANY_ID,
+      prmdivisionid: C2F_CONFIG.LIST_DIVISION_ID,
+      prmlocationid: 0,
+      prmloginid:    DEFAULT_LOGIN_ID,
+      prmyearid:     C2F_CONFIG.CONFIG_YEAR_ID,
+      prmfromdate:   `01-Jan-${year}`,
+      prmtodate:     `31-Dec-${year}`,
+      prmconvtypeid: 0,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
   };
 }
 
-const HIDDEN_COLS = new Set(["C2FID", "IDNumber"]);
+const HIDDEN_COLS = new Set(["c2fid", "idnumber"]);
 
 function toLabel(key) {
   return key.replace(/([A-Z])/g, " $1").trim();
@@ -71,11 +71,11 @@ function buildColumnsFromData(data, navigate) {
         <button
           type="button"
           className="c2f-list__edit-btn"
-          title={`Edit C2F ${row.TranNo ?? ""}`}
-          aria-label={`Edit C2F ${row.TranNo ?? ""}`}
+          title={`Edit C2F ${row.tranno ?? ""}`}
+          aria-label={`Edit C2F ${row.tranno ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/cwip-to-fa/${row.C2FID ?? row.IDNumber}/edit`, { state: { record: row } });
+            navigate(`/cwip-to-fa/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -108,7 +108,7 @@ export default function CWIPToFAPage() {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(json?.Table ?? []);
+      setData(json ?? []);
     } catch (err) {
       console.error("[CWIPToFAPage] list fetch failed:", err);
       setError("Failed to load CWIP To FA records.");

@@ -10,7 +10,6 @@ import { controlTypeMap } from "../../data/dummyData";
 import {
   APPROVED_FILTER_OPTS,
   BASED_ON,
-  CURRENCY_READONLY_FIELDS,
   DEFAULT_BASED_ON_FILTER_VALUES,
   PURCHASE_API,
   PURCHASE_GST_SUMMARY_FIELDS,
@@ -25,28 +24,28 @@ import {
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
 export { TERMS_COLUMNS };
-export { CURRENCY_READONLY_FIELDS as QTN_READONLY_FIELDS };
+export const QTN_READONLY_FIELDS = ["currencyname", "currencyrate"];
 export { DEFAULT_BASED_ON_FILTER_VALUES as QTN_FILTER_INITIAL_VALUES };
 
 export const QTN_CONFIG = {
   ...PURCHASE_API,
   SP_QUOTATION_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "RB_PurQtnMst",
-  RB_DETAIL: "RB_PurQtnDet",
+  RB_MASTER: "rb_purqtnmst",
+  RB_DETAIL: "rb_purqtndet",
 
   FORM_TAG: "PQ",
   TRAN_BOOK: "PURQTN",
 
-  RB_ITEM_PICKER_DIRECT: "RB_PurQtnSelOnlyItem",
-  RB_ITEM_PICKER_INQUIRY: "RB_PurQtnSelInqItem",
+  RB_ITEM_PICKER_DIRECT: "rb_purqtnselonlyitem",
+  RB_ITEM_PICKER_INQUIRY: "rb_purqtnselinqitem",
 
-  SP_MASTER_FILL: "fn_tbl_RB_PurQtnMst",
-  SP_DETAIL_FILL: "fn_tbl_RB_PurQtnDet",
+  SP_MASTER_FILL: "fn_tbl_rb_purqtnmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_purqtndet",
 
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurQtnSelOnlyItem",
-  SP_ITEM_PICKER_INQUIRY: "fn_tbl_RB_PurQtnSelInqItem",
-  SP_GRID_EVENT: "fn_tbl_RB_PurQtnDet_Event",
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purqtnselonlyitem",
+  SP_ITEM_PICKER_INQUIRY: "fn_tbl_rb_purqtnselinqitem",
+  SP_GRID_EVENT: "fn_tbl_rb_purqtndet_event",
 
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INQUIRY_BASED],
 
@@ -55,38 +54,38 @@ export const QTN_CONFIG = {
   STORAGE_HEADER_META: "pqHeaderMeta",
   STORAGE_ENTRY_META: "pqEntryMeta",
 
-  SP_QUOTATION_LIST: "Fn_tbl_Pur_QtnMst_List",
+  SP_QUOTATION_LIST: "fn_tbl_pur_qtnmst_list",
   LIST_DIVISION_ID: 15,
 };
 
-export const QTN_LIST_DROPDOWN_FIELDS = new Set(["DivisionID", "ConfigID", "SupplierID"]);
+export const QTN_LIST_DROPDOWN_FIELDS = new Set(["divisionid", "configid", "supplierid"]);
 
 export const QTN_HEADER_FILTERS = [
-  { FilterParameterID: "TranCode", FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: "TranDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "trancode", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "trandate", FilterColCtrlType: controlTypeMap.DATE },
   {
-    FilterParameterID: "DivisionID",
+    FilterParameterID: "divisionid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: [],
   },
-  { FilterParameterID: "ConfigID", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-  { FilterParameterID: "InquiryExpiryDate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "configid", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: "inquiryexpirydate", FilterColCtrlType: controlTypeMap.DATE },
   {
-    FilterParameterID: "SupplierID",
+    FilterParameterID: "supplierid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: [],
   },
-  { FilterParameterID: "CurrencyID", FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: "CurrencyRate", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "currencyname", FilterColCtrlType: controlTypeMap.LABEL },
+  { FilterParameterID: "currencyrate", FilterColCtrlType: controlTypeMap.TEXTBOX },
   {
-    FilterParameterID: "BasedOnID",
+    FilterParameterID: "basedonid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: QTN_CONFIG.BASED_ON_OPTIONS,
   },
-  { FilterParameterID: "SuppQuotNo", FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: "SuppQuotDate", FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: "ContactPerson", FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: "Remarks", FilterColCtrlType: controlTypeMap.TEXTAREA },
+  { FilterParameterID: "suppquotno", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "suppquotdate", FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "contactperson", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "remarks", FilterColCtrlType: controlTypeMap.TEXTAREA },
 ];
 
 export const QTN_GRID_TABS = [
@@ -102,23 +101,23 @@ export const QTN_MASTER = {
 };
 
 export const QTN_FILTER_CASCADE_RESETS = {
-  DivisionID: ["ConfigID", "SupplierID", "CurrencyID", "CurrencyRate"],
+  divisionid: ["configid", "supplierid", "currencyname", "currencyrate"],
 };
 
 export const QTN_ITEM_PICKER_CONTEXT_FIELDS = new Set([
-  "DivisionID",
-  "TranDate",
-  "ConfigID",
-  "SupplierID",
-  "BasedOnID",
+  "divisionid",
+  "trandate",
+  "configid",
+  "supplierid",
+  "basedonid",
 ]);
 
 export const QTN_ITEM_PICKER_JSON_FIELDS = [
-  { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate", label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID", label: "Quotation Type" },
-  { headerKey: "SupplierID", label: "Supplier" },
-  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
+  { headerKey: "divisionid", label: "Division" },
+  { headerKey: "trandate", label: "Tran Date", isDate: true },
+  { headerKey: "configid", label: "Quotation Type" },
+  { headerKey: "supplierid", label: "Supplier" },
+  { headerKey: "basedonid", label: "Based On", allowZero: true },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues) {

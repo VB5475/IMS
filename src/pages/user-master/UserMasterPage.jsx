@@ -12,9 +12,8 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import UserMasterForm from "./UserMasterForm";
 import { UM_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./UserMasterPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -23,10 +22,10 @@ function buildListParams() {
     ObjName: UM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: UM_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: today,
-        prmToDate: today,
+        prmcompanyid:  DEFAULT_COMPANY_ID,
+        prmdivisionid: UM_CONFIG.LIST_DIVISION_ID,
+        prmfromdate:   today,
+        prmtodate:     today,
       },
     ]),
     p_ErrCode: -1,
@@ -38,6 +37,7 @@ export default function UserMasterPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
+    allColumns,
     dropdownOptions,
     headerFetching,
     headerError,
@@ -50,7 +50,7 @@ export default function UserMasterPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -148,8 +148,8 @@ export default function UserMasterPage() {
           <button
             type="button"
             className="um-list__edit-btn"
-            title={`Edit ${row.UserID ?? row.UserName ?? ""}`}
-            aria-label={`Edit ${row.UserID ?? row.UserName ?? ""}`}
+            title={`Edit ${row.userid ?? row.username ?? ""}`}
+            aria-label={`Edit ${row.userid ?? row.username ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -204,6 +204,7 @@ export default function UserMasterPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No users found."
+          searchable
           hideHeader
           fill
         />
@@ -215,6 +216,7 @@ export default function UserMasterPage() {
         onClose={handleCloseModal}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         dropdownOptions={dropdownOptions}

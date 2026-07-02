@@ -11,11 +11,12 @@
 //   Division → Quotation Type + Supplier
 
 import { useState, useCallback, useRef } from "react";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
@@ -26,6 +27,7 @@ import {
   isTruthyApiFlag,
   isLockOnEditModeCol,
 } from "../utils/gridUtils";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -37,7 +39,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -47,40 +49,31 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    InquiryExpiryDate: toDateInput(master.InquiryExpiryDate ?? master.ExpiryDate) || null,
-    SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
-    CurrencyID: master.CurrencyID ?? "",
-    CurrencyRate: master.CurrencyRate ?? "",
-    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
-    SuppQuotNo: master.SuppQuotNo ?? master.SupplierQuotNo ?? "",
-    SuppQuotDate: toDateInput(master.SuppQuotDate ?? master.SupplierQuotDate) || null,
-    ContactPerson: master.ContactPerson ?? "",
-    Remarks: master.Remarks ?? "",
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(params.yearId) || QTN_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID: getUserSession().userId,
+    ...master,
+    // Date fields need normalisation from ISO → date-input format
+    trandate: toDateInput(master.trandate),
+    inquiryexpirydate: toDateInput(master.inquiryexpirydate ?? master.expirydate) || null,
+    suppquotdate: toDateInput(master.suppquotdate ?? master.supplierquotdate) || null,
+    // Context fields: always use live values, not stale DB values
+    yearid:    QTN_CONFIG.CONFIG_YEAR_ID,
+    funccode:  QTN_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) {
-      set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
     }
   });
   if (set.size === 0) {
@@ -98,17 +91,17 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
 
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID: getUserSession().loginId,
   });
-  const apiColumns = colData?.Links || [];
+  const apiColumns = colData || [];
   return { meta, apiColumns };
 }
 
@@ -153,20 +146,20 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           ObjName: QTN_CONFIG.SP_QUOTATION_TYPES,
           JSon: JSON.stringify([
             {
-              PrmCompanyId: DEFAULT_COMPANY_ID,
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: getUserSession().loginId,
-              PrmFormTag: QTN_CONFIG.FORM_TAG,
-              PrmRefType: "",
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmdivisionid: Number(divisionId),
+              prmyearid: QTN_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: getUserSession().loginId,
+              prmformtag: QTN_CONFIG.FORM_TAG,
+              prmreftype: "",
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = (res?.Table || []).map((r) => ({
-          value: String(r.ConfigurationId),
-          label: r.Name,
+        const opts = (res || []).map((r) => ({
+          value: String(r.configurationid),
+          label: r.name,
         }));
         setQuotationTypeOptions(opts);
         return opts;
@@ -196,22 +189,22 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           ObjName: QTN_CONFIG.SUPPLIER_SP,
           JSon: JSON.stringify([
             {
-              PrmDivisionId: Number(divisionId),
-              PrmLoginId: getUserSession().loginId,
-              PrmYearId: QTN_CONFIG.CONFIG_YEAR_ID,
-              PrmPartyType: QTN_CONFIG.SUPPLIER_PARTY_TYPE,
+              prmdivisionid: Number(divisionId),
+              prmloginid: getUserSession().loginId,
+              prmyearid: QTN_CONFIG.CONFIG_YEAR_ID,
+              prmpartytype: QTN_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const rows = res?.Table || [];
+        const rows = res || [];
         supplierRowsRef.current = new Map(
-          rows.map((r) => [String(Math.round(Number(r.SupplierID))), r])
+          rows.map((r) => [String(Math.round(Number(r.supplierid))), r])
         );
         const opts = rows.map((r) => ({
-          value: String(Math.round(Number(r.SupplierID))),
-          label: r.SupplierName,
+          value: String(Math.round(Number(r.supplierid))),
+          label: r.suppliername,
         }));
         setSupplierOptions(opts);
         return opts;
@@ -239,18 +232,18 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         ObjName: QTN_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([
           {
-            prmUserID: getUserSession().loginId,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID: QTN_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: getUserSession().loginId,
+            prmcompanyid: DEFAULT_COMPANY_ID,
+            prmyearid: QTN_CONFIG.DIVISION_YEAR_ID,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({
-          value: String(r.DivisionID),
-          label: r.DivisionName,
+        (divisionData || []).map((r) => ({
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
     } catch (err) {
@@ -272,10 +265,10 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const tableRow = metaData?.Table?.[0];
+        const tableRow = metaData?.[0];
         if (!tableRow) throw new Error("No Quotation header RB metadata returned from server.");
 
-        const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+        const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
         setHeaderRbMeta(hdrMeta);
         localStorage.setItem(QTN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
@@ -283,7 +276,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           prmMasterID: hdrMeta.RBID,
           prmLoginID: getUserSession().loginId,
         });
-        const apiColumns = colData?.Links || [];
+        const apiColumns = colData || [];
         setHeaderColumns(apiColumns);
 
         if (skipListDropdowns) {
@@ -314,13 +307,13 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       if (!headerColumns.length) return;
 
       const needsDivision = headerColumns.some(
-        (c) => c.ColName === "DivisionID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "divisionid" && !isLockOnEditModeCol(c)
       );
       const needsConfig = headerColumns.some(
-        (c) => c.ColName === "ConfigID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "configid" && !isLockOnEditModeCol(c)
       );
       const needsSupplier = headerColumns.some(
-        (c) => c.ColName === "SupplierID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "supplierid" && !isLockOnEditModeCol(c)
       );
 
       const tasks = [];
@@ -360,7 +353,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         ])
       );
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
     } catch (err) {
       console.error("[PQ] fetchDetailMeta failed:", err);
@@ -423,13 +416,12 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         }),
       ]);
 
-      const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
+      const master = mstRes?.[0] ?? null;
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-        details: mapDetailRowsToGridRows(detRes?.Links || []),
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+        details: mapDetailRowsToGridRows(detRes || []),
       };
     },
     [get]
@@ -441,12 +433,20 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     async (colName, rowData, headerValues) => {
       setIsEventFiring(true);
       try {
-        const { id, ...newRowData } = rowData;
-        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: QTN_CONFIG.SP_GRID_EVENT,
-          EventColName: colName,
-          DetJSON: JSON.stringify([newRowData]),
-          MstJSon: JSON.stringify([headerValues]),
+        const { id, ...rawRowData } = rowData;
+        const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+        const newRowData = Object.fromEntries(
+          Object.entries(rawRowData).map(([k, v]) => {
+            if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+              return [k, Number(v)];
+            return [k, v];
+          })
+        );
+        const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+          prmobjname: QTN_CONFIG.SP_GRID_EVENT,
+          prmmyeventcol: colName,
+          prmdetjson: buildDetJSON([newRowData], colTypeMap),
+          prmmstjson: JSON.stringify([headerValues]),
         });
         return result;
       } catch (err) {
@@ -456,7 +456,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         setIsEventFiring(false);
       }
     },
-    [get]
+    [allColumns]
   );
 
   const clearQuotationTypes = useCallback(() => setQuotationTypeOptions([]), []);

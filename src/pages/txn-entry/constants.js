@@ -5,17 +5,17 @@ export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
 export const TXN_CONFIG = {
   // RB board codes
-  RB_MASTER: "RB_SampleInvMst",
-  RB_DETAIL: "RB_SampleInvDet",
+  RB_MASTER: "rb_sampleinvmst",
+  RB_DETAIL: "rb_sampleinvdet",
 
   // SP / function names used in API calls
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_DEPARTMENTS: "Pr_Fetch_DepartmentData_IMS",
-  SP_SUPPLIERS: "Pr_Fetch_SupplierData_IMS",
-  SP_INVOICE_TYPES: "fn_tbl_ddl_Sal_Configuration",
-  SP_ORDER_ITEMS: "Pr_TBD_FetchItemDetail",
-  SP_GRID_EVENT: "fn_tbl_RB_SampleInvDet_Event",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
+  SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
+  SP_DEPARTMENTS: "pr_fetch_departmentdata_ims",
+  SP_SUPPLIERS: "pr_fetch_supplierdata_ims",
+  SP_INVOICE_TYPES: "fn_tbl_ddl_sal_configuration",
+  SP_ORDER_ITEMS: "pr_tbd_fetchitemdetail",
+  SP_GRID_EVENT: "fn_tbl_rb_sampleinvdet_event",
 
   // Form identifier
   FORM_TAG: "SI",

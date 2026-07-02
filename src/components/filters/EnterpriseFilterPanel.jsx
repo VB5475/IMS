@@ -393,7 +393,7 @@ export default function EnterpriseFilterPanel({
         const data = await get(ENDPOINTS.GET_FILTERS, { prmMasterID: masterID });
         if (signal?.aborted) return;
 
-        const filterList = data?.Links || [];
+        const filterList = data || [];
         setFilters(filterList);
         onFiltersLoaded?.(filterList.length > 0);
 
@@ -427,7 +427,7 @@ export default function EnterpriseFilterPanel({
                 prmDivisionID: divisionID,
                 prmLoginID: loginID,
               });
-              optionsMap[f.FilterParameterID] = detailData?.Links || [];
+              optionsMap[f.FilterParameterID] = detailData || [];
             } catch {
               optionsMap[f.FilterParameterID] = [];
             }

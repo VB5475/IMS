@@ -13,12 +13,13 @@
 // All API calls go through useApi().get(endpoint, params).
 
 import { useState, useCallback, useRef } from "react";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import { getUserSession } from "../session/userSession";
-import { ENDPOINTS, API_BASE_URL, getColDefault, OBJ_TYPE } from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, getColDefault, OBJ_TYPE } from "../api/constants";
 import { TXN_CONFIG } from "../pages/txn-entry/constants";
 import { fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
@@ -65,10 +66,10 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       setHeaderRbMeta(hdrMeta);
       localStorage.setItem(TXN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
       console.log("%c[TxnEntry] Header meta stored:", "color:#8b5cf6;font-weight:600", hdrMeta);
@@ -78,7 +79,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         prmMasterID: hdrMeta.RBID,
         prmLoginID: getUserSession().loginId,
       });
-      const apiColumns = colData?.Links || [];
+      const apiColumns = colData || [];
       setHeaderColumns(apiColumns);
       console.log(
         "%c[TxnEntry] Header columns received:",
@@ -109,16 +110,16 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
 
       setHeaderDropdownOpts(colDropdownOptions);
 
-      const divOpts = (divisionData?.Table || []).map((row) => ({
-        value: String(row.DivisionID),
-        label: row.DivisionName,
+      const divOpts = (divisionData || []).map((row) => ({
+        value: String(row.divisionid),
+        label: row.divisionname,
       }));
       setDivisionOptions(divOpts);
       console.log("%c[TxnEntry] Division options:", "color:#22c55e;font-weight:600", divOpts);
       console.log(
         "%c[TxnEntry] Header columns synced:",
         "color:#22c55e;font-weight:600",
-        apiColumns.map((c) => `${c.DisplayName} (${c.ColName})`)
+        apiColumns.map((c) => `${c.displayname} (${c.colname})`)
       );
     } catch (err) {
       console.error("[TxnEntry] fetchHeaderMeta failed:", err);
@@ -145,10 +146,10 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No RB metadata returned from server.");
 
-      const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       setRbMeta(meta);
       rawDetailRbMetaRef.current = meta;
       localStorage.setItem(TXN_CONFIG.STORAGE_ENTRY_META, JSON.stringify(meta));
@@ -159,7 +160,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         prmMasterID: meta.RBID,
         prmLoginID: getUserSession().loginId,
       });
-      const apiColumns = colData?.Links || [];
+      const apiColumns = colData || [];
       console.log(
         "%c[TxnEntry] Raw columns received:",
         "color:#6366f1;font-weight:600",
@@ -171,7 +172,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
 
       // allColumns lets TxnEntryForm seed blank rows with correct defaults
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
     } catch (err) {
       console.error("[TxnEntry] fetchTxnMeta failed:", err);
@@ -231,15 +232,23 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
     async (colName, rowData, headerValues) => {
       setIsEventFiring(true);
       try {
-        const { id, ...newRowData } = rowData;
+        const { id, ...rawRowData } = rowData;
+        const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+        const newRowData = Object.fromEntries(
+          Object.entries(rawRowData).map(([k, v]) => {
+            if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+              return [k, Number(v)];
+            return [k, v];
+          })
+        );
         console.log("see trimmedRowData:", newRowData);
         console.log("see headerValues:", headerValues);
 
-        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: TXN_CONFIG.SP_GRID_EVENT,
-          EventColName: colName,
-          DetJSON: JSON.stringify([newRowData]),
-          MstJSon: JSON.stringify([headerValues]),
+        const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+          prmobjname: TXN_CONFIG.SP_GRID_EVENT,
+          prmmyeventcol: colName,
+          prmdetjson: buildDetJSON([newRowData], colTypeMap),
+          prmmstjson: JSON.stringify([headerValues]),
         });
         console.log("%c[TxnEntry] CellEvent response:", "color:#f59e0b;font-weight:600", {
           col: colName,
@@ -253,7 +262,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
         setIsEventFiring(false);
       }
     },
-    [get]
+    [allColumns]
   );
 
   // ── saveTxn — save master (header) + detail (grid) to backend ──────
@@ -318,7 +327,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
               p_ErrMsg: "",
             },
           }),
-          { divisionId: headerValues.DivisionID, isEdit: genIDNumber > 0 }
+          { divisionId: headerValues.divisionid, isEdit: genIDNumber > 0 }
         );
 
         const result = await post(ENDPOINTS.RB_MASTER_DETAIL_FORM_SAVE, body);

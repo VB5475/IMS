@@ -1,11 +1,12 @@
 // useGoodsReceivedNote.js — Header meta, detail grid, and filter dropdowns for GRN
 
 import { useState, useCallback, useRef } from "react";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
@@ -17,6 +18,7 @@ import {
   isTruthyApiFlag,
   isLockOnEditModeCol,
 } from "../utils/gridUtils";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -36,43 +38,21 @@ function toDateInput(value) {
   return d.toISOString().split("T")[0];
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   return {
-    TranCode: master.TranCode != null ? String(master.TranCode) : "",
-    TranDate: toDateInput(master.TranDate),
-    DivisionID: master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID: master.ConfigID != null ? Number(master.ConfigID) : 0,
-    SupplierID: master.SupplierID != null ? Number(master.SupplierID) : 0,
-    CurrencyID: master.CurrencyName ?? master.CurrencyID ?? "",
-    CurrencyRate: master.CurrencyRate != null ? String(master.CurrencyRate) : "",
-    BasedOnID: master.BasedOnID != null ? String(master.BasedOnID) : "0",
-    BillNo: master.BillNo ?? "",
-    BillDate: toDateInput(master.BillDate) || null,
-    ChallanNo: master.ChallanNo ?? "",
-    ChallanDate: toDateInput(master.ChallanDate) || null,
-    TransporterID: master.TransporterID != null ? Number(master.TransporterID) : 0,
-    DestinationID: master.DestinationID != null ? Number(master.DestinationID) : 0,
-    LRNo: master.LRNo ?? "",
-    LRDate: toDateInput(master.LRDate) || null,
-    VehicleNo: master.VehicleNo ?? "",
-    VehicleTypeId: master.VehicleTypeId != null ? Number(master.VehicleTypeId) : 0,
-    NoOfPerson: master.NoOfPerson ?? "",
-    DriverName: master.DriverName ?? "",
-    DriverContactNo: master.DriverContactNo ?? "",
-    DriverLicenceNo: master.DriverLicenceNo ?? "",
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(params.yearId) || GRN_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(params.loginId) || getUserSession().loginId,
-    SessionID: Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber: Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID: getUserSession().userId,
+    ...master,
+    trandate: toDateInput(master.trandate),
+    yearid:    GRN_CONFIG.CONFIG_YEAR_ID,
+    funccode:  GRN_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
@@ -95,8 +75,8 @@ function mapIndentRowsToChildRowsMap(detailRows, indtRows) {
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) {
-      set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
     }
   });
   if (set.size === 0) {
@@ -109,21 +89,23 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: OBJ_TYPE.FUNCTION,
     ObjName: GRN_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
-  if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
+  const tableRow = metaData?.[0];
+  if (!tableRow || !tableRow.rbid) {
+    throw new Error(tableRow?.ErrMsg || `No RB metadata returned for ${rbCode}.`);
+  }
 
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID: getUserSession().loginId,
   });
-  return { meta, apiColumns: colData?.Links || [] };
+  return { meta, apiColumns: colData || [] };
 }
 
 function mapTableToOptions(rows, valueKey, labelKey) {
@@ -176,20 +158,20 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           ObjName: GRN_CONFIG.SP_GRN_TYPES,
           JSon: JSON.stringify([
             {
-              PrmCompanyId: DEFAULT_COMPANY_ID,
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: getUserSession().loginId,
-              PrmFormTag: GRN_CONFIG.FORM_TAG,
-              PrmRefType: "",
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmdivisionid: Number(divisionId),
+              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: getUserSession().loginId,
+              prmformtag: GRN_CONFIG.FORM_TAG,
+              prmreftype: "",
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = (res?.Table || []).map((r) => ({
-          value: String(r.ConfigurationId),
-          label: r.Name,
+        const opts = (res || []).map((r) => ({
+          value: String(r.configurationid),
+          label: r.name,
         }));
         setGrnTypeOptions(opts);
         return opts;
@@ -219,22 +201,22 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           ObjName: GRN_CONFIG.SUPPLIER_SP,
           JSon: JSON.stringify([
             {
-              PrmDivisionId: Number(divisionId),
-              PrmLoginId: getUserSession().loginId,
-              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
-              PrmPartyType: GRN_CONFIG.SUPPLIER_PARTY_TYPE,
+              prmdivisionid: Number(divisionId),
+              prmloginid: getUserSession().loginId,
+              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmpartytype: GRN_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const rows = res?.Table || [];
+        const rows = res || [];
         supplierRowsRef.current = new Map(
-          rows.map((r) => [String(Math.round(Number(r.SupplierID))), r])
+          rows.map((r) => [String(Math.round(Number(r.supplierid))), r])
         );
         const opts = rows.map((r) => ({
-          value: String(Math.round(Number(r.SupplierID))),
-          label: r.SupplierName,
+          value: String(Math.round(Number(r.supplierid))),
+          label: r.suppliername,
         }));
         setSupplierOptions(opts);
         return opts;
@@ -264,16 +246,16 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           ObjName: GRN_CONFIG.SP_TRANSPORTERS,
           JSon: JSON.stringify([
             {
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: getUserSession().loginId,
-              PrmFormTag: GRN_CONFIG.FORM_TAG,
+              prmdivisionid: Number(divisionId),
+              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: getUserSession().loginId,
+              prmformtag: GRN_CONFIG.FORM_TAG,
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = mapTableToOptions(res?.Table, "TransporterID", "TransporterName");
+        const opts = mapTableToOptions(res, "transporterid", "transportername");
         setTransporterOptions(opts);
         return opts;
       } catch (err) {
@@ -301,17 +283,17 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           ObjName: GRN_CONFIG.SP_DESTINATIONS,
           JSon: JSON.stringify([
             {
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: GRN_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: getUserSession().loginId,
-              PrmFormTag: GRN_CONFIG.FORM_TAG,
-              prmtransporterMstID: Number(transporterId),
+              prmdivisionid: Number(divisionId),
+              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: getUserSession().loginId,
+              prmformtag: GRN_CONFIG.FORM_TAG,
+              prmtransportermstid: Number(transporterId),
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = mapTableToOptions(res?.Table, "DestinationID", "DestinationName");
+        const opts = mapTableToOptions(res, "destinationid", "destinationname");
         setDestinationOptions(opts);
         return opts;
       } catch (err) {
@@ -337,18 +319,18 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         ObjName: GRN_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([
           {
-            prmUserID: getUserSession().loginId,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID: GRN_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: getUserSession().loginId,
+            prmcompanyid: DEFAULT_COMPANY_ID,
+            prmyearid: GRN_CONFIG.DIVISION_YEAR_ID,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({
-          value: String(r.DivisionID),
-          label: r.DivisionName,
+        (divisionData || []).map((r) => ({
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
     } catch (err) {
@@ -366,14 +348,14 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: GRN_CONFIG.SP_RB_META,
-          JSon: JSON.stringify([{ prmRBCode: GRN_CONFIG.RB_MASTER }]),
+          JSon: JSON.stringify([{ prmrbcode: GRN_CONFIG.RB_MASTER }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const tableRow = metaData?.Table?.[0];
+        const tableRow = metaData?.[0];
         if (!tableRow) throw new Error("No GRN header RB metadata returned from server.");
 
-        const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+        const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
         setHeaderRbMeta(hdrMeta);
         localStorage.setItem(GRN_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
@@ -381,7 +363,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           prmMasterID: hdrMeta.RBID,
           prmLoginID: getUserSession().loginId,
         });
-        const apiColumns = colData?.Links || [];
+        const apiColumns = colData || [];
         setHeaderColumns(apiColumns);
 
         if (skipListDropdowns) {
@@ -407,13 +389,13 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       if (!headerColumns.length) return;
 
       const needsDivision = headerColumns.some(
-        (c) => c.ColName === "DivisionID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "divisionid" && !isLockOnEditModeCol(c)
       );
       const needsConfig = headerColumns.some(
-        (c) => c.ColName === "ConfigID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "configid" && !isLockOnEditModeCol(c)
       );
       const needsSupplier = headerColumns.some(
-        (c) => c.ColName === "SupplierID" && !isLockOnEditModeCol(c)
+        (c) => c.colname === "supplierid" && !isLockOnEditModeCol(c)
       );
 
       const tasks = [];
@@ -448,20 +430,23 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
-      setEventColumns(
-        buildEventColumnSet(apiColumns, [
-          "ItemID",
-          "Qty",
-          "Rate",
-          "Amount",
-          "TranQty",
-          "BaseQty",
-          "BaseRate",
-          "TranRate",
-        ])
+      const evtSet = buildEventColumnSet(apiColumns, [
+        "itemid",
+        "itemcode",
+        "tranqty",
+        "baseqty",
+        "tranrate",
+        "baserate",
+        "unitconv",
+        "discperc",
+      ]);
+      // Force-add amount-driving columns regardless of API iseventreq flags
+      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc"].forEach((k) =>
+        evtSet.add(k)
       );
+      setEventColumns(evtSet);
       setAllColumns(
-        apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
     } catch (err) {
       console.error("[GRN] fetchDetailMeta failed:", err);
@@ -536,14 +521,13 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         }),
       ]);
 
-      const master = mstRes?.Links?.[0] ?? null;
-      const params = { companyId, yearId, loginId, sessionId, idNumber };
-      const details = mapDetailRowsToGridRows(detRes?.Links || []);
-      const indentDetails = indtRes?.Links || [];
+      const master = mstRes?.[0] ?? null;
+      const details = mapDetailRowsToGridRows(detRes || []);
+      const indentDetails = indtRes || [];
 
       return {
         master,
-        headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
         childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
@@ -555,11 +539,11 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const fetchIndentDetailColumns = useCallback(async () => {
     const { apiColumns } = await loadRbDetailGridMeta(
       get,
-      GRN_CONFIG.RB_INDT_DETAIL,
+      GRN_CONFIG.RB_ITEM_PICKER_INDENT,
       GRN_CONFIG.STORAGE_INDT_META
     );
     setAllIndentColumns(
-      apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null }))
+      apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
     );
     return buildGridColumns(apiColumns, {}, { filterable: false, allEditable: false });
   }, [get]);
@@ -574,14 +558,26 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     async (colName, rowData, headerValues) => {
       setIsEventFiring(true);
       try {
-        const { id, ...newRowData } = rowData;
-        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: GRN_CONFIG.SP_GRID_EVENT,
-          EventColName: colName,
-          DetJSON: JSON.stringify([newRowData]),
-          MstJSon: JSON.stringify([headerValues]),
+        const { id, ...rawRowData } = rowData;
+        const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+        const newRowData = Object.fromEntries(
+          Object.entries(rawRowData).map(([k, v]) => {
+            if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+              return [k, Number(v)];
+            return [k, v];
+          })
+        );
+        const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+          prmobjname: GRN_CONFIG.SP_GRID_EVENT,
+          prmmyeventcol: colName,
+          prmdetjson: buildDetJSON([newRowData], colTypeMap),
+          prmmstjson: JSON.stringify([headerValues]),
         });
-        return result;
+        // fn_tbl_rb_purgrndet_event returns PascalCase keys (ErrCode, TranAmount, ...),
+        // unlike sibling modules' event SPs — normalize so callers can rely on lowercase.
+        return (result || []).map((row) =>
+          Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase(), v]))
+        );
       } catch (err) {
         console.error("[GRN] fireCellEvent failed:", err);
         return null;
@@ -589,7 +585,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         setIsEventFiring(false);
       }
     },
-    [get]
+    [allColumns]
   );
 
   const clearGrnTypes = useCallback(() => setGrnTypeOptions([]), []);

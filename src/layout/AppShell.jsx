@@ -11,15 +11,16 @@ import {
   Layers,
   Tag,
   MapPin,
+  Network,
   Package,
   TrendingDown,
   Package2,
+  LayoutList,
   Users,
   Shield,
   KeyRound,
   Building2,
   Building,
-  Package,
   PanelLeftClose,
   PanelLeft,
   Box,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
+import { PROD_BASE_PROJECT, BASE_PROJECT_OPTIONS, switchBaseProject } from "../api/constants";
 import "./AppShell.css";
 
 const NAV_SECTIONS = [
@@ -41,10 +43,17 @@ const NAV_SECTIONS = [
   {
     label: "Master",
     items: [
+      { to: "/admin/user-master", icon: Users, label: "User Master", end: false },
+      { to: "/admin/user-group", icon: Shield, label: "User Group", end: false },
+      { to: "/admin/division-wise-rights", icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: "/admin/item-master", icon: Package, label: "Item Master", end: false },
+      { to: "/admin/department-master", icon: Building2, label: "Department Master", end: false },
+      { to: "/admin/company", icon: Building, label: "Company", end: false },
       { to: "/admin/main-group-master", icon: Tag, label: "Main Group Master", end: false },
       { to: "/admin/master/item/sub-main-group-master", icon: Layers, label: "Sub Main Group Master", end: false },
       { to: "/admin/master/item/sub-group-master", icon: Package, label: "Sub Group Master", end: false },
       { to: "/admin/company/location-master", icon: MapPin, label: "Location Master", end: false },
+      { to: "/admin/company/division-master", icon: Network, label: "Division Master", end: false },
     ],
   },
   {
@@ -65,12 +74,7 @@ const NAV_SECTIONS = [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
       { to: "/assets-depreciation", icon: TrendingDown, label: "Depreciation", end: false },
       { to: "/assets-item-opening", icon: Package2, label: "Assets Item Opening", end: false },
-      { to: "/admin/user-master", icon: Users, label: "User Master", end: false },
-      { to: "/admin/user-group", icon: Shield, label: "User Group", end: false },
-      { to: "/admin/division-wise-rights", icon: KeyRound, label: "Division Wise Rights", end: false },
-      { to: "/admin/item-master", icon: Package, label: "Item Master", end: false },
-      { to: "/admin/department-master", icon: Building2, label: "Department Master", end: false },
-      { to: "/admin/company", icon: Building, label: "Company", end: false },
+      { to: "/account/master/asset-item-master", icon: LayoutList, label: "Asset Item Master", end: false },
     ],
   },
 
@@ -171,6 +175,23 @@ export default function AppShell({ children }) {
             </div>
           </div>
           <div className="ent-topbar__actions">
+            <div className="ent-env-switcher" role="group" aria-label="API environment">
+              {BASE_PROJECT_OPTIONS.map((opt) => {
+                const isActive = opt === PROD_BASE_PROJECT;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`ent-env-switcher__btn${isActive ? " ent-env-switcher__btn--active" : ""}${opt === "IMS_PGLIVE" ? " ent-env-switcher__btn--pg" : ""}`}
+                    title={isActive ? `Active: ${opt}` : `Switch to ${opt}`}
+                    onClick={() => { if (!isActive) switchBaseProject(opt); }}
+                    aria-pressed={isActive}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
             <button type="button" className="ent-topbar__icon-btn" aria-label="Notifications">
               <Bell size={16} strokeWidth={1.5} />
               <span className="ent-topbar__badge">3</span>

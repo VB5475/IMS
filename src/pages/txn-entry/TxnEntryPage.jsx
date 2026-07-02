@@ -28,8 +28,10 @@ import {
 } from "../../utils/gridUtils";
 import { getColDefault, ENDPOINTS, API_BASE_URL_OLD, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { TXN_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useNotification } from "../../context/NotificationContext";
 import "./TxnEntryPage.css";
 
 // Field order + control types; captions from GET_DETAIL_COL_DATA (DisplayName).
@@ -69,6 +71,7 @@ export default function TxnEntryPage() {
   const { id: routeId } = useParams();
   const genIDNumber = routeId ? 1 : 0;
   const { get } = useApi(API_BASE_URL_OLD);
+  const notify = useNotification();
   const gridRef = useRef(null);
 
   const [departmentOptions, setDepartmentOptions] = useState([]);
@@ -179,7 +182,7 @@ export default function TxnEntryPage() {
     })
       .then((res) => {
         setDepartmentOptions(
-          (res?.Table || []).map((r) => ({
+          (res || []).map((r) => ({
             value: String(r.DepartmentID),
             label: r.DepartmentName,
           }))
@@ -196,7 +199,7 @@ export default function TxnEntryPage() {
     })
       .then((res) => {
         setSupplierOptions(
-          (res?.Table || []).map((r) => ({ value: String(r.SupplierID), label: r.SupplierName }))
+          (res || []).map((r) => ({ value: String(r.SupplierID), label: r.SupplierName }))
         );
       })
       .catch((err) => console.warn("[TxnEntry] Supplier fetch failed:", err));
@@ -221,7 +224,7 @@ export default function TxnEntryPage() {
     })
       .then((res) => {
         setInvoiceTypeOptions(
-          (res?.Table || []).map((r) => ({ value: String(r.InvoiceTypeID), label: r.Name }))
+          (res || []).map((r) => ({ value: String(r.InvoiceTypeID), label: r.Name }))
         );
       })
       .catch((err) => console.warn("[TxnEntry] InvoiceType fetch failed:", err));
@@ -273,7 +276,7 @@ export default function TxnEntryPage() {
     async (panelValues) => {
       const divisionID = panelValues?.DivisionID ?? headerValuesRef.current?.DivisionID ?? 0;
       if (!divisionID || divisionID === "0" || divisionID === 0) {
-        alert("Please select a Division before ordering items.");
+        notify.error("Please select a Division before ordering items.");
         return;
       }
       setOrderModalOpen(true);
@@ -294,7 +297,7 @@ export default function TxnEntryPage() {
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        setOrderItems(response?.Table || []);
+        setOrderItems(response || []);
       } catch (err) {
         console.error("[TxnEntry] Order item fetch failed:", err);
         setOrderItemsError(err?.message || "Failed to fetch items. Please try again.");
@@ -343,14 +346,14 @@ export default function TxnEntryPage() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !gridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[TxnEntry] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[TxnEntry] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       gridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]
@@ -363,14 +366,19 @@ export default function TxnEntryPage() {
   const handleSave = useCallback(async () => {
     const selectedRows = gridRef.current?.getSelectedRows?.() ?? [];
     if (selectedRows.length === 0) {
-      alert("No rows selected. Please check at least one row to save.");
+      notify.error("No rows selected. Please check at least one row to save.");
       return;
     }
     try {
       const result = await saveTxn(headerValuesRef.current, selectedRows, genIDNumber);
-      if (result) alert("Transaction saved successfully!");
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        notify.error(message);
+        return;
+      }
+      notify.success(message || "Transaction saved successfully.");
     } catch (err) {
-      alert(saveError || err?.message || "Save failed.");
+      notify.error(saveError || err?.message || "Save failed.");
     }
   }, [saveTxn, genIDNumber, saveError]);
 

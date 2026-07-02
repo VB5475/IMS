@@ -1,19 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Shield, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useUserGroup } from "../../hooks/useUserGroup";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import UserGroupForm from "./UserGroupForm";
 import { UG_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./UserGroupPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   return {
@@ -29,6 +23,7 @@ export default function UserGroupPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
+    allColumns,
     dropdownOptions,
     headerFetching,
     headerError,
@@ -36,17 +31,14 @@ export default function UserGroupPage() {
     fetchListRows,
   } = useUserGroup();
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [data,     setData]     = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("add");
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
-  const [editPrefill, setEditPrefill] = useState(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editLoadError, setEditLoadError] = useState(null);
 
   usePageHeader({
     title: "User Group",
@@ -55,9 +47,7 @@ export default function UserGroupPage() {
     backTo: "/",
   });
 
-  useEffect(() => {
-    fetchHeaderMeta();
-  }, [fetchHeaderMeta]);
+  useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -73,58 +63,24 @@ export default function UserGroupPage() {
     }
   }, [fetchListRows]);
 
-  useEffect(() => {
-    fetchList();
-  }, [fetchList]);
+  useEffect(() => { fetchList(); }, [fetchList]);
 
   const handleAddNew = useCallback(() => {
     setModalMode("add");
     setEditRecordId(null);
-    setEditPrefill(null);
-    setEditLoadError(null);
     setModalOpen(true);
   }, []);
 
-  const handleEdit = useCallback(
-    async (idNumber) => {
-      setModalMode("edit");
-      setEditRecordId(idNumber);
-      setEditPrefill(null);
-      setEditLoadError(null);
-      setModalOpen(true);
-      setEditLoading(true);
-      try {
-        const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: UG_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
-          sessionId: DEFAULT_SESSION_ID,
-          idNumber,
-        });
-        if (!result.master || !result.headerValues) {
-          setEditLoadError("Record not found.");
-          return;
-        }
-        setEditPrefill(result);
-      } catch (err) {
-        setEditLoadError(err?.message || "Failed to load record.");
-      } finally {
-        setEditLoading(false);
-      }
-    },
-    [fetchEditRecord]
-  );
-
-  const handleCloseModal = useCallback(() => {
-    setModalOpen(false);
-    setEditPrefill(null);
-    setEditLoadError(null);
+  const handleEdit = useCallback((idNumber) => {
+    setModalMode("edit");
+    setEditRecordId(idNumber);
+    setModalOpen(true);
   }, []);
 
   const handleSaved = useCallback(() => {
-    handleCloseModal();
+    setModalOpen(false);
     fetchList();
-  }, [fetchList, handleCloseModal]);
+  }, [fetchList]);
 
   const columns = useMemo(
     () =>
@@ -139,8 +95,8 @@ export default function UserGroupPage() {
           <button
             type="button"
             className="ug-list__edit-btn"
-            title={`Edit ${row.GroupCode ?? row.GroupName ?? ""}`}
-            aria-label={`Edit ${row.GroupCode ?? row.GroupName ?? ""}`}
+            title={`Edit ${row.groupcode ?? row.groupname ?? ""}`}
+            aria-label={`Edit ${row.groupcode ?? row.groupname ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -195,6 +151,7 @@ export default function UserGroupPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No user groups found."
+          searchable
           hideHeader
           fill
         />
@@ -203,15 +160,15 @@ export default function UserGroupPage() {
       <UserGroupForm
         isOpen={modalOpen}
         mode={modalMode}
-        onClose={handleCloseModal}
+        recordId={editRecordId}
+        onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         dropdownOptions={dropdownOptions}
-        editPrefill={editPrefill}
-        recordLoading={editLoading}
-        recordLoadError={editLoadError}
+        fetchEditRecord={fetchEditRecord}
       />
     </div>
   );

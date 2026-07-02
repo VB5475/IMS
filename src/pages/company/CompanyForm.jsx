@@ -1,173 +1,203 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Building, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
   DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
+  getColDefault,
+  buildSaveRowFromColumns,
 } from "../../api/constants";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { validateApiColumns } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import {
-  buildMasterCascadeDropdownRefresh,
-  buildMasterCascadeResets,
-  buildMasterFormEmpty,
-  getCheckboxValue,
-  getMasterFieldDefaultValue,
   getMasterFieldLabel,
-  getToggleValue,
-  getVisibleHeaderFields,
   isMasterCheckboxField,
   isMasterFieldLocked,
-  isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
 } from "../../utils/masterFormUtils";
 import {
   CO_CONFIG,
-  CO_CASCADE_DROPDOWN_REFRESH,
-  CO_CASCADE_RESETS,
   CO_FORM_LAYOUT,
   CO_LABEL_OVERRIDES,
-  getCoLayoutFieldNames,
-  resolveCoLayoutField,
 } from "./constants";
 import "./CompanyPage.css";
 
-function buildSaveContext() {
-  return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: CO_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: CO_CONFIG.RB_MASTER,
-  };
+// ---------------------------------------------------------------------------
+// Cascade maps — lowercase colnames (PG)
+// ---------------------------------------------------------------------------
+const CO_CASCADE_RESETS_LC = {
+  countryid:           ["stateid", "cityid"],
+  stateid:             ["cityid"],
+  respersoncountryid:  ["respersonstateid", "respersoncityid"],
+  respersonstateid:    ["respersoncityid"],
+};
+
+const CO_CASCADE_REFRESH_LC = {
+  countryid:           ["stateid"],
+  stateid:             ["cityid"],
+  respersoncountryid:  ["respersonstateid"],
+  respersonstateid:    ["respersoncityid"],
+};
+
+// ---------------------------------------------------------------------------
+// Layout helpers — CO_FORM_LAYOUT uses PascalCase names; PG columns are lowercase.
+// resolveField tries both exact and lowercase match.
+// ---------------------------------------------------------------------------
+function buildFieldMap(fieldDefs) {
+  const map = {};
+  fieldDefs.forEach((f) => {
+    const key = f.colname ?? f.ColName ?? "";
+    if (!key) return;
+    map[key] = f;
+    // Currency alias: BasCurrencyID ↔ BaseCurrencyID (RB has both spellings)
+    if (key === "bascurrencyid")  map["basecurrencyid"] = f;
+    if (key === "basecurrencyid") map["bascurrencyid"]  = f;
+  });
+  return map;
 }
 
-function buildFieldMap(fieldDefs) {
-  return Object.fromEntries(
-    getVisibleHeaderFields(fieldDefs).map((field) => [field.ColName, field])
-  );
+function resolveField(fieldMap, layoutName) {
+  if (!layoutName) return null;
+  return fieldMap[layoutName] ?? fieldMap[layoutName.toLowerCase()] ?? null;
 }
 
 function resolveLayoutRows(rows, fieldMap) {
   return rows
-    .map((row) =>
-      row.map((name) => resolveCoLayoutField(fieldMap, name)).filter(Boolean)
-    )
+    .map((row) => row.map((name) => resolveField(fieldMap, name)).filter(Boolean))
     .filter((row) => row.length > 0);
 }
 
+// ---------------------------------------------------------------------------
+// Form component
+// ---------------------------------------------------------------------------
 export default function CompanyForm({
   isOpen,
   mode,
+  recordId,
   onClose,
   onSaved,
   fieldDefs = [],
+  allColumns = [],
   defsLoading = false,
   defsError = null,
   dropdownOptions = {},
   onRefreshDropdowns,
-  editPrefill = null,
-  recordLoading = false,
-  recordLoadError = null,
+  fetchEditRecord,
+  seedOptionsFromMaster,
 }) {
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
-  const [isEditMode, setIsEditMode] = useState(true);
-  const [formValues, setFormValues] = useState(() =>
-    buildMasterFormEmpty(fieldDefs, buildSaveContext())
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
+  const [isEditMode,      setIsEditMode]      = useState(true);
+  const [formValues,      setFormValues]      = useState({});
+  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [recordLoadError, setRecordLoadError] = useState(null);
+  const [isSaving,        setIsSaving]        = useState(false);
+  const [saveError,       setSaveError]       = useState(null);
+  const [formErrors,      setFormErrors]      = useState([]);
+  const [discardAction,   setDiscardAction]   = useState(null);
 
+  // fieldMap keyed by lowercase colname (PG)
   const fieldMap = useMemo(() => buildFieldMap(fieldDefs), [fieldDefs]);
 
-  const layout = useMemo(
-    () => ({
-      mainRows: resolveLayoutRows(CO_FORM_LAYOUT.left.main.rows, fieldMap),
-      contactRows: resolveLayoutRows(CO_FORM_LAYOUT.left.contact.rows, fieldMap),
-      responsibleRows: resolveLayoutRows(
-        CO_FORM_LAYOUT.right.responsible.rows,
-        fieldMap
-      ),
-    }),
-    [fieldMap]
-  );
+  // Layout resolved with case-insensitive lookup (CO_FORM_LAYOUT uses PascalCase)
+  const layout = useMemo(() => ({
+    mainRows:        resolveLayoutRows(CO_FORM_LAYOUT.left.main.rows,          fieldMap),
+    contactRows:     resolveLayoutRows(CO_FORM_LAYOUT.left.contact.rows,       fieldMap),
+    responsibleRows: resolveLayoutRows(CO_FORM_LAYOUT.right.responsible.rows,  fieldMap),
+  }), [fieldMap]);
 
+  // Ordered list of visible fields for validation (from layout definition)
   const visibleFields = useMemo(() => {
-    const names = getCoLayoutFieldNames(fieldMap);
-    return names.map((name) => fieldMap[name]).filter(Boolean);
-  }, [fieldMap]);
+    const seen = new Set();
+    const fields = [];
+    const collect = (rows) => {
+      rows.forEach((row) => {
+        row.forEach((f) => {
+          if (!seen.has(f.colname)) { seen.add(f.colname); fields.push(f); }
+        });
+      });
+    };
+    collect(layout.mainRows);
+    collect(layout.contactRows);
+    collect(layout.responsibleRows);
+    return fields;
+  }, [layout]);
 
-  const cascadeResets = useMemo(() => {
-    const fromApi = buildMasterCascadeResets(fieldDefs);
-    return { ...fromApi, ...CO_CASCADE_RESETS };
-  }, [fieldDefs]);
+  // Build empty row seeded from ALL RB columns + context fields (all lowercase)
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => {
+      row[key] = getColDefault(colDataType);
+    });
+    return {
+      ...row,
+      yearid:    CO_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  CO_CONFIG.RB_MASTER,
+    };
+  }, [allColumns]);
 
-  const cascadeDropdownRefresh = useMemo(() => {
-    const fromApi = buildMasterCascadeDropdownRefresh(fieldDefs);
-    return { ...fromApi, ...CO_CASCADE_DROPDOWN_REFRESH };
-  }, [fieldDefs]);
-
+  // Reset on modal open
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
-    const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
-    if (isAddMode) {
-      setFormValues(empty);
-    } else if (editPrefill?.headerValues) {
-      setFormValues({ ...empty, ...editPrefill.headerValues });
-    }
-  }, [isOpen, isAddMode, editPrefill, fieldDefs]);
+    setFormErrors([]);
+    setRecordLoadError(null);
+    setFormValues(buildEmptyFromColumns());
+  }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
+  // Load edit record when modal opens in edit mode
   useEffect(() => {
-    if (!isOpen || !fieldDefs.length) return;
-    setFormValues((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      fieldDefs.forEach((f) => {
-        if (isMasterToggleField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-        if (isMasterCheckboxField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [isOpen, fieldDefs]);
+    if (!isOpen || isAddMode || !recordId) return;
+    setRecordLoading(true);
+    setRecordLoadError(null);
+    fetchEditRecord?.({
+      companyId: DEFAULT_COMPANY_ID,
+      yearId:    CO_CONFIG.CONFIG_YEAR_ID,
+      loginId:   DEFAULT_LOGIN_ID,
+      sessionId: DEFAULT_SESSION_ID,
+      idNumber:  recordId,
+    })
+      .then(({ master, headerValues }) => {
+        if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
+        seedOptionsFromMaster?.(master);
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
+      })
+      .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
+      .finally(() => setRecordLoading(false));
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster, buildEmptyFromColumns]);
 
-  const handleChange = useCallback(
-    (key, value) => {
-      setFormValues((prev) => {
-        const next = { ...prev, [key]: value };
-        const resetKeys = cascadeResets[key];
-        if (resetKeys?.length) {
-          resetKeys.forEach((resetKey) => {
-            const field = fieldDefs.find((f) => f.ColName === resetKey);
-            next[resetKey] = field ? getMasterFieldDefaultValue(field) : "";
-          });
-        }
-        if (cascadeDropdownRefresh[key]?.length) {
-          onRefreshDropdowns?.(key, next);
-        }
-        return next;
-      });
-    },
-    [cascadeResets, cascadeDropdownRefresh, fieldDefs, onRefreshDropdowns]
-  );
+  const handleChange = useCallback((key, value) => {
+    setFormValues((prev) => {
+      const next = { ...prev, [key]: value };
+      // Reset dependent dropdowns to default
+      const resetKeys = CO_CASCADE_RESETS_LC[key];
+      if (resetKeys?.length) {
+        resetKeys.forEach((rk) => { next[rk] = 0; });
+      }
+      return next;
+    });
+    // Refresh child dropdown options — pass only the changed key/value since
+    // each child binding's parentCol IS the changed field itself.
+    if (CO_CASCADE_REFRESH_LC[key]?.length) {
+      onRefreshDropdowns?.(key, { [key]: value });
+    }
+  }, [onRefreshDropdowns]);
 
   function renderControl(field) {
-    const key = field.ColName;
+    const key = field.colname; // lowercase (PG)
     return (
       <MasterFormField
         field={field}
@@ -185,27 +215,25 @@ export default function CompanyForm({
 
   function renderFieldCell(field) {
     return (
-      <div key={field.ColName} className="co-form-field">
-        <span
-          className={`co-form-label${isMasterFieldRequired(field) ? " co-form-label--required" : ""
-            }`}
-        >
+      <div key={field.colname} className="co-form-field">
+        <span className={`co-form-label${field.ismandatory ? " co-form-label--required" : ""}`}>
           {getMasterFieldLabel(field, CO_LABEL_OVERRIDES)}
         </span>
-        <div className="co-form-control">{renderControl(field)}</div>
+        <div className={[
+          "co-form-control",
+          isMasterToggleField(field)   ? "co-form-control--toggle-wrap" : "",
+          isMasterCheckboxField(field) ? "co-form-control--checkbox"    : "",
+        ].filter(Boolean).join(" ")}>
+          {renderControl(field)}
+        </div>
       </div>
     );
   }
 
   function renderLayoutRow(rowFields, rowKey) {
     if (rowFields.length === 1) {
-      return (
-        <div key={rowKey} className="co-form-row">
-          {renderFieldCell(rowFields[0])}
-        </div>
-      );
+      return <div key={rowKey} className="co-form-row">{renderFieldCell(rowFields[0])}</div>;
     }
-
     return (
       <div key={rowKey} className="co-form-row co-form-row--split">
         {rowFields.map((field) => renderFieldCell(field))}
@@ -214,35 +242,18 @@ export default function CompanyForm({
   }
 
   function renderPanelBody(rows, keyPrefix) {
-    return rows.map((rowFields, index) =>
-      renderLayoutRow(rowFields, `${keyPrefix}-${index}`)
-    );
+    return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
   }
 
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
-      skipMandatoryFor: new Set(
-        visibleFields
-          .filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f))
-          .map((f) => f.ColName)
-      ),
-    });
+    const errors = validateApiColumns(formValues, visibleFields);
+    if (errors.length > 0) { setFormErrors(errors); return; }
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
-
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
-      const saveRow = { ...formValues };
-      visibleFields.forEach((f) => {
-        if (isMasterToggleField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getToggleValue(saveRow[f.ColName]);
-        }
-        if (isMasterCheckboxField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getCheckboxValue(saveRow[f.ColName]);
-        }
-      });
-      console.log("see the saveroow:", saveRow)
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
       const payload = withSaveContextFields(
         {
           prmStrMstJSON: JSON.stringify([saveRow]),
@@ -251,8 +262,16 @@ export default function CompanyForm({
         { divisionId: 0, isEdit: !isAddMode }
       );
 
-      await post(CO_CONFIG.SAVE_ENDPOINT, payload);
-      alert("Company saved successfully!");
+      console.log("prmStrMstJSON",saveRow);
+      console.log("prmStrDetJSON",{});
+      console.log("payload",payload);
+      const result = await post(CO_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message || "Company saved successfully.");
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[CO Save] Failed:", err);
@@ -260,55 +279,44 @@ export default function CompanyForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, onSaved, post]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, post, notify]);
 
-  const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (isEditMode && !window.confirm("Discard changes?")) return;
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
       onClose();
-    });
-  }, [isEditMode, onClose]);
-
-  const handleCancelEdit = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
-      if (isAddMode) {
-        onClose();
-        return;
-      }
+    } else {
+      if (isAddMode) { onClose(); return; }
       setIsEditMode(false);
       setSaveError(null);
-    });
-  }, [isAddMode, onClose]);
+    }
+  }, [discardAction, isAddMode, onClose]);
+
+  const handleClose = useCallback(() => {
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
+  }, [isEditMode, onClose]);
+
+  const handleCancelEdit = useCallback(() => { setDiscardAction("cancel"); }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
       return (
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--edit"
-          onClick={() => setIsEditMode(true)}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--edit"
+                onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
     }
     return (
       <div className="master-modal-footer-actions">
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--cancel"
-          onClick={handleCancelEdit}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+                onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--save"
-          onClick={handleSave}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--save"
+                onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -316,8 +324,8 @@ export default function CompanyForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading = defsLoading || recordLoading;
-  const combinedErr = defsError || recordLoadError;
+  const isLoading   = defsLoading || recordLoading;
+  const combinedErr = defsError   || recordLoadError;
 
   return (
     <Modal
@@ -331,6 +339,12 @@ export default function CompanyForm({
       dialogClassName="modal-dialog--company"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -339,6 +353,7 @@ export default function CompanyForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="co-form-scroll">
             <div className="co-form-layout">
               <div className="co-form-layout__left">
@@ -347,7 +362,6 @@ export default function CompanyForm({
                     {renderPanelBody(layout.mainRows, "main")}
                   </div>
                 </section>
-
                 <section className="co-form-section co-form-section--contact">
                   <h3 className="co-form-section__title">
                     {CO_FORM_LAYOUT.left.contact.title}
@@ -357,7 +371,6 @@ export default function CompanyForm({
                   </div>
                 </section>
               </div>
-
               <div className="co-form-layout__right">
                 <section className="co-form-section co-form-section--responsible">
                   <h3 className="co-form-section__title">
@@ -370,7 +383,6 @@ export default function CompanyForm({
               </div>
             </div>
           </div>
-
           {saveError && (
             <div className="master-modal-save-error">
               <AlertCircle size={14} strokeWidth={2} /> {saveError}

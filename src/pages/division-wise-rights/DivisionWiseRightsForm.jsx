@@ -9,6 +9,7 @@ import {
 } from "../../api/constants";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import {
   buildMasterFormEmpty,
   getCheckboxValue,
@@ -21,6 +22,7 @@ import {
 } from "../../utils/masterFormUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { validateApiColumns, validateColumnValue } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import { UDR_CONFIG } from "./constants";
 
 function buildSaveContext() {
@@ -34,11 +36,14 @@ function buildSaveContext() {
 }
 
 function getUdrHeaderFields(fieldDefs) {
+  // After normalizeColumn, f.ColName is lowercase — matches lowercase HEADER_USER_COL
   const visible = getVisibleHeaderFields(fieldDefs).filter(
-    (f) => f.ColName === UDR_CONFIG.HEADER_USER_COL
+    (f) => (f.ColName ?? f.colname) === UDR_CONFIG.HEADER_USER_COL
   );
   if (visible.length) return visible;
-  const userCol = (fieldDefs ?? []).find((f) => f.ColName === UDR_CONFIG.HEADER_USER_COL);
+  const userCol = (fieldDefs ?? []).find(
+    (f) => (f.ColName ?? f.colname) === UDR_CONFIG.HEADER_USER_COL
+  );
   return userCol ? [userCol] : [];
 }
 
@@ -46,7 +51,7 @@ function getUdrHeaderFields(fieldDefs) {
 function validateUdrHeaderFields(headerFields, headerValues) {
   const errors = [];
   (headerFields ?? []).forEach((apiCol) => {
-    const key = apiCol.ColName;
+    const key = apiCol.ColName ?? apiCol.colname;
     if (!key) return;
     const result = validateColumnValue(headerValues[key], apiCol);
     if (!result.valid) errors.push(result.message);
@@ -55,7 +60,7 @@ function validateUdrHeaderFields(headerFields, headerValues) {
 }
 
 function isUdrAllowColumn(col) {
-  return col?.ColName === UDR_CONFIG.GRID_ALLOW_COL;
+  return (col?.ColName ?? col?.colname) === UDR_CONFIG.GRID_ALLOW_COL;
 }
 
 function asAllowCheckboxField(col) {
@@ -63,14 +68,19 @@ function asAllowCheckboxField(col) {
   return { ...col, ColCtrlType: controlTypeMap.CHECKBOX };
 }
 
-/** MRD §2 — Division + Allow only; TranBook / UserID / DivisionID stay in save payload. */
+/** MRD §2 — Division + Allow only; tranbook / userid / divisionid stay in save payload. */
 function getUdrGridDisplayCols(gridColumnDefs) {
   const hidden = new Set(UDR_CONFIG.GRID_HIDDEN_COLS);
-  const cols = (gridColumnDefs ?? []).filter((c) => c.ColName && !hidden.has(c.ColName));
+  const cols = (gridColumnDefs ?? []).filter((c) => {
+    const name = c.ColName ?? c.colname;
+    return name && !hidden.has(name);
+  });
 
-  const divisionCol = cols.find((c) => c.ColName === UDR_CONFIG.GRID_DIVISION_COL);
+  const divisionCol = cols.find(
+    (c) => (c.ColName ?? c.colname) === UDR_CONFIG.GRID_DIVISION_COL
+  );
   const allowCol = asAllowCheckboxField(
-    cols.find((c) => c.ColName === UDR_CONFIG.GRID_ALLOW_COL)
+    cols.find((c) => (c.ColName ?? c.colname) === UDR_CONFIG.GRID_ALLOW_COL)
   );
 
   return {
@@ -149,7 +159,7 @@ function RightsGrid({ title, variant, rows, gridColumnDefs, onRowsChange, disabl
             <thead>
               <tr>
                 {displayCols.textCols.map((col) => (
-                  <th key={col.ColName} className="dwr-rights-grid__division-col">
+                  <th key={col.ColName ?? col.colname} className="dwr-rights-grid__division-col">
                     {getMasterFieldLabel(col)}
                   </th>
                 ))}
@@ -162,14 +172,17 @@ function RightsGrid({ title, variant, rows, gridColumnDefs, onRowsChange, disabl
             </thead>
             <tbody>
               {rows.map((row, index) => (
-                <tr key={`${row.DivisionID ?? ""}-${row.TranBook ?? ""}-${index}`}>
-                  {displayCols.textCols.map((col) => (
-                    <td key={col.ColName} className="dwr-rights-grid__division-col">
+                <tr key={`${row.divisionid ?? row.DivisionID ?? ""}-${row.tranbook ?? row.TranBook ?? ""}-${index}`}>
+                  {displayCols.textCols.map((col) => {
+                    const colKey = col.ColName ?? col.colname;
+                    return (
+                    <td key={colKey} className="dwr-rights-grid__division-col">
                       <span className="dwr-rights-grid__division-name">
-                        {row[col.ColName] ?? "—"}
+                        {row[colKey] ?? "—"}
                       </span>
                     </td>
-                  ))}
+                    );
+                  })}
                   {displayCols.allowCol && (
                     <td className="dwr-rights-grid__allow-col">
                       <div className="dwr-rights-grid__checkbox-wrap">
@@ -195,13 +208,14 @@ function RightsGrid({ title, variant, rows, gridColumnDefs, onRowsChange, disabl
 
 function buildUdrRowValues(row, gridColumnDefs, headerValues) {
   const saveRow = {};
+  const userCol = UDR_CONFIG.HEADER_USER_COL; // "userid"
   gridColumnDefs.forEach((col) => {
-    const key = col.ColName;
+    const key = col.ColName ?? col.colname;
     if (!key) return;
     if (isUdrAllowColumn(col) || isMasterCheckboxField(col)) {
       saveRow[key] = getCheckboxValue(row[key]);
-    } else if (key === "UserID") {
-      saveRow[key] = headerValues.UserID;
+    } else if (key === userCol) {
+      saveRow[key] = headerValues[userCol];
     } else {
       saveRow[key] = row[key] ?? "";
     }
@@ -237,6 +251,7 @@ export default function DivisionWiseRightsForm({
   onUserChange,
 }) {
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
   const [headerValues, setHeaderValues] = useState(() =>
     buildMasterFormEmpty(fieldDefs, buildSaveContext())
@@ -288,7 +303,7 @@ export default function DivisionWiseRightsForm({
   const handleUserChange = useCallback(
     async (userId) => {
       const normalized = Number(userId) || 0;
-      setHeaderValues((prev) => ({ ...prev, UserID: normalized }));
+      setHeaderValues((prev) => ({ ...prev, [UDR_CONFIG.HEADER_USER_COL]: normalized }));
       await reloadGridsForUser(normalized);
     },
     [reloadGridsForUser]
@@ -296,8 +311,8 @@ export default function DivisionWiseRightsForm({
 
   const handleHeaderChange = useCallback(
     (field, value) => {
-      const key = field.ColName;
-      if (key === "UserID") {
+      const key = field.ColName ?? field.colname;
+      if (key === UDR_CONFIG.HEADER_USER_COL) {
         handleUserChange(value);
         return;
       }
@@ -332,16 +347,22 @@ export default function DivisionWiseRightsForm({
         ...buildDetailSaveRows(transactionRows, gridColumnDefs, headerValues),
         ...buildDetailSaveRows(reportRows, gridColumnDefs, headerValues),
       ];
+      const userCol = UDR_CONFIG.HEADER_USER_COL;
       const payload = withSaveContextFields(
         {
           prmStrMstJSON: JSON.stringify([...detRows]),
         },
-        { divisionId: 0, isEdit: Number(headerValues.UserID) > 0 }
+        { divisionId: 0, isEdit: Number(headerValues[userCol]) > 0 }
       );
 
-      await post(UDR_CONFIG.SAVE_ENDPOINT, payload);
-      alert("Division wise rights saved successfully!");
-      await reloadGridsForUser(headerValues.UserID);
+      const result = await post(UDR_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        setSaveError(message);
+        return;
+      }
+      notify.success(message || "Division wise rights saved successfully.");
+      await reloadGridsForUser(headerValues[userCol]);
     } catch (err) {
       console.error("[UDR Save] Failed:", err);
       setSaveError(err?.message || "Save failed. Please try again.");
@@ -366,15 +387,17 @@ export default function DivisionWiseRightsForm({
       <section className="dwr-panel dwr-panel--fill">
         {isLoading ? (
           <div className="master-modal-loader">Loading…</div>
-        ) : combinedErr && !headerValues.UserID ? (
+        ) : combinedErr && !headerValues[UDR_CONFIG.HEADER_USER_COL] ? (
           <div className="master-modal-error dwr-panel__error">
             <AlertCircle size={14} strokeWidth={2} /> {combinedErr}
           </div>
         ) : (
           <>
             <div className="dwr-form">
-              {headerFields.map((field) => (
-                <div key={field.ColName} className="dwr-form-row">
+              {headerFields.map((field) => {
+                const fKey = field.ColName ?? field.colname;
+                return (
+                <div key={fKey} className="dwr-form-row">
                   <span
                     className={`dwr-form-label${isMasterFieldRequired(field) ? " dwr-form-label--required" : ""
                       }`}
@@ -384,19 +407,20 @@ export default function DivisionWiseRightsForm({
                   <div className="dwr-form-control">
                     <MasterFormField
                       field={field}
-                      value={headerValues[field.ColName]}
+                      value={headerValues[fKey]}
                       onChange={(val) => handleHeaderChange(field, val)}
                       locked={
                         isMasterFieldLocked(field, { isAddMode: true, isEditMode: true }) ||
                         gridsLoading
                       }
-                      options={dropdownOptions[field.ColName] || []}
+                      options={dropdownOptions[fKey] || []}
                       inputClassName="dwr-form-input"
                       valueClassName="dwr-form-value"
                     />
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               <div className="dwr-grids-slot">
                 {gridsLoading && (
@@ -437,7 +461,7 @@ export default function DivisionWiseRightsForm({
               </button>
             </footer>
 
-            {(saveError || (combinedErr && headerValues.UserID)) && (
+            {(saveError || (combinedErr && headerValues[UDR_CONFIG.HEADER_USER_COL])) && (
               <div className="master-modal-save-error">
                 <AlertCircle size={14} strokeWidth={2} /> {saveError || combinedErr}
               </div>

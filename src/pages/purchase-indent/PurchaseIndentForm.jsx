@@ -34,6 +34,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -62,11 +63,11 @@ const nextTempId = () => _indTempId--;
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? IND_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.IndentID ?? listRecord?.IDNumber ?? recordId,
+    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? session.yearId ?? IND_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.indentid ?? listRecord?.idnumber ?? recordId,
   };
 }
 
@@ -80,8 +81,10 @@ function mapHeaderValuesToFilterValues(headerValues) {
     expecteddate:     headerValues.expecteddate     ?? "",
     deptid:           String(headerValues.deptid           ?? ""),
     locationid:       String(headerValues.locationid       ?? ""),
+    costcenterid:     String(headerValues.costcenterid     ?? ""),
     remarks:          headerValues.remarks          ?? "",
     indentrefrenceno: headerValues.indentrefrenceno ?? "",
+    enteredby:        headerValues.enteredby        ?? "",
   };
 }
 
@@ -174,8 +177,10 @@ export default function PurchaseIndentForm() {
     expecteddate:     null,
     deptid:           0,
     locationid:       0,
+    costcenterid:     0,
     remarks:          "",
     indentrefrenceno: "",
+    enteredby:        "",
     tranmstgenid:     0,
     companyid:        DEFAULT_COMPANY_ID,
     yearid:           IND_CONFIG.DIVISION_YEAR_ID,
@@ -410,14 +415,14 @@ export default function PurchaseIndentForm() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !itemGridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[Indent] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[Indent] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       itemGridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]
@@ -519,7 +524,16 @@ export default function PurchaseIndentForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
-  const handleSave = useCallback(async () => {
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) navigate("/purchase-indent");
+    else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
@@ -542,13 +556,9 @@ export default function PurchaseIndentForm() {
     });
     mstRow.loginid = DEFAULT_LOGIN_ID;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => {
-        row[key] = getColDefault(colDataType);
-      });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "Indent", mst: mstRow, det: detRows }),
@@ -567,19 +577,22 @@ export default function PurchaseIndentForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
+      return true;
     } catch (err) {
       console.error("[Indent Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSavingIndent(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

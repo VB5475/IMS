@@ -8,38 +8,38 @@ export const PAGE_TITLE_NEW = "New CWIP To FA";
 
 export const C2F_CONFIG = {
   // RB board codes
-  RB_MASTER:      "RB_AstCWIP2FAMst",
-  RB_DETAIL:      "RB_AstCWIP2FADet",
-  RB_ITEM_PICKER: "RB_AstCWIP2FADetSelO",
+  RB_MASTER:      "rb_astcwip2famst",
+  RB_DETAIL:      "rb_astcwip2fadet",
+  RB_ITEM_PICKER: "rb_astcwip2fadetselo",
 
   // Form identifiers
   FORM_TAG:   "C2F",
   TRAN_BOOK:  "C2F",
 
-  
+
   CONFIG_YEAR_ID:   2,
   DIVISION_YEAR_ID: 2,
 
   // SP names
-  SP_RB_META:      "Fn_Fetch_RBDetailByRBCode",
-  SP_DIVISIONS:    "Fn_tbl_FetchUserWsDivision",
-  SP_LOCATION:     "Fn_Gen_FetchLocationMaster",
-  SP_CWIP_ACC:     "Fn_tbl_Fetch_AssetsAccount",
-  SP_COST_CENTER:  "Fn_tbl_Fas_FetchCostCenterAc",
-  SP_ITEM_PICKER:  "fn_tbl_RB_AstCWIP2FADetSel",
-  SP_GRID_EVENT:   null, 
-  SP_UNIQUE_ID:    "Pr_Gen_FetchLevyUniqueNo4Web",
+  SP_RB_META:      "fn_fetch_rbdetailbyrbcode",
+  SP_DIVISIONS:    "fn_tbl_fetchuserwsdivision",
+  SP_LOCATION:     "fn_gen_fetchlocationmaster",
+  SP_CWIP_ACC:     "fn_tbl_fetch_assetsaccount",
+  SP_COST_CENTER:  "fn_tbl_fas_fetchcostcenterac",
+  SP_ITEM_PICKER:  "fn_tbl_rb_astcwip2fadetsel",
+  SP_GRID_EVENT:   null,
+  SP_UNIQUE_ID:    "pr_gen_fetchlevyuniqueno4web",
 
   // Edit flow
-  SP_MASTER_FILL: "fn_tbl_RB_AstCWIP2FAMst",
-  SP_DETAIL_FILL: "fn_tbl_RB_AstCWIP2FADet",
+  SP_MASTER_FILL: "fn_tbl_rb_astcwip2famst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astcwip2fadet",
 
   // Save endpoint (REST POST)
   SAVE_ENDPOINT: "/API/AccCWIP2FASave/Post_RB_AstCWIP2FAMst_Save",
 
   // Listing — SP and params confirmed by DBA
   LIST_OBJ_TYPE:    2,
-  SP_LIST:          "Fn_tbl_RB_AstCWIP2FAMst_List",
+  SP_LIST:          "fn_tbl_rb_astcwip2famst_list",
   LIST_DIVISION_ID: 0,
 
   // localStorage keys for cached RB meta
@@ -63,7 +63,7 @@ export const C2F_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 // detKey  — grid column key to sum across all item rows
 // SummaryParameterID — master save payload key the value is written to
 export const C2F_SUMMARY_FIELDS = [
-  { SummaryParameterID: "NetTotal", detKey: "Amount" },
+  { SummaryParameterID: "nettotal", detKey: "netamount" },
 ];
 
 // Cascade resets — DivisionID clears LocationID + CWIPAccID (grid cleared in form handler)

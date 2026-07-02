@@ -272,6 +272,96 @@
   gap: 8px;
 }
 
+/* ── Env switcher — segmented pill showing both options ── */
+.ent-env-switcher {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-tint);
+}
+
+.ent-env-switcher__btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--border-dark);
+}
+
+.ent-env-switcher__btn:last-child {
+  border-right: none;
+}
+
+.ent-env-switcher__btn:hover:not(.ent-env-switcher__btn--active) {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* IMS_LIVE active */
+.ent-env-switcher__btn--active {
+  background: var(--primary-light, #e8f0fe);
+  color: var(--primary, #1a56db);
+  cursor: default;
+}
+
+/* IMS_PGLIVE active — amber */
+.ent-env-switcher__btn--pg.ent-env-switcher__btn--active {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* IMS_PGLIVE inactive hover */
+.ent-env-switcher__btn--pg:hover:not(.ent-env-switcher__btn--active) {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+/* Legacy single badge — kept for fallback but replaced by ent-env-switcher */
+.ent-topbar__env-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--primary-light, #e8f0fe);
+  color: var(--primary, #1a56db);
+  border: 1px solid var(--primary-border, #c7d7f7);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ent-topbar__env-badge--btn {
+  cursor: pointer;
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.ent-topbar__env-badge--btn:hover {
+  opacity: 0.8;
+  box-shadow: 0 0 0 2px var(--primary-border, #c7d7f7);
+}
+
+.ent-topbar__env-badge--pg {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.ent-topbar__env-badge--pg.ent-topbar__env-badge--btn:hover {
+  box-shadow: 0 0 0 2px #fde68a;
+}
+
 .ent-topbar__icon-btn {
   position: relative;
   width: 32px;

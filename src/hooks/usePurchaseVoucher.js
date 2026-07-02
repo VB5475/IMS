@@ -12,10 +12,11 @@
 //   No amend, no 3rd detail table (simpler than PO)
 
 import { useState, useCallback, useRef } from "react";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
@@ -23,6 +24,7 @@ import {
 import { getUserSession } from "../session/userSession";
 import { PV_CONFIG } from "../pages/purchase-voucher/constants";
 import { fetchAndBuildGridColumns, isTruthyApiFlag, isLockOnEditModeCol } from "../utils/gridUtils";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -34,7 +36,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -44,43 +46,28 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode:              master.TranCode != null ? String(master.TranCode) : "",
-    TranDate:              toDateInput(master.TranDate),
-    DivisionID:            master.DivisionID != null ? Number(master.DivisionID) : 0,
-    ConfigID:              master.ConfigID != null ? Number(master.ConfigID) : 0,
-    BasedOnID:             master.BasedOnID != null ? String(master.BasedOnID) : "2",
-    SupplierID:            master.SupplierID != null ? Number(master.SupplierID) : 0,
-    CurrencyID:            master.CurrencyID != null ? Number(master.CurrencyID) : 0,
-    CurrencyRate:          master.CurrencyRate != null ? Number(master.CurrencyRate) : 0,
-    BillNo:                master.BillNo ?? "",
-    BillDate:              toDateInput(master.BillDate) || null,
-    CostCenterID:          master.CostCenterID != null ? Number(master.CostCenterID) : 0,
-    CreditStartDate:       toDateInput(master.CreditStartDate) || null,
-    Narration:             master.Narration ?? "",
-    Remarks:               master.Remarks ?? "",
-    TranMstGenID:          master.TranMstGenID != null ? Number(master.TranMstGenID) : 0,
-    CompanyID:             Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID:                Number(master.Year_ID ?? params.yearId) || PV_CONFIG.CONFIG_YEAR_ID,
-    LoginID:               Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID:             Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber:              Number(master.IDNumber ?? master.PVID ?? params.idNumber) || 0,
-    UserID:                getUserSession().userId,
-    CompUniqueKey:         master.CompUniqueKey ?? master.IDNumber ?? master.PVID ?? params.idNumber ?? 0,
-    FuncCode:              master.FuncCode ?? PV_CONFIG.RB_MASTER,
+    ...master,
+    trandate:       toDateInput(master.trandate),
+    billdate:       toDateInput(master.billdate) || null,
+    creditstartdate: toDateInput(master.creditstartdate) || null,
+    yearid:    PV_CONFIG.CONFIG_YEAR_ID,
+    funccode:  PV_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) set.add(col.colname);
   });
   if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
   return set;
@@ -90,19 +77,21 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: PV_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
-  if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const tableRow = metaData?.[0];
+  if (!tableRow || !tableRow.rbid) {
+    throw new Error(tableRow?.ErrMsg || `No RB metadata returned for ${rbCode}.`);
+  }
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID: DEFAULT_LOGIN_ID,
   });
-  return { meta, apiColumns: colData?.Links || [] };
+  return { meta, apiColumns: colData || [] };
 }
 
 export function usePurchaseVoucher(baseURL = API_BASE_URL) {
@@ -144,16 +133,16 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: PV_CONFIG.SP_PV_TYPES,
         JSon: JSON.stringify([{
-          PrmCompanyId: DEFAULT_COMPANY_ID,
-          PrmDivisionId: Number(divisionId),
-          PrmYearId: PV_CONFIG.CONFIG_YEAR_ID,
-          PrmUserId: DEFAULT_LOGIN_ID,
-          PrmFormTag: PV_CONFIG.FORM_TAG,
-          PrmRefType: "",
+          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmdivisionid: Number(divisionId),
+          prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
+          prmuserid: DEFAULT_LOGIN_ID,
+          prmformtag: PV_CONFIG.FORM_TAG,
+          prmreftype: "",
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({ value: String(r.ConfigurationId), label: r.Name }));
+      const opts = (res || []).map((r) => ({ value: String(r.configurationid), label: r.name }));
       setPvTypeOptions(opts);
       return opts;
     } catch (err) {
@@ -172,12 +161,12 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 1,
         ObjName: PV_CONFIG.SP_SUPPLIER_INFO,
-        JSon: JSON.stringify([{ PrmSupplierID: Number(supplierId) }]),
+        JSon: JSON.stringify([{ prmsupplierid: Number(supplierId) }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const row = res?.Table?.[0];
+      const row = res?.[0];
       if (!row) return null;
-      return { CurrencyID: row.CurrencyID ?? 0, CurrencyRate: row.CurrencyRate ?? 0, CrDays: row.CrDays ?? 0 };
+      return { CurrencyID: row.currencyid ?? 0, CurrencyName: row.currencyname ?? "", CurrencyRate: row.currencyrate ?? 0, CrDays: row.crdays ?? 0 };
     } catch (err) {
       console.warn("[PV] Supplier info fetch failed:", err);
       return null;
@@ -191,20 +180,20 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: PV_CONFIG.SP_COST_CENTER,
         JSon: JSON.stringify([{
-          PrmDivisionId: Number(divisionId) || 0,
-          PrmTranDate: tranDate || "",
-          PrmAccountId: 0,
-          PrmLoginId: DEFAULT_LOGIN_ID,
-          PrmLangCode: 1,
-          PrmModuleCode: "PU",
-          PrmIsMultiDiv: 0,
-          PrmYearId: PV_CONFIG.CONFIG_YEAR_ID,
+          prmdivisionid: Number(divisionId) || 0,
+          prmtrandate: tranDate || "",
+          prmaccountid: 0,
+          prmloginid: DEFAULT_LOGIN_ID,
+          prmlangcode: 1,
+          prmmodulecode: "PU",
+          prmismultidiv: 0,
+          prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.CostCenterID ?? r.CostCenterId ?? r.AccountId),
-        label: r.CostCenterAc,
+      const opts = (res || []).map((r) => ({
+        value: String(r.costcenterid ?? r.costcenterid ?? r.accountid),
+        label: r.costcenterac,
       }));
       setCostCenterOptions(opts);
       return opts;
@@ -223,21 +212,21 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: PV_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: PV_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: PV_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No PV header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(PV_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
         prmLoginID: DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
-      console.log("%c[PV] Header columns received:", "color:#8b5cf6;font-weight:600", (colData?.Links || []).length);
+      setHeaderColumns(colData || []);
+      console.log("%c[PV] Header columns received:", "color:#8b5cf6;font-weight:600", (colData || []).length);
 
       if (skipListDropdowns) {
         setDivisionOptions([]);
@@ -250,9 +239,9 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: PV_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmUserID: DEFAULT_LOGIN_ID,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID: PV_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: DEFAULT_LOGIN_ID,
+            prmcompanyid: DEFAULT_COMPANY_ID,
+            prmyearid: PV_CONFIG.DIVISION_YEAR_ID,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[PV] Division fetch failed:", err); return null; }),
@@ -260,31 +249,31 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: PV_CONFIG.SUPPLIER_SP,
           JSon: JSON.stringify([{
-            PrmDivisionId: 0,
-            PrmLoginId: DEFAULT_LOGIN_ID,
-            PrmYearId: PV_CONFIG.CONFIG_YEAR_ID,
-            PrmPartyType: PV_CONFIG.SUPPLIER_PARTY_TYPE,
+            prmdivisionid: 0,
+            prmloginid: DEFAULT_LOGIN_ID,
+            prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
+            prmpartytype: PV_CONFIG.SUPPLIER_PARTY_TYPE,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[PV] Supplier fetch failed:", err); return null; }),
       ]);
 
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+        (divisionData || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))
       );
 
-      const supplierRows = supplierData?.Table || [];
+      const supplierRows = supplierData || [];
       setSupplierOptions(
-        supplierRows.map((r) => ({ value: String(r.SupplierID ?? r.PartyID), label: r.SupplierName ?? r.PartyName }))
+        supplierRows.map((r) => ({ value: String(r.supplierid ?? r.partyid), label: r.suppliername ?? r.partyname }))
       );
       supplierCurrencyMapRef.current = {};
       supplierRows.forEach((r) => {
-        const sid = String(r.SupplierID ?? r.PartyID);
+        const sid = String(r.supplierid ?? r.partyid);
         supplierCurrencyMapRef.current[sid] = {
-          CurrencyID:   r.CurrencyID ?? 0,
-          CurrencyName: r.CurrencyName ?? "",
-          CurrencyRate: r.CurrencyRate ?? 0,
-          CrDays:       r.CrDays ?? 0,
+          CurrencyID:   r.currencyid ?? 0,
+          CurrencyName: r.currencyname ?? "",
+          CurrencyRate: r.currencyrate ?? 0,
+          CrDays:       r.crdays ?? 0,
         };
       });
     } catch (err) {
@@ -304,11 +293,11 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      const evtSet = buildEventColumnSet(apiColumns, ["TranQty", "BaseQty", "TranRate", "BaseRate", "UnitConvRate", "DiscPerc", "GSTPerc"]);
-      ["TranQty", "BaseQty", "TranRate", "BaseRate", "UnitConvRate", "DiscPerc", "GSTPerc"].forEach((k) => evtSet.add(k));
+      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"]);
+      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
 
-      setAllColumns(apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null })));
+      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
       console.log("%c[PV] Detail columns received:", "color:#6366f1;font-weight:600", apiColumns.length);
     } catch (err) {
       console.error("[PV] fetchDetailMeta failed:", err);
@@ -349,12 +338,20 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   // ── fireCellEvent ───────────────────────────────────────────────────
   const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
     try {
-      const { id, ...newRowData } = rowData;
-      const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-        GridEventFuncName: PV_CONFIG.SP_GRID_EVENT,
-        EventColName: colName,
-        DetJSON: JSON.stringify([newRowData]),
-        MstJSon: JSON.stringify([headerValues]),
+      const { id, ...rawRowData } = rowData;
+      const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+      const newRowData = Object.fromEntries(
+        Object.entries(rawRowData).map(([k, v]) => {
+          if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+            return [k, Number(v)];
+          return [k, v];
+        })
+      );
+      const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+        prmobjname: PV_CONFIG.SP_GRID_EVENT,
+        prmmyeventcol: colName,
+        prmdetjson: buildDetJSON([newRowData], colTypeMap),
+        prmmstjson: JSON.stringify([headerValues]),
       });
       console.log("%c[PV] CellEvent response:", "color:#f59e0b;font-weight:600", { col: colName, result });
       return result;
@@ -362,38 +359,38 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       console.error("[PV] fireCellEvent failed:", err);
       return null;
     }
-  }, [get]);
+  }, [allColumns]);
 
   // ── seedOptionsFromMaster ───────────────────────────────────────────
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.SupplierID != null && master.SupplierName) {
-      setSupplierOptions([{ value: String(master.SupplierID), label: master.SupplierName }]);
-      const sid = String(master.SupplierID);
+    if (master.supplierid != null && master.suppliername) {
+      setSupplierOptions([{ value: String(master.supplierid), label: master.suppliername }]);
+      const sid = String(master.supplierid);
       supplierCurrencyMapRef.current[sid] = {
-        CurrencyID:   master.CurrencyID ?? 0,
-        CurrencyName: master.CurrencyName ?? master.Currency ?? "",
-        CurrencyRate: master.CurrencyRate ?? 0,
+        CurrencyID:   master.currencyid ?? 0,
+        CurrencyName: master.currencyname ?? master.currency ?? "",
+        CurrencyRate: master.currencyrate ?? 0,
       };
     }
-    if (master.ConfigID != null && master.ConfigName) {
-      setPvTypeOptions([{ value: String(master.ConfigID), label: master.ConfigName }]);
+    if (master.configid != null && master.configname) {
+      setPvTypeOptions([{ value: String(master.configid), label: master.configname }]);
     }
-    if (master.CostCenterID != null && master.CostCenterName) {
-      setCostCenterOptions([{ value: String(master.CostCenterID), label: master.CostCenterName }]);
+    if (master.costcenterid != null && master.costcentername) {
+      setCostCenterOptions([{ value: String(master.costcenterid), label: master.costcentername }]);
     }
   }, []);
 
   // ── fetchUnlockedHeaderDropdowns ────────────────────────────────────
   const fetchUnlockedHeaderDropdowns = useCallback(async (divisionId, tranDate, configId, supplierId) => {
     if (!headerColumns.length) return;
-    const isEditable = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
-    const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID" && isEditable(c));
-    const needsSupplier  = headerColumns.some((c) => c.ColName === "SupplierID" && isEditable(c));
-    const needsConfig    = headerColumns.some((c) => c.ColName === "ConfigID" && isEditable(c));
-    const needsCostCenter = headerColumns.some((c) => c.ColName === "CostCenterID" && isEditable(c));
+    const isEditable = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
+    const needsDivision = headerColumns.some((c) => c.colname === "divisionid" && isEditable(c));
+    const needsSupplier  = headerColumns.some((c) => c.colname === "supplierid" && isEditable(c));
+    const needsConfig    = headerColumns.some((c) => c.colname === "configid" && isEditable(c));
+    const needsCostCenter = headerColumns.some((c) => c.colname === "costcenterid" && isEditable(c));
 
     const tasks = [];
     if (needsDivision || needsSupplier) {
@@ -401,21 +398,21 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PV_CONFIG.SP_DIVISIONS,
-          JSon: JSON.stringify([{ prmUserID: DEFAULT_LOGIN_ID, prmCompanyID: DEFAULT_COMPANY_ID, prmYearID: PV_CONFIG.DIVISION_YEAR_ID }]),
+          JSon: JSON.stringify([{ prmuserid: DEFAULT_LOGIN_ID, prmcompanyid: DEFAULT_COMPANY_ID, prmyearid: PV_CONFIG.DIVISION_YEAR_ID }]),
           p_ErrCode: -1, p_ErrMsg: "",
-        }).then((res) => setDivisionOptions((res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName })))).catch(() => {}),
+        }).then((res) => setDivisionOptions((res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname })))).catch(() => {}),
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PV_CONFIG.SUPPLIER_SP,
-          JSon: JSON.stringify([{ PrmDivisionId: 0, PrmLoginId: DEFAULT_LOGIN_ID, PrmYearId: PV_CONFIG.CONFIG_YEAR_ID, PrmPartyType: PV_CONFIG.SUPPLIER_PARTY_TYPE }]),
+          JSon: JSON.stringify([{ prmdivisionid: 0, prmloginid: DEFAULT_LOGIN_ID, prmyearid: PV_CONFIG.CONFIG_YEAR_ID, prmpartytype: PV_CONFIG.SUPPLIER_PARTY_TYPE }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).then((res) => {
-          const rows = res?.Table || [];
-          setSupplierOptions(rows.map((r) => ({ value: String(r.SupplierID ?? r.PartyID), label: r.SupplierName ?? r.PartyName })));
+          const rows = res || [];
+          setSupplierOptions(rows.map((r) => ({ value: String(r.supplierid ?? r.partyid), label: r.suppliername ?? r.partyname })));
           supplierCurrencyMapRef.current = {};
           rows.forEach((r) => {
-            supplierCurrencyMapRef.current[String(r.SupplierID ?? r.PartyID)] = {
-              CurrencyID: r.CurrencyID ?? 0, CurrencyName: r.CurrencyName ?? "", CurrencyRate: r.CurrencyRate ?? 0, CrDays: r.CrDays ?? 0,
+            supplierCurrencyMapRef.current[String(r.supplierid ?? r.partyid)] = {
+              CurrencyID: r.currencyid ?? 0, CurrencyName: r.currencyname ?? "", CurrencyRate: r.currencyrate ?? 0, CrDays: r.crdays ?? 0,
             };
           });
         }).catch(() => {})
@@ -441,12 +438,11 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         prmFuncCode: PV_CONFIG.RB_DETAIL,
       }),
     ]);
-    const master = mstRes?.Links?.[0] ?? null;
-    const params = { companyId, yearId, loginId, sessionId, idNumber };
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-      details: mapDetailRowsToGridRows(detRes?.Links || []),
+      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+      details: mapDetailRowsToGridRows(detRes || []),
     };
   }, [get]);
 

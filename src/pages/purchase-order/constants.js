@@ -6,15 +6,11 @@ export const PAGE_TITLE_NEW = "New Purchase Order";
 // All RB codes, SP names, IDs, and request defaults for the PO module.
 // Values aligned to MRD_Template4PO.docx (Richa, 09-Jun-2026).
 
-import { controlTypeMap } from "../../data/dummyData";
 import {
   APPROVED_FILTER_OPTS,
   BASED_ON,
-  DEFAULT_BASED_ON_FILTER_VALUES,
-  DIVISION_CONFIG_CASCADE_RESET,
   INDENT_DETAILS_COLUMNS,
   PURCHASE_API,
-  PURCHASE_GST_SUMMARY_FIELDS,
   PURCHASE_SUPPLIER_GRID_COLUMNS,
   PURCHASE_SUPPLIER_GRID_CONFIG,
   TERMS_COLUMNS,
@@ -26,38 +22,47 @@ export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
 export { TERMS_COLUMNS };
 export { INDENT_DETAILS_COLUMNS };
-export { PURCHASE_GST_SUMMARY_FIELDS as PO_SUMMARY_FIELDS };
-export { DEFAULT_BASED_ON_FILTER_VALUES as PO_FILTER_INITIAL_VALUES };
-export { DIVISION_CONFIG_CASCADE_RESET as PO_FILTER_CASCADE_RESETS };
+export const PO_SUMMARY_FIELDS = [
+  { SummaryParameterID: "mstbaseamount",    detKey: "baseamount" },
+  { SummaryParameterID: "mstexpense",       detKey: "expense" },
+  { SummaryParameterID: "msttaxablevalue",  detKey: "taxablevalue" },
+  { SummaryParameterID: "mstcgst",          detKey: "cgst" },
+  { SummaryParameterID: "mstsgst",          detKey: "sgst" },
+  { SummaryParameterID: "mstigst",          detKey: "igst" },
+  { SummaryParameterID: "mstroundoff",      detKey: "roundoff" },
+  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
+];
+export const PO_FILTER_INITIAL_VALUES = { basedonid: "0" };
+export const PO_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 
 export const PO_CONFIG = {
   ...PURCHASE_API,
   SP_PO_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "RB_PurPOMst",
-  RB_DETAIL: "RB_PurPODet",
-  RB_INDT_DETAIL: "RB_PurPOIndtDet",
+  RB_MASTER: "rb_purpomst",
+  RB_DETAIL: "rb_purpodet",
+  RB_INDT_DETAIL: "rb_purpoindtdet",
 
   FORM_TAG: "PO",
   TRAN_BOOK: "PO",
 
-  RB_ITEM_PICKER_DIRECT: "RB_PurPOSelOnlyItem",
-  RB_ITEM_PICKER_INDENT: "RB_PurPOSelIndtItem",
-  RB_ITEM_PICKER_QUOT: "RB_PurPOSelQuotItem",
+  RB_ITEM_PICKER_DIRECT: "rb_purposelonlyitem",
+  RB_ITEM_PICKER_INDENT: "rb_purposelindtitem",
+  RB_ITEM_PICKER_QUOT:   "rb_purposelquotitem",
 
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurPOSelOnlyItem",
-  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurPOSelIndtItem",
-  SP_ITEM_PICKER_QUOT: "fn_tbl_RB_PurPOSelQuotItem",
-  SP_INDENT_SUMMARY: "Fn_tbl_FetchIndentSummaryItem4PO",
-  SP_SUPPLIER_INFO: "Fn_tbl_FetchSupplierCurrencyInfo",
-  SP_EXISTING_POS: "Fn_tbl_FetchPurOrderListForAmend",
-  SP_UNIQUE_ID: "Pr_Gen_FetchLevyUniqueNo4Web",
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purposelonlyitem",
+  SP_ITEM_PICKER_INDENT: "fn_tbl_rb_purposelindtitem",
+  SP_ITEM_PICKER_QUOT:   "fn_tbl_rb_purposelquotitem",
+  SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4po",
+  SP_SUPPLIER_INFO:  "fn_tbl_fetchsuppliercurrencyinfo",
+  SP_EXISTING_POS:   "fn_tbl_fetchpurorderlistforamend",
+  SP_UNIQUE_ID: "pr_gen_fetchlevyuniqueno4web",
   SP_DEPT: PURCHASE_API.SP_DEPT,
 
-  SP_MASTER_FILL: "fn_tbl_RB_PurPOMst",
-  SP_DETAIL_FILL: "fn_tbl_RB_PurPODet",
-  SP_INDT_DETAIL_FILL: "fn_tbl_RB_PurPOIndtDet",
-  SP_GRID_EVENT: "fn_tbl_RB_PurPODet_Event",
+  SP_MASTER_FILL:      "fn_tbl_rb_purpomst",
+  SP_DETAIL_FILL:      "fn_tbl_rb_purpodet",
+  SP_INDT_DETAIL_FILL: "fn_tbl_rb_purpoindtdet",
+  SP_GRID_EVENT:       "fn_tbl_rb_purpodet_event",
 
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE, BASED_ON.QUOTATION],
 
@@ -69,93 +74,12 @@ export const PO_CONFIG = {
   STORAGE_HEADER_META: "poHeaderMeta",
   STORAGE_ENTRY_META: "poEntryMeta",
 
-  SP_PO_LIST: "Fn_tbl_Pur_POMst_List",
+  SP_PO_LIST: "fn_tbl_pur_pomst_list",
   LIST_DIVISION_ID: 0,
 };
 
-export const PO_HEADER_FILTERS = [
-  {
-    FilterParameterID: "TranCode",
-    FilterColName: "TranCode",
-    FilterCaption: "PO No.",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "TranDate",
-    FilterColName: "TranDate",
-    FilterCaption: "Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "DivisionID",
-    FilterColName: "DivisionID",
-    FilterCaption: "Division",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "ConfigID",
-    FilterColName: "ConfigID",
-    FilterCaption: "PO Type",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "DeliveryDate",
-    FilterColName: "DeliveryDate",
-    FilterCaption: "Delivery Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "SupplierID",
-    FilterColName: "SupplierID",
-    FilterCaption: "Supplier",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "DeptID",
-    FilterColName: "DeptID",
-    FilterCaption: "Department",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "BasedOnID",
-    FilterColName: "BasedOnID",
-    FilterCaption: "Based On",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: PO_CONFIG.BASED_ON_OPTIONS,
-  },
-  {
-    FilterParameterID: "CurrencyName",
-    FilterColName: "CurrencyName",
-    FilterCaption: "Currency",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "CurrencyRate",
-    FilterColName: "CurrencyRate",
-    FilterCaption: "Currency Rate",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "CreditDays",
-    FilterColName: "CreditDays",
-    FilterCaption: "Cr. Days",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "Remarks",
-    FilterColName: "Remarks",
-    FilterCaption: "Remarks",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-];
-
 export const PO_MASTER = {
-  headerFields: PO_HEADER_FILTERS,
-  summaryFields: PURCHASE_GST_SUMMARY_FIELDS,
+  summaryFields: PO_SUMMARY_FIELDS,
 };
 
 export const PO_GRID_TABS = [
@@ -225,11 +149,11 @@ export const SUPPLIER_GRID_CONFIG = {
 
 /** Header fields required before Select Item can be opened */
 export const PO_ITEM_PICKER_JSON_FIELDS = [
-  { headerKey: "DivisionID", label: "Division" },
-  { headerKey: "TranDate", label: "Tran Date", isDate: true },
-  { headerKey: "ConfigID", label: "PO Type" },
-  { headerKey: "SupplierID", label: "Supplier" },
-  { headerKey: "BasedOnID", label: "Based On", allowZero: true },
+  { headerKey: "divisionid", label: "Division" },
+  { headerKey: "trandate",   label: "Tran Date", isDate: true },
+  { headerKey: "configid",   label: "PO Type" },
+  { headerKey: "supplierid", label: "Supplier" },
+  { headerKey: "basedonid",  label: "Based On", allowZero: true },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues) {

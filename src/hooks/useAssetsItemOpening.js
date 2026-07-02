@@ -38,7 +38,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -48,28 +48,19 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranCode:    master.TranCode     != null ? String(master.TranCode)       : "",
-    DivisionID:  master.DivisionID   != null ? Number(master.DivisionID)     : 0,
-    ItemGroupID: master.ItemGroupID  != null ? Number(master.ItemGroupID)    : 0,
-    ItemID:      master.ItemID       != null ? Number(master.ItemID)         : 0,
-    AccountID:   master.AccountID    != null ? Number(master.AccountID)      : 0,
-    Remark:      master.Remark       ?? "",
-    FuncCode:    master.FuncCode     ?? AOP_CONFIG.RB_MASTER,
-    TranMstGenID: master.TranMstGenID != null ? Number(master.TranMstGenID)  : 0,
-    CompanyID:   Number(params.companyId)  || DEFAULT_COMPANY_ID,
-    YearID:      Number(master.Year_ID ?? params.yearId) || AOP_CONFIG.CONFIG_YEAR_ID,
-    LoginID:     Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID:   Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber:    Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID:      getUserSession().userId,
-    CompUniqueKey: master.CompUniqueKey ?? master.IDNumber ?? params.idNumber ?? 0,
+    ...master,
+    trandate:  toDateInput(master.trandate),
+    yearid:    AOP_CONFIG.CONFIG_YEAR_ID,
+    funccode:  AOP_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
@@ -81,15 +72,15 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID:  DEFAULT_LOGIN_ID,
   });
-  return { meta, apiColumns: colData?.Links || [] };
+  return { meta, apiColumns: colData || [] };
 }
 
 export function useAssetsItemOpening(baseURL = API_BASE_URL) {
@@ -125,9 +116,9 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{ prmItemTypeID: AOP_ITEM_TYPE_ID }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.MainGroupID ?? r.ItemGroupID ?? r.IDNumber ?? 0),
-        label: String(r.MainGroupName ?? r.ItemGroupName ?? r.GroupName ?? ""),
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid ?? r.itemgroupid ?? r.idnumber ?? 0),
+        label: String(r.maingroupname ?? r.itemgroupname ?? r.groupname ?? ""),
       }));
       setItemGroupOptions(opts);
       return opts;
@@ -151,15 +142,15 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: AOP_CONFIG.SP_ITEM,
         JSon: JSON.stringify([{
-          prmDivisionID:  Number(divisionId),
-          prmItemGroupID: Number(itemGroupId),
-          prmLoginID:     DEFAULT_LOGIN_ID,
+          prmdivisionid:  Number(divisionId),
+          prmitemgroupid: Number(itemGroupId),
+          prmloginid:     DEFAULT_LOGIN_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.ItemID ?? r.IDNumber ?? 0),
-        label: String((r.ItemCode ? r.ItemCode + " | " : "") + (r.ItemName ?? "")),
+      const opts = (res || []).map((r) => ({
+        value: String(r.itemid ?? r.idnumber ?? 0),
+        label: String((r.itemcode ? r.itemcode + " | " : "") + (r.itemname ?? "")),
       }));
       setItemOptions(opts);
       return opts;
@@ -180,17 +171,17 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: AOP_CONFIG.SP_ASSETS_ACC,
         JSon: JSON.stringify([{
-          PrmDivisionID:    Number(divisionId),
-          PrmAcMainGroupID: 7,           // ⚠️ DBA CONFIRM
-          PrmLoginID:       DEFAULT_LOGIN_ID,
-          PrmCompanyID:     DEFAULT_COMPANY_ID,
-          PrmYearID:        AOP_CONFIG.CONFIG_YEAR_ID,
+          prmdivisionid:    Number(divisionId),
+          prmacmaingroupid: 7,           // ⚠️ DBA CONFIRM
+          prmloginid:       DEFAULT_LOGIN_ID,
+          prmcompanyid:     DEFAULT_COMPANY_ID,
+          prmyearid:        AOP_CONFIG.CONFIG_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.AccountID ?? r.AcID ?? 0),
-        label: String((r.AcCode ?? "") + " | " + (r.AcName ?? "")),
+      const opts = (res || []).map((r) => ({
+        value: String(r.accountid ?? r.acid ?? 0),
+        label: String((r.accode ?? "") + " | " + (r.acname ?? "")),
       }));
       setAssetsAccOptions(opts);
       return opts;
@@ -214,17 +205,17 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{ prmRBCode: AOP_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No AOP header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(AOP_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      setHeaderColumns(colData?.Links || []);
+      setHeaderColumns(colData || []);
 
       if (skipListDropdowns) {
         setDivisionOptions([]);
@@ -235,15 +226,15 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: AOP_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([{
-          prmUserID:    DEFAULT_LOGIN_ID,
-          prmCompanyID: DEFAULT_COMPANY_ID,
-          prmYearID:    AOP_CONFIG.DIVISION_YEAR_ID,
+          prmuserid:    DEFAULT_LOGIN_ID,
+          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmyearid:    AOP_CONFIG.DIVISION_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       }).catch((err) => { console.warn("[AOP] Division fetch failed:", err); return null; });
 
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+        (divisionData || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))
       );
     } catch (err) {
       console.error("[AOP] fetchHeaderMeta failed:", err);
@@ -265,7 +256,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
-      setAllColumns(apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null })));
+      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
     } catch (err) {
       console.error("[AOP] fetchDetailMeta failed:", err);
       setMetaError(err?.message || "Failed to load AOP item grid configuration.");
@@ -312,22 +303,22 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.ItemGroupID != null && master.ItemGroupName) {
-      setItemGroupOptions([{ value: String(master.ItemGroupID), label: master.ItemGroupName }]);
+    if (master.itemgroupid != null && master.itemgroupname) {
+      setItemGroupOptions([{ value: String(master.itemgroupid), label: master.itemgroupname }]);
     }
-    if (master.ItemID != null && master.ItemName) {
+    if (master.itemid != null && master.itemname) {
       setItemOptions([{
-        value: String(master.ItemID),
-        label: String((master.ItemCode ? master.ItemCode + " | " : "") + (master.ItemName ?? "")),
+        value: String(master.itemid),
+        label: String((master.itemcode ? master.itemcode + " | " : "") + (master.itemname ?? "")),
       }]);
     }
-    if (master.AccountID != null && (master.AccountName ?? master.AcName)) {
+    if (master.accountid != null && (master.accountname ?? master.acname)) {
       setAssetsAccOptions([{
-        value: String(master.AccountID),
-        label: String((master.AcCode ?? "") + " | " + (master.AccountName ?? master.AcName ?? "")),
+        value: String(master.accountid),
+        label: String((master.accode ?? "") + " | " + (master.accountname ?? master.acname ?? "")),
       }]);
     }
   }, []);
@@ -335,11 +326,11 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
   // ── fetchUnlockedHeaderDropdowns — enter edit mode ─────────────────────────
   const fetchUnlockedHeaderDropdowns = useCallback(async (divisionId, itemGroupId) => {
     if (!headerColumns.length) return;
-    const isEditable = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
-    const needsDivision = headerColumns.some((c) => c.ColName === "DivisionID"  && isEditable(c));
-    const needsGroup    = headerColumns.some((c) => c.ColName === "ItemGroupID" && isEditable(c));
-    const needsItem     = headerColumns.some((c) => c.ColName === "ItemID"      && isEditable(c));
-    const needsAcc      = headerColumns.some((c) => c.ColName === "AccountID"   && isEditable(c));
+    const isEditable = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
+    const needsDivision = headerColumns.some((c) => c.colname === "divisionid"  && isEditable(c));
+    const needsGroup    = headerColumns.some((c) => c.colname === "itemgroupid" && isEditable(c));
+    const needsItem     = headerColumns.some((c) => c.colname === "itemid"      && isEditable(c));
+    const needsAcc      = headerColumns.some((c) => c.colname === "accountid"   && isEditable(c));
 
     const tasks = [];
     if (needsDivision) {
@@ -348,11 +339,11 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: AOP_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmUserID: DEFAULT_LOGIN_ID, prmCompanyID: DEFAULT_COMPANY_ID, prmYearID: AOP_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: DEFAULT_LOGIN_ID, prmcompanyid: DEFAULT_COMPANY_ID, prmyearid: AOP_CONFIG.DIVISION_YEAR_ID,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         })
-          .then((res) => setDivisionOptions((res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))))
+          .then((res) => setDivisionOptions((res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))))
           .catch(() => {})
       );
     }
@@ -377,12 +368,11 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         prmFuncCode:  AOP_CONFIG.RB_DETAIL,
       }),
     ]);
-    const master = mstRes?.Links?.[0] ?? null;
-    const params = { companyId, yearId, loginId, sessionId, idNumber };
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-      details:      mapDetailRowsToGridRows(detRes?.Links || []),
+      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+      details:      mapDetailRowsToGridRows(detRes || []),
     };
   }, [get]);
 

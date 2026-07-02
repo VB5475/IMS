@@ -12,9 +12,8 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import ItemMasterForm from "./ItemMasterForm";
 import { IM_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./ItemMasterPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -23,10 +22,10 @@ function buildListParams() {
     ObjName: IM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: IM_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: today,
-        prmToDate: today,
+        // prmcompanyid: DEFAULT_COMPANY_ID,
+        // prmdivisionid: IM_CONFIG.LIST_DIVISION_ID,
+        // prmfromdate: today,
+        // prmtodate: today,
       },
     ]),
     p_ErrCode: -1,
@@ -38,6 +37,7 @@ export default function ItemMasterPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
+    allColumns,
     headerFetching,
     headerError,
     itemTypeOptions,
@@ -58,7 +58,7 @@ export default function ItemMasterPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -96,16 +96,12 @@ export default function ItemMasterPage() {
   }, [fetchList]);
 
   const handleItemTypeChange = useCallback(
-    (itemTypeId) => {
-      fetchMainGroupOptions(itemTypeId);
-    },
+    (itemTypeId) => { fetchMainGroupOptions(itemTypeId); },
     [fetchMainGroupOptions]
   );
 
   const handleMainGroupChange = useCallback(
-    ({ itemTypeId, mainGroupId }) => {
-      fetchSubMainGroupOptions({ itemTypeId, mainGroupId });
-    },
+    ({ itemTypeId, mainGroupId }) => { fetchSubMainGroupOptions({ itemTypeId, mainGroupId }); },
     [fetchSubMainGroupOptions]
   );
 
@@ -147,14 +143,14 @@ export default function ItemMasterPage() {
         }
 
         seedOptionsFromMaster(result.master);
-        const { ItemTypeID, MainGroupID, SubMainGroupID } = result.headerValues;
+        const { itemtypeid, maingroupid, submaingroupid } = result.headerValues;
         await Promise.all([
-          fetchMainGroupOptions(ItemTypeID),
-          fetchSubMainGroupOptions({ itemTypeId: ItemTypeID, mainGroupId: MainGroupID }),
+          fetchMainGroupOptions(itemtypeid),
+          fetchSubMainGroupOptions({ itemTypeId: itemtypeid, mainGroupId: maingroupid }),
           fetchSubGroupLevelOptions({
-            itemTypeId: ItemTypeID,
-            mainGroupId: MainGroupID,
-            subMainGroupId: SubMainGroupID,
+            itemTypeId: itemtypeid,
+            mainGroupId: maingroupid,
+            subMainGroupId: submaingroupid,
           }),
         ]);
         setEditPrefill(result);
@@ -194,8 +190,8 @@ export default function ItemMasterPage() {
           <button
             type="button"
             className="im-list__edit-btn"
-            title={`Edit ${row.Itemcode ?? row.ItemName ?? ""}`}
-            aria-label={`Edit ${row.Itemcode ?? row.ItemName ?? ""}`}
+            title={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
+            aria-label={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -250,6 +246,7 @@ export default function ItemMasterPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No items found."
+          searchable
           hideHeader
           fill
         />
@@ -261,6 +258,7 @@ export default function ItemMasterPage() {
         onClose={handleCloseModal}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         itemTypeOptions={itemTypeOptions}

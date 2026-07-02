@@ -175,8 +175,8 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
               if (opt.value !== undefined) {
                 return { value: String(opt.value), label: opt.label };
               }
-              const valKey = opt.FilterCtrlValueCol || "IDNumber";
-              const labelKey = opt.FilterCtrlDisplayCol || "Name";
+              const valKey = opt.FilterCtrlValueCol || "idnumber";
+              const labelKey = opt.FilterCtrlDisplayCol || "name";
               return { value: String(opt[valKey]), label: opt[labelKey] };
             })}
             placeholder={`Select…`}
@@ -393,7 +393,7 @@ export default function EnterpriseFilterPanel({
         const data = await get(ENDPOINTS.GET_FILTERS, { prmMasterID: masterID });
         if (signal?.aborted) return;
 
-        const filterList = data?.Links || [];
+        const filterList = data || [];
         setFilters(filterList);
         onFiltersLoaded?.(filterList.length > 0);
 
@@ -427,7 +427,7 @@ export default function EnterpriseFilterPanel({
                 prmDivisionID: divisionID,
                 prmLoginID: loginID,
               });
-              optionsMap[f.FilterParameterID] = detailData?.Links || [];
+              optionsMap[f.FilterParameterID] = detailData || [];
             } catch {
               optionsMap[f.FilterParameterID] = [];
             }

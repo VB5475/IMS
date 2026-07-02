@@ -1,21 +1,21 @@
 // User Master — admin module config (MRD_Template4UserMaster.docx)
 
 export const UM_CONFIG = {
-  RB_MASTER: "RB_GenUserMst",
-  FORM_TAG: "RB_GenUserMst",
+  RB_MASTER: "rb_genusermst",
+  FORM_TAG: "rb_genusermst",
   TRAN_BOOK: "UM",
 
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_MASTER_FILL: "fn_tbl_RB_GenUserMst",
-  SP_DESIGNATION: "Fn_tbl_Fetch_Designation",
-  SP_GROUP: "Fn_tbl_Fetch_GroupMst",
-  SP_DEPARTMENT: "Fn_tbl_Fetch_Department",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
+  SP_MASTER_FILL: "fn_tbl_rb_genusermst",
+  SP_DESIGNATION: "fn_tbl_fetch_designation",
+  SP_GROUP: "fn_tbl_fetch_groupmst",
+  SP_DEPARTMENT: "fn_tbl_fetch_department",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "Fn_tbl_GenUserMst_List",
+  SP_LIST: "fn_tbl_genusermst_list",
   LIST_DIVISION_ID: 15,
 
   SAVE_ENDPOINT: "/API/GenUserMst/Post_RB_GenUserMst_Save",

@@ -38,10 +38,11 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -50,8 +51,6 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PO_CONFIG,
-  PO_MASTER,
-  PO_HEADER_FILTERS,
   PO_GRID_TABS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
@@ -65,6 +64,13 @@ import {
 import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseOrderPage.css";
 
+// Fields that come from the master RB but belong to the summary footer — exclude from header filter.
+const PO_SUMMARY_COL_NAMES = new Set(PO_SUMMARY_FIELDS.map((f) => f.SummaryParameterID));
+// currencyid is a hidden context field — auto-filled from supplier, sent at save, not shown in UI.
+const PO_HEADER_HIDDEN_COLS = new Set(["currencyid"]);
+// Currency display fields — force LABEL (readonly) regardless of what the RB returns.
+const PO_LABEL_OVERRIDE_COLS = new Set(["currencyname", "currencyrate"]);
+
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
 let _poTempId = -1;
 const nextTempId = () => _poTempId--;
@@ -72,36 +78,36 @@ const nextTempId = () => _poTempId--;
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.YearID ?? session.yearId ?? PO_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.POID ?? listRecord?.IDNumber ?? recordId,
+    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? session.yearId ?? PO_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
+    idNumber: listRecord?.poid ?? listRecord?.idnumber ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
 
-  // Validate BasedOnID against PO_CONFIG.BASED_ON_OPTIONS.
+  // Validate basedonid against PO_CONFIG.BASED_ON_OPTIONS.
   // API may return values (e.g. 1) that are not in our config options — fall back to "0" (Direct).
-  const basedOnStr = String(headerValues.BasedOnID ?? "0");
+  const basedOnStr = String(headerValues.basedonid ?? "0");
   const validBasedOn = PO_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnStr);
   const resolvedBasedOnID = validBasedOn ? validBasedOn.value : "0";
 
   return {
-    TranCode: headerValues.TranCode ?? "",
-    TranDate: headerValues.TranDate ?? "",
-    DivisionID: String(headerValues.DivisionID ?? ""),
-    ConfigID: String(headerValues.ConfigID ?? ""),
-    DeliveryDate: headerValues.DeliveryDate ?? "",
-    SupplierID: String(headerValues.SupplierID ?? ""),
-    DeptID: String(headerValues.DeptID ?? ""),
-    BasedOnID: resolvedBasedOnID,
-    CurrencyName: headerValues.CurrencyName ?? "",
-    CurrencyRate: String(headerValues.CurrencyRate ?? ""),
-    CreditDays: String(headerValues.CreditDays ?? ""),
-    Remarks: headerValues.Remarks ?? "",
+    trancode:     headerValues.trancode ?? "",
+    trandate:     headerValues.trandate ?? "",
+    divisionid:   String(headerValues.divisionid ?? ""),
+    configid:     String(headerValues.configid ?? ""),
+    deliverydate: headerValues.deliverydate ?? "",
+    supplierid:   String(headerValues.supplierid ?? ""),
+    deptid:       String(headerValues.deptid ?? ""),
+    basedonid:    resolvedBasedOnID,
+    currencyname: headerValues.currencyname ?? "",
+    currencyrate: String(headerValues.currencyrate ?? ""),
+    creditdays:   String(headerValues.creditdays ?? ""),
+    remarks:      headerValues.remarks ?? "",
   };
 }
 
@@ -121,7 +127,8 @@ function mapPickerToItemRow(item, allColumns) {
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    const lk = k.toLowerCase();
+    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -193,33 +200,33 @@ export default function PurchaseOrderForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode: "",
-    TranDate: todayISO,
-    ConfigID: 0,
-    DeliveryDate: null,
-    DivisionID: 0,
-    SupplierID: 0,
-    DeptID: 0,
-    CurrencyID: 0,
-    CurrencyName: "",
-    CurrencyRate: 0,
-    CreditDays: 0,
-    BasedOnID: "0",
-    Remarks: "",
-    TranMstGenID: 0,
-    CompanyID: 1,
-    YearID: PO_CONFIG.DIVISION_YEAR_ID,
-    LoginID: 1,
-    IDNumber: recordId,
-    IsAmend: 0,
-    AmendPOID: 0,
-    CompUniqueKey: 0,
-    FuncCode: PO_CONFIG.RB_MASTER,
+    trancode:      "",
+    trandate:      todayISO,
+    configid:      0,
+    deliverydate:  null,
+    divisionid:    0,
+    supplierid:    0,
+    deptid:        0,
+    currencyid:    0,
+    currencyname:  "",
+    currencyrate:  0,
+    creditdays:    0,
+    basedonid:     "0",
+    remarks:       "",
+    tranmstgenid:  0,
+    companyid:     1,
+    yearid:        PO_CONFIG.DIVISION_YEAR_ID,
+    loginid:       1,
+    idnumber:      recordId,
+    isamend:       0,
+    amendpoid:     0,
+    compuniquekey: 0,
+    funccode:      PO_CONFIG.RB_MASTER,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { BasedOnID: "0", TranDate: todayISO };
+    return { basedonid: "0", trandate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
@@ -231,10 +238,10 @@ export default function PurchaseOrderForm() {
   const handleAmendChange = useCallback(
     async (checked) => {
       setIsAmend(checked);
-      headerValuesRef.current.IsAmend = checked ? 1 : 0;
+      headerValuesRef.current.isamend = checked ? 1 : 0;
       if (!checked) {
         setAmendPOID("");
-        headerValuesRef.current.AmendPOID = 0;
+        headerValuesRef.current.amendpoid = 0;
         return;
       }
       await fetchExistingPOs();
@@ -244,7 +251,7 @@ export default function PurchaseOrderForm() {
 
   const handleAmendPOChange = useCallback((val) => {
     setAmendPOID(val);
-    headerValuesRef.current.AmendPOID = Number(val) || 0;
+    headerValuesRef.current.amendpoid = Number(val) || 0;
   }, []);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
@@ -265,7 +272,7 @@ export default function PurchaseOrderForm() {
   const enterEditModeWithFocus = useCallback(async () => {
     if (isNewRoute) {
       const uid = await fetchUniqueId();
-      headerValuesRef.current.TranMstGenID = uid;
+      headerValuesRef.current.tranmstgenid = uid;
     }
     setIsEditMode(true);
     setActiveTab("items");
@@ -323,7 +330,7 @@ export default function PurchaseOrderForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -364,14 +371,15 @@ export default function PurchaseOrderForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      if (headerValues.CurrencyName || headerValues.CurrencyRate) {
+      if (headerValues.currencyname || headerValues.currencyrate || headerValues.creditdays) {
         setCurrencyExternalValues({
-          CurrencyName: headerValues.CurrencyName ?? "",
-          CurrencyRate: String(headerValues.CurrencyRate ?? ""),
+          currencyname: headerValues.currencyname ?? "",
+          currencyrate: String(headerValues.currencyrate ?? ""),
+          creditdays:   String(headerValues.creditdays ?? ""),
         });
       }
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, editRecordGridColumnOpts(master));
+      const activeCols = await fetchGridColumns(headerValues.divisionid ?? 0, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
@@ -387,7 +395,7 @@ export default function PurchaseOrderForm() {
         indentDetails.forEach((row) => {
           // DetailID matches the parent detail row's IDNumber/CompUniqueKey,
           // which is what mapDetailRowsToGridRows assigns as the grid row id.
-          const key = String(row.DetailID ?? 0);
+          const key = String(row.detailid ?? 0);
           if (!newChildRowsMap[key]) newChildRowsMap[key] = [];
           newChildRowsMap[key].push(row);
         });
@@ -395,22 +403,22 @@ export default function PurchaseOrderForm() {
 
         // Fetch indent picker columns so the collapsible panel renders the same
         // column headers as in the Add flow (RB_ITEM_PICKER_INDENT → buildGridColumns).
-        if (String(headerValues.BasedOnID) === "2") {
+        if (String(headerValues.basedonid) === "2") {
           try {
             const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
               ObjType: OBJ_TYPE.FUNCTION,
               ObjName: PO_CONFIG.SP_RB_META,
-              JSon: JSON.stringify([{ prmRBCode: PO_CONFIG.RB_ITEM_PICKER_INDENT }]),
+              JSon: JSON.stringify([{ prmrbcode: PO_CONFIG.RB_ITEM_PICKER_INDENT }]),
               p_ErrCode: -1,
               p_ErrMsg: "",
             });
-            const rbRow = rbRes?.Table?.[0];
+            const rbRow = rbRes?.[0];
             if (rbRow) {
               const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-                prmMasterID: rbRow.RBID,
+                prmMasterID: rbRow.rbid,
                 prmLoginID: DEFAULT_LOGIN_ID,
               });
-              const pickerCols = buildGridColumns(colRes?.Links || [], {}, {
+              const pickerCols = buildGridColumns(colRes || [], {}, {
                 filterable: false,
                 allEditable: false,
               });
@@ -437,7 +445,7 @@ export default function PurchaseOrderForm() {
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
-    const divisionId = headerValuesRef.current?.DivisionID ?? loadedMasterRow?.DivisionID ?? 0;
+    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
     fetchUnlockedHeaderDropdowns(divisionId);
     fetchGridColumns(divisionId, {
       existingRecordEdit: true,
@@ -451,39 +459,53 @@ export default function PurchaseOrderForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── syncedFilters — inject dynamic options ─────────────────────────
+  // ── syncedFilters — built purely from API headerColumns (fully dynamic) ──
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
+    divisionid: divisionOptions,
+    configid:   poTypeOptions,
+    supplierid: supplierOptions,
+    deptid:     departmentOptions,
+    basedonid:  PO_CONFIG.BASED_ON_OPTIONS,
+  }), [divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
+
   const syncedFilters = useMemo(() => {
-    const injectOptions = (filter) => {
-      switch (filter.FilterParameterID) {
-        case "DivisionID":
-          return { ...filter, staticOptions: divisionOptions };
-        case "ConfigID":
-          return { ...filter, staticOptions: poTypeOptions };
-        case "SupplierID":
-          return { ...filter, staticOptions: supplierOptions };
-        case "DeptID":
-          return { ...filter, staticOptions: departmentOptions };
-        default:
-          return filter;
-      }
-    };
+    if (headerColumns.length === 0) return [];
 
-    if (headerColumns.length === 0) return PO_HEADER_FILTERS.map(injectOptions);
+    const cols = headerColumns
+      .filter((col) =>
+        isTruthyApiFlag(col.isvisible) &&
+        !PO_SUMMARY_COL_NAMES.has(col.colname) &&
+        !PO_HEADER_HIDDEN_COLS.has(col.colname)
+      )
+      .map((col) => {
+        const lockOnEditMode = isLockOnEditModeCol(col);
+        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
+        const base = {
+          FilterParameterID: col.colname,
+          FilterColName:     col.colname,
+          FilterCaption:     col.displayname ?? col.colname,
+          FilterColCtrlType: PO_LABEL_OVERRIDE_COLS.has(col.colname)
+            ? controlTypeMap.LABEL
+            : (col.colctrltype ?? 0),
+          ...(staticOptions ? { staticOptions } : {}),
+        };
+        return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
+      });
 
-    const apiColMap = buildHeaderColMap(headerColumns);
+    // If RB master doesn't expose currencyname as a column, inject it as a
+    // readonly label immediately after supplierid so externalValues can populate it.
+    if (!cols.some((f) => f.FilterParameterID === "currencyname")) {
+      const supplierIdx = cols.findIndex((f) => f.FilterParameterID === "supplierid");
+      cols.splice(supplierIdx >= 0 ? supplierIdx + 1 : cols.length, 0, {
+        FilterParameterID: "currencyname",
+        FilterColName:     "currencyname",
+        FilterCaption:     "Currency",
+        FilterColCtrlType: controlTypeMap.LABEL,
+      });
+    }
 
-    return PO_HEADER_FILTERS.map((filter) => {
-      const withOpts = injectOptions(filter);
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
-      if (!apiCol) return withOpts;
-      const lockOnEditMode = isLockOnEditModeCol(apiCol);
-      const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
-        ? controlTypeMap.LABEL
-        : (apiCol.ColCtrlType ?? withOpts.FilterColCtrlType);
-      return def;
-    });
-  }, [headerColumns, divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
+    return cols;
+  }, [headerColumns, DROPDOWN_OPTIONS_BY_COL]);
 
   // ── filterFieldTones — per-field visual state driven by IsLockOnEditModeAllow ──
   const filterFieldTones = useMemo(() => {
@@ -501,11 +523,11 @@ export default function PurchaseOrderForm() {
   // ── syncedSummaryFields — enrich PO_SUMMARY_FIELDS with labels from header RB columns ──
   const syncedSummaryFields = useMemo(() => {
     const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
+    headerColumns.forEach((col) => { colMap[col.colname] = col; });
     return PO_SUMMARY_FIELDS.map((f) => ({
       ...f,
       mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
+      label: colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
     }));
   }, [headerColumns]);
 
@@ -514,9 +536,9 @@ export default function PurchaseOrderForm() {
     async (colName, val) => {
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-      if (colName === "DivisionID") {
-        headerValuesRef.current.ConfigID = 0;
-        headerValuesRef.current.SupplierID = 0;
+      if (colName === "divisionid") {
+        headerValuesRef.current.configid = 0;
+        headerValuesRef.current.supplierid = 0;
         clearPoTypes();
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});
@@ -524,63 +546,66 @@ export default function PurchaseOrderForm() {
           await fetchPoTypes(val);
           requestAnimationFrame(() =>
             filterPanelRef.current
-              ?.querySelector("#efq-ConfigID .search-select__trigger")
+              ?.querySelector("#efq-configid .search-select__trigger")
               ?.focus()
           );
         }
         return;
       }
 
-      if (colName === "TranDate") {
-        headerValuesRef.current.SupplierID = 0;
+      if (colName === "trandate") {
+        headerValuesRef.current.supplierid = 0;
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});
         return;
       }
 
-      if (colName === "ConfigID") {
+      if (colName === "configid") {
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});
         return;
       }
 
-      if (colName === "BasedOnID") {
+      if (colName === "basedonid") {
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});
         return;
       }
 
-      if (colName === "SupplierID") {
+      if (colName === "supplierid") {
         itemGridRef.current?.clearRows?.();
         setChildRowsMap({});
         if (val && val !== "0") {
           const cached = getSupplierCurrency(val);
           if (cached) {
-            headerValuesRef.current.CurrencyID = cached.CurrencyID;
-            headerValuesRef.current.CurrencyName = cached.CurrencyName;
-            headerValuesRef.current.CurrencyRate = cached.CurrencyRate;
-            headerValuesRef.current.CreditDays = cached.CrDays;
+            headerValuesRef.current.currencyid   = cached.currencyid;
+            headerValuesRef.current.currencyname = cached.currencyname;
+            headerValuesRef.current.currencyrate = cached.currencyrate;
+            headerValuesRef.current.creditdays   = cached.crdays;
             setCurrencyExternalValues({
-              CurrencyName: cached.CurrencyName,
-              CurrencyRate: String(cached.CurrencyRate),
+              currencyname: cached.currencyname,
+              currencyrate: String(cached.currencyrate),
+              creditdays:   String(cached.crdays),
             });
           } else {
             const info = await fetchSupplierInfo(val);
             if (info) {
-              headerValuesRef.current.CurrencyID = info.CurrencyID;
-              headerValuesRef.current.CurrencyRate = info.CurrencyRate;
-              headerValuesRef.current.CreditDays = info.CrDays;
+              headerValuesRef.current.currencyid   = info.currencyid;
+              headerValuesRef.current.currencyname = info.currencyname ?? "";
+              headerValuesRef.current.currencyrate = info.currencyrate;
+              headerValuesRef.current.creditdays   = info.crdays;
               setCurrencyExternalValues({
-                CurrencyName: "",
-                CurrencyRate: String(info.CurrencyRate),
+                currencyname: info.currencyname ?? "",
+                currencyrate: String(info.currencyrate),
+                creditdays:   String(info.crdays),
               });
             }
           }
         } else {
-          headerValuesRef.current.CurrencyID = 0;
-          headerValuesRef.current.CurrencyName = "";
-          headerValuesRef.current.CurrencyRate = 0;
-          setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
+          headerValuesRef.current.currencyid   = 0;
+          headerValuesRef.current.currencyname = "";
+          headerValuesRef.current.currencyrate = 0;
+          setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
         }
       }
     },
@@ -592,7 +617,7 @@ export default function PurchaseOrderForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0);
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -605,14 +630,14 @@ export default function PurchaseOrderForm() {
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !itemGridRef.current) return;
-      const responseRow = result?.Links?.[0];
+      const responseRow = result?.[0];
       if (!responseRow) return;
-      const errCode = responseRow.ErrCode;
+      const errCode = responseRow.errcode;
       if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[PO] Cell-event error:", responseRow.ErrMsg ?? `ErrCode ${errCode}`);
+        console.warn("[PO] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
         return;
       }
-      const { ErrCode, ErrMsg, ...updatedFields } = responseRow;
+      const { errcode, errmsg, ...updatedFields } = responseRow;
       itemGridRef.current.updateRow?.(rowId, updatedFields);
     },
     [fireCellEvent]
@@ -626,8 +651,8 @@ export default function PurchaseOrderForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { DivisionID, ConfigID, TranDate, BasedOnID } = headerValues;
-    const divisionID = DivisionID ?? 0;
+    const { divisionid, configid, trandate, basedonid } = headerValues;
+    const divisionID = divisionid ?? 0;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -637,31 +662,31 @@ export default function PurchaseOrderForm() {
 
     try {
       let rbCode;
-      if (Number(BasedOnID) === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
-      else if (Number(BasedOnID) === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
+      if (Number(basedonid) === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
+      else if (Number(basedonid) === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
       else rbCode = PO_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       let spItemPicker;
-      if (Number(BasedOnID) === 2) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_INDENT;
-      else if (Number(BasedOnID) === 3) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_QUOT;
+      if (Number(basedonid) === 2) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_INDENT;
+      else if (Number(basedonid) === 3) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_QUOT;
       else spItemPicker = PO_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+        JSon: JSON.stringify([{ prmrbcode: rbCode }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const rbRow = rbRes?.Table?.[0];
+      const rbRow = rbRes?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.RBID,
+        prmMasterID: rbRow.rbid,
         prmLoginID: DEFAULT_LOGIN_ID,
       });
       const gridColumns = buildGridColumns(
-        colRes?.Links || [],
+        colRes || [],
         {},
         {
           filterable: false,
@@ -675,20 +700,20 @@ export default function PurchaseOrderForm() {
         ObjName: spItemPicker,
         JSon: JSON.stringify([
           {
-            prmDivisionID: Number(divisionID),
-            prmYearID: PO_CONFIG.CONFIG_YEAR_ID,
-            prmLoginID: DEFAULT_LOGIN_ID,
-            prmTranDate: formatTranDate(TranDate),
-            prmConfigID: Number(ConfigID ?? 0),
-            prmSupplierID: Number(headerValuesRef.current?.SupplierID ?? 0),
-            prmTranBook: PO_CONFIG.TRAN_BOOK,
-            prmFrmOption: Number(BasedOnID) || 0,
+            prmdivisionid: Number(divisionID),
+            prmyearid:     PO_CONFIG.CONFIG_YEAR_ID,
+            prmloginid:    DEFAULT_LOGIN_ID,
+            prmtrandate:   formatTranDate(trandate),
+            prmconfigid:   Number(configid ?? 0),
+            prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
+            prmtranbook:   PO_CONFIG.TRAN_BOOK,
+            prmfrmoption:  Number(basedonid) || 0,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      setItemModalItems(rowRes?.Table || []);
+      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[PO] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
@@ -702,7 +727,7 @@ export default function PurchaseOrderForm() {
       if (!selectedItems?.length) return;
       setActiveTab("items");
 
-      const isIndentWise = Number(headerValuesRef.current?.BasedOnID) === 2;
+      const isIndentWise = Number(headerValuesRef.current?.basedonid) === 2;
 
       if (!isIndentWise) {
         const activeCols = await ensureItemColumns();
@@ -731,24 +756,24 @@ export default function PurchaseOrderForm() {
         });
         const summaryRes = await summaryResponse.json();
 
-        const parents = summaryRes?.Table ?? [];
+        const parents = summaryRes ?? [];
         if (!parents.length) return;
 
         const newChildRowsMap = {};
         parents.forEach((parent) => {
-          const pid = String(Math.round(Number(parent.ItemID)));
+          const pid = String(Math.round(Number(parent.itemid)));
           const children = cleanItems.filter(
-            (c) => String(Math.round(Number(c.ChildFKey))) === pid
+            (c) => String(Math.round(Number(c.childfkey))) === pid
           );
           if (children.length > 0) newChildRowsMap[pid] = children;
 
-          // The summary API does not return TranUnitID / BaseUnitID.
+          // The summary API does not return tranunitid / baseunitid.
           // Seed them from the first child (original picker row) so they
           // are present in prmStrDetJSON at save time.
           const ref = children[0] ?? {};
           const row = { ...parent, id: pid };
-          if (!(row.TranUnitID > 0) && ref.TranUnitID > 0) row.TranUnitID = ref.TranUnitID;
-          if (!(row.BaseUnitID > 0) && ref.BaseUnitID > 0) row.BaseUnitID = ref.BaseUnitID;
+          if (!(row.tranunitid > 0) && ref.tranunitid > 0) row.tranunitid = ref.tranunitid;
+          if (!(row.baseunitid > 0) && ref.baseunitid > 0) row.baseunitid = ref.baseunitid;
           addItemRow(row);
         });
 
@@ -782,13 +807,24 @@ export default function PurchaseOrderForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingPO, setIsSavingPO] = useState(false);
 
-  const handleSave = useCallback(async () => {
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) {
+      navigate("/purchase-order");
+    } else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const hv = headerValuesRef.current;
 
     // ── Validation (header + detail + indent) ────────────────────────
-    const headerFieldNames = new Set(PO_HEADER_FILTERS.map((f) => f.FilterParameterID));
-    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.ColName));
-    const headerErrors = validateApiColumns(hv, headerColsToValidate);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
 
     const itemRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(itemRows, columns);
@@ -802,26 +838,21 @@ export default function PurchaseOrderForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.ColName] = getColDefault(col.ColDataType);
-    });
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
-    });
-    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
     const { loginId } = getUserSession();
-    mstRow.LoginID = loginId;
-
-    const detRows = itemRows.map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => {
-        row[key] = getColDefault(colDataType);
-      });
-      return { ...row, ...rest, LoginID: loginId };
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype || null,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      ...(summaryRef.current?.getSummary?.() ?? {}),
+      loginid: loginId,
     });
 
-    const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, LoginID: loginId }));
+    const detRows = itemRows.map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: loginId })
+    );
+
+    const indentDetailRows = indentChildRows.map(({ id: _id, ...rest }) => ({ ...rest, loginid: loginId }));
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({
@@ -830,7 +861,7 @@ export default function PurchaseOrderForm() {
         det: detRows,
         indtDet: indentDetailRows,
       }),
-      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSavingPO(true);
@@ -845,19 +876,23 @@ export default function PurchaseOrderForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
+      return true;
     } catch (err) {
       console.error("[PO Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
+      return false;
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -870,31 +905,31 @@ export default function PurchaseOrderForm() {
     sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
 
     headerValuesRef.current = {
-      TranCode: "",
-      TranDate: todayISO,
-      ConfigID: 0,
-      DeliveryDate: null,
-      DivisionID: 0,
-      SupplierID: 0,
-      DeptID: 0,
-      CurrencyID: 0,
-      CurrencyName: "",
-      CurrencyRate: 0,
-      CreditDays: 0,
-      BasedOnID: "0",
-      Remarks: "",
-      TranMstGenID: 0,
-      CompanyID: 1,
-      YearID: PO_CONFIG.DIVISION_YEAR_ID,
-      LoginID: 1,
-      IDNumber: 0,
-      IsAmend: 0,
-      AmendPOID: 0,
-      CompUniqueKey: 0,
-      FuncCode: PO_CONFIG.RB_MASTER,
+      trancode:      "",
+      trandate:      todayISO,
+      configid:      0,
+      deliverydate:  null,
+      divisionid:    0,
+      supplierid:    0,
+      deptid:        0,
+      currencyid:    0,
+      currencyname:  "",
+      currencyrate:  0,
+      creditdays:    0,
+      basedonid:     "0",
+      remarks:       "",
+      tranmstgenid:  0,
+      companyid:     1,
+      yearid:        PO_CONFIG.DIVISION_YEAR_ID,
+      loginid:       1,
+      idnumber:      0,
+      isamend:       0,
+      amendpoid:     0,
+      compuniquekey: 0,
+      funccode:      PO_CONFIG.RB_MASTER,
     };
     setGridRows([]);
-    setCurrencyExternalValues({ CurrencyName: "", CurrencyRate: "" });
+    setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
 
     queuedRowsRef.current = [];
     gridColumnsLoadedRef.current = false;

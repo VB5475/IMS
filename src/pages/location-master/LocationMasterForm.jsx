@@ -7,6 +7,7 @@ import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
+  getColDefault, buildSaveRowFromColumns,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -14,43 +15,25 @@ import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { LM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
-// Fields locked during edit mode (per MRD lock-on-edit spec)
-const LOCK_ON_EDIT = new Set(["LocationType", "ParentIDNumber", "Loc_Code", "Location_Name"]);
+// Visible dropdown colname for Premises (RB colname = "parentid")
+const PREMISES_COL = "parentid";
 
-// Fields cleared when Premises (ParentIDNumber) changes
-const CASCADE_FIELDS = ["Loc_Code", "Location_Name", "Address1", "City", "State", "Country", "Zipcode"];
+// Fields locked during edit mode (use RB colnames — all lowercase)
+const LOCK_ON_EDIT = new Set(["locationtype", "parentid", "loc_code", "location_name"]);
 
-function buildEmpty() {
-  return {
-    IDNumber:       0,
-    LocationType:   0,
-    ParentIDNumber: 0,
-    Loc_Code:       "",
-    Location_Name:  "",
-    Address1:       "",
-    City:           "",
-    State:          "",
-    Zipcode:        "",
-    Country:        "",
-    RegName:        "",
-    CompanyID:      DEFAULT_COMPANY_ID,
-    YearID:         LM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:        DEFAULT_LOGIN_ID,
-    SessionID:      DEFAULT_SESSION_ID,
-    FuncCode:       LM_CONFIG.RB_MASTER,
-  };
-}
+// Fields cleared when Premises (parentid) changes
+const CASCADE_FIELDS = ["loc_code", "location_name", "address1", "city", "state", "country", "zipcode"];
 
 export default function LocationMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
-  fieldDefs = [], defsLoading = false, defsError = null,
+  fieldDefs = [], allColumns = [], defsLoading = false, defsError = null,
   locationTypeOptions = [], premisesOptions = [],
   fetchEditRecord,
 }) {
   const isAddMode = mode === "add";
 
   const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState(buildEmpty());
+  const [formValues,      setFormValues]      = useState({});
   const [recordLoading,   setRecordLoading]   = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
@@ -59,14 +42,31 @@ export default function LocationMasterForm({
   const [formErrors,    setFormErrors]    = useState([]);
   const [discardAction, setDiscardAction] = useState(null);
 
+  // Build a blank row seeded from RB column defaults + context fields
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => {
+      row[key] = getColDefault(colDataType);
+    });
+    return {
+      ...row,
+      companyid: DEFAULT_COMPANY_ID,
+      yearid:    LM_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  LM_CONFIG.RB_MASTER,
+    };
+  }, [allColumns]);
+
   // Reset form each time modal opens
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
     setRecordLoadError(null);
-    setFormValues(buildEmpty());
-  }, [isOpen, isAddMode]);
+    setFormErrors([]);
+    setFormValues(buildEmptyFromColumns());
+  }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
   // Load existing record when opening in edit mode
   useEffect(() => {
@@ -82,53 +82,53 @@ export default function LocationMasterForm({
     })
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
-        setFormValues({ ...buildEmpty(), ...headerValues });
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
       })
       .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
       .finally(() => setRecordLoading(false));
-  }, [isOpen, isAddMode, recordId, fetchEditRecord]);
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, buildEmptyFromColumns]);
 
-  // Visible fields sorted by ColSeqNo from GetDetailColData response
+  // Visible fields sorted by colseqno from GetDetailColData response
   const visibleFields = useMemo(() =>
     fieldDefs
-      .filter((f) => f.IsVisible && f.ColSeqNo < 100)
-      .sort((a, b) => a.ColSeqNo - b.ColSeqNo),
+      .filter((f) => f.isvisible && f.colseqno < 100)
+      .sort((a, b) => a.colseqno - b.colseqno),
   [fieldDefs]);
 
-  // Dropdown options lookup keyed by ColName
+  // Dropdown options lookup keyed by RB colname
   const optionsMap = useMemo(() => ({
-    LocationType:   locationTypeOptions,
-    ParentIDNumber: premisesOptions,
+    locationtype: locationTypeOptions,
+    [PREMISES_COL]: premisesOptions,
   }), [locationTypeOptions, premisesOptions]);
 
   // Returns true if this field should be non-interactive
   function isLocked(field) {
     if (!isEditMode) return true;
     if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.ColName);
+    return LOCK_ON_EDIT.has(field.colname);
   }
 
-  // Field value change — cascade clears downstream fields on Premises change
+  // Field value change — cascade-clear downstream fields on Premises change
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
-      if (key === "ParentIDNumber") {
+      if (key === PREMISES_COL) {
         CASCADE_FIELDS.forEach((f) => { next[f] = ""; });
       }
       return next;
     });
   }, []);
 
-  // Render the right control based on ColCtrlType from API
+  // Render the right control based on colctrltype from API
   function renderControl(field) {
-    const key    = field.ColName;
+    const key    = field.colname;
     const locked = isLocked(field);
 
-    // ColCtrlType 4 — Dropdown
-    if (field.ColCtrlType === 4) {
+    // colctrltype 4 — Dropdown
+    if (field.colctrltype === 4) {
       return (
         <SearchSelect
-          value={formValues[key] ? String(formValues[key]) : ""}
+          value={formValues[key] != null ? String(formValues[key]) : ""}
           onChange={(val) => handleChange(key, Number(val) || 0)}
           options={optionsMap[key] || []}
           placeholder="Select..."
@@ -137,14 +137,14 @@ export default function LocationMasterForm({
       );
     }
 
-    // ColCtrlType 2 — Textarea
-    if (field.ColCtrlType === 2) {
+    // colctrltype 2 — Textarea
+    if (field.colctrltype === 2) {
       return (
         <textarea
           className="lm-form-textarea"
           value={formValues[key] || ""}
           onChange={(e) => handleChange(key, e.target.value)}
-          placeholder={`Enter ${field.DisplayName || key}...`}
+          placeholder={`Enter ${field.displayname || key}...`}
           readOnly={locked}
           tabIndex={locked ? -1 : undefined}
           rows={2}
@@ -152,26 +152,26 @@ export default function LocationMasterForm({
       );
     }
 
-    // ColCtrlType 1 — TextBox (default)
+    // colctrltype 1 — TextBox (default)
     return (
       <input
         className="lm-form-input"
         type="text"
         value={formValues[key] || ""}
         onChange={(e) => handleChange(key, e.target.value)}
-        placeholder={`Enter ${field.DisplayName || key}...`}
+        placeholder={`Enter ${field.displayname || key}...`}
         readOnly={locked}
         tabIndex={locked ? -1 : undefined}
       />
     );
   }
 
-  // Save — validation driven by IsMandatory from API
+  // Save — validation from ismandatory, save row seeded from all RB columns
   const handleSave = useCallback(async () => {
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
-        f.ColName,
-        f.ColCtrlType === 4 && formValues[f.ColName] === 0 ? "" : formValues[f.ColName],
+        f.colname,
+        f.colctrltype === 4 && formValues[f.colname] === 0 ? "" : formValues[f.colname],
       ])
     );
     const errors = validateApiColumns(normalizedValues, visibleFields);
@@ -180,9 +180,12 @@ export default function LocationMasterForm({
     setSaveError(null);
     setIsSaving(true);
     try {
+      // Build a complete row with defaults for every RB column, then overlay form values
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
+
       const payload = withSaveContextFields(
         {
-          prmStrMstJSON: JSON.stringify([{ ...formValues }]),
+          prmStrMstJSON: JSON.stringify([saveRow]),
           prmStrDetJSON: JSON.stringify([]),
         },
         { divisionId: 0, isEdit: !isAddMode }
@@ -197,6 +200,9 @@ export default function LocationMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[LM Save] Failed:", err);
@@ -204,7 +210,7 @@ export default function LocationMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, onSaved]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -287,7 +293,7 @@ export default function LocationMasterForm({
               const rows = [];
 
               // Insert "Address Details" section divider before the first address field
-              if (field.ColName === "Address1" && !addressDividerShown) {
+              if (field.colname === "address1" && !addressDividerShown) {
                 addressDividerShown = true;
                 rows.push(
                   <div key="_addressDivider" className="lm-form-section-divider">
@@ -297,9 +303,9 @@ export default function LocationMasterForm({
               }
 
               rows.push(
-                <div key={field.ColName} className="lm-form-row">
-                  <span className={`lm-form-label${field.IsMandatory ? " lm-form-label--required" : ""}`}>
-                    {field.DisplayName || field.ColName}
+                <div key={field.colname} className="lm-form-row">
+                  <span className={`lm-form-label${field.ismandatory ? " lm-form-label--required" : ""}`}>
+                    {field.displayname || field.colname}
                   </span>
                   <div className="lm-form-control">
                     {renderControl(field)}

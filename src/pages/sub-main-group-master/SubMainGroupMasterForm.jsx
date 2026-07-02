@@ -7,6 +7,7 @@ import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
+  getColDefault, buildSaveRowFromColumns,
 } from "../../api/constants";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -14,44 +15,24 @@ import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { SMGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 
-// Fields locked during edit mode (per MRD lock-on-edit spec)
-const LOCK_ON_EDIT = new Set(["ItemTypeID", "SubMainGroupCode", "FixedAssetAccountID"]);
+// Fields locked during edit mode (RB colnames — all lowercase)
+const LOCK_ON_EDIT = new Set(["itemtypeid", "submaingroupcode", "fixedassetaccountid"]);
 
-// Fields that render as checkbox despite API returning ColCtrlType 1 (textbox)
-const CHECKBOX_OVERRIDES = new Set(["UsedInAutoItemCodeGeneration", "ISSrnoControlReq"]);
+// Fields that render as checkbox despite colctrltype=1 (API returns numeric 0/1)
+const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration", "issrnocontrolreq"]);
 
-// Corrected display labels (guards against backend DisplayName typos)
+// Corrected display labels (guards against backend displayname typos)
 const DISPLAY_OVERRIDES = {
-  UsedInAutoItemCodeGeneration: "Used in Auto Item Code Gen.",
-  ISSrnoControlReq:             "Is Sr. No Control Req",
-  SubMainGroupShortCode:        "Sub Main Group Short Code",
-  SubMainGroupShortName:        "Sub Main Group Short Name",
+  usedinautoitemcodegeneration: "Used in Auto Item Code Gen.",
+  issrnocontrolreq:             "Is Sr. No Control Req",
+  submaingroupshortcode:        "Sub Main Group Short Code",
+  submaingroupshortname:        "Sub Main Group Short Name",
 };
-function getLabel(field) { return DISPLAY_OVERRIDES[field.ColName] || field.DisplayName; }
-
-function buildEmpty() {
-  return {
-    IDNumber:                     0,
-    ItemTypeID:                   0,
-    MainGroupID:                  0,
-    SubMainGroupCode:             "",
-    SubMainGroupName:             "",
-    SubMainGroupShortName:        "",
-    UsedInAutoItemCodeGeneration: 0,
-    SubMainGroupShortCode:        "",
-    ISSrnoControlReq:             0,
-    FixedAssetAccountID:          0,
-    CompanyID:                    DEFAULT_COMPANY_ID,
-    YearID:                       SMGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID:                      DEFAULT_LOGIN_ID,
-    SessionID:                    DEFAULT_SESSION_ID,
-    FuncCode:                     SMGM_CONFIG.RB_MASTER,
-  };
-}
+function getLabel(field) { return DISPLAY_OVERRIDES[field.colname] || field.displayname; }
 
 export default function SubMainGroupMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
-  fieldDefs = [], defsLoading = false, defsError = null,
+  fieldDefs = [], allColumns = [], defsLoading = false, defsError = null,
   itemTypeOptions = [], mainGroupOptions = [], mainGroupLoading = false,
   fixedAssetAccOptions = [],
   fetchMainGroupByItemType, fetchEditRecord, seedOptionsFromMaster,
@@ -59,7 +40,7 @@ export default function SubMainGroupMasterForm({
   const isAddMode = mode === "add";
 
   const [isEditMode,      setIsEditMode]      = useState(true);
-  const [formValues,      setFormValues]      = useState(buildEmpty());
+  const [formValues,      setFormValues]      = useState({});
   const [recordLoading,   setRecordLoading]   = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
   const [isSaving,        setIsSaving]        = useState(false);
@@ -68,14 +49,30 @@ export default function SubMainGroupMasterForm({
   const [formErrors,    setFormErrors]    = useState([]);
   const [discardAction, setDiscardAction] = useState(null);
 
+  // Build a blank row seeded from RB column defaults + context fields
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => {
+      row[key] = getColDefault(colDataType);
+    });
+    return {
+      ...row,
+      yearid:    SMGM_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  SMGM_CONFIG.RB_MASTER,
+    };
+  }, [allColumns]);
+
   // Reset form each time modal opens
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
     setRecordLoadError(null);
-    setFormValues(buildEmpty());
-  }, [isOpen, isAddMode]);
+    setFormErrors([]);
+    setFormValues(buildEmptyFromColumns());
+  }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
   // Load existing record when opening in edit mode
   useEffect(() => {
@@ -92,59 +89,59 @@ export default function SubMainGroupMasterForm({
       .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
         seedOptionsFromMaster?.(master);
-        setFormValues({ ...buildEmpty(), ...headerValues });
-        // Load main group options filtered by the loaded ItemTypeID
-        if (headerValues.ItemTypeID) {
-          fetchMainGroupByItemType?.(headerValues.ItemTypeID);
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
+        // Cascade: load main group options filtered by the loaded item type
+        if (headerValues.itemtypeid) {
+          fetchMainGroupByItemType?.(headerValues.itemtypeid);
         }
       })
       .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
       .finally(() => setRecordLoading(false));
-  }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster, fetchMainGroupByItemType]);
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster, fetchMainGroupByItemType, buildEmptyFromColumns]);
 
-  // Visible fields sorted by ColSeqNo
+  // Visible fields sorted by colseqno from GetDetailColData
   const visibleFields = useMemo(() =>
     fieldDefs
-      .filter((f) => f.IsVisible && f.ColSeqNo < 100)
-      .sort((a, b) => a.ColSeqNo - b.ColSeqNo),
+      .filter((f) => f.isvisible && f.colseqno < 100)
+      .sort((a, b) => a.colseqno - b.colseqno),
   [fieldDefs]);
 
-  // Dropdown options lookup keyed by ColName
+  // Dropdown options keyed by RB colname
   const optionsMap = useMemo(() => ({
-    ItemTypeID:          itemTypeOptions,
-    MainGroupID:         mainGroupOptions,
-    FixedAssetAccountID: fixedAssetAccOptions,
+    itemtypeid:          itemTypeOptions,
+    maingroupid:         mainGroupOptions,
+    fixedassetaccountid: fixedAssetAccOptions,
   }), [itemTypeOptions, mainGroupOptions, fixedAssetAccOptions]);
 
   function isLocked(field) {
     if (!isEditMode) return true;
     if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.ColName);
+    return LOCK_ON_EDIT.has(field.colname);
   }
 
-  // Cascade: ItemTypeID change → clear MainGroup + reload options
-  //          SubMainGroupCode change → auto-fill SubMainGroupShortCode
+  // Cascade: itemtypeid → clear maingroupid + reload options
+  // Auto-fill: submaingroupcode → submaingroupshortcode
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
-      if (key === "SubMainGroupCode") {
-        next.SubMainGroupShortCode = value;
+      if (key === "submaingroupcode") {
+        next.submaingroupshortcode = value;
       }
-      if (key === "ItemTypeID") {
-        next.MainGroupID = 0;
+      if (key === "itemtypeid") {
+        next.maingroupid = 0;
       }
       return next;
     });
-    if (key === "ItemTypeID") {
+    if (key === "itemtypeid") {
       fetchMainGroupByItemType?.(value);
     }
   }, [fetchMainGroupByItemType]);
 
   function renderControl(field) {
-    const key    = field.ColName;
+    const key    = field.colname;
     const locked = isLocked(field);
 
-    // Checkbox override — API returns ColCtrlType 1 for these fields
+    // Checkbox override — numeric 0/1 stored but rendered as checkbox
     if (CHECKBOX_OVERRIDES.has(key)) {
       return (
         <div className="smgm-form-control--checkbox">
@@ -162,9 +159,9 @@ export default function SubMainGroupMasterForm({
       );
     }
 
-    // ColCtrlType 4 — Dropdown
-    if (field.ColCtrlType === 4) {
-      const isMainGroup = key === "MainGroupID";
+    // colctrltype 4 — Dropdown
+    if (field.colctrltype === 4) {
+      const isMainGroup = key === "maingroupid";
       return (
         <SearchSelect
           value={formValues[key] ? String(formValues[key]) : ""}
@@ -176,12 +173,12 @@ export default function SubMainGroupMasterForm({
       );
     }
 
-    // ColCtrlType 1 — TextBox (default; SubMainGroupShortCode is editable auto-fill)
+    // colctrltype 1 — TextBox (default)
     return (
       <input
         className="smgm-form-input"
         type="text"
-        value={formValues[key] || ""}
+        value={formValues[key] ?? ""}
         onChange={(e) => handleChange(key, e.target.value)}
         placeholder={`Enter ${getLabel(field)}...`}
         readOnly={locked}
@@ -190,12 +187,12 @@ export default function SubMainGroupMasterForm({
     );
   }
 
-  // Validation driven by IsMandatory from API
+  // Validation from RB ismandatory; save row seeded from all RB columns via buildSaveRowFromColumns
   const handleSave = useCallback(async () => {
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
-        f.ColName,
-        f.ColCtrlType === 4 && formValues[f.ColName] === 0 ? "" : formValues[f.ColName],
+        f.colname,
+        f.colctrltype === 4 && formValues[f.colname] === 0 ? "" : formValues[f.colname],
       ])
     );
     const errors = validateApiColumns(normalizedValues, visibleFields);
@@ -204,9 +201,12 @@ export default function SubMainGroupMasterForm({
     setSaveError(null);
     setIsSaving(true);
     try {
+      // Complete row with RB-driven defaults for every column, overlaid with form values
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
+
       const payload = withSaveContextFields(
         {
-          prmStrMstJSON: JSON.stringify([{ ...formValues }]),
+          prmStrMstJSON: JSON.stringify([saveRow]),
           prmStrDetJSON: JSON.stringify([]),
         },
         { divisionId: 0, isEdit: !isAddMode }
@@ -221,6 +221,9 @@ export default function SubMainGroupMasterForm({
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[SMGM Save] Failed:", err);
@@ -228,7 +231,7 @@ export default function SubMainGroupMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, onSaved]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -306,11 +309,11 @@ export default function SubMainGroupMasterForm({
           <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="smgm-form">
             {visibleFields.map((field) => (
-              <div key={field.ColName} className="smgm-form-row">
-                <span className={`smgm-form-label${field.IsMandatory && !CHECKBOX_OVERRIDES.has(field.ColName) ? " smgm-form-label--required" : ""}`}>
+              <div key={field.colname} className="smgm-form-row">
+                <span className={`smgm-form-label${field.ismandatory && !CHECKBOX_OVERRIDES.has(field.colname) ? " smgm-form-label--required" : ""}`}>
                   {getLabel(field)}
                 </span>
-                <div className={`smgm-form-control${CHECKBOX_OVERRIDES.has(field.ColName) ? " smgm-form-control--checkbox" : ""}`}>
+                <div className={`smgm-form-control${CHECKBOX_OVERRIDES.has(field.colname) ? " smgm-form-control--checkbox" : ""}`}>
                   {renderControl(field)}
                 </div>
               </div>

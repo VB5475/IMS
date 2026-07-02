@@ -13,10 +13,11 @@
 //   seedOptionsFromMaster handles: Division, Location, CWIPAccID, CostCenter
 
 import { useState, useCallback, useRef } from "react";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
@@ -29,6 +30,7 @@ import {
   isTruthyApiFlag,
   isLockOnEditModeCol,
 } from "../utils/gridUtils";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -40,7 +42,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
   ].join(",");
 }
 
-function mapMasterRowToHeaderValues(master, params) {
+function mapMasterRowToHeaderValues(master) {
   const toDateInput = (value) => {
     if (!value) return "";
     if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
@@ -50,39 +52,29 @@ function mapMasterRowToHeaderValues(master, params) {
   };
 
   return {
-    TranNo:           master.TranNo          != null ? String(master.TranNo)           : "",
-    TranDate:         toDateInput(master.TranDate),
-    PutToUseInstDate: toDateInput(master.PutToUseInstDate) || null,
-    DivisionID:       master.DivisionID      != null ? Number(master.DivisionID)       : 0,
-    LocationID:       master.LocationID      != null ? Number(master.LocationID)       : 0,
-    CWIPAccID:        master.CWIPAccID        != null ? Number(master.CWIPAccID)        : 0,
-    CostCenterAccID:  master.CostCenterAccID  != null ? Number(master.CostCenterAccID)  : 0,
-    ConvTypeID:       master.ConvTypeID      != null ? String(master.ConvTypeID)       : "1",
-    NetTotal:         master.NetTotal        != null ? Number(master.NetTotal)         : 0,
-    Remark:           master.Remark          ?? "",
-    TranMstGenID:     master.TranMstGenID    != null ? Number(master.TranMstGenID)     : 0,
-    CompanyID:        Number(params.companyId)  || DEFAULT_COMPANY_ID,
-    YearID:           Number(master.Year_ID ?? params.yearId) || C2F_CONFIG.CONFIG_YEAR_ID,
-    LoginID:          Number(master.LoginID ?? params.loginId) || getUserSession().loginId,
-    SessionID:        Number(master.SessionID ?? params.sessionId) || DEFAULT_SESSION_ID,
-    IDNumber:         Number(master.IDNumber ?? params.idNumber) || 0,
-    UserID:           getUserSession().userId,
-    CompUniqueKey:    master.CompUniqueKey ?? master.IDNumber ?? params.idNumber ?? 0,
-    FuncCode:         master.FuncCode ?? C2F_CONFIG.RB_MASTER,
+    ...master,
+    // Date fields need normalisation from ISO → date-input format
+    trandate:        toDateInput(master.trandate),
+    puttouseinstdate: toDateInput(master.puttouseinstdate) || null,
+    // Context fields: always use live values, not stale DB values
+    yearid:    C2F_CONFIG.CONFIG_YEAR_ID,
+    funccode:  C2F_CONFIG.RB_MASTER,
+    loginid:   getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
   };
 }
 
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
 function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   const set = new Set();
   apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.IsEventReq) || isTruthyApiFlag(col.IsEventCol)) set.add(col.ColName);
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) set.add(col.colname);
   });
   if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
   return set;
@@ -96,15 +88,15 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
-  const meta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
     prmLoginID:  DEFAULT_LOGIN_ID,
   });
-  return { meta, apiColumns: colData?.Links || [] };
+  return { meta, apiColumns: colData || [] };
 }
 
 // Fields that RB_AstCWIP2FADet incorrectly includes as detail columns but belong
@@ -145,17 +137,17 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_CWIP_ACC,
         JSon: JSON.stringify([{
-          PrmDivisionID:    Number(divisionId),
-          PrmAcMainGroupID: 7,           // ⚠️ CONFIRM with DBA — Main Group ID for CWIP accounts
-          PrmLoginID:       DEFAULT_LOGIN_ID,
-          PrmCompanyID:     DEFAULT_COMPANY_ID,
-          PrmYearID:        C2F_CONFIG.CONFIG_YEAR_ID,
+          prmdivisionid:    Number(divisionId),
+          prmacmaingroupid: 7,           // ⚠️ CONFIRM with DBA — Main Group ID for CWIP accounts
+          prmloginid:       DEFAULT_LOGIN_ID,
+          prmcompanyid:     DEFAULT_COMPANY_ID,
+          prmyearid:        C2F_CONFIG.CONFIG_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: r.AccountID ?? 0,
-        label: String(r.AcCode  + " | "+ r.AcName) ?? "",
+      const opts = (res || []).map((r) => ({
+        value: r.accountid ?? 0,
+        label: String(r.accode  + " | "+ r.acname) ?? "",
       }));
       setCWIPAccOptions(opts);
       return opts;
@@ -176,10 +168,10 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 1,
         ObjName: C2F_CONFIG.SP_UNIQUE_ID,
-        JSon: JSON.stringify([{ PrmIDNumber: 0, PrmYearID: C2F_CONFIG.CONFIG_YEAR_ID }]),
+        JSon: JSON.stringify([{ prmidnumber: 0, prmyearid: C2F_CONFIG.CONFIG_YEAR_ID }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      return res?.Table?.[0]?.UniqueID ?? 0;
+      return res?.[0]?.uniqueid ?? 0;
     } catch (err) {
       console.warn("[C2F] UniqueID fetch failed:", err);
       return 0;
@@ -194,15 +186,15 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_LOCATION,
         JSon: JSON.stringify([{
-          PrmCompanyID:  DEFAULT_COMPANY_ID,
-          PrmLoginID:    DEFAULT_LOGIN_ID,
-          prmLocationType: "",
+          prmcompanyid:    DEFAULT_COMPANY_ID,
+          prmloginid:      DEFAULT_LOGIN_ID,
+          prmlocationtype: "",
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.LocationID ?? r.LocID),
-        label: r.LocationName ?? r.LocName ?? r.Location ?? String(r.LocationID ?? r.LocID),
+      const opts = (res || []).map((r) => ({
+        value: String(r.locationid ?? r.locid),
+        label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid),
       }));
       setLocationOptions(opts);
       return opts;
@@ -220,20 +212,20 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_COST_CENTER,
         JSon: JSON.stringify([{
-          PrmDivisionId:  Number(divisionId) || 0,
-          PrmTranDate:    tranDate || "",
-          PrmAccountId:   0,
-          PrmLoginId:     DEFAULT_LOGIN_ID,
-          PrmLangCode:    1,
-          PrmModuleCode:  "C2F",
-          PrmIsMultiDiv:  0,
-          PrmYearId:      C2F_CONFIG.CONFIG_YEAR_ID,
+          prmdivisionid:  Number(divisionId) || 0,
+          prmtrandate:    tranDate || "",
+          prmaccountid:   0,
+          prmloginid:     DEFAULT_LOGIN_ID,
+          prmlangcode:    1,
+          prmmodulecode:  "C2F",
+          prmismultidiv:  0,
+          prmyearid:      C2F_CONFIG.CONFIG_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const opts = (res?.Table || []).map((r) => ({
-        value: String(r.CostCenterID ?? r.CostCenterId ?? r.AccountId),
-        label: r.CostCenterAc,
+      const opts = (res || []).map((r) => ({
+        value: String(r.costcenterid ?? r.costcenterid ?? r.accountid),
+        label: r.costcenterac,
       }));
       setCostCenterOptions(opts);
       return opts;
@@ -256,10 +248,10 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{ prmRBCode: C2F_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const tableRow = metaData?.Table?.[0];
+      const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No C2F header RB metadata returned from server.");
 
-      const hdrMeta = { RBID: tableRow.RBID, SaveProcName: tableRow.SaveProcName };
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
       localStorage.setItem(C2F_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       // Phase 2 — fetch header column definitions (master field metadata — dynamic)
@@ -267,7 +259,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         prmMasterID: hdrMeta.RBID,
         prmLoginID:  DEFAULT_LOGIN_ID,
       });
-      const hdrApiColumns = colData?.Links || [];
+      const hdrApiColumns = colData || [];
       setHeaderColumns(hdrApiColumns);
       console.log("%c[C2F] Header columns received:", "color:#8b5cf6;font-weight:600", hdrApiColumns.length);
 
@@ -285,15 +277,15 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([{
-          prmUserID:    DEFAULT_LOGIN_ID,
-          prmCompanyID: DEFAULT_COMPANY_ID,
-          prmYearID:    C2F_CONFIG.DIVISION_YEAR_ID,
+          prmuserid:    DEFAULT_LOGIN_ID,
+          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmyearid:    C2F_CONFIG.DIVISION_YEAR_ID,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       }).catch((err) => { console.warn("[C2F] Division fetch failed:", err); return null; });
 
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))
+        (divisionData || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))
       );
     } catch (err) {
       console.error("[C2F] fetchHeaderMeta failed:", err);
@@ -314,16 +306,15 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         C2F_CONFIG.STORAGE_ENTRY_META
       );
       // Strip out master-level fields the RB erroneously includes in detail columns
-      const apiColumns = rawApiColumns.filter((c) => !DETAIL_HEADER_FIELDS.has(c.ColName));
+      const apiColumns = rawApiColumns.filter((c) => !DETAIL_HEADER_FIELDS.has(c.colname));
       rawDetailRbMetaRef.current  = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      // Build event column set — Qty and Rate drive Amount auto-calc
-      const evtSet = buildEventColumnSet(apiColumns, ["Qty", "Rate"]);
-      ["Qty", "Rate"].forEach((k) => evtSet.add(k));
-      setEventColumns(evtSet);
+      // Build event column set from RB metadata (iseventreq/iseventcol flags).
+      // No SP_GRID_EVENT configured for CWIP today, so this is empty until one is added.
+      setEventColumns(buildEventColumnSet(apiColumns));
 
-      setAllColumns(apiColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType || null })));
+      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
       console.log("%c[C2F] Detail columns received:", "color:#6366f1;font-weight:600", apiColumns.length);
     } catch (err) {
       console.error("[C2F] fetchDetailMeta failed:", err);
@@ -346,8 +337,8 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     }
 
     try {
-      // All ColCtrlType=4 columns (including CWIPAccID if in detail) auto-resolved
-      // via GET_FILTER_DETAIL using each column's ObjDetID — fully dynamic.
+      // All colctrltype=4 columns (including CWIPAccID if in detail) auto-resolved
+      // via GET_FILTER_DETAIL using each column's objdetid — fully dynamic.
       const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
         funcCode:              C2F_CONFIG.RB_DETAIL,
         divisionID:            Number(divisionID) || 0,
@@ -374,12 +365,20 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   const fireCellEvent = useCallback(async (colName, rowData, headerValues) => {
     if (!C2F_CONFIG.SP_GRID_EVENT) return null;
     try {
-      const { id, ...newRowData } = rowData;
-      const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-        GridEventFuncName: C2F_CONFIG.SP_GRID_EVENT,
-        EventColName:      colName,
-        DetJSON:           JSON.stringify([newRowData]),
-        MstJSon:           JSON.stringify([headerValues]),
+      const { id, ...rawRowData } = rowData;
+      const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+      const newRowData = Object.fromEntries(
+        Object.entries(rawRowData).map(([k, v]) => {
+          if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+            return [k, Number(v)];
+          return [k, v];
+        })
+      );
+      const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+        prmobjname:   C2F_CONFIG.SP_GRID_EVENT,
+        prmmyeventcol: colName,
+        prmdetjson:   buildDetJSON([newRowData], colTypeMap),
+        prmmstjson:   JSON.stringify([headerValues]),
       });
       console.log("%c[C2F] CellEvent response:", "color:#f59e0b;font-weight:600", { col: colName, result });
       return result;
@@ -387,32 +386,32 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       console.error("[C2F] fireCellEvent failed:", err);
       return null;
     }
-  }, [get]);
+  }, [allColumns]);
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.DivisionID != null && master.DivisionName) {
-      setDivisionOptions([{ value: String(master.DivisionID), label: master.DivisionName }]);
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
     }
-    if (master.LocationID != null && master.LocationName) {
-      setLocationOptions([{ value: String(master.LocationID), label: master.LocationName }]);
+    if (master.locationid != null && master.locationname) {
+      setLocationOptions([{ value: String(master.locationid), label: master.locationname }]);
     }
-    if (master.CWIPAccID != null && master.CWIPAccName) {
-      setCWIPAccOptions([{ value: String(master.CWIPAccID), label: master.CWIPAccName }]);
+    if (master.cwipaccid != null && master.cwipaccname) {
+      setCWIPAccOptions([{ value: String(master.cwipaccid), label: master.cwipaccname }]);
     }
-    if (master.CostCenterAccID != null && master.CostCenterName) {
-      setCostCenterOptions([{ value: String(master.CostCenterAccID), label: master.CostCenterName }]);
+    if (master.costcenteraccid != null && master.costcentername) {
+      setCostCenterOptions([{ value: String(master.costcenteraccid), label: master.costcentername }]);
     }
   }, []);
 
   // ── fetchUnlockedHeaderDropdowns — enter edit mode: reload editable dropdowns
   const fetchUnlockedHeaderDropdowns = useCallback(async (divisionId, tranDate) => {
     if (!headerColumns.length) return;
-    const isEditable  = (c) => isTruthyApiFlag(c.IsEditAllow) && !isLockOnEditModeCol(c);
-    const needsDivision   = headerColumns.some((c) => c.ColName === "DivisionID"     && isEditable(c));
-    const needsLocation   = headerColumns.some((c) => c.ColName === "LocationID"     && isEditable(c));
-    const needsCWIPAcc    = headerColumns.some((c) => c.ColName === "CWIPAccID"      && isEditable(c));
-    const needsCostCenter = headerColumns.some((c) => c.ColName === "CostCenterAccID" && isEditable(c));
+    const isEditable  = (c) => isTruthyApiFlag(c.iseditallow) && !isLockOnEditModeCol(c);
+    const needsDivision   = headerColumns.some((c) => c.colname === "divisionid"      && isEditable(c));
+    const needsLocation   = headerColumns.some((c) => c.colname === "locationid"      && isEditable(c));
+    const needsCWIPAcc    = headerColumns.some((c) => c.colname === "cwipaccid"       && isEditable(c));
+    const needsCostCenter = headerColumns.some((c) => c.colname === "costcenteraccid" && isEditable(c));
 
     const tasks = [];
     if (needsDivision) {
@@ -421,13 +420,13 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: C2F_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmUserID:    DEFAULT_LOGIN_ID,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID:    C2F_CONFIG.DIVISION_YEAR_ID,
+            prmuserid:    DEFAULT_LOGIN_ID,
+            prmcompanyid: DEFAULT_COMPANY_ID,
+            prmyearid:    C2F_CONFIG.DIVISION_YEAR_ID,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         })
-          .then((res) => setDivisionOptions((res?.Table || []).map((r) => ({ value: String(r.DivisionID), label: r.DivisionName }))))
+          .then((res) => setDivisionOptions((res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname }))))
           .catch(() => {})
       );
     }
@@ -452,12 +451,11 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         prmFuncCode:  C2F_CONFIG.RB_DETAIL,
       }),
     ]);
-    const master = mstRes?.Links?.[0] ?? null;
-    const params = { companyId, yearId, loginId, sessionId, idNumber };
+    const master = mstRes?.[0] ?? null;
     return {
       master,
-      headerValues: master ? mapMasterRowToHeaderValues(master, params) : null,
-      details:      mapDetailRowsToGridRows(detRes?.Links || []),
+      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+      details:      mapDetailRowsToGridRows(detRes || []),
     };
   }, [get]);
 

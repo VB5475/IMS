@@ -1,158 +1,160 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Shield, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
-import MasterFormField from "../../components/forms/MasterFormField";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
+  DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
+  getColDefault, buildSaveRowFromColumns,
 } from "../../api/constants";
-import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
-import {
-  buildMasterCascadeResets,
-  buildMasterFormEmpty,
-  getCheckboxValue,
-  getMasterFieldDefaultValue,
-  getMasterFieldLabel,
-  getToggleValue,
-  getVisibleHeaderFields,
-  isMasterCheckboxField,
-  isMasterFieldLocked,
-  isMasterFieldRequired,
-  isMasterToggleField,
-  validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
-} from "../../utils/masterFormUtils";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { validateApiColumns } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import { UG_CONFIG } from "./constants";
 
-function buildSaveContext() {
-  return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: UG_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: UG_CONFIG.RB_MASTER,
-  };
-}
+// Fields rendered as checkbox despite colctrltype=1 (store numeric 0/1)
+// Populate after RB column data is confirmed with DBA.
+const CHECKBOX_OVERRIDES = new Set([]);
+
+function getLabel(field) { return field.displayname || field.colname; }
 
 export default function UserGroupForm({
-  isOpen,
-  mode,
-  onClose,
-  onSaved,
-  fieldDefs = [],
-  defsLoading = false,
-  defsError = null,
+  isOpen, mode, recordId, onClose, onSaved,
+  fieldDefs = [], allColumns = [], defsLoading = false, defsError = null,
   dropdownOptions = {},
-  editPrefill = null,
-  recordLoading = false,
-  recordLoadError = null,
+  fetchEditRecord,
 }) {
   const isAddMode = mode === "add";
-  const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
-  const [isEditMode, setIsEditMode] = useState(true);
-  const [formValues, setFormValues] = useState(() =>
-    buildMasterFormEmpty(fieldDefs, buildSaveContext())
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
+  const [isEditMode,      setIsEditMode]      = useState(true);
+  const [formValues,      setFormValues]      = useState({});
+  const [recordLoading,   setRecordLoading]   = useState(false);
+  const [recordLoadError, setRecordLoadError] = useState(null);
+  const [isSaving,        setIsSaving]        = useState(false);
+  const [saveError,       setSaveError]       = useState(null);
+  const [formErrors,      setFormErrors]      = useState([]);
+  const [discardAction,   setDiscardAction]   = useState(null);
 
-  const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
+  // Build a blank row seeded from RB column defaults + context fields
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+    return {
+      ...row,
+      yearid:    UG_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  UG_CONFIG.RB_MASTER,
+    };
+  }, [allColumns]);
 
-  const cascadeResets = useMemo(() => buildMasterCascadeResets(fieldDefs), [fieldDefs]);
-
+  // Reset form each time modal opens
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
-    const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
-    if (isAddMode) {
-      setFormValues(empty);
-    } else if (editPrefill?.headerValues) {
-      setFormValues({ ...empty, ...editPrefill.headerValues });
-    }
-  }, [isOpen, isAddMode, editPrefill, fieldDefs]);
+    setRecordLoadError(null);
+    setFormErrors([]);
+    setFormValues(buildEmptyFromColumns());
+  }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
+  // Load existing record when opening in edit mode
   useEffect(() => {
-    if (!isOpen || !fieldDefs.length) return;
-    setFormValues((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      fieldDefs.forEach((f) => {
-        if (isMasterToggleField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-        if (isMasterCheckboxField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [isOpen, fieldDefs]);
+    if (!isOpen || isAddMode || !recordId) return;
+    setRecordLoading(true);
+    setRecordLoadError(null);
+    fetchEditRecord({
+      companyId: DEFAULT_COMPANY_ID,
+      yearId:    UG_CONFIG.CONFIG_YEAR_ID,
+      loginId:   DEFAULT_LOGIN_ID,
+      sessionId: DEFAULT_SESSION_ID,
+      idNumber:  recordId,
+    })
+      .then(({ master, headerValues }) => {
+        if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
+      })
+      .catch((err) => setRecordLoadError(err?.message || "Failed to load record."))
+      .finally(() => setRecordLoading(false));
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, buildEmptyFromColumns]);
 
-  const handleChange = useCallback(
-    (key, value) => {
-      setFormValues((prev) => {
-        const next = { ...prev, [key]: value };
-        const resetKeys = cascadeResets[key];
-        if (resetKeys?.length) {
-          resetKeys.forEach((resetKey) => {
-            const field = fieldDefs.find((f) => f.ColName === resetKey);
-            next[resetKey] = field ? getMasterFieldDefaultValue(field) : "";
-          });
-        }
-        return next;
-      });
-    },
-    [cascadeResets, fieldDefs]
-  );
+  // Visible fields sorted by RB colseqno (PG returns lowercase meta keys)
+  const visibleFields = useMemo(() =>
+    fieldDefs
+      .filter((f) => f.isvisible && f.colseqno < 100)
+      .sort((a, b) => a.colseqno - b.colseqno),
+  [fieldDefs]);
+
+  function isLocked(field) {
+    if (!isEditMode) return true;
+    return false;
+  }
+
+  const handleChange = useCallback((key, value) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   function renderControl(field) {
-    const key = field.ColName;
+    const key    = field.colname;
+    const locked = isLocked(field);
+
+    // Checkbox override — numeric 0/1 stored but rendered as checkbox
+    if (CHECKBOX_OVERRIDES.has(key)) {
+      return (
+        <div className="ug-form-control--checkbox">
+          <input
+            type="checkbox"
+            className="ug-form-checkbox"
+            checked={!!formValues[key]}
+            onChange={(e) => handleChange(key, e.target.checked ? 1 : 0)}
+            disabled={locked}
+          />
+          <span className="ug-form-checkbox-label">{formValues[key] ? "Yes" : "No"}</span>
+        </div>
+      );
+    }
+
+    // colctrltype 4 — Dropdown (options keyed by RB colname — lowercase)
+    if (Number(field.colctrltype) === 4) {
+      return (
+        <SearchSelect
+          options={dropdownOptions[key] || []}
+          value={formValues[key] > 0 ? String(formValues[key]) : ""}
+          onChange={(val) => handleChange(key, Number(val) || 0)}
+          disabled={locked}
+          placeholder={`Select ${getLabel(field)}…`}
+        />
+      );
+    }
+
+    // Default — TextBox
     return (
-      <MasterFormField
-        field={field}
-        value={formValues[key]}
-        onChange={(val) => handleChange(key, val)}
-        locked={isMasterFieldLocked(field, { isAddMode, isEditMode })}
-        options={dropdownOptions[key] || []}
-        inputClassName="ug-form-input"
-        valueClassName="ug-form-value"
-        toggleClassName="ug-form-toggle"
+      <input
+        className="ug-form-input"
+        type="text"
+        value={formValues[key] ?? ""}
+        onChange={(e) => handleChange(key, e.target.value)}
+        placeholder={`Enter ${getLabel(field)}…`}
+        readOnly={locked}
+        tabIndex={locked ? -1 : undefined}
       />
     );
   }
 
+  // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
-      skipMandatoryFor: new Set(
-        visibleFields
-          .filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f))
-          .map((f) => f.ColName)
-      ),
-    });
-
-    if (alertMasterFormValidationErrors(validationErrors)) return;
+    const fieldsToValidate = visibleFields.filter((f) => !CHECKBOX_OVERRIDES.has(f.colname));
+    const errors = validateApiColumns(formValues, fieldsToValidate);
+    if (errors.length > 0) { setFormErrors(errors); return; }
 
     setSaveError(null);
     setIsSaving(true);
     try {
-      const saveRow = { ...formValues };
-      visibleFields.forEach((f) => {
-        if (isMasterToggleField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getToggleValue(saveRow[f.ColName]);
-        }
-        if (isMasterCheckboxField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getCheckboxValue(saveRow[f.ColName]);
-        }
-      });
-
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
       const payload = withSaveContextFields(
         {
           prmStrMstJSON: JSON.stringify([saveRow]),
@@ -160,9 +162,19 @@ export default function UserGroupForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-
-      await post(UG_CONFIG.SAVE_ENDPOINT, payload);
-      alert("User Group saved successfully!");
+      const res = await fetch(`${API_BASE_URL_IMS}${UG_CONFIG.SAVE_ENDPOINT}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[UG Save] Failed:", err);
@@ -170,55 +182,46 @@ export default function UserGroupForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, onSaved, post]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify]);
+
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose();
+    } else {
+      if (isAddMode) { onClose(); return; }
+      setIsEditMode(false);
+      setSaveError(null);
+    }
+  }, [discardAction, isAddMode, onClose]);
 
   const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (isEditMode && !window.confirm("Discard changes?")) return;
-      onClose();
-    });
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
   }, [isEditMode, onClose]);
 
   const handleCancelEdit = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
-      if (isAddMode) {
-        onClose();
-        return;
-      }
-      setIsEditMode(false);
-      setSaveError(null);
-    });
-  }, [isAddMode, onClose]);
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
       return (
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--edit"
-          onClick={() => setIsEditMode(true)}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--edit"
+                onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
     }
     return (
       <div className="master-modal-footer-actions">
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--cancel"
-          onClick={handleCancelEdit}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+                onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--save"
-          onClick={handleSave}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--save"
+                onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -226,8 +229,8 @@ export default function UserGroupForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading = defsLoading || recordLoading;
-  const combinedErr = defsError || recordLoadError;
+  const isLoading   = defsLoading || recordLoading;
+  const combinedErr = defsError   || recordLoadError;
 
   return (
     <Modal
@@ -240,6 +243,12 @@ export default function UserGroupForm({
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -248,36 +257,25 @@ export default function UserGroupForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="ug-form">
             {visibleFields.map((field) => (
               <div
-                key={field.ColName}
+                key={field.colname}
                 className={[
                   "ug-form-row",
-                  isMasterToggleField(field) ? "ug-form-row--toggle" : "",
-                  isMasterCheckboxField(field) ? "ug-form-row--checkbox" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                  CHECKBOX_OVERRIDES.has(field.colname) ? "ug-form-row--checkbox" : "",
+                ].filter(Boolean).join(" ")}
               >
-                <span
-                  className={`ug-form-label${
-                    isMasterFieldRequired(field) ? " ug-form-label--required" : ""
-                  }`}
-                >
-                  {getMasterFieldLabel(field)}
+                <span className={`ug-form-label${field.ismandatory && !CHECKBOX_OVERRIDES.has(field.colname) ? " ug-form-label--required" : ""}`}>
+                  {getLabel(field)}
                 </span>
-                <div
-                  className={`ug-form-control${
-                    isMasterToggleField(field) ? " ug-form-control--toggle-wrap" : ""
-                  }${isMasterCheckboxField(field) ? " ug-form-control--checkbox" : ""}`}
-                >
+                <div className={`ug-form-control${CHECKBOX_OVERRIDES.has(field.colname) ? " ug-form-control--checkbox" : ""}`}>
                   {renderControl(field)}
                 </div>
               </div>
             ))}
           </div>
-
           {saveError && (
             <div className="master-modal-save-error">
               <AlertCircle size={14} strokeWidth={2} /> {saveError}

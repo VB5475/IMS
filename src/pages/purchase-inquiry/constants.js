@@ -32,25 +32,25 @@ export const PI_CONFIG = {
   ...PURCHASE_API,
   SP_INQUIRY_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "RB_PurInquiryMst",
-  RB_DETAIL: "RB_PurInquiryDet",
-  RB_INDT_DETAIL: "RB_PurInquiryIndtDet",
+  RB_MASTER: "rb_purinquirymst",
+  RB_DETAIL: "rb_purinquirydet",
+  RB_INDT_DETAIL: "rb_purinquiryindtdet",
 
   FORM_TAG: "INQ",
   TRAN_BOOK: "PURINQUIRY",
 
-  RB_ITEM_PICKER_DIRECT: "RB_PurInqSelOnlyItem",
-  RB_ITEM_PICKER_INDENT: "RB_PurInqSelIndtItem",
+  RB_ITEM_PICKER_DIRECT: "rb_purinqselonlyitem",
+  RB_ITEM_PICKER_INDENT: "rb_purinqselindtitem",
 
-  SP_MASTER_FILL: "fn_tbl_RB_PurInquiryMst",
-  SP_DETAIL_FILL: "fn_tbl_RB_PurInquiryDet",
-  SP_INDT_FILL: "fn_tbl_RB_PurInquiryIndtDet",
+  SP_MASTER_FILL: "fn_tbl_rb_purinquirymst",
+  SP_DETAIL_FILL: "fn_tbl_rb_purinquirydet",
+  SP_INDT_FILL: "fn_tbl_rb_purinquiryindtdet",
 
   SP_DEPARTMENTS: PURCHASE_API.SP_DEPT,
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_RB_PurInqSelOnlyItem",
-  SP_ITEM_PICKER_INDENT: "fn_tbl_RB_PurInqSelIndtItem",
-  SP_GRID_EVENT: "fn_tbl_RB_PurInquiryDet_Event",
-  SP_INDENT_SUMMARY: "Fn_tbl_FetchIndentSummaryItem4Inquiry",
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purinqselonlyitem",
+  SP_ITEM_PICKER_INDENT: "fn_tbl_rb_purinqselindtitem",
+  SP_GRID_EVENT: "fn_tbl_rb_purinquirydet_event",
+  SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4inquiry",
 
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE],
 
@@ -63,7 +63,7 @@ export const PI_CONFIG = {
   STORAGE_ENTRY_META: "piEntryMeta",
   STORAGE_INDT_META: "piIndtMeta",
 
-  SP_INQUIRY_LIST: "Fn_tbl_Pur_InquiryMst_List",
+  SP_INQUIRY_LIST: "fn_tbl_pur_inquirymst_list",
   LIST_DIVISION_ID: 15,
 };
 
@@ -113,14 +113,14 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return {
-    prmDivisionID: Number(headerValues.divisionid) || 0,
-    prmYearID:     PI_CONFIG.CONFIG_YEAR_ID,
-    prmLoginID:    loginId,
-    prmTranDate:   formatTranDate(headerValues.trandate),
-    prmConfigID:   Number(headerValues.configid) || 0,
-    prmSupplierID: Number(headerValues.supplierid ?? 0),
-    prmTranBook:   PI_CONFIG.TRAN_BOOK,
-    prmFrmOption:  Number(headerValues.basedonid) || 0,
+    prmdivisionid: Number(headerValues.divisionid) || 0,
+    prmyearid:     PI_CONFIG.CONFIG_YEAR_ID,
+    prmloginid:    loginId,
+    prmtrandate:   formatTranDate(headerValues.trandate),
+    prmconfigid:   Number(headerValues.configid) || 0,
+    prmsupplierid: Number(headerValues.supplierid ?? 0),
+    prmtranbook:   PI_CONFIG.TRAN_BOOK,
+    prmfrmoption:  Number(headerValues.basedonid) || 0,
   };
 }
 

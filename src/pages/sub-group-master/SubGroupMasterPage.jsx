@@ -82,7 +82,7 @@ export default function SubGroupMasterPage() {
 
   const {
     fetchHeaderMeta,
-    headerColumns: fieldDefs, headerFetching, headerError,
+    headerColumns: fieldDefs, allColumns, headerFetching, headerError,
     fetchEditRecord,
   } = useSubGroupMaster();
 
@@ -109,7 +109,7 @@ export default function SubGroupMasterPage() {
       setLoading(true);
       setError(null);
       const res = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
-      setData(res?.Table ?? res?.Links ?? []);
+      setData(res ?? res ?? []);
     } catch (err) {
       console.error("[SGM] List fetch failed:", err);
       setError("Failed to load Sub Group list.");
@@ -190,6 +190,7 @@ export default function SubGroupMasterPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         fetchEditRecord={fetchEditRecord}

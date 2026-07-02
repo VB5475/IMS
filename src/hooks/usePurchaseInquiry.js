@@ -14,17 +14,20 @@
 //   Division → Inquiry Type
 
 import { useState, useCallback, useRef } from "react";
-import { useApi } from "../api/useApi";
+import { useApi, getApiClient } from "../api/useApi";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
+  DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
 import { parseApiErrMsg } from "../utils/apiResponse";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
+import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 import { PI_CONFIG } from "../pages/purchase-inquiry/constants";
 import {
   fetchDropdownOptions,
@@ -66,7 +69,7 @@ function mapMasterRowToHeaderValues(master) {
 function mapDetailRowsToGridRows(rows) {
   return (rows || []).map((row, index) => ({
     ...row,
-    id: String(row.CompUniqueKey ?? row.IDNumber ?? row.MasterID ?? `edit_${index}`),
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));
 }
 
@@ -76,12 +79,13 @@ function mapIndentRowsToChildRowsMap(detailRows, indtRows) {
   if (!indtRows?.length || !detailRows?.length) return childRowsMap;
 
   detailRows.forEach((parent) => {
-    const parentItemId = String(Math.round(Number(parent.ItemID)));
+    // PG returns lowercase; guard both cases.
+    const parentItemId = String(Math.round(Number(parent.itemid ?? parent.ItemID)));
     const children = indtRows.filter(
-      (c) => String(Math.round(Number(c.ChildFKey))) === parentItemId
+      (c) => String(Math.round(Number(c.childfkey ?? c.ChildFKey))) === parentItemId
     );
     if (children.length > 0) {
-      childRowsMap[String(parent.id)] = children;
+      childRowsMap[String(parent.id)] = children.map((c) => ({ ...c }));
     }
   });
   return childRowsMap;
@@ -107,11 +111,11 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: OBJ_TYPE.FUNCTION,
     ObjName: PI_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
-  const tableRow = metaData?.Table?.[0];
+  const tableRow = metaData?.[0];
   if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
 
   const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
@@ -121,7 +125,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
     prmMasterID: meta.RBID,
     prmLoginID: getUserSession().loginId,
   });
-  const apiColumns = colData?.Links || [];
+  const apiColumns = colData || [];
   return { meta, apiColumns };
 }
 
@@ -166,20 +170,20 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           ObjName: PI_CONFIG.SP_INQUIRY_TYPES,
           JSon: JSON.stringify([
             {
-              PrmCompanyId: DEFAULT_COMPANY_ID,
-              PrmDivisionId: Number(divisionId),
-              PrmYearId: PI_CONFIG.CONFIG_YEAR_ID,
-              PrmUserId: getUserSession().loginId,
-              PrmFormTag: PI_CONFIG.FORM_TAG,
-              PrmRefType: "",
+              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmdivisionid: Number(divisionId),
+              prmyearid: PI_CONFIG.CONFIG_YEAR_ID,
+              prmuserid: getUserSession().loginId,
+              prmformtag: PI_CONFIG.FORM_TAG,
+              prmreftype: "",
             },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = (res?.Table || []).map((r) => ({
-          value: String(r.ConfigurationId),
-          label: r.Name,
+        const opts = (res || []).map((r) => ({
+          value: String(r.configurationid),
+          label: r.name,
         }));
         setInquiryTypeOptions(opts);
         return opts;
@@ -203,11 +207,11 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: PI_CONFIG.SP_RB_META,
-          JSon: JSON.stringify([{ prmRBCode: PI_CONFIG.RB_MASTER }]),
+          JSon: JSON.stringify([{ prmrbcode: PI_CONFIG.RB_MASTER }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const tableRow = metaData?.Table?.[0];
+        const tableRow = metaData?.[0];
         if (!tableRow) throw new Error("No PI header RB metadata returned from server.");
 
         const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
@@ -219,7 +223,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           prmMasterID: hdrMeta.RBID,
           prmLoginID: getUserSession().loginId,
         });
-        const apiColumns = colData?.Links || [];
+        const apiColumns = colData || [];
         setHeaderColumns(apiColumns);
         console.log(
           "%c[PI] Header columns received:",
@@ -239,9 +243,9 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
             ObjName: PI_CONFIG.SP_DIVISIONS,
             JSon: JSON.stringify([
               {
-                prmUserID: getUserSession().loginId,
-                prmCompanyID: DEFAULT_COMPANY_ID,
-                prmYearID: PI_CONFIG.DIVISION_YEAR_ID,
+                prmuserid: getUserSession().loginId,
+                prmcompanyid: DEFAULT_COMPANY_ID,
+                prmyearid: PI_CONFIG.DIVISION_YEAR_ID,
               },
             ]),
             p_ErrCode: -1,
@@ -251,9 +255,9 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
             return null;
           }),
           get(ENDPOINTS.FN_FETCH_DATA, {
-            ObjType: OBJ_TYPE.PROCEDURE,
+            ObjType: OBJ_TYPE.FUNCTION,
             ObjName: PI_CONFIG.SP_DEPARTMENTS,
-            JSon: JSON.stringify([{ PrmDeptID: 0 }]),
+            JSon: JSON.stringify([{ prmdeptid: 0 ,prmloginid: DEFAULT_LOGIN_ID }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
           }).catch((err) => {
@@ -263,14 +267,14 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         ]);
 
         setDivisionOptions(
-          (divisionData?.Table || []).map((r) => ({
+          (divisionData || []).map((r) => ({
             value: String(r.divisionid),
             label: r.divisionname,
           }))
         );
 
         setDepartmentOptions(
-          (departmentData?.Table || []).map((r) => ({
+          (departmentData || []).map((r) => ({
             value: String(r.departmentid ?? r.deptid),
             label: r.departmentname ?? r.deptname,
           }))
@@ -295,16 +299,16 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         ObjName: PI_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([
           {
-            prmUserID: getUserSession().loginId,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID: PI_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: getUserSession().loginId,
+            prmcompanyid: DEFAULT_COMPANY_ID,
+            prmyearid: PI_CONFIG.DIVISION_YEAR_ID,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setDivisionOptions(
-        (divisionData?.Table || []).map((r) => ({
+        (divisionData || []).map((r) => ({
           value: String(r.divisionid),
           label: r.divisionname,
         }))
@@ -318,14 +322,14 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   const fetchDepartmentOptions = useCallback(async () => {
     try {
       const departmentData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.PROCEDURE,
+        ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_DEPARTMENTS,
-        JSon: JSON.stringify([{ PrmDeptID: 0 }]),
+        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setDepartmentOptions(
-        (departmentData?.Table || []).map((r) => ({
+        (departmentData || []).map((r) => ({
           value: String(r.departmentid ?? r.deptid),
           label: r.departmentname ?? r.deptname,
         }))
@@ -376,16 +380,16 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
+      // Fallback keys match the live rb_purinquirydet schema (lowercase) — verified
+      // via GetDetailColData; "expense"/"gstperc" don't exist as columns in this RB.
       setEventColumns(
         buildEventColumnSet(apiColumns, [
-          "ItemID",
-          "TranQty",
-          "BaseQty",
-          "BaseRate",
-          "TranRate",
-          "DiscPerc",
-          "Expense",
-          "GSTPerc",
+          "itemid",
+          "tranqty",
+          "baseqty",
+          "baserate",
+          "tranrate",
+          "discperc",
         ])
       );
       setAllColumns(
@@ -474,9 +478,9 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         }),
       ]);
 
-      const master = mstRes?.Links?.[0] ?? null;
-      const details = mapDetailRowsToGridRows(detRes?.Links || []);
-      const indentDetails = indtRes?.Links || [];
+      const master = mstRes?.[0] ?? null;
+      const details = mapDetailRowsToGridRows(detRes || []);
+      const indentDetails = indtRes || [];
 
       return {
         master,
@@ -511,12 +515,20 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     async (colName, rowData, headerValues) => {
       setIsEventFiring(true);
       try {
-        const { id, ...newRowData } = rowData;
-        const result = await get(ENDPOINTS.FN_TBL_RB_GRID_EVENT, {
-          GridEventFuncName: PI_CONFIG.SP_GRID_EVENT,
-          EventColName: colName,
-          DetJSON: JSON.stringify([newRowData]),
-          MstJSon: JSON.stringify([headerValues]),
+        const { id, ...rawRowData } = rowData;
+        const colTypeMap = Object.fromEntries(allColumns.map((c) => [c.key, c.colDataType]));
+        const newRowData = Object.fromEntries(
+          Object.entries(rawRowData).map(([k, v]) => {
+            if (isNumericColDataType(colTypeMap[k]) && v !== null && v !== undefined && v !== "")
+              return [k, Number(v)];
+            return [k, v];
+          })
+        );
+        const result = await getApiClient(API_BASE_URL_IMS).post(ENDPOINTS.TRAN_FORM_EVENT, {
+          prmobjname: PI_CONFIG.SP_GRID_EVENT,
+          prmmyeventcol: colName,
+          prmdetjson: buildDetJSON([newRowData], colTypeMap),
+          prmmstjson: JSON.stringify([headerValues]),
         });
         console.log("%c[PI] CellEvent response:", "color:#f59e0b;font-weight:600", {
           col: colName,
@@ -530,7 +542,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         setIsEventFiring(false);
       }
     },
-    [get]
+    [allColumns]
   );
 
   const saveTxn = useCallback(

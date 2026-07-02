@@ -40,6 +40,7 @@ import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
+  isTruthyApiFlag,
   syncHeaderFilterWithApiCol,
 } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
@@ -64,6 +65,8 @@ const nextTempId = () => _dpcTempId--;
 
 // ── Item picker column builder (fallback when RB metadata columns are empty) ──
 const PICKER_HIDDEN_COLS = new Set(["ItemID", "ItemTypeID", "ParentUKey", "ChildFKey", "BaseUnitID", "TranUnitID"]);
+// Summary panel fields — exclude from header filter (already shown in footer EnterpriseSummaryPanel)
+const DPC_SUMMARY_COL_NAMES = new Set(DPC_SUMMARY_FIELDS.map((f) => f.SummaryParameterID.toLowerCase()));
 const PICKER_LABEL_MAP = {
   ItemTypeDesc: "Item Type",
   ItemCode:     "Item Code",
@@ -99,24 +102,24 @@ function buildPickerColumnsFromData(firstRow) {
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID  ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.YearID     ?? session.yearId    ?? DPC_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.LoginID    ?? session.loginId,
-    sessionId: listRecord?.SessionID  ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.AstDepID   ?? listRecord?.IDNumber  ?? recordId,
+    companyId: listRecord?.companyid  ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId:    listRecord?.yearid     ?? session.yearId    ?? DPC_CONFIG.CONFIG_YEAR_ID,
+    loginId:   listRecord?.loginid    ?? session.loginId,
+    sessionId: listRecord?.sessionid  ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
+    idNumber:  listRecord?.astdepid   ?? listRecord?.idnumber  ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode:       headerValues.TranCode       ?? "",
-    TranDate:       headerValues.TranDate        ?? "",
-    DivisionID:     String(headerValues.DivisionID   ?? ""),
-    FixedAstAcID:   String(headerValues.FixedAstAcID ?? ""),
-    TotalDepAmount: String(headerValues.TotalDepAmount ?? "0"),
-    Remarks:        headerValues.Remarks         ?? "",
-    FuncCode:       headerValues.FuncCode        ?? "",
+    trancode:       headerValues.trancode       ?? "",
+    trandate:       headerValues.trandate        ?? "",
+    divisionid:     String(headerValues.divisionid   ?? ""),
+    fixedastacid:   String(headerValues.fixedastacid ?? ""),
+    totaldepamount: String(headerValues.totaldepamount ?? "0"),
+    remarks:        headerValues.remarks         ?? "",
+    funccode:       headerValues.funccode        ?? "",
   };
 }
 
@@ -133,7 +136,8 @@ function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
   Object.entries(item).forEach(([k, v]) => {
-    if (k !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+    const lk = k.toLowerCase();
+    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -163,7 +167,7 @@ export default function AssetsDepreciationForm() {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, assetsAccOptions,
     fetchAssetsAccByDivision, clearAssetsAccOptions,
-    columns, allColumns, eventColumns, isFetching, metaError,
+    columns, allColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
@@ -181,23 +185,23 @@ export default function AssetsDepreciationForm() {
   }, []);
 
   const headerValuesRef = useRef({
-    TranCode:       "",
-    TranDate:       todayISO,
-    DivisionID:     0,
-    FixedAstAcID:   0,
-    TotalDepAmount: 0,
-    Remarks:        "",
-    FuncCode:       DPC_CONFIG.RB_MASTER,
-    TranMstGenID:   0,
-    CompanyID:      DEFAULT_COMPANY_ID,
-    YearID:         DPC_CONFIG.CONFIG_YEAR_ID,
-    LoginID:        DEFAULT_LOGIN_ID,
-    IDNumber:       recordId,
+    trancode:       "",
+    trandate:       todayISO,
+    divisionid:     0,
+    fixedastacid:   0,
+    totaldepamount: 0,
+    remarks:        "",
+    funccode:       DPC_CONFIG.RB_MASTER,
+    tranmstgenid:   0,
+    companyid:      DEFAULT_COMPANY_ID,
+    yearid:         DPC_CONFIG.CONFIG_YEAR_ID,
+    loginid:        DEFAULT_LOGIN_ID,
+    idnumber:       recordId,
   });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { TranDate: todayISO };
+    return { trandate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey,     setFilterResetKey]     = useState(0);
@@ -261,7 +265,7 @@ export default function AssetsDepreciationForm() {
   // Eager grid column load for new records (once detail meta is ready)
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -295,7 +299,7 @@ export default function AssetsDepreciationForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
+      const activeCols = await fetchGridColumns(headerValues.divisionid ?? 0, {
         existingRecordEdit: true,
         masterRow: master,
         fetchUnlockedDropdowns: false,
@@ -323,8 +327,8 @@ export default function AssetsDepreciationForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     const hv = headerValuesRef.current;
-    fetchUnlockedHeaderDropdowns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0);
-    fetchGridColumns(hv.DivisionID ?? loadedMasterRow?.DivisionID ?? 0, {
+    fetchUnlockedHeaderDropdowns(hv.divisionid ?? loadedMasterRow?.divisionid ?? 0);
+    fetchGridColumns(hv.divisionid ?? loadedMasterRow?.divisionid ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -339,11 +343,11 @@ export default function AssetsDepreciationForm() {
   // ── syncedSummaryFields — labels from API headerColumns ───────────────────
   const syncedSummaryFields = useMemo(() => {
     const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
+    headerColumns.forEach((col) => { colMap[col.colname] = col; });
     return DPC_SUMMARY_FIELDS.map((f) => ({
       ...f,
       mstKey: f.SummaryParameterID,
-      label:  colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
+      label:  colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
     }));
   }, [headerColumns]);
 
@@ -351,22 +355,22 @@ export default function AssetsDepreciationForm() {
   // ColCtrlType from RB_AstDepCAMst drives control rendering directly.
   // Only Division + FixedAstAcID get API-loaded options injected by ColName.
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    DivisionID:   divisionOptions,
-    FixedAstAcID: assetsAccOptions,
+    divisionid:   divisionOptions,
+    fixedastacid: assetsAccOptions,
   }), [divisionOptions, assetsAccOptions]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
     return headerColumns
-      .filter((col) => col.IsVisible !== false)
+      .filter((col) => isTruthyApiFlag(col.isvisible) && !DPC_SUMMARY_COL_NAMES.has(col.colname))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.ColName];
+        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
-          FilterParameterID: col.ColName,
-          FilterColName:     col.ColName,
-          FilterCaption:     col.DisplayName ?? col.ColName,
-          FilterColCtrlType: col.ColCtrlType ?? 0,
+          FilterParameterID: col.colname,
+          FilterColName:     col.colname,
+          FilterCaption:     col.displayname ?? col.colname,
+          FilterColCtrlType: col.colctrltype ?? 0,
           ...(staticOptions ? { staticOptions } : {}),
         };
         return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
@@ -397,16 +401,16 @@ export default function AssetsDepreciationForm() {
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (colName === "DivisionID") {
+    if (colName === "divisionid") {
       requestGridClear("Division", async () => {
-        headerValuesRef.current.FixedAstAcID = 0;
+        headerValuesRef.current.fixedastacid = 0;
         clearAssetsAccOptions();
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await fetchAssetsAccByDivision(val);
           requestAnimationFrame(() =>
             filterPanelRef.current
-              ?.querySelector("#efq-FixedAstAcID .search-select__trigger")
+              ?.querySelector("#efq-fixedastacid .search-select__trigger")
               ?.focus()
           );
         }
@@ -414,7 +418,7 @@ export default function AssetsDepreciationForm() {
       return;
     }
 
-    if (colName === "FixedAstAcID") {
+    if (colName === "fixedastacid") {
       requestGridClear("Fixed Asset A/C", () => {
         itemGridRef.current?.clearRows?.();
       });
@@ -427,22 +431,13 @@ export default function AssetsDepreciationForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0);
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
       setIsGridLoading(false);
     }
   }, [columns, allColumns, fetchGridColumns]);
-
-  // ── Cell event — Amount = Qty × Rate (client-side; no SP_GRID_EVENT in MRD) ──
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    if (colKey === "Qty" || colKey === "Rate") {
-      const qty  = Number(rowData.Qty)  || 0;
-      const rate = Number(rowData.Rate) || 0;
-      itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
-    }
-  }, []);
 
   // ── Select Item ────────────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
@@ -453,7 +448,7 @@ export default function AssetsDepreciationForm() {
       return;
     }
 
-    const { DivisionID, FixedAstAcID, TranDate } = headerValues;
+    const { divisionid, fixedastacid, trandate } = headerValues;
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -468,34 +463,34 @@ export default function AssetsDepreciationForm() {
         JSon: JSON.stringify([{ prmRBCode: DPC_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      const rbRow = rbRes?.Table?.[0];
+      const rbRow = rbRes?.[0];
       if (!rbRow) throw new Error("Could not load item picker configuration.");
 
       const [colRes, rowRes] = await Promise.all([
         getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-          prmMasterID: rbRow.RBID,
+          prmMasterID: rbRow.rbid,
           prmLoginID:  DEFAULT_LOGIN_ID,
         }),
         getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: DPC_CONFIG.SP_ITEM_PICKER,
           JSon: JSON.stringify([{
-            prmTranDate:    TranDate ?? "",
-            prmDivisionID:  Number(DivisionID   ?? 0),
+            prmTranDate:    trandate ?? "",
+            prmDivisionID:  Number(divisionid   ?? 0),
             prmCompanyID:   DEFAULT_COMPANY_ID,
             prmYearID:      DPC_CONFIG.CONFIG_YEAR_ID,
             prmMLNNotIN:    "",
             prmGroupID:     0,
-            prmAccountID:   Number(FixedAstAcID ?? 0),
+            prmAccountID:   Number(fixedastacid ?? 0),
             prmDepType:     "",
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }),
       ]);
 
-      const rows    = rowRes?.Table || [];
-      const rbLinks = colRes?.Links || [];
-      const rbDataKeys  = new Set(rbLinks.map((c) => c.ColName));
+      const rows    = rowRes || [];
+      const rbLinks = colRes || [];
+      const rbDataKeys  = new Set(rbLinks.map((c) => c.colname));
       const dataKeys    = rows.length > 0 ? Object.keys(rows[0]) : [];
       const rbMatchesData = rbLinks.length > 0 && dataKeys.some((k) => rbDataKeys.has(k));
 
@@ -534,8 +529,17 @@ export default function AssetsDepreciationForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
-  const handleSave = useCallback(async () => {
-    const headerColsToValidate = headerColumns.filter((c) => c.IsVisible !== false);
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) navigate("/assets-depreciation");
+    else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors  = validateGridRows(detailRows, columns);
@@ -547,21 +551,21 @@ export default function AssetsDepreciationForm() {
     }
 
     const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
+    headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.LoginID = DEFAULT_LOGIN_ID;
+    mstRow.loginid = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
     });
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: DPC_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
@@ -576,6 +580,7 @@ export default function AssetsDepreciationForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[DPC Save] Failed:", err);
@@ -584,13 +589,14 @@ export default function AssetsDepreciationForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen,    setDiscardOpen]    = useState(false);
   const [clearRowsOpen,  setClearRowsOpen]  = useState(false);
@@ -608,12 +614,12 @@ export default function AssetsDepreciationForm() {
     clearAssetsAccOptions();
 
     headerValuesRef.current = {
-      TranCode: "", TranDate: todayISO,
-      DivisionID: 0, FixedAstAcID: 0,
-      TotalDepAmount: 0, Remarks: "",
-      FuncCode: DPC_CONFIG.RB_MASTER, TranMstGenID: 0,
-      CompanyID: DEFAULT_COMPANY_ID, YearID: DPC_CONFIG.CONFIG_YEAR_ID,
-      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0,
+      trancode: "", trandate: todayISO,
+      divisionid: 0, fixedastacid: 0,
+      totaldepamount: 0, remarks: "",
+      funccode: DPC_CONFIG.RB_MASTER, tranmstgenid: 0,
+      companyid: DEFAULT_COMPANY_ID, yearid: DPC_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID, idnumber: 0,
     };
 
     queuedRowsRef.current        = [];
@@ -774,8 +780,6 @@ export default function AssetsDepreciationForm() {
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
             onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
           />

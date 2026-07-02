@@ -56,9 +56,9 @@ export const PURCHASE_GST_SUMMARY_FIELDS = [
   { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
 ];
 
-export const CURRENCY_READONLY_FIELDS = ["CurrencyID", "CurrencyRate"];
+export const CURRENCY_READONLY_FIELDS = ["currencyid", "currencyrate"];
 
-export const DEFAULT_BASED_ON_FILTER_VALUES = { BasedOnID: "0" };
+export const DEFAULT_BASED_ON_FILTER_VALUES = { basedonid: "0" };
 
 /** Division change → clear config type (common cascade). */
 export const DIVISION_CONFIG_CASCADE_RESET = { DivisionID: ["ConfigID"] };

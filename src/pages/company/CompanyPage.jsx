@@ -1,20 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Building, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { DEFAULT_COMPANY_ID } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useCompanyMaster } from "../../hooks/useCompanyMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import CompanyForm from "./CompanyForm";
 import { CO_CONFIG } from "./constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./CompanyPage.css";
-
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -23,14 +18,14 @@ function buildListParams() {
     ObjName: CO_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        PrmCompanyID: DEFAULT_COMPANY_ID,
-        prmDivisionID: CO_CONFIG.LIST_DIVISION_ID,
-        prmFromDate: today,
-        prmToDate: today,
+        prmcompanyid:  DEFAULT_COMPANY_ID,
+        prmdivisionid: CO_CONFIG.LIST_DIVISION_ID,
+        prmfromdate:   today,
+        prmtodate:     today,
       },
     ]),
     p_ErrCode: -1,
-    p_ErrMsg: "",
+    p_ErrMsg:  "",
   };
 }
 
@@ -38,6 +33,7 @@ export default function CompanyPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
+    allColumns,
     dropdownOptions,
     headerFetching,
     headerError,
@@ -47,27 +43,23 @@ export default function CompanyPage() {
     seedOptionsFromMaster,
   } = useCompanyMaster();
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [data,     setData]     = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("add");
-  const [editPrefill, setEditPrefill] = useState(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editLoadError, setEditLoadError] = useState(null);
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [modalMode,    setModalMode]    = useState("add");
+  const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title: "Company",
+    title:    "Company",
     subtitle: "Browse companies or create a new company record.",
     showBack: true,
-    backTo: "/",
+    backTo:   "/",
   });
 
-  useEffect(() => {
-    fetchHeaderMeta();
-  }, [fetchHeaderMeta]);
+  useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -83,71 +75,40 @@ export default function CompanyPage() {
     }
   }, [fetchListRows]);
 
-  useEffect(() => {
-    fetchList();
-  }, [fetchList]);
+  useEffect(() => { fetchList(); }, [fetchList]);
 
   const handleAddNew = useCallback(() => {
     setModalMode("add");
-    setEditPrefill(null);
-    setEditLoadError(null);
+    setEditRecordId(null);
     setModalOpen(true);
   }, []);
 
-  const handleEdit = useCallback(
-    async (row) => {
-      const idNumber = resolveListRowId(row);
-      setModalMode("edit");
-      setEditPrefill(null);
-      setEditLoadError(null);
-      setModalOpen(true);
-      setEditLoading(true);
-      try {
-        const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: CO_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
-          sessionId: DEFAULT_SESSION_ID,
-          idNumber,
-        });
-        if (!result.master || !result.headerValues) {
-          setEditLoadError("Record not found.");
-          return;
-        }
-        seedOptionsFromMaster(result.master, result.headerValues);
-        setEditPrefill(result);
-      } catch (err) {
-        setEditLoadError(err?.message || "Failed to load record.");
-      } finally {
-        setEditLoading(false);
-      }
-    },
-    [fetchEditRecord, seedOptionsFromMaster]
-  );
-
-  const handleCloseModal = useCallback(() => {
-    setModalOpen(false);
-    setEditPrefill(null);
-    setEditLoadError(null);
+  const handleEdit = useCallback((idNumber) => {
+    setModalMode("edit");
+    setEditRecordId(idNumber);
+    setModalOpen(true);
   }, []);
 
   const handleSaved = useCallback(() => {
-    handleCloseModal();
+    setModalOpen(false);
     fetchList();
-  }, [fetchList, handleCloseModal]);
+  }, [fetchList]);
 
   const columns = useMemo(
     () =>
       buildListColumnsFromApi({
         data,
         fieldDefs,
-        onEdit: handleEdit,
+        onEdit: (row) => {
+          const id = resolveListRowId(row);
+          if (id != null) handleEdit(id);
+        },
         renderEditCell: (row, onEdit) => (
           <button
             type="button"
             className="co-list__edit-btn"
-            title={`Edit ${row.Name ?? row.Code ?? ""}`}
-            aria-label={`Edit ${row.Name ?? row.Code ?? ""}`}
+            title={`Edit ${row.name ?? row.Name ?? row.code ?? row.Code ?? ""}`}
+            aria-label={`Edit ${row.name ?? row.Name ?? row.code ?? row.Code ?? ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(row);
@@ -183,9 +144,7 @@ export default function CompanyPage() {
               aria-label="Rows per page"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
+                <option key={n} value={n}>{n}</option>
               ))}
             </select>
           </div>
@@ -202,6 +161,7 @@ export default function CompanyPage() {
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No companies found."
+          searchable
           hideHeader
           fill
         />
@@ -210,16 +170,17 @@ export default function CompanyPage() {
       <CompanyForm
         isOpen={modalOpen}
         mode={modalMode}
-        onClose={handleCloseModal}
+        recordId={editRecordId}
+        onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         fieldDefs={fieldDefs}
+        allColumns={allColumns}
         defsLoading={headerFetching}
         defsError={headerError}
         dropdownOptions={dropdownOptions}
         onRefreshDropdowns={refreshDropdownOptions}
-        editPrefill={editPrefill}
-        recordLoading={editLoading}
-        recordLoadError={editLoadError}
+        fetchEditRecord={fetchEditRecord}
+        seedOptionsFromMaster={seedOptionsFromMaster}
       />
     </div>
   );

@@ -35,6 +35,7 @@ import {
 import { getUserSession } from "../../session/userSession";
 import {
   isLockOnEditModeCol,
+  isTruthyApiFlag,
   syncHeaderFilterWithApiCol,
 } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
@@ -56,27 +57,30 @@ import "./AssetsItemOpeningPage.css";
 let _aopTempId = -1;
 const nextTempId = () => _aopTempId--;
 
+// Summary panel fields — exclude from header filter (already shown in footer EnterpriseSummaryPanel)
+const AOP_SUMMARY_COL_NAMES = new Set(AOP_SUMMARY_FIELDS.map((f) => f.SummaryParameterID.toLowerCase()));
+
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.CompanyID  ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.YearID     ?? session.yearId    ?? AOP_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.LoginID    ?? session.loginId,
-    sessionId: listRecord?.SessionID  ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.AopID      ?? listRecord?.IDNumber  ?? recordId,
+    companyId: listRecord?.companyid  ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId:    listRecord?.yearid     ?? session.yearId    ?? AOP_CONFIG.CONFIG_YEAR_ID,
+    loginId:   listRecord?.loginid    ?? session.loginId,
+    sessionId: listRecord?.sessionid  ?? DEFAULT_SESSION_ID,
+    idNumber:  listRecord?.aopid      ?? listRecord?.idnumber  ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    TranCode:    headerValues.TranCode    ?? "",
-    DivisionID:  String(headerValues.DivisionID  ?? ""),
-    ItemGroupID: String(headerValues.ItemGroupID ?? ""),
-    ItemID:      String(headerValues.ItemID      ?? ""),
-    AccountID:   String(headerValues.AccountID   ?? ""),
-    Remark:      headerValues.Remark     ?? "",
-    FuncCode:    headerValues.FuncCode   ?? "",
+    trancode:    headerValues.trancode    ?? "",
+    divisionid:  String(headerValues.divisionid  ?? ""),
+    itemgroupid: String(headerValues.itemgroupid ?? ""),
+    itemid:      String(headerValues.itemid      ?? ""),
+    accountid:   String(headerValues.accountid   ?? ""),
+    remark:      headerValues.remark     ?? "",
+    funccode:    headerValues.funccode   ?? "",
   };
 }
 
@@ -128,18 +132,18 @@ export default function AssetsItemOpeningForm() {
   const editRecordLoadedRef = useRef(false);
 
   const headerValuesRef = useRef({
-    TranCode:    "",
-    DivisionID:  0,
-    ItemGroupID: 0,
-    ItemID:      0,
-    AccountID:   0,
-    Remark:      "",
-    FuncCode:    AOP_CONFIG.RB_MASTER,
-    TranMstGenID: 0,
-    CompanyID:   DEFAULT_COMPANY_ID,
-    YearID:      AOP_CONFIG.CONFIG_YEAR_ID,
-    LoginID:     DEFAULT_LOGIN_ID,
-    IDNumber:    recordId,
+    trancode:    "",
+    divisionid:  0,
+    itemgroupid: 0,
+    itemid:      0,
+    accountid:   0,
+    remark:      "",
+    funccode:    AOP_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid:   DEFAULT_COMPANY_ID,
+    yearid:      AOP_CONFIG.CONFIG_YEAR_ID,
+    loginid:     DEFAULT_LOGIN_ID,
+    idnumber:    recordId,
   });
 
   const filterInitialValues = useMemo(() => loadedFilterValues ?? {}, [loadedFilterValues]);
@@ -203,7 +207,7 @@ export default function AssetsItemOpeningForm() {
   // Eager grid column load for new records
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -237,7 +241,7 @@ export default function AssetsItemOpeningForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const activeCols = await fetchGridColumns(headerValues.DivisionID ?? 0, {
+      const activeCols = await fetchGridColumns(headerValues.divisionid ?? 0, {
         existingRecordEdit: true,
         masterRow: master,
         fetchUnlockedDropdowns: false,
@@ -266,10 +270,10 @@ export default function AssetsItemOpeningForm() {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     const hv = headerValuesRef.current;
     fetchUnlockedHeaderDropdowns(
-      hv.DivisionID  ?? loadedMasterRow?.DivisionID  ?? 0,
-      hv.ItemGroupID ?? loadedMasterRow?.ItemGroupID ?? 0,
+      hv.divisionid  ?? loadedMasterRow?.divisionid  ?? 0,
+      hv.itemgroupid ?? loadedMasterRow?.itemgroupid ?? 0,
     );
-    fetchGridColumns(hv.DivisionID ?? 0, {
+    fetchGridColumns(hv.divisionid ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -284,34 +288,34 @@ export default function AssetsItemOpeningForm() {
   // ── syncedSummaryFields ───────────────────────────────────────────────────
   const syncedSummaryFields = useMemo(() => {
     const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.ColName] = col; });
+    headerColumns.forEach((col) => { colMap[col.colname] = col; });
     return AOP_SUMMARY_FIELDS.map((f) => ({
       ...f,
       mstKey: f.SummaryParameterID,
-      label:  f.label ?? colMap[f.SummaryParameterID]?.DisplayName ?? f.SummaryParameterID,
+      label:  f.label ?? colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
     }));
   }, [headerColumns]);
 
   // ── syncedFilters (fully dynamic from API) ────────────────────────────────
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    DivisionID:  divisionOptions,
-    ItemGroupID: itemGroupOptions,
-    ItemID:      itemOptions,
-    AccountID:   assetsAccOptions,
+    divisionid:  divisionOptions,
+    itemgroupid: itemGroupOptions,
+    itemid:      itemOptions,
+    accountid:   assetsAccOptions,
   }), [divisionOptions, itemGroupOptions, itemOptions, assetsAccOptions]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
     return headerColumns
-      .filter((col) => col.IsVisible !== false)
+      .filter((col) => isTruthyApiFlag(col.isvisible) && !AOP_SUMMARY_COL_NAMES.has(col.colname))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.ColName];
+        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
-          FilterParameterID: col.ColName,
-          FilterColName:     col.ColName,
-          FilterCaption:     col.DisplayName ?? col.ColName,
-          FilterColCtrlType: col.ColCtrlType ?? 0,
+          FilterParameterID: col.colname,
+          FilterColName:     col.colname,
+          FilterCaption:     col.displayname ?? col.colname,
+          FilterColCtrlType: col.colctrltype ?? 0,
           ...(staticOptions ? { staticOptions } : {}),
         };
         return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
@@ -342,11 +346,11 @@ export default function AssetsItemOpeningForm() {
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (colName === "DivisionID") {
+    if (colName === "divisionid") {
       requestGridClear("Division", async () => {
-        headerValuesRef.current.ItemGroupID = 0;
-        headerValuesRef.current.ItemID      = 0;
-        headerValuesRef.current.AccountID   = 0;
+        headerValuesRef.current.itemgroupid = 0;
+        headerValuesRef.current.itemid      = 0;
+        headerValuesRef.current.accountid   = 0;
         clearItemGroupOptions();
         clearItemOptions();
         clearAssetsAccOptions();
@@ -358,7 +362,7 @@ export default function AssetsItemOpeningForm() {
           ]);
           requestAnimationFrame(() =>
             filterPanelRef.current
-              ?.querySelector("#efq-ItemGroupID .search-select__trigger")
+              ?.querySelector("#efq-itemgroupid .search-select__trigger")
               ?.focus()
           );
         }
@@ -366,17 +370,17 @@ export default function AssetsItemOpeningForm() {
       return;
     }
 
-    if (colName === "ItemGroupID") {
+    if (colName === "itemgroupid") {
       requestGridClear("Item Group", async () => {
-        headerValuesRef.current.ItemID = 0;
+        headerValuesRef.current.itemid = 0;
         clearItemOptions();
         itemGridRef.current?.clearRows?.();
-        const divId = headerValuesRef.current.DivisionID;
+        const divId = headerValuesRef.current.divisionid;
         if (val && val !== "0" && divId && divId !== "0") {
           await fetchItems(divId, val);
           requestAnimationFrame(() =>
             filterPanelRef.current
-              ?.querySelector("#efq-ItemID .search-select__trigger")
+              ?.querySelector("#efq-itemid .search-select__trigger")
               ?.focus()
           );
         }
@@ -394,22 +398,13 @@ export default function AssetsItemOpeningForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchGridColumns(headerValuesRef.current?.DivisionID ?? 0);
+      const activeCols = await fetchGridColumns(headerValuesRef.current?.divisionid ?? 0);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
       setIsGridLoading(false);
     }
   }, [columns, allColumns, fetchGridColumns]);
-
-  // ── Cell event — Amount = Qty × Rate ─────────────────────────────────────
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    if (colKey === "Qty" || colKey === "Rate") {
-      const qty  = Number(rowData.Qty)  || 0;
-      const rate = Number(rowData.Rate) || 0;
-      itemGridRef.current?.updateRow?.(rowId, { Amount: qty * rate });
-    }
-  }, []);
 
   // ── Add New Row ───────────────────────────────────────────────────────────
   const handleAddNewRow = useCallback(async () => {
@@ -429,8 +424,17 @@ export default function AssetsItemOpeningForm() {
   }, []);
 
   // ── Save ──────────────────────────────────────────────────────────────────
-  const handleSave = useCallback(async () => {
-    const headerColsToValidate = headerColumns.filter((c) => c.IsVisible !== false);
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) navigate("/assets-item-opening");
+    else {
+      itemGridRef.current?.clearRows?.();
+      setFilterResetKey((k) => k + 1);
+      exitEditMode();
+    }
+  }, [isEditRoute, navigate, exitEditMode]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors  = validateGridRows(detailRows, columns);
@@ -439,21 +443,21 @@ export default function AssetsItemOpeningForm() {
     if (allErrors.length > 0) { setFormErrors(allErrors); return false; }
 
     const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.ColName] = getColDefault(col.ColDataType); });
+    headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.LoginID = DEFAULT_LOGIN_ID;
+    mstRow.loginid = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, LoginID: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
     });
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: AOP_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.DivisionID, isEdit: isEditRoute }
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
@@ -468,6 +472,7 @@ export default function AssetsItemOpeningForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[AOP Save] Failed:", err);
@@ -476,13 +481,14 @@ export default function AssetsItemOpeningForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
@@ -495,10 +501,10 @@ export default function AssetsItemOpeningForm() {
     clearAssetsAccOptions();
 
     headerValuesRef.current = {
-      TranCode: "", DivisionID: 0, ItemGroupID: 0, ItemID: 0, AccountID: 0, Remark: "",
-      FuncCode: AOP_CONFIG.RB_MASTER, TranMstGenID: 0,
-      CompanyID: DEFAULT_COMPANY_ID, YearID: AOP_CONFIG.CONFIG_YEAR_ID,
-      LoginID: DEFAULT_LOGIN_ID, IDNumber: 0,
+      trancode: "", divisionid: 0, itemgroupid: 0, itemid: 0, accountid: 0, remark: "",
+      funccode: AOP_CONFIG.RB_MASTER, tranmstgenid: 0,
+      companyid: DEFAULT_COMPANY_ID, yearid: AOP_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID, idnumber: 0,
     };
 
     queuedRowsRef.current        = [];
@@ -654,7 +660,6 @@ export default function AssetsItemOpeningForm() {
             emptyMessage="No items yet. Click Add New above."
             onSelectionChange={setItemSelectionCount}
             onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
           />

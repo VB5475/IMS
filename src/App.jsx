@@ -37,6 +37,8 @@ const DivisionWiseRightsPage = lazy(() => import("./pages/division-wise-rights/D
 const ItemMasterPage = lazy(() => import("./pages/item-master/ItemMasterPage"));
 const DepartmentMasterPage = lazy(() => import("./pages/department-master/DepartmentMasterPage"));
 const CompanyPage = lazy(() => import("./pages/company/CompanyPage"));
+const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
+const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetItemMasterPage"));
 
 function AppLayout() {
   return (
@@ -109,6 +111,8 @@ function AppRoutes() {
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
           <Route path="admin/master/item/sub-group-master" element={<SubGroupMasterPage />} />
           <Route path="admin/company/location-master" element={<LocationMasterPage />} />
+          <Route path="admin/company/division-master" element={<DivisionMasterPage />} />
+          <Route path="account/master/asset-item-master" element={<AssetItemMasterPage />} />
           <Route path="admin/user-master" element={<UserMasterPage />} />
           <Route path="admin/user-group" element={<UserGroupPage />} />
           <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />

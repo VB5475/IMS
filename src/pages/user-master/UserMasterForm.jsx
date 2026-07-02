@@ -1,50 +1,39 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Users, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
 import {
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
   DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
+  getColDefault,
+  buildSaveRowFromColumns,
 } from "../../api/constants";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
-import { validateColumnValue } from "../../utils/columnValidation";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { validateApiColumns } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import {
-  buildMasterCascadeResets,
-  buildMasterCascadeDropdownRefresh,
-  buildMasterFormEmpty,
-  getMasterFieldDefaultValue,
   getMasterFieldLabel,
-  getToggleValue,
-  getVisibleHeaderFields,
   isMasterFieldLocked,
   isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
 } from "../../utils/masterFormUtils";
 import { UM_CONFIG } from "./constants";
 
-/** Only non-API field — mirrors GET_DETAIL_COL_DATA Pwd column for confirm entry. */
+/** Synthetic VerifyPWD column — mirrors the Pwd RB column but is never saved. */
 function buildVerifyPasswordField(pwdField) {
   if (!pwdField) return null;
   return {
     ...pwdField,
-    ColName: "VerifyPWD",
+    colname:     "verifypwd",
+    ColName:     "verifypwd",
+    displayname: "Verify Password",
     DisplayName: "Verify Password",
-  };
-}
-
-function buildSaveContext() {
-  return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: UM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: UM_CONFIG.RB_MASTER,
   };
 }
 
@@ -54,6 +43,7 @@ export default function UserMasterForm({
   onClose,
   onSaved,
   fieldDefs = [],
+  allColumns = [],
   defsLoading = false,
   defsError = null,
   dropdownOptions = {},
@@ -64,79 +54,92 @@ export default function UserMasterForm({
 }) {
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
-  const [isEditMode, setIsEditMode] = useState(true);
-  const [formValues, setFormValues] = useState(() =>
-    buildMasterFormEmpty(fieldDefs, buildSaveContext())
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
+  const [isEditMode,    setIsEditMode]    = useState(true);
+  const [formValues,    setFormValues]    = useState({});
+  const [isSaving,      setIsSaving]      = useState(false);
+  const [saveError,     setSaveError]     = useState(null);
+  const [formErrors,    setFormErrors]    = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
-  const pwdField = useMemo(() => fieldDefs.find((f) => f.ColName === "Pwd"), [fieldDefs]);
+  // Seed blank row from ALL RB columns (lowercase) + context + synthetic password fields
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+    return {
+      ...row,
+      yearid:    UM_CONFIG.CONFIG_YEAR_ID,
+      loginid:   DEFAULT_LOGIN_ID,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode:  UM_CONFIG.RB_MASTER,
+      pwd:       "",
+      verifypwd: "",
+    };
+  }, [allColumns]);
+
+  // PG returns lowercase colnames — find password field by lowercase colname
+  const pwdField    = useMemo(() => fieldDefs.find((f) => f.colname === "pwd"),  [fieldDefs]);
   const verifyField = useMemo(() => buildVerifyPasswordField(pwdField), [pwdField]);
 
-  const visibleFields = useMemo(
-    () => getVisibleHeaderFields(fieldDefs).filter((f) => f.ColName !== "Pwd"),
-    [fieldDefs]
-  );
+  // Visible fields sorted by colseqno — exclude pwd (rendered separately below)
+  const visibleFields = useMemo(() =>
+    fieldDefs
+      .filter((f) => f.isvisible && Number(f.colseqno) < 100 && f.colname !== "pwd")
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno)),
+  [fieldDefs]);
 
-  const cascadeResets = useMemo(() => buildMasterCascadeResets(fieldDefs), [fieldDefs]);
-  const cascadeDropdownRefresh = useMemo(
-    () => buildMasterCascadeDropdownRefresh(fieldDefs),
-    [fieldDefs]
-  );
+  // Cascade: parent colname → child colnames to reset (from RB updatekeycolname)
+  const cascadeResets = useMemo(() => {
+    const map = {};
+    fieldDefs.forEach((f) => {
+      const parent = String(f.updatekeycolname ?? "").trim();
+      if (!parent || !f.colname) return;
+      (map[parent] ??= []).push(f.colname);
+    });
+    return map;
+  }, [fieldDefs]);
 
-  const handleChange = useCallback(
-    (key, value) => {
-      setFormValues((prev) => {
-        const next = { ...prev, [key]: value };
-        const resetKeys = cascadeResets[key];
-        if (resetKeys?.length) {
-          resetKeys.forEach((resetKey) => {
-            const field = fieldDefs.find((f) => f.ColName === resetKey);
-            next[resetKey] = field ? getMasterFieldDefaultValue(field) : "";
-          });
-        }
-        return next;
-      });
+  // Cascade: parent colname → child dropdown colnames that need refresh
+  const cascadeDropdownRefresh = useMemo(() => {
+    const map = {};
+    fieldDefs.forEach((f) => {
+      if (Number(f.colctrltype) !== 4) return;
+      const parent = String(f.updatekeycolname ?? "").trim();
+      if (!parent || !f.colname) return;
+      (map[parent] ??= []).push(f.colname);
+    });
+    return map;
+  }, [fieldDefs]);
 
-      if (cascadeDropdownRefresh[key]?.length) {
-        onRefreshDropdowns?.(key);
-      }
-    },
-    [cascadeResets, cascadeDropdownRefresh, fieldDefs, onRefreshDropdowns]
-  );
-
+  // Reset form each time the modal opens
   useEffect(() => {
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
-    const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
-    empty.VerifyPWD = "";
+    setFormErrors([]);
     if (isAddMode) {
-      setFormValues(empty);
+      setFormValues(buildEmptyFromColumns());
     } else if (editPrefill?.headerValues) {
-      setFormValues({ ...empty, ...editPrefill.headerValues });
+      setFormValues({ ...buildEmptyFromColumns(), ...editPrefill.headerValues });
     }
-  }, [isOpen, isAddMode, editPrefill, fieldDefs]);
+  }, [isOpen, isAddMode, editPrefill, buildEmptyFromColumns]);
 
-  useEffect(() => {
-    if (!isOpen || !fieldDefs.length) return;
+  const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      fieldDefs.forEach((f) => {
-        if (isMasterToggleField(f) && next[f.ColName] === undefined) {
-          next[f.ColName] = 0;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
+      const next = { ...prev, [key]: value };
+      const resetKeys = cascadeResets[key];
+      if (resetKeys?.length) {
+        resetKeys.forEach((rk) => { next[rk] = 0; });
+      }
+      return next;
     });
-  }, [isOpen, fieldDefs]);
+    if (cascadeDropdownRefresh[key]?.length) {
+      onRefreshDropdowns?.(key);
+    }
+  }, [cascadeResets, cascadeDropdownRefresh, onRefreshDropdowns]);
 
   function renderSecretField(field, valueKey, locked) {
-    const label = getMasterFieldLabel(field);
     return (
       <MasterFormField
         field={field}
@@ -148,13 +151,13 @@ export default function UserMasterForm({
         inputType="password"
         maskWhenLocked
         autoComplete="new-password"
-        placeholder={`Enter ${label}...`}
+        placeholder={`Enter ${getMasterFieldLabel(field)}...`}
       />
     );
   }
 
   function renderControl(field) {
-    const key = field.ColName;
+    const key = field.colname;
     return (
       <MasterFormField
         field={field}
@@ -170,41 +173,32 @@ export default function UserMasterForm({
   }
 
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
-      skipMandatoryFor: new Set(
-        visibleFields.filter(isMasterToggleField).map((f) => f.ColName)
-      ),
-    });
+    const errors = validateApiColumns(formValues, visibleFields);
 
+    // Password validation
     if (isAddMode) {
-      if (pwdField) {
-        validationErrors.push(...validateMasterFormFields([pwdField], formValues));
-      }
-      if (verifyField) {
-        validationErrors.push(...validateMasterFormFields([verifyField], formValues));
-      }
-    } else if (pwdField && String(formValues.Pwd || "").trim()) {
-      const pwdResult = validateColumnValue(formValues.Pwd, pwdField);
-      if (!pwdResult.valid) validationErrors.push(pwdResult.message);
+      if (pwdField && !String(formValues.pwd ?? "").trim())
+        errors.push("Password is required.");
+      if (verifyField && !String(formValues.verifypwd ?? "").trim())
+        errors.push("Verify Password is required.");
+    } else if (pwdField && String(formValues.pwd || "").trim()) {
+      // Edit mode — validate format only if password is being changed
+      const pwdErrors = validateApiColumns({ pwd: formValues.pwd }, [pwdField]);
+      errors.push(...pwdErrors);
     }
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
-
-    if (isAddMode && formValues.Pwd !== formValues.VerifyPWD) {
-      alert("Password and Verify Password do not match.");
-      return;
+    if (isAddMode && formValues.pwd !== formValues.verifypwd) {
+      errors.push("Password and Verify Password do not match.");
     }
 
+    if (errors.length > 0) { setFormErrors(errors); return; }
+
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
-      const { VerifyPWD: _verify, ...saveRow } = formValues;
-      visibleFields.forEach((f) => {
-        if (isMasterToggleField(f) && f.ColName in saveRow) {
-          saveRow[f.ColName] = getToggleValue(saveRow[f.ColName]);
-        }
-      });
-
+      // buildSaveRowFromColumns only includes RB columns — verifypwd excluded automatically
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
       const payload = withSaveContextFields(
         {
           prmStrMstJSON: JSON.stringify([saveRow]),
@@ -212,9 +206,13 @@ export default function UserMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-
-      await post(UM_CONFIG.SAVE_ENDPOINT, payload);
-      alert("User saved successfully!");
+      const result = await post(UM_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message || "User saved successfully.");
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
       onSaved?.();
     } catch (err) {
       console.error("[UM Save] Failed:", err);
@@ -222,55 +220,46 @@ export default function UserMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, isAddMode, pwdField, verifyField, onSaved, post]);
+  }, [visibleFields, formValues, allColumns, isAddMode, pwdField, verifyField, onSaved, post, notify]);
+
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose();
+    } else {
+      if (isAddMode) { onClose(); return; }
+      setIsEditMode(false);
+      setSaveError(null);
+    }
+  }, [discardAction, isAddMode, onClose]);
 
   const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (isEditMode && !window.confirm("Discard changes?")) return;
-      onClose();
-    });
+    if (!isEditMode) { onClose(); return; }
+    setDiscardAction("close");
   }, [isEditMode, onClose]);
 
   const handleCancelEdit = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
-      if (isAddMode) {
-        onClose();
-        return;
-      }
-      setIsEditMode(false);
-      setSaveError(null);
-    });
-  }, [isAddMode, onClose]);
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
       return (
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--edit"
-          onClick={() => setIsEditMode(true)}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--edit"
+                onClick={() => setIsEditMode(true)}>
           <Pencil size={13} strokeWidth={2} /> Edit
         </button>
       );
     }
     return (
       <div className="master-modal-footer-actions">
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--cancel"
-          onClick={handleCancelEdit}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+                onClick={handleCancelEdit} disabled={isSaving}>
           Cancel
         </button>
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--save"
-          onClick={handleSave}
-          disabled={isSaving}
-        >
+        <button type="button" className="master-modal-btn master-modal-btn--save"
+                onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
         </button>
@@ -278,9 +267,9 @@ export default function UserMasterForm({
     );
   }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
-  const isLoading = defsLoading || recordLoading;
-  const combinedErr = defsError || recordLoadError;
-  const showVerify = isAddMode && verifyField;
+  const isLoading   = defsLoading || recordLoading;
+  const combinedErr = defsError   || recordLoadError;
+  const showVerify  = isAddMode && verifyField;
 
   return (
     <Modal
@@ -293,6 +282,12 @@ export default function UserMasterForm({
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -301,27 +296,18 @@ export default function UserMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="um-form-layout">
             <div className="um-form">
               {visibleFields.map((field) => (
                 <div
-                  key={field.ColName}
-                  className={`um-form-row${
-                    isMasterToggleField(field) ? " um-form-row--toggle" : ""
-                  }`}
+                  key={field.colname}
+                  className={`um-form-row${isMasterToggleField(field) ? " um-form-row--toggle" : ""}`}
                 >
-                  <span
-                    className={`um-form-label${
-                      isMasterFieldRequired(field) ? " um-form-label--required" : ""
-                    }`}
-                  >
+                  <span className={`um-form-label${isMasterFieldRequired(field) ? " um-form-label--required" : ""}`}>
                     {getMasterFieldLabel(field)}
                   </span>
-                  <div
-                    className={`um-form-control${
-                      isMasterToggleField(field) ? " um-form-control--toggle-wrap" : ""
-                    }`}
-                  >
+                  <div className={`um-form-control${isMasterToggleField(field) ? " um-form-control--toggle-wrap" : ""}`}>
                     {renderControl(field)}
                   </div>
                 </div>
@@ -329,36 +315,22 @@ export default function UserMasterForm({
 
               {pwdField && (
                 <div className="um-form-row">
-                  <span
-                    className={`um-form-label${
-                      isMasterFieldRequired(pwdField) && isAddMode
-                        ? " um-form-label--required"
-                        : ""
-                    }`}
-                  >
+                  <span className={`um-form-label${isMasterFieldRequired(pwdField) && isAddMode ? " um-form-label--required" : ""}`}>
                     {getMasterFieldLabel(pwdField)}
                   </span>
                   <div className="um-form-control">
-                    {renderSecretField(
-                      pwdField,
-                      "Pwd",
-                      isMasterFieldLocked(pwdField, { isAddMode, isEditMode })
-                    )}
+                    {renderSecretField(pwdField, "pwd", isMasterFieldLocked(pwdField, { isAddMode, isEditMode }))}
                   </div>
                 </div>
               )}
 
               {showVerify && (
                 <div className="um-form-row">
-                  <span
-                    className={`um-form-label${
-                      isMasterFieldRequired(verifyField) ? " um-form-label--required" : ""
-                    }`}
-                  >
+                  <span className={`um-form-label${isMasterFieldRequired(verifyField) ? " um-form-label--required" : ""}`}>
                     {getMasterFieldLabel(verifyField)}
                   </span>
                   <div className="um-form-control">
-                    {renderSecretField(verifyField, "VerifyPWD", !isEditMode)}
+                    {renderSecretField(verifyField, "verifypwd", !isEditMode)}
                   </div>
                 </div>
               )}

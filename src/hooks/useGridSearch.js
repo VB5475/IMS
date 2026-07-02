@@ -32,7 +32,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
     async (masterID) => {
       try {
         const data = await get(ENDPOINTS.GET_MASTER_DETAIL, { prmMasterID: masterID });
-        const detail = data?.Links?.[0] || null;
+        const detail = data?.[0] || null;
         if (detail) {
           setMasterDetail(detail);
           localStorage.setItem(
@@ -62,7 +62,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
           prmMasterID: masterID,
           prmLoginID: getUserSession().loginId,
         });
-        const apiColumns = colData?.Links || [];
+        const apiColumns = colData || [];
         console.log("%c[Search] Columns:", "color:#6366f1;font-weight:600", apiColumns.length);
 
         // ── Step B: Dropdown options for ColCtrlType=4 columns ──────
@@ -70,8 +70,8 @@ export function useGridSearch(baseURL = API_BASE_URL) {
           localStorage.getItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL) || "{}"
         );
         const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, masterID, {
-          funcCode: storedDetail.FuncCode || "",
-          divisionID: filterValues?.DivisionID || 0,
+          funcCode: storedDetail.funccode || "",
+          divisionID: filterValues?.divisionid || 0,
         });
 
         // ── Step C: Transform to grid column shape ───────────────
@@ -90,13 +90,13 @@ export function useGridSearch(baseURL = API_BASE_URL) {
         const storedMaster = JSON.parse(
           localStorage.getItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL) || "{}"
         );
-        const queryName = storedMaster.QueryName || "";
+        const queryName = storedMaster.queryname || "";
 
         if (!queryName)
           throw new Error("No QueryName found in master detail. Please reload the page.");
 
         const paramData = await get(ENDPOINTS.GET_PARAMETERS, { prmProcedure: queryName });
-        const paramList = paramData?.Links || [];
+        const paramList = paramData || [];
         console.log("%c[Search] Parameters:", "color:#6366f1;font-weight:600", paramList.length);
 
         // ── Step E: Build procedure call string ──────────────────────
@@ -134,7 +134,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
 
         // ── Step F: Grid row data ────────────────────────────────────
         const rowData = await get(ENDPOINTS.GET_MASTER_DATA_FILL, { prmProcedure: procString });
-        const apiRows = (rowData?.Links || []).map((row, idx) => ({
+        const apiRows = (rowData || []).map((row, idx) => ({
           ...row,
           id: row.ObjDetID ?? row.id ?? idx + 1,
         }));
@@ -166,7 +166,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
         const storedDetail = JSON.parse(
           localStorage.getItem(REPORT_WORKSPACE_CONFIG.STORAGE_MASTER_DETAIL) || "{}"
         );
-        const dataSaveProcName = storedDetail.DataSaveProcName || "";
+        const dataSaveProcName = storedDetail.datasaveprocname || "";
 
         console.log("[Save] Selected rows:", selectedRows);
 

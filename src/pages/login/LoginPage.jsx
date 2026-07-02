@@ -222,8 +222,8 @@ export default function LoginPage() {
         get(ENDPOINTS.FN_FETCH_DATA, { ...bootstrap, ObjName: LOGIN_CONFIG.SP_FINANCIAL_YEARS }),
       ]);
 
-      const companyRows = companyRes?.Table ?? [];
-      const yearRows = yearRes?.Table ?? [];
+      const companyRows = companyRes ?? [];
+      const yearRows = yearRes ?? [];
       setCompanies(companyRows);
       setYears(yearRows);
 
@@ -267,7 +267,7 @@ export default function LoginPage() {
         p_ErrMsg: "",
       });
 
-      const authRow = authRes?.Table?.[0];
+      const authRow = authRes?.[0];
       if (!authRow?.loginid) {
         setError("Invalid user ID or password. Please try again.");
         return;
