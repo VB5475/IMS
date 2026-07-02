@@ -12,6 +12,15 @@ import { normalizePickerGridColumns } from "../../utils/dateFormat";
 import { ShoppingCart, CheckCheck, Package, AlertCircle } from "lucide-react";
 import "./OrderItemModal.css";
 
+// SP_ITEM_PICKER row field-name casing isn't guaranteed to match the lowercase
+// `colname` keys EntryGrid columns use (from GetDetailColData) — normalize so
+// every column resolves regardless of how the picker proc cased its output.
+function lowercaseRowKeys(row) {
+  const out = {};
+  Object.entries(row).forEach(([k, v]) => { out[k.toLowerCase()] = v; });
+  return out;
+}
+
 export default function OrderItemModal({
   isOpen = false,
   onClose,
@@ -46,6 +55,8 @@ export default function OrderItemModal({
     }),
     [columns]
   );
+
+  const normalizedItems = useMemo(() => items.map(lowercaseRowKeys), [items]);
 
   const hasColumns = columns.length > 0;
   const showGrid = !isLoading && !error && hasColumns;
@@ -177,7 +188,7 @@ export default function OrderItemModal({
                 config={gridConfig}
                 title=""
                 readOnly
-                initialRows={items}
+                initialRows={normalizedItems}
                 hideBottomPanel
                 emptyMessage="No items found for the selected criteria."
                 onSelectionChange={setSelectedCount}

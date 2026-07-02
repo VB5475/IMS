@@ -70,6 +70,7 @@ import { parseNumberInput } from "../../utils/numberFormat";
 import { isDateColumnDef } from "../../utils/dateFormat";
 import RequiredFieldMark from "../ui/RequiredFieldMark";
 import { parseSerialNumbers } from "../../utils/parseSerialNumbers";
+import { isCheckboxColCtrlType } from "../../data/dummyData";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -586,6 +587,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           </span>
         );
       }
+      if (isCheckboxColCtrlType(col.controlType)) {
+        const checked = Number(value) === 1;
+        return (
+          <span className="cell-label" title={checked ? "Yes" : "No"}>
+            {checked ? "✓" : "—"}
+          </span>
+        );
+      }
       if (isNumericColumnDef(col) || isDateColumnDef(col)) {
         return (
           <span className="cell-label" title={displayValue}>
@@ -610,6 +619,28 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
     const dateConstraints =
       columnMeta?.dataKind === "date" ? getDateInputConstraints(columnMeta) : null;
+
+    if (isCheckboxColCtrlType(col.controlType)) {
+      const checked = Number(value) === 1;
+      const firesEvent = onCellEvent && activeEventColumns.has(col.key);
+      return (
+        <div className="cell-checkbox">
+          <input
+            type="checkbox"
+            className="row-checkbox"
+            checked={checked}
+            onChange={(e) => {
+              const next = e.target.checked ? 1 : 0;
+              handleCellChange(row.id, col.key, next);
+              const currentRow = { ...row, [col.key]: next };
+              if (!validateAndCommitCell(currentRow, col, next)) return;
+              if (firesEvent) fireCellEventForColumn(currentRow, col, next);
+            }}
+            aria-label={`${col.name} for row ${row.id}`}
+          />
+        </div>
+      );
+    }
 
     switch (col.controlType) {
       case 0:

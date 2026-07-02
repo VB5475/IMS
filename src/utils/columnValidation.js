@@ -41,8 +41,11 @@ export function isNumericColDataType(colDataType) {
 }
 
 function hasNumericRangeMeta(apiCol) {
-  return (apiCol?.valueminrange ?? apiCol?.ValueMinRange) != null
-    || (apiCol?.valuemaxrange ?? apiCol?.ValueMaxRange) != null;
+  const min = apiCol?.valueminrange ?? apiCol?.ValueMinRange;
+  const max = apiCol?.valuemaxrange ?? apiCol?.ValueMaxRange;
+  if (min == null && max == null) return false;
+  if (min === 0 && max === 0) return false;
+  return true;
 }
 
 function looksLikeNumericFormat(inputFormat) {
