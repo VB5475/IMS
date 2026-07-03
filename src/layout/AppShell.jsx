@@ -26,6 +26,7 @@ import {
   Building,
   FolderTree,
   Landmark,
+  Truck,
   PanelLeftClose,
   PanelLeft,
   Bell,
@@ -60,6 +61,7 @@ const NAV_SECTIONS = [
       { to: "/admin/master/item/sub-group-master", icon: Package, label: "Sub Group Master", end: false },
       { to: "/admin/company/location-master", icon: MapPin, label: "Location Master", end: false },
       { to: "/admin/company/division-master", icon: Network, label: "Division Master", end: false },
+      { to: "/admin/master/supplier-master", icon: Truck, label: "Supplier Master", end: false },
     ],
   },
   {

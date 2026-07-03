@@ -68,7 +68,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: AOP_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
@@ -113,12 +113,12 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AOP_CONFIG.SP_ITEM_GROUP,
-        JSon: JSON.stringify([{ prmItemTypeID: AOP_ITEM_TYPE_ID }]),
+        JSon: JSON.stringify([{ prmitemtypeid: AOP_ITEM_TYPE_ID }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const opts = (res || []).map((r) => ({
-        value: String(r.maingroupid ?? r.itemgroupid ?? r.idnumber ?? 0),
-        label: String(r.maingroupname ?? r.itemgroupname ?? r.groupname ?? ""),
+        value: r.idnumber,
+        label: String(r.maingroup ?? ""),
       }));
       setItemGroupOptions(opts);
       return opts;
@@ -202,7 +202,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AOP_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AOP_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: AOP_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
