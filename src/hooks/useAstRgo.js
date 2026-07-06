@@ -1,0 +1,532 @@
+import { useState, useCallback, useRef } from "react";
+import { useApi } from "../api/useApi";
+import {
+  ENDPOINTS,
+  API_BASE_URL,
+  DEFAULT_LOGIN_ID,
+  DEFAULT_COMPANY_ID,
+  DEFAULT_SESSION_ID,
+} from "../api/constants";
+import { getUserSession } from "../session/userSession";
+import { ARGO_CONFIG } from "../pages/assets-returnable-gate-pass-out/constants";
+import {
+  fetchDropdownOptions,
+  buildGridColumns,
+  isTruthyApiFlag,
+  isLockOnEditModeCol,
+  isVisibleApiCol,
+  hasVisibleCol,
+} from "../utils/gridUtils";
+
+function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  return [
+    Number(companyId) || DEFAULT_COMPANY_ID,
+    Number(yearId) || ARGO_CONFIG.CONFIG_YEAR_ID,
+    Number(loginId) || getUserSession().loginId,
+    Number(sessionId) || DEFAULT_SESSION_ID,
+    Number(idNumber) || 0,
+  ].join(",");
+}
+
+function toDateInput(value) {
+  if (!value) return "";
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().split("T")[0];
+}
+
+function mapMasterRowToHeaderValues(master) {
+  return {
+    ...master,
+    trandate: toDateInput(master.trandate ?? master.TranDate),
+    issuedate: toDateInput(master.issuedate ?? master.IssueDate) || toDateInput(master.trandate),
+    yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
+    funccode: ARGO_CONFIG.RB_MASTER,
+    loginid: getUserSession().loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    frmtype: ARGO_CONFIG.FRM_TYPE,
+    issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
+  };
+}
+
+function mapDetailRowsToGridRows(rows) {
+  return (rows || []).map((row, index) => ({
+    ...row,
+    id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
+  }));
+}
+
+function buildEventColumnSet(apiColumns, fallbackKeys = []) {
+  const set = new Set();
+  apiColumns.forEach((col) => {
+    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
+      set.add(col.colname);
+    }
+  });
+  if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
+  return set;
+}
+
+function mapDivisionRows(rows) {
+  return (rows || []).map((r) => ({
+    value: String(r.fromdivisionid ?? r.FromDivisionID ?? r.divisionid ?? 0),
+    label: String(r.fromdivision ?? r.FromDivision ?? r.divisionname ?? ""),
+  }));
+}
+
+function mapLocationRows(rows, valueKey = "locationid", labelKey = "locationname") {
+  return (rows || []).map((r) => ({
+    value: String(r[valueKey] ?? r.LocationID ?? r.locationid ?? 0),
+    label: String(r[labelKey] ?? r.LocationName ?? r.locationname ?? ""),
+  }));
+}
+
+function mapDeptRows(rows) {
+  return (rows || []).map((r) => ({
+    value: String(
+      r.fromdeptid ?? r.fromdepartmentid ?? r.DeptID ?? r.deptid ?? 0
+    ),
+    label: String(
+      r.fromdept ?? r.fromdeptname ?? r.fromdepartment ?? r.DeptName ?? r.deptname ?? ""
+    ),
+  }));
+}
+
+function mapToVendorRows(rows) {
+  return (rows || []).map((r) => ({
+    value: String(
+      r.tovendorid ?? r.vendorid ?? r.VendorID ?? r.supplierid ?? r.partyid ?? r.idnumber ?? 0
+    ),
+    label: String(
+      r.tovendor
+      ?? r.tovendorname
+      ?? r.vendorname
+      ?? r.VendorName
+      ?? r.suppliername
+      ?? r.partyname
+      ?? r.name
+      ?? ""
+    ),
+  }));
+}
+
+async function loadRbDetailGridMeta(get, rbCode, storageKey) {
+  const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
+    ObjType: 2,
+    ObjName: ARGO_CONFIG.SP_RB_META,
+    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    p_ErrCode: -1,
+    p_ErrMsg: "",
+  });
+  const tableRow = metaData?.[0];
+  if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
+
+  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
+  localStorage.setItem(storageKey, JSON.stringify(meta));
+
+  const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+    prmMasterID: meta.RBID,
+    prmLoginID: DEFAULT_LOGIN_ID,
+  });
+  return { meta, apiColumns: colData || [] };
+}
+
+export function useAstRgo(baseURL = API_BASE_URL) {
+  const { get } = useApi(baseURL);
+
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
+
+  const [fromDivisionOptions, setFromDivisionOptions] = useState([]);
+  const [fromLocationOptions, setFromLocationOptions] = useState([]);
+  const [toLocationOptions, setToLocationOptions] = useState([]);
+  const [fromDepartmentOptions, setFromDepartmentOptions] = useState([]);
+  const [toVendorOptions, setToVendorOptions] = useState([]);
+  const [configOptions, setConfigOptions] = useState([]);
+
+  const [columns, setColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
+  const [eventColumns, setEventColumns] = useState(() => new Set());
+  const [isFetching, setIsFetching] = useState(false);
+  const [metaError, setMetaError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+
+  const rawDetailColumnsRef = useRef([]);
+  const rawDetailRbMetaRef = useRef(null);
+
+  const divisionFetchJson = useCallback(
+    () => JSON.stringify([{
+      prmuserid: DEFAULT_LOGIN_ID,
+      prmcompanyid: DEFAULT_COMPANY_ID,
+      prmyearid: ARGO_CONFIG.DIVISION_YEAR_ID,
+    }]),
+    []
+  );
+
+  const locationFetchJson = useCallback(
+    () => JSON.stringify([{
+      prmcompanyid: DEFAULT_COMPANY_ID,
+      prmloginid: DEFAULT_LOGIN_ID,
+      prmlocationtype: "",
+    }]),
+    []
+  );
+
+  const deptFetchJson = useCallback(
+    () => JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
+    []
+  );
+
+  const fetchFromDivisions = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_FROM_DIVISION,
+        JSon: divisionFetchJson(),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapDivisionRows(res);
+      setFromDivisionOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARGO] Division fetch failed:", err);
+      setFromDivisionOptions([]);
+      return [];
+    }
+  }, [get, divisionFetchJson]);
+
+  const fetchFromLocations = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_FROM_LOCATION,
+        JSon: locationFetchJson(),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapLocationRows(res, "fromlocationid", "fromlocation");
+      setFromLocationOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARGO] From location fetch failed:", err);
+      setFromLocationOptions([]);
+      return [];
+    }
+  }, [get, locationFetchJson]);
+
+  const fetchToLocations = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_TO_LOCATION,
+        JSon: locationFetchJson(),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapLocationRows(res, "tolocationid", "tolocation");
+      setToLocationOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARGO] To location fetch failed:", err);
+      setToLocationOptions([]);
+      return [];
+    }
+  }, [get, locationFetchJson]);
+
+  const fetchFromDepartments = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_FROM_DEPT,
+        JSon: deptFetchJson(),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapDeptRows(res);
+      setFromDepartmentOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARGO] From department fetch failed:", err);
+      setFromDepartmentOptions([]);
+      return [];
+    }
+  }, [get, deptFetchJson]);
+
+  const fetchToVendors = useCallback(async (divisionId) => {
+    const resolvedDivisionId = Number(divisionId) || 0;
+    if (!resolvedDivisionId) {
+      setToVendorOptions([]);
+      return [];
+    }
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_TO_VENDOR,
+        JSon: JSON.stringify([{
+          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmdivisionid: resolvedDivisionId,
+          prmissuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapToVendorRows(res || []);
+      setToVendorOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARGO] To vendor fetch failed:", err);
+      setToVendorOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchConfigOptions = useCallback(async (divisionId = 0) => {
+    const resolvedDivisionId = Number(divisionId) || 0;
+    if (!resolvedDivisionId) {
+      setConfigOptions([]);
+      return [];
+    }
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_CONFIG,
+        JSon: JSON.stringify([{
+          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmdivisionid: resolvedDivisionId,
+          prmyearid: ARGO_CONFIG.CONFIG_YEAR_ID,
+          prmuserid: DEFAULT_LOGIN_ID,
+          prmformtag: ARGO_CONFIG.CONFIG_FORM_TAG,
+          prmreftype: ARGO_CONFIG.CONFIG_REF_TYPE,
+          prmref_mstid: 0,
+          prmref_detid: 0,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.configurationid ?? r.ConfigurationId ?? r.configid ?? r.idnumber ?? r.IDNumber ?? 0),
+        label: r.name ?? r.Name ?? r.configname ?? r.ConfigName ?? String(r.configurationid ?? r.ConfigurationId ?? ""),
+      }));
+      setConfigOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARGO] Config fetch failed:", err);
+      setConfigOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
+    setHeaderFetching(true);
+    setHeaderError(null);
+    try {
+      const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: ARGO_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: ARGO_CONFIG.RB_MASTER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const tableRow = metaData?.[0];
+      if (!tableRow) throw new Error("No ARGO header RB metadata returned from server.");
+
+      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
+      localStorage.setItem(ARGO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
+
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: hdrMeta.RBID,
+        prmLoginID: DEFAULT_LOGIN_ID,
+      });
+      const cols = colData || [];
+      setHeaderColumns(cols);
+
+      if (skipListDropdowns) {
+        setFromDivisionOptions([]);
+        setFromLocationOptions([]);
+        setToLocationOptions([]);
+        setFromDepartmentOptions([]);
+        setToVendorOptions([]);
+        setConfigOptions([]);
+        return;
+      }
+
+      const tasks = [];
+      if (hasVisibleCol(cols, "fromdivisionid")) tasks.push(fetchFromDivisions());
+      if (hasVisibleCol(cols, "fromlocationid")) tasks.push(fetchFromLocations());
+      if (hasVisibleCol(cols, "tolocationid")) tasks.push(fetchToLocations());
+      if (hasVisibleCol(cols, "fromdeptid")) tasks.push(fetchFromDepartments());
+      await Promise.all(tasks);
+    } catch (err) {
+      console.error("[ARGO] fetchHeaderMeta failed:", err);
+      setHeaderError(err?.message || "Failed to load Assets Returnable Gate Pass Out configuration.");
+    } finally {
+      setHeaderFetching(false);
+    }
+  }, [get, fetchFromDivisions, fetchFromLocations, fetchToLocations, fetchFromDepartments]);
+
+  const fetchDetailMeta = useCallback(async () => {
+    setIsFetching(true);
+    setMetaError(null);
+    try {
+      const { meta, apiColumns } = await loadRbDetailGridMeta(
+        get,
+        ARGO_CONFIG.RB_DETAIL,
+        ARGO_CONFIG.STORAGE_ENTRY_META
+      );
+      rawDetailRbMetaRef.current = meta;
+      rawDetailColumnsRef.current = apiColumns;
+
+      const evtSet = buildEventColumnSet(apiColumns, ["qty", "rate"]);
+      ["qty", "rate", "Qty", "Rate"].forEach((k) => evtSet.add(k));
+      setEventColumns(evtSet);
+
+      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
+    } catch (err) {
+      console.error("[ARGO] fetchDetailMeta failed:", err);
+      setMetaError(err?.message || "Failed to load item grid configuration.");
+    } finally {
+      setIsFetching(false);
+    }
+  }, [get]);
+
+  const fetchGridColumns = useCallback(async (divisionID = 0, editOpts = false) => {
+    const opts = typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
+    const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+    const apiColumns = rawDetailColumnsRef.current;
+    const meta = rawDetailRbMetaRef.current;
+    if (!apiColumns.length || !meta) return [];
+
+    try {
+      const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
+        funcCode: ARGO_CONFIG.RB_DETAIL,
+        divisionID: Number(divisionID) || 0,
+        existingRecordEdit,
+        rowData: masterRow,
+        fetchUnlockedDropdowns,
+      });
+      const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
+        filterable: false,
+        allEditable: true,
+        existingRecordEdit,
+      });
+      setColumns(gridColumns);
+      return gridColumns;
+    } catch (err) {
+      console.error("[ARGO] fetchGridColumns failed:", err);
+      return [];
+    }
+  }, [get]);
+
+  const seedOptionsFromMaster = useCallback((master) => {
+    const seedOne = (id, label, setter) => {
+      if (id != null && id !== 0 && label) setter([{ value: String(id), label: String(label) }]);
+    };
+    seedOne(master.fromdivisionid, master.fromdivision ?? master.fromdivisionname ?? master.divisionname, setFromDivisionOptions);
+    seedOne(master.fromlocationid, master.fromlocation ?? master.fromlocationname ?? master.locationname, setFromLocationOptions);
+    seedOne(master.tolocationid, master.tolocation ?? master.tolocationname ?? master.locationname, setToLocationOptions);
+    seedOne(
+      master.fromdeptid ?? master.fromdepartmentid,
+      master.fromdept ?? master.fromdepartment ?? master.fromdeptname ?? master.deptname,
+      setFromDepartmentOptions
+    );
+    seedOne(
+      master.tovendorid ?? master.vendorid,
+      master.tovendor ?? master.tovendorname ?? master.vendorname ?? master.suppliername,
+      setToVendorOptions
+    );
+    seedOne(
+      master.configid ?? master.ConfigID ?? master.configurationid ?? master.ConfigurationId,
+      master.configname ?? master.ConfigName ?? master.name ?? master.Name,
+      setConfigOptions
+    );
+  }, []);
+
+  const fetchUnlockedHeaderDropdowns = useCallback(async (headerValues = {}) => {
+    if (!headerColumns.length) return;
+    const needsCol = (...names) =>
+      headerColumns.some((c) => {
+        const key = String(c.colname).toLowerCase();
+        return names.some((n) => key === String(n).toLowerCase())
+          && isVisibleApiCol(c)
+          && isTruthyApiFlag(c.iseditallow)
+          && !isLockOnEditModeCol(c);
+      });
+
+    const fromDiv = headerValues.fromdivisionid ?? 0;
+    const tasks = [];
+    if (needsCol("fromdivisionid")) tasks.push(fetchFromDivisions());
+    if (needsCol("fromlocationid")) tasks.push(fetchFromLocations());
+    if (needsCol("tolocationid")) tasks.push(fetchToLocations());
+    if (needsCol("fromdeptid")) tasks.push(fetchFromDepartments());
+    if (needsCol("tovendorid")) tasks.push(fetchToVendors(fromDiv));
+    if (needsCol("configid")) tasks.push(fetchConfigOptions(fromDiv));
+    await Promise.all(tasks);
+  }, [
+    headerColumns,
+    fetchFromDivisions,
+    fetchFromLocations,
+    fetchToLocations,
+    fetchFromDepartments,
+    fetchToVendors,
+    fetchConfigOptions,
+  ]);
+
+  const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+    const prmParameters = buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber });
+    const [mstRes, detRes] = await Promise.all([
+      get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+        prmProcedure: ARGO_CONFIG.SP_MASTER_FILL,
+        prmParameters,
+        prmFuncCode: ARGO_CONFIG.RB_MASTER,
+      }),
+      get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+        prmProcedure: ARGO_CONFIG.SP_DETAIL_FILL,
+        prmParameters,
+        prmFuncCode: ARGO_CONFIG.RB_DETAIL,
+      }),
+    ]);
+
+    const master = mstRes?.[0] ?? null;
+    return {
+      master,
+      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+      details: mapDetailRowsToGridRows(detRes || []),
+    };
+  }, [get]);
+
+  const clearSaveError = useCallback(() => setSaveError(null), []);
+
+  return {
+    headerColumns,
+    headerFetching,
+    headerError,
+    fetchHeaderMeta,
+    fromDivisionOptions,
+    fromLocationOptions,
+    toLocationOptions,
+    fromDepartmentOptions,
+    toVendorOptions,
+    configOptions,
+    fetchFromDivisions,
+    fetchFromLocations,
+    fetchToLocations,
+    fetchFromDepartments,
+    fetchToVendors,
+    fetchConfigOptions,
+    columns,
+    allColumns,
+    eventColumns,
+    isFetching,
+    metaError,
+    fetchDetailMeta,
+    fetchGridColumns,
+    fetchEditRecord,
+    seedOptionsFromMaster,
+    fetchUnlockedHeaderDropdowns,
+    saveError,
+    clearSaveError,
+  };
+}

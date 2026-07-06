@@ -1,5 +1,3 @@
-// AssetsWriteOffForm.jsx — Assets Write Off entry form (Add / Edit)
-
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
@@ -10,7 +8,7 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { useAstWriteOff } from "../../hooks/useAstWriteOff";
+import { useAstRgo } from "../../hooks/useAstRgo";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -39,43 +37,55 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  AWF_CONFIG,
-  AWF_GRID_TABS,
+  ARGO_CONFIG,
+  ARGO_GRID_TABS,
+  ARGO_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
-  buildAwfCascadeResets,
+  buildArgoItemPickerJsonPayload,
+  applyArgoHardcodedHeaderValues,
+  buildArgoCascadeResets,
+  validateArgoBusinessRules,
 } from "./constants";
-import "./AssetsWriteOffPage.css";
+import "./AssetsReturnableGatePassOutPage.css";
 
-let _awfTempId = -1;
-const nextTempId = () => _awfTempId--;
+let _argoTempId = -1;
+const nextTempId = () => _argoTempId--;
 
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
     companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AWF_CONFIG.CONFIG_YEAR_ID,
+    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? ARGO_CONFIG.CONFIG_YEAR_ID,
     loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.astwriteoffid ?? listRecord?.idnumber ?? listRecord?.IDNumber ?? recordId,
+    idNumber:
+      listRecord?.astissrgoid
+      ?? listRecord?.AstIssRGOID
+      ?? listRecord?.idnumber
+      ?? listRecord?.IDNumber
+      ?? recordId,
   };
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
+  const str = (v) => (v == null || v === "" ? "" : String(v));
   return {
-    trancode: String(headerValues.trancode ?? ""),
+    trancode: str(headerValues.trancode),
     trandate: headerValues.trandate ?? "",
-    divisionid: String(headerValues.divisionid ?? ""),
-    fromlocid: String(headerValues.fromlocid ?? headerValues.locationid ?? ""),
-    accountid: String(headerValues.accountid ?? ""),
-    profitlossactid: String(headerValues.profitlossactid ?? ""),
+    issuedate: headerValues.issuedate ?? "",
+    fromdivisionid: str(headerValues.fromdivisionid),
+    fromlocationid: str(headerValues.fromlocationid),
+    tolocationid: str(headerValues.tolocationid),
+    fromdeptid: str(headerValues.fromdeptid),
+    tovendorid: str(headerValues.tovendorid),
+    configid: str(headerValues.configid),
+    includestockitems: headerValues.includestockitems ?? 0,
     remarks: headerValues.remarks ?? "",
-    totalpurvalue: headerValues.totalpurvalue ?? "",
-    totalrevvalue: headerValues.totalrevvalue ?? "",
-    totaldepvalue: headerValues.totaldepvalue ?? "",
-    totalcurrbookvalue: headerValues.totalcurrbookvalue ?? "",
+    frmtype: str(headerValues.frmtype ?? ARGO_CONFIG.FRM_TYPE),
+    issuetypeid: str(headerValues.issuetypeid ?? ARGO_CONFIG.ISSUE_TYPE_ID),
   };
 }
 
@@ -100,7 +110,7 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
-export default function AssetsWriteOffForm() {
+export default function AssetsReturnableGatePassOutForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
@@ -119,14 +129,17 @@ export default function AssetsWriteOffForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, locationOptions, assetsAccOptions, profitLossAccOptions,
-    fetchLocations, fetchAssetsAccByDivision, fetchProfitLossAccByDivision,
-    clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions,
+    fromDivisionOptions, fromLocationOptions, toLocationOptions,
+    fromDepartmentOptions, toVendorOptions,
+    configOptions,
+    fetchFromLocations, fetchToLocations,
+    fetchToVendors,
+    fetchConfigOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useAstWriteOff(API_BASE_URL);
+  } = useAstRgo(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -139,36 +152,43 @@ export default function AssetsWriteOffForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const headerValuesRef = useRef({
+  const headerValuesRef = useRef(applyArgoHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
-    divisionid: 0,
-    fromlocid: 0,
-    accountid: 0,
-    profitlossactid: 0,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    fromlocationid: 0,
+    tolocationid: 0,
+    fromdeptid: 0,
+    tovendorid: 0,
+    configid: 0,
+    includestockitems: 0,
     remarks: "",
-    totalpurvalue: 0,
-    totalrevvalue: 0,
-    totaldepvalue: 0,
-    totalcurrbookvalue: 0,
+    frmtype: ARGO_CONFIG.FRM_TYPE,
+    issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
     companyid: DEFAULT_COMPANY_ID,
-    yearid: AWF_CONFIG.CONFIG_YEAR_ID,
+    yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
     loginid: DEFAULT_LOGIN_ID,
     idnumber: recordId,
-    funccode: AWF_CONFIG.RB_MASTER,
-  });
+    funccode: ARGO_CONFIG.RB_MASTER,
+  }));
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO };
+    return {
+      trandate: todayISO,
+      issuedate: todayISO,
+      frmtype: String(ARGO_CONFIG.FRM_TYPE),
+      issuetypeid: String(ARGO_CONFIG.ISSUE_TYPE_ID),
+      includestockitems: 0,
+    };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
-  const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -179,7 +199,7 @@ export default function AssetsWriteOffForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const cascadeResets = useMemo(() => buildAwfCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildArgoCascadeResets(headerColumns), [headerColumns]);
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -213,9 +233,9 @@ export default function AssetsWriteOffForm() {
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `Write Off #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Gate Pass Out #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-write-off",
+    backTo: "/assets-returnable-gate-pass-out",
   });
 
   useEffect(() => {
@@ -225,18 +245,15 @@ export default function AssetsWriteOffForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      if (itemGridRef.current.loadRows) {
-        itemGridRef.current.loadRows(queuedRowsRef.current);
-      } else {
-        queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
-      }
+      if (itemGridRef.current.loadRows) itemGridRef.current.loadRows(queuedRowsRef.current);
+      else queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
       queuedRowsRef.current = [];
     }
   }, [columns]);
@@ -247,9 +264,14 @@ export default function AssetsWriteOffForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord);
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Write Off record not found.");
+      if (!master || !headerValues) {
+        throw new Error("Assets Returnable Gate Pass Out record not found.");
+      }
 
-      headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
+      headerValuesRef.current = applyArgoHardcodedHeaderValues({
+        ...headerValuesRef.current,
+        ...headerValues,
+      });
       setLoadedMasterRow(master);
       editRecordLoadedRef.current = true;
 
@@ -257,20 +279,16 @@ export default function AssetsWriteOffForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-    const divId = headerValues.divisionid ?? 0;
+      const divId = headerValues.fromdivisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
-
-      if (itemGridRef.current?.loadRows) {
-        itemGridRef.current.loadRows(syncedDetails);
-      } else {
-        queuedRowsRef.current = syncedDetails;
-      }
+      if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
+      else queuedRowsRef.current = syncedDetails;
     } catch (err) {
-      console.error("[AWF] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Write Off record.");
+      console.error("[ARGO] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Assets Returnable Gate Pass Out record.");
     } finally {
       setRecordLoading(false);
     }
@@ -283,9 +301,8 @@ export default function AssetsWriteOffForm() {
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
-    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
-    fetchUnlockedHeaderDropdowns(divisionId);
-    fetchGridColumns(divisionId, {
+    fetchUnlockedHeaderDropdowns(headerValuesRef.current);
+    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? loadedMasterRow?.fromdivisionid ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -297,13 +314,33 @@ export default function AssetsWriteOffForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    divisionid: divisionOptions,
-    fromlocid: locationOptions,
-    locationid: locationOptions,
-    accountid: assetsAccOptions,
-    profitlossactid: profitLossAccOptions,
-  }), [divisionOptions, locationOptions, assetsAccOptions, profitLossAccOptions]);
+  const dropdownSources = useMemo(() => ({
+    fromdivisionid: fromDivisionOptions,
+    fromlocationid: fromLocationOptions,
+    tolocationid: toLocationOptions,
+    fromdeptid: fromDepartmentOptions,
+    tovendorid: toVendorOptions,
+    configid: configOptions,
+    frmtype: ARGO_FRM_TYPE_OPTIONS,
+  }), [
+    fromDivisionOptions,
+    fromLocationOptions,
+    toLocationOptions,
+    fromDepartmentOptions,
+    toVendorOptions,
+    configOptions,
+  ]);
+
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => {
+    const map = { ...dropdownSources };
+    headerColumns.forEach((col) => {
+      const key = col.colname;
+      if (!key) return;
+      const opts = dropdownSources[String(key).toLowerCase()];
+      if (opts) map[key] = opts;
+    });
+    return map;
+  }, [headerColumns, dropdownSources]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
@@ -350,63 +387,61 @@ export default function AssetsWriteOffForm() {
     setClearRowsOpen(true);
   }, []);
 
-  const handleFilterChange = useCallback(
-    async (colName, val) => {
-      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+  const handleFilterChange = useCallback(async (colName, val) => {
+    headerValuesRef.current = applyArgoHardcodedHeaderValues({
+      ...headerValuesRef.current,
+      [colName]: val,
+    });
+    const hv = headerValuesRef.current;
+    const col = String(colName).toLowerCase();
 
-      if (colName === "divisionid") {
-        requestGridClear("Division", async () => {
-          headerValuesRef.current.fromlocid = 0;
-          headerValuesRef.current.accountid = 0;
-          headerValuesRef.current.profitlossactid = 0;
-          clearLocationOptions();
-          clearAssetsAccOptions();
-          clearProfitLossAccOptions();
-          itemGridRef.current?.clearRows?.();
-          if (val && val !== "0") {
-            const fetches = [];
-            if (hasVisibleCol(headerColumns, "fromlocid", "locationid")) {
-              fetches.push(fetchLocations());
-            }
-            if (hasVisibleCol(headerColumns, "accountid")) {
-              fetches.push(fetchAssetsAccByDivision(val));
-            }
-            if (hasVisibleCol(headerColumns, "profitlossactid")) {
-              fetches.push(fetchProfitLossAccByDivision(val));
-            }
-            if (fetches.length) await Promise.all(fetches);
-            if (hasVisibleCol(headerColumns, "fromlocid", "locationid")) {
-              requestAnimationFrame(() =>
-                filterPanelRef.current
-                  ?.querySelector("#efq-fromlocid .search-select__trigger")
-                  ?.focus()
-              );
-            }
-          }
-        });
-        return;
-      }
+    if (col === "fromdivisionid") {
+      requestGridClear("Division", async () => {
+        hv.fromlocationid = 0;
+        hv.tolocationid = 0;
+        hv.fromdeptid = 0;
+        hv.tovendorid = 0;
+        hv.configid = 0;
+        itemGridRef.current?.clearRows?.();
+        if (Number(val) > 0) {
+          const fetches = [];
+          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchFromLocations());
+          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+          if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
+          if (hasVisibleCol(headerColumns, "tovendorid")) fetches.push(fetchToVendors(val));
+          if (fetches.length) await Promise.all(fetches);
+        }
+      });
+      return;
+    }
 
-      if (colName === "fromlocid" || colName === "locationid") {
-        requestGridClear("Location", () => {
-          itemGridRef.current?.clearRows?.();
-        });
-      }
-    },
-    [
-      headerColumns,
-      requestGridClear,
-      clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions,
-      fetchLocations, fetchAssetsAccByDivision, fetchProfitLossAccByDivision,
-    ]
-  );
+    if (col === "fromlocationid") {
+      requestGridClear("From Location", async () => {
+        itemGridRef.current?.clearRows?.();
+      });
+      return;
+    }
+
+    if (col === "fromdeptid") {
+      requestGridClear("From Department", async () => {
+        itemGridRef.current?.clearRows?.();
+      });
+    }
+  }, [
+    requestGridClear,
+    headerColumns,
+    fetchConfigOptions,
+    fetchFromLocations,
+    fetchToLocations,
+    fetchToVendors,
+  ]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const divId = headerValuesRef.current?.divisionid ?? 0;
+      const divId = headerValuesRef.current?.fromdivisionid ?? 0;
       const activeCols = await fetchGridColumns(divId);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
@@ -434,13 +469,6 @@ export default function AssetsWriteOffForm() {
       return;
     }
 
-    const { divisionid, accountid, trandate, fromlocid, locationid } = headerValues;
-    const existingRows = itemGridRef.current?.getRows?.() ?? [];
-    const notIn = existingRows
-      .map((r) => r.itemid ?? r.compuniquekey)
-      .filter(Boolean)
-      .join(",");
-
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
@@ -450,8 +478,8 @@ export default function AssetsWriteOffForm() {
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWF_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AWF_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: ARGO_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: ARGO_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -470,38 +498,27 @@ export default function AssetsWriteOffForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWF_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmyearid: AWF_CONFIG.CONFIG_YEAR_ID,
-          prmdivisionid: Number(divisionid) || 0,
-          prmtrandate: trandate ?? "",
-          prmaccountid: Number(accountid) || 0,
-          prmlocationid: Number(fromlocid ?? locationid) || 0,
-          prmnotin: notIn,
-        }]),
+        ObjName: ARGO_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildArgoItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[AWF] Item picker fetch failed:", err);
+      console.error("[ARGO] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(
-    async (selectedItems) => {
-      if (!selectedItems?.length) return;
-      setActiveTab("items");
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) return;
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-    },
-    [ensureItemColumns, allColumns, addItemRow]
-  );
+  const handleInsertItems = useCallback(async (selectedItems) => {
+    if (!selectedItems?.length) return;
+    setActiveTab("items");
+    const activeCols = await ensureItemColumns();
+    if (!activeCols?.length) return;
+    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+  }, [ensureItemColumns, allColumns, addItemRow]);
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -517,137 +534,41 @@ export default function AssetsWriteOffForm() {
   const handleSave = useCallback(async () => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const businessErrors = validateArgoBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
-    const allErrors = [...headerErrors, ...detailErrors];
+    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
     }
 
     const mstRow = {};
-    // #region agent log
-    const _dbgDefaults = [];
-    // #endregion
     headerColumns.forEach((col) => {
-      const def = getColDefault(col.coldatatype);
-      mstRow[col.colname] = def;
-      // #region agent log
-      _dbgDefaults.push({
-        col: col.colname,
-        coldatatype: col.coldatatype,
-        default: def,
-        defaultType: typeof def,
-      });
-      // #endregion
+      mstRow[col.colname] = getColDefault(col.coldatatype);
     });
-    const hv = headerValuesRef.current;
-    // #region agent log
-    const _dbgOverwrites = [];
-    // #endregion
+    const hv = applyArgoHardcodedHeaderValues(headerValuesRef.current);
+    headerValuesRef.current = hv;
     Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") {
-        // #region agent log
-        const prev = mstRow[k];
-        if (v === "" || (prev !== v && (typeof prev === "number" || prev === 0))) {
-          _dbgOverwrites.push({
-            key: k,
-            prev,
-            prevType: typeof prev,
-            next: v,
-            nextType: typeof v,
-            isEmptyString: v === "",
-          });
-        }
-        // #endregion
-        mstRow[k] = v;
-      }
+      if (k !== "id") mstRow[k] = v;
     });
+    mstRow.frmtype = ARGO_CONFIG.FRM_TYPE;
+    mstRow.issuetypeid = ARGO_CONFIG.ISSUE_TYPE_ID;
     mstRow.loginid = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      // #region agent log
-      const emptyRestNumeric = allColumns
-        .filter(({ key, colDataType }) => {
-          const dt = String(colDataType || "").toLowerCase();
-          const isNum =
-            dt.includes("int") ||
-            dt.includes("numeric") ||
-            dt.includes("decimal") ||
-            dt.includes("float");
-          return isNum && (rest[key] === "" || rest[key] === null || rest[key] === undefined);
-        })
-        .map(({ key, colDataType }) => ({
-          key,
-          colDataType,
-          restVal: rest[key],
-          seeded: row[key],
-        }));
-      fetch("http://127.0.0.1:7567/ingest/c06e5a6e-349b-40cd-9638-9d7ab2701863", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c8624b" },
-        body: JSON.stringify({
-          sessionId: "c8624b",
-          runId: "pre-fix",
-          hypothesisId: "H3",
-          location: "AssetsWriteOffForm.jsx:handleSave:detRow",
-          message: "detail rest empty/missing for numeric cols",
-          data: {
-            emptyRestNumeric,
-            allColSample: allColumns.slice(0, 5).map((c) => ({
-              key: c.key,
-              colDataType: c.colDataType,
-            })),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
     });
 
-    // #region agent log
-    const emptyStringFields = Object.entries(mstRow)
-      .filter(([, v]) => v === "")
-      .map(([k, v]) => ({ key: k, value: v }));
-    const numericStillEmpty = _dbgDefaults
-      .filter((d) => typeof d.default === "number" && mstRow[d.col] === "")
-      .map((d) => ({
-        col: d.col,
-        coldatatype: d.coldatatype,
-        seededDefault: d.default,
-        finalValue: mstRow[d.col],
-      }));
-    fetch("http://127.0.0.1:7567/ingest/c06e5a6e-349b-40cd-9638-9d7ab2701863", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c8624b" },
-      body: JSON.stringify({
-        sessionId: "c8624b",
-        runId: "pre-fix",
-        hypothesisId: "H1-H2-H4-H5",
-        location: "AssetsWriteOffForm.jsx:handleSave:mstRow",
-        message: "save mstRow defaults vs overwrites",
-        data: {
-          defaultsSample: _dbgDefaults,
-          overwritesWithEmptyOrTypeChange: _dbgOverwrites,
-          emptyStringFields,
-          numericStillEmpty,
-          finalMstRow: mstRow,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AWF_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.divisionid, isEdit: isEditRoute }
+      buildSaveJsonFields({ label: ARGO_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
+      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL_IMS}${AWF_CONFIG.SAVE_ENDPOINT}`, {
+      const res = await fetch(`${API_BASE_URL_IMS}${ARGO_CONFIG.SAVE_ENDPOINT}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -662,13 +583,13 @@ export default function AssetsWriteOffForm() {
       notify.success(message);
       return true;
     } catch (err) {
-      console.error("[AWF Save] Failed:", err);
+      console.error("[ARGO Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
@@ -680,36 +601,34 @@ export default function AssetsWriteOffForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AWF_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AWF_CONFIG.STORAGE_ENTRY_META);
-    clearLocationOptions();
-    clearAssetsAccOptions();
-    clearProfitLossAccOptions();
-    headerValuesRef.current = {
+    localStorage.removeItem(ARGO_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(ARGO_CONFIG.STORAGE_ENTRY_META);
+    headerValuesRef.current = applyArgoHardcodedHeaderValues({
       trancode: "",
       trandate: todayISO,
-      divisionid: 0,
-      fromlocid: 0,
-      accountid: 0,
-      profitlossactid: 0,
+      issuedate: todayISO,
+      fromdivisionid: 0,
+      fromlocationid: 0,
+      tolocationid: 0,
+      fromdeptid: 0,
+      tovendorid: 0,
+      configid: 0,
+      includestockitems: 0,
       remarks: "",
-      totalpurvalue: 0,
-      totalrevvalue: 0,
-      totaldepvalue: 0,
-      totalcurrbookvalue: 0,
-      funccode: AWF_CONFIG.RB_MASTER,
+      frmtype: ARGO_CONFIG.FRM_TYPE,
+      issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
+      funccode: ARGO_CONFIG.RB_MASTER,
       tranmstgenid: 0,
       companyid: DEFAULT_COMPANY_ID,
-      yearid: AWF_CONFIG.CONFIG_YEAR_ID,
+      yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
       loginid: DEFAULT_LOGIN_ID,
       idnumber: 0,
-    };
+    });
     queuedRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
     clearSaveError();
     setActiveTab("items");
     setIsGridLoading(false);
-    setGridRows([]);
     setItemSelectionCount(0);
     setItemModalOpen(false);
     setItemModalItems([]);
@@ -719,10 +638,7 @@ export default function AssetsWriteOffForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [
-    clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions,
-    clearSaveError, exitEditMode, todayISO,
-  ]);
+  }, [clearSaveError, exitEditMode, todayISO]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -770,7 +686,7 @@ export default function AssetsWriteOffForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page awf-page">
+    <div className="workspace-page argo-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -799,7 +715,7 @@ export default function AssetsWriteOffForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Write Off Detail"
+            title="Assets Returnable Gate Pass Out Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -813,10 +729,10 @@ export default function AssetsWriteOffForm() {
         )}
       </section>
 
-      <section className="awf-grid-section">
+      <section className="argo-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {AWF_GRID_TABS.map((t) => (
+            {ARGO_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -835,7 +751,7 @@ export default function AssetsWriteOffForm() {
               className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
-              title="Pick write-off items (Tab here after header fields)"
+              title="Pick issue items"
             >
               <Package size={12} strokeWidth={2.5} />
               Select Item
@@ -854,7 +770,7 @@ export default function AssetsWriteOffForm() {
           </div>
         </div>
 
-        <div className={`awf-tab-pane${activeTab === "items" ? " awf-tab-pane--active" : ""}`}>
+        <div className={`argo-tab-pane${activeTab === "items" ? " argo-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -862,7 +778,6 @@ export default function AssetsWriteOffForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}

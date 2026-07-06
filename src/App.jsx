@@ -35,6 +35,12 @@ const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-retu
 const AssetsEmployeeReturnForm = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnForm"));
 const AssetsDepartmentIssuePage = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssuePage"));
 const AssetsDepartmentIssueForm = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssueForm"));
+const AssetsReturnableGatePassOutPage = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage"));
+const AssetsReturnableGatePassOutForm = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutForm"));
+const AssetsReturnableGatePassInPage = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInPage"));
+const AssetsReturnableGatePassInForm = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInForm"));
+const AssetsStockTransferPage = lazy(() => import("./pages/assets-stock-transfer/AssetsStockTransferPage"));
+const AssetsStockTransferForm = lazy(() => import("./pages/assets-stock-transfer/AssetsStockTransferForm"));
 const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
 const LocationMasterPage = lazy(() => import("./pages/location-master/LocationMasterPage"));
 const SubMainGroupMasterPage = lazy(() => import("./pages/sub-main-group-master/SubMainGroupMasterPage"));
@@ -133,6 +139,18 @@ function AppRoutes() {
           <Route path="assets-department-issue/new" element={<AssetsDepartmentIssueForm />} />
           <Route path="assets-department-issue/:id" element={<AssetsDepartmentIssueForm />} />
           <Route path="assets-department-issue/:id/edit" element={<AssetsDepartmentIssueForm />} />
+          <Route path="assets-returnable-gate-pass-out" element={<AssetsReturnableGatePassOutPage />} />
+          <Route path="assets-returnable-gate-pass-out/new" element={<AssetsReturnableGatePassOutForm />} />
+          <Route path="assets-returnable-gate-pass-out/:id" element={<AssetsReturnableGatePassOutForm />} />
+          <Route path="assets-returnable-gate-pass-out/:id/edit" element={<AssetsReturnableGatePassOutForm />} />
+          <Route path="assets-returnable-gate-pass-in" element={<AssetsReturnableGatePassInPage />} />
+          <Route path="assets-returnable-gate-pass-in/new" element={<AssetsReturnableGatePassInForm />} />
+          <Route path="assets-returnable-gate-pass-in/:id" element={<AssetsReturnableGatePassInForm />} />
+          <Route path="assets-returnable-gate-pass-in/:id/edit" element={<AssetsReturnableGatePassInForm />} />
+          <Route path="assets-stock-transfer" element={<AssetsStockTransferPage />} />
+          <Route path="assets-stock-transfer/new" element={<AssetsStockTransferForm />} />
+          <Route path="assets-stock-transfer/:id" element={<AssetsStockTransferForm />} />
+          <Route path="assets-stock-transfer/:id/edit" element={<AssetsStockTransferForm />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
