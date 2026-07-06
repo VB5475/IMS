@@ -24,7 +24,7 @@ export const AER_CONFIG = {
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",

@@ -6,12 +6,12 @@ export const PAGE_TITLE = "Assets Returnable Gate Pass Out";
 export const PAGE_TITLE_NEW = "New Assets Returnable Gate Pass Out";
 
 export const ARGO_CONFIG = {
-  RB_MASTER: "Rb_astissrgomst",
-  RB_DETAIL: "Rb_astissrgodet",
+  RB_MASTER: "rb_astissrgomst",
+  RB_DETAIL: "rb_astissrgodet",
   RB_ITEM_PICKER: "rb_astissrgoselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astissrgomst",
+  FORM_TAG: "rb_astissrgomst",
   TRAN_BOOK: "RGO",
   FRM_TYPE: "RGO",
   FRM_TYPE_LABEL: "RGO",
@@ -23,7 +23,7 @@ export const ARGO_CONFIG = {
   DIVISION_YEAR_ID: 2,
   SUPPLIER_PARTY_TYPE: "S",
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
@@ -32,8 +32,8 @@ export const ARGO_CONFIG = {
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_rb_astissrgoselonly",
 
-  SP_MASTER_FILL: "fn_tbl_Rb_astissrgomst",
-  SP_DETAIL_FILL: "fn_tbl_Rb_astissrgodet",
+  SP_MASTER_FILL: "fn_tbl_rb_astissrgomst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astissrgodet",
 
   SAVE_ENDPOINT: "/API/AstIssRGOMst/Post_RB_AstIssRGOMst_Save",
 

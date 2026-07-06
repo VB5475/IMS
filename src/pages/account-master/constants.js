@@ -8,7 +8,7 @@ export const AM_CONFIG = {
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   /** Edit mode fill — fn_tbl_rb_accountmst */
   SP_MASTER_FILL: "fn_tbl_rb_accountmst",
 

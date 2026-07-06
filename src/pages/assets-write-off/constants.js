@@ -16,7 +16,7 @@ export const AWF_CONFIG = {
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
   SP_LOCATION: "Fn_Gen_FetchLocationMaster",
   SP_ASSETS_ACC: "Fn_tbl_Fetch_AssetsAccount",

@@ -23,7 +23,7 @@ export const AST_CONFIG = {
   DIVISION_YEAR_ID: 2,
   SUPPLIER_PARTY_TYPE: "S",
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_DIVISION: "fn_tbl_fetchuserwstodivision",
   SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",

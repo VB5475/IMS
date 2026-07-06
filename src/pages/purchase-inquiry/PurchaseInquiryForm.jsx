@@ -606,7 +606,7 @@ export default function PurchaseInquiryForm() {
   // ── Select Item (Items tab) ────────────────────────────────────────
   // Flow:
   //   1. Pick RB code by BasedOn ('0'→Direct, '2'→Indent wise)
-  //   2. Fetch RBID via Fn_Fetch_RBDetailByRBCode
+  //   2. Fetch RBID via fn_fetch_rbdetailbyrbcode
   //   3. Fetch grid columns via GetDetailColData (read-only, no dropdown fetch)
   //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INDENT (by BasedOn)
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows

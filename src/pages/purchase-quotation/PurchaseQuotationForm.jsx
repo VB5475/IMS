@@ -612,7 +612,7 @@ export default function PurchaseQuotationForm() {
   // ── Select Item (Items tab) ────────────────────────────────────────
   // Flow:
   //   1. Pick RB code + row-fetch SP by BasedOn ('0' Direct | '2' Inquiry Based)
-  //   2. Fetch RBID via Fn_Fetch_RBDetailByRBCode
+  //   2. Fetch RBID via fn_fetch_rbdetailbyrbcode
   //   3. Fetch grid columns via GetDetailColData
   //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INQUIRY
   const handleSelectItem = useCallback(async () => {

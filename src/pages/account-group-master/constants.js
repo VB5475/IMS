@@ -11,21 +11,21 @@ export const AGM_FIELDS = {
 };
 
 export const AGM_CONFIG = {
-  RB_MASTER: "RB_AcountGroupMst",
-  FORM_TAG: "RB_AcountGroupMst",
+  RB_MASTER: "rb_acountgroupmst",
+  FORM_TAG: "rb_acountgroupmst",
   TRAN_BOOK: "ACC",
 
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   /** Edit mode fill — fn_tbl_RB_AcountGroupMst */
-  SP_MASTER_FILL: "fn_tbl_RB_AcountGroupMst",
+  SP_MASTER_FILL: "fn_tbl_rb_acountgroupmst",
   /** Main Group dropdown (New Account Group form) — FN_Fetch_Data, no parameters */
-  SP_MAIN_GROUP: "Fn_tbl_AccountGroup",
+  SP_MAIN_GROUP: "fn_tbl_accountgroup",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "Fn_tbl_ACC_GroupMaster_List",
+  SP_LIST: "fn_tbl_acc_groupmaster_list",
   LIST_DIVISION_ID: 0,
 
   MAIN_GROUP_COL: AGM_FIELDS.MAIN_GROUP,

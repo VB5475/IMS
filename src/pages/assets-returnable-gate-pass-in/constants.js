@@ -6,12 +6,12 @@ export const PAGE_TITLE = "Assets Returnable Gate Pass In";
 export const PAGE_TITLE_NEW = "New Assets Returnable Gate Pass In";
 
 export const ARGI_CONFIG = {
-  RB_MASTER: "Rb_astissrgimst",
-  RB_DETAIL: "Rb_astissrgidet",
+  RB_MASTER: "rb_astissrgimst",
+  RB_DETAIL: "rb_astissrgidet",
   RB_ITEM_PICKER: "rb_astissrgiselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astissrgimst",
+  FORM_TAG: "rb_astissrgimst",
   TRAN_BOOK: "RGI",
   FRM_TYPE: "RGI",
   FRM_TYPE_LABEL: "RGI",
@@ -23,7 +23,7 @@ export const ARGI_CONFIG = {
   DIVISION_YEAR_ID: 2,
   SUPPLIER_PARTY_TYPE: "S",
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
