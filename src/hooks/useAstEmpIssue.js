@@ -258,7 +258,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: AEI_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
@@ -658,7 +658,7 @@ export function useAstEmpIssue(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AEI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AEI_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: AEI_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

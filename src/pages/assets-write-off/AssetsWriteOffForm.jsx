@@ -452,7 +452,7 @@ export default function AssetsWriteOffForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AWF_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AWF_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: AWF_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

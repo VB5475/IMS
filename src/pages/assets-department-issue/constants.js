@@ -6,12 +6,12 @@ export const PAGE_TITLE = "Assets Department Issue";
 export const PAGE_TITLE_NEW = "New Assets Department Issue";
 
 export const ADI_CONFIG = {
-  RB_MASTER: "Rb_astdeptissmst",
-  RB_DETAIL: "Rb_astdeptissdet",
+  RB_MASTER: "rb_astdeptissmst",
+  RB_DETAIL: "rb_astdeptissdet",
   RB_ITEM_PICKER: "rb_astdeptissselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astdeptissmst",
+  FORM_TAG: "rb_astdeptissmst",
   TRAN_BOOK: "DI",
   FRM_TYPE: "DI",
   FRM_TYPE_LABEL: "DI",

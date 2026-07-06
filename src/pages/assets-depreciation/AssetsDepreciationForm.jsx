@@ -461,7 +461,7 @@ export default function AssetsDepreciationForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: DPC_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: DPC_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: DPC_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.[0];

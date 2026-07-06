@@ -503,7 +503,7 @@ export default function AssetsEmployeeReturnForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AER_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AER_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: AER_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -558,7 +558,47 @@ export default function AssetsEmployeeReturnForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const resetFormToInitialState = useCallback(() => {
+    localStorage.removeItem(AER_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(AER_CONFIG.STORAGE_ENTRY_META);
+    clearFromEmpOptions();
+    headerValuesRef.current = applyAerHardcodedHeaderValues({
+      trancode: "",
+      trandate: todayISO,
+      issuedate: todayISO,
+      fromdivisionid: 0,
+      tolocationid: 0,
+      todeptid: 0,
+      fromempuserid: 0,
+      configid: 0,
+      remarks: "",
+      frmtype: AER_CONFIG.FRM_TYPE,
+      issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
+      funccode: AER_CONFIG.RB_MASTER,
+      tranmstgenid: 0,
+      companyid: DEFAULT_COMPANY_ID,
+      yearid: AER_CONFIG.CONFIG_YEAR_ID,
+      loginid: DEFAULT_LOGIN_ID,
+      idnumber: 0,
+    });
+    queuedRowsRef.current = [];
+    gridColumnsLoadedRef.current = false;
+    clearSaveError();
+    setActiveTab("items");
+    setIsGridLoading(false);
+    setGridRows([]);
+    setItemSelectionCount(0);
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+    itemGridRef.current?.clearRows?.();
+    setFilterResetKey((k) => k + 1);
+    exitEditMode();
+  }, [clearFromEmpOptions, clearSaveError, exitEditMode, todayISO]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
@@ -601,6 +641,7 @@ export default function AssetsEmployeeReturnForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[AER Save] Failed:", err);
@@ -609,56 +650,21 @@ export default function AssetsEmployeeReturnForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AER_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AER_CONFIG.STORAGE_ENTRY_META);
-    clearFromEmpOptions();
-    headerValuesRef.current = applyAerHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      tolocationid: 0,
-      todeptid: 0,
-      fromempuserid: 0,
-      configid: 0,
-      remarks: "",
-      frmtype: AER_CONFIG.FRM_TYPE,
-      issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
-      funccode: AER_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AER_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearFromEmpOptions, clearSaveError, exitEditMode, todayISO]);
+    resetFormToInitialState();
+  }, [resetFormToInitialState]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

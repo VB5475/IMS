@@ -25,7 +25,7 @@ export function useSubGroupMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType:   2,
         ObjName:   SGM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmRBCode: SGM_CONFIG.RB_MASTER }]),
+        JSon:      JSON.stringify([{ prmrbcode: SGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });

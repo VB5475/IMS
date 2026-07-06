@@ -27,7 +27,7 @@ export function useMainGroupMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType:   2,
         ObjName:   MGM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmRBCode: MGM_CONFIG.RB_MASTER }]),
+        JSon:      JSON.stringify([{ prmrbcode: MGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });

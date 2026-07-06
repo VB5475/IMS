@@ -289,7 +289,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: PO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: PO_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: PO_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

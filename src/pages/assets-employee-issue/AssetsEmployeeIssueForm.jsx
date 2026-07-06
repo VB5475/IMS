@@ -648,7 +648,7 @@ export default function AssetsEmployeeIssueForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AEI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AEI_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: AEI_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -703,65 +703,7 @@ export default function AssetsEmployeeIssueForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
-    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
-    const allErrors = [...headerErrors, ...detailErrors];
-    if (allErrors.length > 0) {
-      setFormErrors(allErrors);
-      return false;
-    }
-
-    const hv = applyAeiHardcodedHeaderValues(headerValuesRef.current);
-    headerValuesRef.current = hv;
-    const headerColDefs = headerColumns.map((col) => ({
-      key: col.colname,
-      colDataType: col.coldatatype,
-    }));
-    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
-      frmtype: AEI_CONFIG.FRM_TYPE,
-      issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
-      loginid: DEFAULT_LOGIN_ID,
-    });
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
-    );
-
-    const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AEI_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
-    );
-
-    setIsSaving(true);
-    try {
-      const result = await postSave(AEI_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
-      if (!success) {
-        setFormErrors([message]);
-        return false;
-      }
-      notify.success(message);
-      return true;
-    } catch (err) {
-      console.error("[AEI Save] Failed:", err);
-      notify.error(err?.message || "Save failed. Please try again.");
-      return false;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify]);
-
-  const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
-    if (!saved) return;
-    window.print();
-  }, [handleSave]);
-
-  const [discardOpen, setDiscardOpen] = useState(false);
-
-  const handleDiscardConfirm = useCallback(() => {
-    setDiscardOpen(false);
+  const resetFormToInitialState = useCallback(() => {
     localStorage.removeItem(AEI_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(AEI_CONFIG.STORAGE_ENTRY_META);
     clearFromEmpOptions();
@@ -812,6 +754,70 @@ export default function AssetsEmployeeIssueForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
   }, [clearFromEmpOptions, clearSaveError, exitEditMode, todayISO]);
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const allErrors = [...headerErrors, ...detailErrors];
+    if (allErrors.length > 0) {
+      setFormErrors(allErrors);
+      return false;
+    }
+
+    const hv = applyAeiHardcodedHeaderValues(headerValuesRef.current);
+    headerValuesRef.current = hv;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: AEI_CONFIG.FRM_TYPE,
+      issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
+      loginid: DEFAULT_LOGIN_ID,
+    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+    );
+
+    const payload = await withSaveContextFields(
+      buildSaveJsonFields({ label: AEI_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
+      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
+    );
+
+    setIsSaving(true);
+    try {
+      const result = await postSave(AEI_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        setFormErrors([message]);
+        return false;
+      }
+      notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
+      return true;
+    } catch (err) {
+      console.error("[AEI Save] Failed:", err);
+      notify.error(err?.message || "Save failed. Please try again.");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
+
+  const handleSaveAndPrint = useCallback(async () => {
+    const saved = await handleSave({ skipPostSave: true });
+    if (!saved) return;
+    window.print();
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
+
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardOpen(false);
+    resetFormToInitialState();
+  }, [resetFormToInitialState]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

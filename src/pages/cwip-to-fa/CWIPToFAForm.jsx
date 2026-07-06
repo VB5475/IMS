@@ -537,7 +537,7 @@ export default function CWIPToFAForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: C2F_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: C2F_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: C2F_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.[0];

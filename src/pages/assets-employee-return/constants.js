@@ -6,12 +6,12 @@ export const PAGE_TITLE = "Assets Employee Return";
 export const PAGE_TITLE_NEW = "New Assets Employee Return";
 
 export const AER_CONFIG = {
-  RB_MASTER: "Rb_astempretmst",
-  RB_DETAIL: "Rb_astempretdet",
-  RB_ITEM_PICKER: "Rb_astempretselonly",
+  RB_MASTER: "rb_astempretmst",
+  RB_DETAIL: "rb_astempretdet",
+  RB_ITEM_PICKER: "rb_astempretselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astempretmst",
+  FORM_TAG: "rb_astempretmst",
   TRAN_BOOK: "ER",
   FRM_TYPE: 3,
   FRM_TYPE_LABEL: "ER",
@@ -32,8 +32,8 @@ export const AER_CONFIG = {
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_Rb_astempretselonly",
 
-  SP_MASTER_FILL: "fn_tbl_Rb_astempretmst",
-  SP_DETAIL_FILL: "fn_tbl_Rb_astempretdet",
+  SP_MASTER_FILL: "fn_tbl_rb_astempretmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astempretdet",
 
   SAVE_ENDPOINT: "/API/AstEmpRetMst/Post_RB_AstEmpRetMst_Save",
 

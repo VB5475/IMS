@@ -139,7 +139,7 @@ export function useAccountGroupMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: AGM_CONFIG.LIST_OBJ_TYPE,
         ObjName: AGM_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AGM_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: AGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

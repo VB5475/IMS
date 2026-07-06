@@ -481,7 +481,7 @@ export default function AssetsDepartmentIssueForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: ADI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: ADI_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: ADI_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

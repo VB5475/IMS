@@ -27,7 +27,7 @@ export function useLocationMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType:   2,
         ObjName:   LM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmRBCode: LM_CONFIG.RB_MASTER }]),
+        JSon:      JSON.stringify([{ prmrbcode: LM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });

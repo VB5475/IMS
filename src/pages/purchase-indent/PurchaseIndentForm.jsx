@@ -451,7 +451,7 @@ export default function PurchaseIndentForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: IND_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: IND_CONFIG.RB_DETAIL_SELECT }]),
+        JSon: JSON.stringify([{ prmrbcode: IND_CONFIG.RB_DETAIL_SELECT }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
