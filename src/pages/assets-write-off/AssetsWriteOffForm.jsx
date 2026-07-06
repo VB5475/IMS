@@ -116,6 +116,7 @@ export default function AssetsWriteOffForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
+  const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -525,40 +526,12 @@ export default function AssetsWriteOffForm() {
     }
 
     const mstRow = {};
-    // #region agent log
-    const _dbgDefaults = [];
-    // #endregion
     headerColumns.forEach((col) => {
-      const def = getColDefault(col.coldatatype);
-      mstRow[col.colname] = def;
-      // #region agent log
-      _dbgDefaults.push({
-        col: col.colname,
-        coldatatype: col.coldatatype,
-        default: def,
-        defaultType: typeof def,
-      });
-      // #endregion
+      mstRow[col.colname] = getColDefault(col.coldatatype);
     });
     const hv = headerValuesRef.current;
-    // #region agent log
-    const _dbgOverwrites = [];
-    // #endregion
     Object.entries(hv).forEach(([k, v]) => {
       if (k !== "id") {
-        // #region agent log
-        const prev = mstRow[k];
-        if (v === "" || (prev !== v && (typeof prev === "number" || prev === 0))) {
-          _dbgOverwrites.push({
-            key: k,
-            prev,
-            prevType: typeof prev,
-            next: v,
-            nextType: typeof v,
-            isEmptyString: v === "",
-          });
-        }
-        // #endregion
         mstRow[k] = v;
       }
     });
@@ -567,78 +540,8 @@ export default function AssetsWriteOffForm() {
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      // #region agent log
-      const emptyRestNumeric = allColumns
-        .filter(({ key, colDataType }) => {
-          const dt = String(colDataType || "").toLowerCase();
-          const isNum =
-            dt.includes("int") ||
-            dt.includes("numeric") ||
-            dt.includes("decimal") ||
-            dt.includes("float");
-          return isNum && (rest[key] === "" || rest[key] === null || rest[key] === undefined);
-        })
-        .map(({ key, colDataType }) => ({
-          key,
-          colDataType,
-          restVal: rest[key],
-          seeded: row[key],
-        }));
-      fetch("http://127.0.0.1:7567/ingest/c06e5a6e-349b-40cd-9638-9d7ab2701863", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c8624b" },
-        body: JSON.stringify({
-          sessionId: "c8624b",
-          runId: "pre-fix",
-          hypothesisId: "H3",
-          location: "AssetsWriteOffForm.jsx:handleSave:detRow",
-          message: "detail rest empty/missing for numeric cols",
-          data: {
-            emptyRestNumeric,
-            allColSample: allColumns.slice(0, 5).map((c) => ({
-              key: c.key,
-              colDataType: c.colDataType,
-            })),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
     });
-
-    // #region agent log
-    const emptyStringFields = Object.entries(mstRow)
-      .filter(([, v]) => v === "")
-      .map(([k, v]) => ({ key: k, value: v }));
-    const numericStillEmpty = _dbgDefaults
-      .filter((d) => typeof d.default === "number" && mstRow[d.col] === "")
-      .map((d) => ({
-        col: d.col,
-        coldatatype: d.coldatatype,
-        seededDefault: d.default,
-        finalValue: mstRow[d.col],
-      }));
-    fetch("http://127.0.0.1:7567/ingest/c06e5a6e-349b-40cd-9638-9d7ab2701863", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c8624b" },
-      body: JSON.stringify({
-        sessionId: "c8624b",
-        runId: "pre-fix",
-        hypothesisId: "H1-H2-H4-H5",
-        location: "AssetsWriteOffForm.jsx:handleSave:mstRow",
-        message: "save mstRow defaults vs overwrites",
-        data: {
-          defaultsSample: _dbgDefaults,
-          overwritesWithEmptyOrTypeChange: _dbgOverwrites,
-          emptyStringFields,
-          numericStillEmpty,
-          finalMstRow: mstRow,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: AWF_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
@@ -647,13 +550,7 @@ export default function AssetsWriteOffForm() {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL_IMS}${AWF_CONFIG.SAVE_ENDPOINT}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await postSave(AWF_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
@@ -668,7 +565,7 @@ export default function AssetsWriteOffForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, postSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
