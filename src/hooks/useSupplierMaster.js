@@ -14,6 +14,7 @@ import {
 } from "../api/constants";
 import { SM_CONFIG } from "../pages/supplier-master/constants";
 import { fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
+import { coerceRowByColumns } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -27,7 +28,7 @@ function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNu
 
 function mapTableToOptions(rows, valueKey, labelKey) {
   return (rows || []).map((r) => ({
-    value: String(r[valueKey] ?? r.IDNumber ?? r.idnumber ?? ""),
+    value: r[valueKey] ?? r.IDNumber ?? r.idnumber ?? "",
     label: String(r[labelKey] ?? r.Name ?? r[valueKey] ?? ""),
   }));
 }
@@ -40,7 +41,22 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
   const [headerRbMeta, setHeaderRbMeta] = useState(null);
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
-  const [headerDropdownOptions, setHeaderDropdownOptions] = useState({});
+
+  // ── Header dropdowns — explicit fn_tbl_* fetches, one per field. Replaces
+  // the generic RBID-driven GET_FILTER_DETAIL mechanism (which resolved a
+  // dropdown's source by inspecting the column's ctrlvaluecol/ctrldisplaycol/
+  // ctrlsqlsource metadata tied to the RB's object ID) with named function
+  // calls, matching every other module's pattern (see GRN/PO).
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [accountGroupOptions, setAccountGroupOptions] = useState([]);
+  const [countryOptions, setCountryOptions] = useState([]);
+  const [registrationTypeOptions, setRegistrationTypeOptions] = useState([]);
+  const [currencyOptions, setCurrencyOptions] = useState([]);
+  const [transporterOptions, setTransporterOptions] = useState([]);
+  const [transporterDestinationOptions, setTransporterDestinationOptions] = useState([]);
+  const [deducteeTypeOptions, setDeducteeTypeOptions] = useState([]);
+  // NOP (nopid) has no working fn_tbl_* SP — see SM_CONFIG.SP_NOP DBA-CONFIRM note.
+  const nopOptions = [];
 
   // ── Detail (Consignee grid) ────────────────────────────────────────
   const [detailColumns, setDetailColumns] = useState([]);
@@ -58,6 +74,65 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
 
   const clearStates = useCallback(() => setStateOptions([]), []);
   const clearCities = useCallback(() => setCityOptions([]), []);
+
+  // Zero-param header dropdowns — fetched once on mount (no cascade), all
+  // live-verified against FN_Fetch_Data 2026-07-03 (see SM_CONFIG comments).
+  const fetchStaticOptions = useCallback(
+    async (spName, valueKey, labelKey, setter, label) => {
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: spName,
+          JSon: JSON.stringify([{}]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setter(mapTableToOptions(res, valueKey, labelKey));
+      } catch (err) {
+        console.warn(`[SM] ${label} fetch failed:`, err);
+        setter([]);
+      }
+    },
+    [get]
+  );
+
+  const fetchCategoryOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_CATEGORY, "idnumber", "lookupdesc", setCategoryOptions, "Category"),
+    [fetchStaticOptions]
+  );
+  const fetchAccountGroupOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_ACCOUNT_GROUP, "idnumber", "grpname", setAccountGroupOptions, "Account Group"),
+    [fetchStaticOptions]
+  );
+  const fetchCountryOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_COUNTRY, "idnumber", "countryname", setCountryOptions, "Country"),
+    [fetchStaticOptions]
+  );
+  const fetchRegistrationTypeOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_REGISTRATION_TYPE, "idnumber", "name", setRegistrationTypeOptions, "Registration Type"),
+    [fetchStaticOptions]
+  );
+  const fetchCurrencyOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_CURRENCY, "idnumber", "currencycode", setCurrencyOptions, "Currency"),
+    [fetchStaticOptions]
+  );
+  // Transporter/Transporter Destination SPs are live-confirmed to exist and
+  // execute cleanly, but return zero rows in this environment (no transporter
+  // master data seeded yet — same result for GRN's own transporter SP). Label
+  // key is a best-effort guess (no live row to confirm column names against);
+  // mapTableToOptions falls back to r.Name if this guess is wrong.
+  const fetchTransporterOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_TRANSPORTER, "idnumber", "transportername", setTransporterOptions, "Transporter"),
+    [fetchStaticOptions]
+  );
+  const fetchTransporterDestinationOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_TRANSPORTER_DESTINATION, "idnumber", "destinationname", setTransporterDestinationOptions, "Transporter Destination"),
+    [fetchStaticOptions]
+  );
+  const fetchDeducteeTypeOptions = useCallback(
+    () => fetchStaticOptions(SM_CONFIG.SP_DEDUCTEE_TYPE, "idnumber", "name", setDeducteeTypeOptions, "Deductee Type"),
+    [fetchStaticOptions]
+  );
 
   const fetchStateOptions = useCallback(
     async (countryId) => {
@@ -142,11 +217,17 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
       const cols = colData || [];
       setHeaderColumns(cols);
 
-      const dropdownOpts = await fetchDropdownOptions(get, cols, meta.RBID, {
-        funcCode: SM_CONFIG.RB_MASTER,
-        divisionID: 0,
-      });
-      setHeaderDropdownOptions(dropdownOpts);
+      // Header dropdowns — explicit fn_tbl_* calls, one per field, in parallel.
+      await Promise.all([
+        fetchCategoryOptions(),
+        fetchAccountGroupOptions(),
+        fetchCountryOptions(),
+        fetchRegistrationTypeOptions(),
+        fetchCurrencyOptions(),
+        fetchTransporterOptions(),
+        fetchTransporterDestinationOptions(),
+        fetchDeducteeTypeOptions(),
+      ]);
 
       return { meta, columns: cols };
     } catch (err) {
@@ -156,7 +237,17 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
     } finally {
       setHeaderFetching(false);
     }
-  }, [get]);
+  }, [
+    get,
+    fetchCategoryOptions,
+    fetchAccountGroupOptions,
+    fetchCountryOptions,
+    fetchRegistrationTypeOptions,
+    fetchCurrencyOptions,
+    fetchTransporterOptions,
+    fetchTransporterDestinationOptions,
+    fetchDeducteeTypeOptions,
+  ]);
 
   // ── Detail RB meta + columns (Consignee grid) — direct-entry, no picker ─
   const fetchDetailMeta = useCallback(async () => {
@@ -230,30 +321,33 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
 
       return {
         master,
-        headerValues: master ? {
+        headerValues: master ? coerceRowByColumns({
           ...master,
           companyid: Number(companyId) || DEFAULT_COMPANY_ID,
           yearid: Number(master.yearid ?? yearId) || SM_CONFIG.CONFIG_YEAR_ID,
           loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode: master.funccode ?? SM_CONFIG.RB_MASTER,
-        } : null,
+        }, headerColumns) : null,
         consigneeRows: consigneeRows.map((row, index) => ({
-          ...row,
+          ...coerceRowByColumns(row, detailAllColumns),
           id: String(row.compuniquekey ?? row.idnumber ?? `edit_${index}`),
         })),
       };
     },
-    [get]
+    [get, headerColumns, detailAllColumns]
   );
 
   return {
-    headerColumns, headerRbMeta, headerFetching, headerError, headerDropdownOptions,
+    headerColumns, headerRbMeta, headerFetching, headerError,
     fetchHeaderMeta,
     detailColumns, detailAllColumns, detailRbMeta, detailFetching, detailError,
     fetchDetailMeta,
     stateOptions, cityOptions, isLoadingStates, isLoadingCities,
     fetchStateOptions, fetchCityOptions, clearStates, clearCities,
+    categoryOptions, accountGroupOptions, countryOptions, registrationTypeOptions,
+    currencyOptions, transporterOptions, transporterDestinationOptions,
+    deducteeTypeOptions, nopOptions,
     fetchEditRecord,
   };
 }

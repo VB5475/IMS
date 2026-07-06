@@ -716,10 +716,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             <SearchSelect
               value={String(value)}
               onChange={(val) => {
-                handleCellChange(row.id, col.key, val);
-                const currentRow = { ...row, [col.key]: val };
-                if (validateColumnValue(val, col).valid) {
-                  fireCellEventForColumn(currentRow, col, val);
+                const coerced = isNumericColumnDef(col) ? (Number(val) || 0) : val;
+                handleCellChange(row.id, col.key, coerced);
+                const currentRow = { ...row, [col.key]: coerced };
+                if (validateColumnValue(coerced, col).valid) {
+                  fireCellEventForColumn(currentRow, col, coerced);
                 }
               }}
               onBlur={makeSearchSelectBlur(row, col)}

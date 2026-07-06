@@ -1,25 +1,19 @@
 // SupplierMasterForm.jsx
-// Supplier Master entry form (add / edit).
-//
-// Layout (top → bottom):
-//   1. EnterpriseFilterPanel  — Core header fields (always visible)
-//   2. Tab bar — Contacts | Transporter Detail | TDS Deduction | Bank Information | Consignee Detail
-//   3. ActionBar — Add / Save / Cancel
+// Supplier Master entry form — modal (Add / Edit), matching CompanyForm.jsx's
+// two-column sectioned Master-form layout (not tabs): Main + Contacts stack on
+// the left, Transporter Detail + TDS Deduction + Bank Information stack on the
+// right, and Consignee Detail is the only remaining data grid, full-width below.
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Save } from "lucide-react";
-import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { AlertCircle, Save, Pencil, Truck, Plus, Trash2 } from "lucide-react";
+import Modal from "../../components/ui/Modal";
 import EntryGrid from "../../components/grid/EntryGrid";
-import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import MasterFormField from "../../components/forms/MasterFormField";
 import { useNotification } from "../../context/NotificationContext";
-import { useSupplierMaster } from "../../hooks/useSupplierMaster";
 import { useApi } from "../../api/useApi";
 import {
-  ENDPOINTS,
-  API_BASE_URL,
   API_BASE_URL_IMS,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
@@ -28,28 +22,24 @@ import {
   buildSaveRowFromColumns,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import {
-  isLockOnEditModeCol,
-  syncHeaderFilterWithApiCol,
-  buildHeaderColMap,
-  resolveHeaderApiCol,
-} from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { usePageHeader } from "../../context/PageHeaderContext";
+import {
+  getMasterFieldLabel,
+  isMasterCheckboxField,
+  isMasterFieldLocked,
+  isMasterToggleField,
+} from "../../utils/masterFormUtils";
 import {
   SM_CONFIG,
-  SM_CORE_FIELDS,
-  SM_CONTACTS_FIELDS,
-  SM_TRANSPORTER_FIELDS,
-  SM_TDS_FIELDS,
-  SM_BANK_FIELDS,
+  SM_FORM_LAYOUT,
   SM_CHECKBOX_OVERRIDE_FIELDS,
-  SM_FILTER_CASCADE_RESETS,
-  SM_TABS,
-  PAGE_TITLE,
-  PAGE_TITLE_NEW,
+  resolveSmLayoutField,
+  getSmLayoutFieldNames,
+  MODAL_TITLE_ADD,
+  MODAL_TITLE_EDIT,
+  MODAL_SUBTITLE,
   controlTypeMap,
 } from "./constants";
 import "./SupplierMasterPage.css";
@@ -57,121 +47,159 @@ import "./SupplierMasterPage.css";
 let _smTempId = -1;
 const nextTempId = () => _smTempId--;
 
-function isTdsChecked(headerValues) {
-  const v = headerValues?.tds;
+function isTdsChecked(values) {
+  const v = values?.tds;
   return v === 1 || v === "1" || v === true;
 }
 
-export default function SupplierMasterForm() {
-  const { id: routeId } = useParams();
-  const location = useLocation();
-  const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
-  const recordId = isNewRoute ? 0 : Number(routeId) || 0;
-  const isEditRoute = !isNewRoute && recordId > 0;
+// Deductee Type / NOP stay locked until TDS is checked — business rule from the
+// MRD, layered on top of the live RB's own lock rules.
+const TDS_GATED_FIELDS = new Set(["deducteetypeid", "nopid"]);
+
+function buildFieldMap(headerColumns) {
+  const map = {};
+  headerColumns.forEach((f) => {
+    if (!f.colname) return;
+    // "tds" is a Textbox in the live RB but the MRD requires it as a checkbox
+    // gate — same override pattern as ItemMasterForm's CHECKBOX_OVERRIDES.
+    if (SM_CHECKBOX_OVERRIDE_FIELDS.has(f.colname)) {
+      map[f.colname] = { ...f, colctrltype: controlTypeMap.CHECKBOX };
+    } else {
+      map[f.colname] = f;
+    }
+  });
+  return map;
+}
+
+function resolveLayoutRows(rows, fieldMap) {
+  return rows
+    .map((row) => row.map((name) => resolveSmLayoutField(fieldMap, name)).filter(Boolean))
+    .filter((row) => row.length > 0);
+}
+
+export default function SupplierMasterForm({
+  isOpen, mode, recordId, onClose, onSaved,
+  headerColumns = [], headerFetching = false, headerError = null,
+  detailColumns = [], detailAllColumns = [], detailFetching = false, detailError = null,
+  stateOptions = [], cityOptions = [], fetchStateOptions, fetchCityOptions, clearStates, clearCities,
+  categoryOptions = [], accountGroupOptions = [], countryOptions = [], registrationTypeOptions = [],
+  currencyOptions = [], transporterOptions = [], transporterDestinationOptions = [],
+  deducteeTypeOptions = [], nopOptions = [],
+  fetchEditRecord,
+}) {
+  const isAddMode = mode === "add";
   const notify = useNotification();
-  const navigate = useNavigate();
 
   const [formErrors, setFormErrors] = useState([]);
-  const filterPanelRef = useRef(null);
   const consigneeGridRef = useRef(null);
   const queuedConsigneeRowsRef = useRef([]);
-  const { get: getLive } = useApi(API_BASE_URL);
   const { post } = useApi(API_BASE_URL_IMS);
-
-  const {
-    headerColumns, headerFetching, headerError, headerDropdownOptions, fetchHeaderMeta,
-    detailColumns, detailAllColumns, detailFetching, detailError, fetchDetailMeta,
-    stateOptions, cityOptions, fetchStateOptions, fetchCityOptions, clearStates, clearCities,
-    fetchEditRecord,
-  } = useSupplierMaster(API_BASE_URL);
-
-  usePageHeader({
-    title: isEditRoute ? PAGE_TITLE : PAGE_TITLE_NEW,
-    subtitle: "Admin › Master › Supplier",
-    showBack: true,
-    backTo: "/admin/master/supplier-master",
-  });
-
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
 
   const session = getUserSession();
 
-  const buildEmptyHeaderValues = useCallback(() => ({
-    supcode: "", supname: "", catrgoryid: 0, accountgroupid: 0, partyname: "",
-    address: "", mailingaddress: "", countryid: 0, stateid: 0, cityid: 0,
-    zipcode: "", district: "", msmedate: null, msmeno: "", registrationtypeid: 0,
-    gstno: "", currencyid: 0, crlimit: "", creditamt: "",
-    contactperson: "", designation: "", emailaddress: "", mobileno: "",
-    transporterid: 0, transpoterdestinationid: 0,
-    tds: 0, deducteetypeid: 0, nopid: 0,
-    bankname: "", bankaddress: "", branch: "", beneficiaryname: "",
-    bankmobileno: "", accountno: "", accounttype: "", ifsccode: "",
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: SM_CONFIG.DIVISION_YEAR_ID,
-    loginid: session.loginId,
-    sessionid: DEFAULT_SESSION_ID,
-    idnumber: recordId,
-  }), [recordId, session.loginId]);
+  // fieldMap keyed by lowercase colname (PG)
+  const fieldMap = useMemo(() => buildFieldMap(headerColumns), [headerColumns]);
 
-  const headerValuesRef = useRef(buildEmptyHeaderValues());
+  const layout = useMemo(() => ({
+    mainRows: resolveLayoutRows(SM_FORM_LAYOUT.left.main.rows, fieldMap),
+    transporterRows: resolveLayoutRows(SM_FORM_LAYOUT.right.transporter.rows, fieldMap),
+    tdsRows: resolveLayoutRows(SM_FORM_LAYOUT.right.tds.rows, fieldMap),
+    bankRows: resolveLayoutRows(SM_FORM_LAYOUT.right.bank.rows, fieldMap),
+    contactRows: resolveLayoutRows(SM_FORM_LAYOUT.right.contact.rows, fieldMap),
+  }), [fieldMap]);
 
-  const [loadedMasterRow, setLoadedMasterRow] = useState(null);
+  // Ordered list of visible fields for validation (from layout definition)
+  const visibleFields = useMemo(() => {
+    const names = new Set(getSmLayoutFieldNames(fieldMap));
+    return headerColumns.filter((f) => names.has(f.colname));
+  }, [fieldMap, headerColumns]);
+
+  // Dropdown options keyed by lowercase colname — same source as before,
+  // just fed through MasterFormField's `options` prop instead of
+  // EnterpriseFilterPanel's `staticFilters`.
+  const dropdownOptions = useMemo(() => ({
+    catrgoryid: categoryOptions,
+    accountgroupid: accountGroupOptions,
+    countryid: countryOptions,
+    stateid: stateOptions,
+    cityid: cityOptions,
+    registrationtypeid: registrationTypeOptions,
+    currencyid: currencyOptions,
+    transporterid: transporterOptions,
+    transpoterdestinationid: transporterDestinationOptions,
+    deducteetypeid: deducteeTypeOptions,
+    nopid: nopOptions,
+  }), [
+    categoryOptions, accountGroupOptions, countryOptions, stateOptions, cityOptions,
+    registrationTypeOptions, currencyOptions, transporterOptions, transporterDestinationOptions,
+    deducteeTypeOptions, nopOptions,
+  ]);
+
+  const buildEmptyFromColumns = useCallback(() => {
+    const row = {};
+    headerColumns.forEach(({ colname, coldatatype }) => {
+      row[colname] = getColDefault(coldatatype);
+    });
+    return {
+      ...row,
+      companyid: DEFAULT_COMPANY_ID,
+      yearid: SM_CONFIG.DIVISION_YEAR_ID,
+      loginid: session.loginId,
+      sessionid: DEFAULT_SESSION_ID,
+      funccode: SM_CONFIG.RB_MASTER,
+      idnumber: recordId || 0,
+    };
+  }, [headerColumns, recordId, session.loginId]);
+
+  const [formValues, setFormValues] = useState({});
   const [recordLoading, setRecordLoading] = useState(false);
   const [recordLoadError, setRecordLoadError] = useState(null);
-  const editRecordLoadedRef = useRef(false);
-  const [isEditMode, setIsEditMode] = useState(!isEditRoute);
-  const [activeTab, setActiveTab] = useState("contacts");
-  const [filterResetKey, setFilterResetKey] = useState(0);
+  const [isEditMode, setIsEditMode] = useState(isAddMode);
   const [isSaving, setIsSaving] = useState(false);
-  const [discardOpen, setDiscardOpen] = useState(false);
+  const [discardAction, setDiscardAction] = useState(null);
 
+  // Reset form state each time the modal opens
   useEffect(() => {
-    fetchHeaderMeta();
-    fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta]);
+    if (!isOpen) return;
+    setIsEditMode(isAddMode);
+    setFormErrors([]);
+    setRecordLoadError(null);
+    setFormValues(buildEmptyFromColumns());
+    queuedConsigneeRowsRef.current = [];
+    consigneeGridRef.current?.clearRows?.();
+    clearStates?.();
+    clearCities?.();
+  }, [isOpen, isAddMode, buildEmptyFromColumns, clearStates, clearCities]);
 
-  const loadEditRecord = useCallback(async () => {
-    if (editRecordLoadedRef.current) return;
-    editRecordLoadedRef.current = true;
+  // Load existing record when opening in edit mode
+  useEffect(() => {
+    if (!isOpen || isAddMode || !recordId) return;
     setRecordLoading(true);
     setRecordLoadError(null);
-    try {
-      const { master, headerValues, consigneeRows } = await fetchEditRecord({
-        companyId: DEFAULT_COMPANY_ID,
-        yearId: SM_CONFIG.DIVISION_YEAR_ID,
-        loginId: DEFAULT_LOGIN_ID,
-        sessionId: DEFAULT_SESSION_ID,
-        idNumber: recordId,
-      });
-      if (!master || !headerValues) {
-        setRecordLoadError("Record not found.");
-        return;
-      }
-      headerValuesRef.current = { ...buildEmptyHeaderValues(), ...headerValues };
-      setLoadedMasterRow(master);
-      if (headerValues.countryid) void fetchStateOptions(headerValues.countryid);
-      if (headerValues.stateid) void fetchCityOptions(headerValues.stateid);
-      queuedConsigneeRowsRef.current = consigneeRows || [];
-      if (consigneeGridRef.current?.loadRows) {
-        consigneeGridRef.current.loadRows(queuedConsigneeRowsRef.current);
-        queuedConsigneeRowsRef.current = [];
-      }
-      setFilterResetKey((k) => k + 1);
-    } catch (err) {
-      console.error("[SM] loadEditRecord failed:", err);
-      setRecordLoadError(err?.message || "Failed to load record.");
-    } finally {
-      setRecordLoading(false);
-    }
-  }, [fetchEditRecord, recordId, buildEmptyHeaderValues, fetchStateOptions, fetchCityOptions]);
-
-  useEffect(() => {
-    if (!isEditRoute || editRecordLoadedRef.current || headerColumns.length === 0) return;
-    loadEditRecord();
-  }, [isEditRoute, headerColumns.length, loadEditRecord]);
+    fetchEditRecord({
+      companyId: DEFAULT_COMPANY_ID,
+      yearId: SM_CONFIG.DIVISION_YEAR_ID,
+      loginId: DEFAULT_LOGIN_ID,
+      sessionId: DEFAULT_SESSION_ID,
+      idNumber: recordId,
+    })
+      .then(({ master, headerValues, consigneeRows }) => {
+        if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
+        setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
+        if (headerValues.countryid) void fetchStateOptions?.(headerValues.countryid);
+        if (headerValues.stateid) void fetchCityOptions?.(headerValues.stateid);
+        queuedConsigneeRowsRef.current = consigneeRows || [];
+        if (consigneeGridRef.current?.loadRows) {
+          consigneeGridRef.current.loadRows(queuedConsigneeRowsRef.current);
+          queuedConsigneeRowsRef.current = [];
+        }
+      })
+      .catch((err) => {
+        console.error("[SM] loadEditRecord failed:", err);
+        setRecordLoadError(err?.message || "Failed to load record.");
+      })
+      .finally(() => setRecordLoading(false));
+  }, [isOpen, isAddMode, recordId, fetchEditRecord, buildEmptyFromColumns, fetchStateOptions, fetchCityOptions]);
 
   useEffect(() => {
     if (detailColumns.length > 0 && consigneeGridRef.current && queuedConsigneeRowsRef.current.length > 0) {
@@ -180,129 +208,86 @@ export default function SupplierMasterForm() {
     }
   }, [detailColumns]);
 
-  const filterInitialValues = useMemo(() => ({ trandate: todayISO }), [todayISO]);
-
-  // ── DROPDOWN_OPTIONS_BY_COL — same pattern as Purchase Order: always attach
-  // the fully-fetched options list regardless of lock/edit state. State/City
-  // come from the cascading fetches; everything else from the generic
-  // GET_FILTER_DETAIL mechanism (headerDropdownOptions).
-  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    ...headerDropdownOptions,
-    stateid: stateOptions,
-    cityid: cityOptions,
-  }), [headerDropdownOptions, stateOptions, cityOptions]);
-
-  const buildFilterDef = useCallback(
-    (filter, apiColMap) => {
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
-      const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
-      let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
-
-      if (apiCol) {
-        def.FilterColCtrlType = SM_CHECKBOX_OVERRIDE_FIELDS.has(filter.FilterParameterID)
-          ? controlTypeMap.CHECKBOX
-          : (apiCol.colctrltype ?? filter.FilterColCtrlType);
+  // Country → State → City cascade + TDS gate reset
+  const handleChange = useCallback((key, value) => {
+    setFormValues((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "countryid") {
+        next.stateid = 0;
+        next.cityid = 0;
+      } else if (key === "stateid") {
+        next.cityid = 0;
+      } else if (key === "tds" && !(value === 1 || value === "1" || value === true)) {
+        next.deducteetypeid = 0;
+        next.nopid = 0;
       }
+      return next;
+    });
 
-      const staticOptions = DROPDOWN_OPTIONS_BY_COL[filter.FilterParameterID];
-      if (staticOptions) def.staticOptions = staticOptions;
+    if (key === "countryid") {
+      clearCities?.();
+      if (value && value !== "0") void fetchStateOptions?.(value);
+      else clearStates?.();
+    } else if (key === "stateid") {
+      if (value && value !== "0") void fetchCityOptions?.(value);
+      else clearCities?.();
+    }
+  }, [fetchStateOptions, fetchCityOptions, clearStates, clearCities]);
 
-      return def;
-    },
-    [DROPDOWN_OPTIONS_BY_COL]
-  );
-
-  function buildBlockFilters(fieldSet) {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return headerColumns
-      .filter((c) => fieldSet.has(c.colname))
-      .map((c) => buildFilterDef({ FilterParameterID: c.colname }, apiColMap));
+  function isFieldLocked(field) {
+    const baseLocked = isMasterFieldLocked(field, { isAddMode, isEditMode });
+    if (baseLocked) return true;
+    if (TDS_GATED_FIELDS.has(field.colname) && !isTdsChecked(formValues)) return true;
+    return false;
   }
 
-  const syncedCoreFilters = useMemo(
-    () => buildBlockFilters(SM_CORE_FIELDS),
-    [headerColumns, buildFilterDef]
-  );
-  const syncedContactsFilters = useMemo(
-    () => buildBlockFilters(SM_CONTACTS_FIELDS),
-    [headerColumns, buildFilterDef]
-  );
-  const syncedTransporterFilters = useMemo(
-    () => buildBlockFilters(SM_TRANSPORTER_FIELDS),
-    [headerColumns, buildFilterDef]
-  );
-  const syncedTdsFilters = useMemo(
-    () => buildBlockFilters(SM_TDS_FIELDS),
-    [headerColumns, buildFilterDef]
-  );
-  const syncedBankFilters = useMemo(
-    () => buildBlockFilters(SM_BANK_FIELDS),
-    [headerColumns, buildFilterDef]
-  );
+  function renderControl(field) {
+    const key = field.colname;
+    return (
+      <MasterFormField
+        field={field}
+        value={formValues[key]}
+        onChange={(val) => handleChange(key, val)}
+        locked={isFieldLocked(field)}
+        options={dropdownOptions[key] || []}
+        inputClassName="sm-form-input"
+        valueClassName="sm-form-value"
+        toggleClassName="sm-form-toggle"
+      />
+    );
+  }
 
-  const fieldTonesFor = useCallback(
-    (filters, extraLockedFields = new Set()) => {
-      const tones = {};
-      filters.forEach((f) => {
-        let tone = "editable";
-        if (!isEditMode) tone = "view";
-        else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
-        else if (extraLockedFields.has(f.FilterParameterID)) tone = "frozen";
-        tones[f.FilterParameterID] = tone;
-      });
-      return tones;
-    },
-    [isEditMode, isEditRoute]
-  );
+  function renderFieldCell(field) {
+    return (
+      <div key={field.colname} className="sm-form-field">
+        <span className={`sm-form-label${field.ismandatory ? " sm-form-label--required" : ""}`}>
+          {getMasterFieldLabel(field)}
+        </span>
+        <div className={[
+          "sm-form-control",
+          isMasterToggleField(field) ? "sm-form-control--toggle-wrap" : "",
+          isMasterCheckboxField(field) ? "sm-form-control--checkbox" : "",
+        ].filter(Boolean).join(" ")}>
+          {renderControl(field)}
+        </div>
+      </div>
+    );
+  }
 
-  const coreFieldTones = useMemo(() => fieldTonesFor(syncedCoreFilters), [syncedCoreFilters, fieldTonesFor]);
-  const contactsFieldTones = useMemo(() => fieldTonesFor(syncedContactsFilters), [syncedContactsFilters, fieldTonesFor]);
-  const transporterFieldTones = useMemo(() => fieldTonesFor(syncedTransporterFilters), [syncedTransporterFilters, fieldTonesFor]);
-  // TDS gate — Deductee Type / NOP are frozen unless the tds checkbox is checked.
-  const tdsFieldTones = useMemo(() => {
-    const locked = isTdsChecked(headerValuesRef.current) ? new Set() : new Set(["deducteetypeid", "nopid"]);
-    return fieldTonesFor(syncedTdsFilters, locked);
-  }, [syncedTdsFilters, fieldTonesFor, headerValuesRef.current?.tds]);
-  const bankFieldTones = useMemo(() => fieldTonesFor(syncedBankFilters), [syncedBankFilters, fieldTonesFor]);
+  function renderLayoutRow(rowFields, rowKey) {
+    if (rowFields.length === 1) {
+      return <div key={rowKey} className="sm-form-row">{renderFieldCell(rowFields[0])}</div>;
+    }
+    return (
+      <div key={rowKey} className="sm-form-row sm-form-row--split">
+        {rowFields.map((field) => renderFieldCell(field))}
+      </div>
+    );
+  }
 
-  const [, forceRerender] = useState(0);
-
-  const handleFilterChange = useCallback(
-    async (colName, val) => {
-      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
-
-      if (colName === "countryid") {
-        headerValuesRef.current.stateid = 0;
-        headerValuesRef.current.cityid = 0;
-        clearCities();
-        if (val && val !== "0") void fetchStateOptions(val);
-        else clearStates();
-        return { stateid: "", cityid: "" };
-      }
-
-      if (colName === "stateid") {
-        headerValuesRef.current.cityid = 0;
-        if (val && val !== "0") void fetchCityOptions(val);
-        else clearCities();
-        return { cityid: "" };
-      }
-
-      if (colName === "tds") {
-        // Re-render so tdsFieldTones re-evaluates the Deductee Type / NOP lock.
-        forceRerender((n) => n + 1);
-        if (!val || val === "0" || val === false) {
-          headerValuesRef.current.deducteetypeid = 0;
-          headerValuesRef.current.nopid = 0;
-          return { deducteetypeid: "", nopid: "" };
-        }
-        return undefined;
-      }
-
-      return undefined;
-    },
-    [fetchStateOptions, fetchCityOptions, clearStates, clearCities]
-  );
+  function renderPanelBody(rows, keyPrefix) {
+    return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
+  }
 
   // ── Consignee grid — direct-entry, no item picker (rows are typed in) ────
   const addConsigneeRow = useCallback(() => {
@@ -335,12 +320,12 @@ export default function SupplierMasterForm() {
       const before = prevById.get(String(row.id));
       if (!before) return;
       if (before.countryid !== row.countryid) {
-        if (row.countryid && row.countryid !== 0) void fetchStateOptions(row.countryid);
+        if (row.countryid && row.countryid !== 0) void fetchStateOptions?.(row.countryid);
         if (row.stateid || row.cityid) {
           consigneeGridRef.current?.updateRow?.(row.id, { stateid: 0, cityid: 0 });
         }
       } else if (before.stateid !== row.stateid) {
-        if (row.stateid && row.stateid !== 0) void fetchCityOptions(row.stateid);
+        if (row.stateid && row.stateid !== 0) void fetchCityOptions?.(row.stateid);
         if (row.cityid) {
           consigneeGridRef.current?.updateRow?.(row.id, { cityid: 0 });
         }
@@ -356,15 +341,7 @@ export default function SupplierMasterForm() {
 
   // ── Save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const hv = headerValuesRef.current;
-    const headerFieldNames = new Set([
-      ...SM_CORE_FIELDS, ...SM_CONTACTS_FIELDS, ...SM_TRANSPORTER_FIELDS,
-      ...SM_TDS_FIELDS, ...SM_BANK_FIELDS,
-    ]);
-    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-    const headerErrors = validateApiColumns(hv, headerColsToValidate, {
-      zeroValidFields: new Set(["tds"]),
-    });
+    const headerErrors = validateApiColumns(formValues, visibleFields);
 
     const consigneeRows = consigneeGridRef.current?.getRows?.() ?? [];
     const consigneeErrors = validateGridRows(consigneeRows, detailColumns);
@@ -379,7 +356,7 @@ export default function SupplierMasterForm() {
       key: col.colname,
       colDataType: col.coldatatype || null,
     }));
-    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+    const mstRow = buildSaveRowFromColumns(formValues, masterColumnDefs, {
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
     });
@@ -390,14 +367,18 @@ export default function SupplierMasterForm() {
         sessionid: DEFAULT_SESSION_ID,
       })
     );
+    console.log("payload of SM");
+    console.log("mstRow",mstRow);
+    console.log("consigneeSaveRows",consigneeSaveRows);
 
     const payload = withSaveContextFields(
       buildSaveJsonFields({
-        label: "SM",
+        label: SM_CONFIG.FORM_TAG,
         mst: mstRow,
         extra: { prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows) },
+        // extra: { prmStrConsigneeJSON: JSON.stringify({}) },
       }),
-      { divisionId: 0, isEdit: isEditRoute }
+      { divisionId: 0, isEdit: !isAddMode }
     );
 
     setIsSaving(true);
@@ -406,7 +387,7 @@ export default function SupplierMasterForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
-      navigate("/admin/master/supplier-master");
+      onSaved?.();
       return true;
     } catch (err) {
       console.error("[SM Save] Failed:", err);
@@ -415,191 +396,150 @@ export default function SupplierMasterForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, detailColumns, detailAllColumns, isEditRoute, session, post, notify, navigate]);
-
-  const handleCancel = useCallback(() => {
-    if (isEditRoute) { navigate("/admin/master/supplier-master"); return; }
-    setDiscardOpen(true);
-  }, [isEditRoute, navigate]);
+  }, [formValues, visibleFields, headerColumns, detailColumns, detailAllColumns, isAddMode, session, post, notify, onSaved]);
 
   const handleDiscardConfirm = useCallback(() => {
-    setDiscardOpen(false);
-    navigate("/admin/master/supplier-master");
-  }, [navigate]);
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
+      onClose?.();
+    } else {
+      if (isAddMode) { onClose?.(); return; }
+      setIsEditMode(false);
+    }
+  }, [discardAction, isAddMode, onClose]);
 
-  const enterEditMode = useCallback(() => setIsEditMode(true), []);
+  const handleClose = useCallback(() => {
+    if (!isEditMode) { onClose?.(); return; }
+    setDiscardAction("close");
+  }, [isEditMode, onClose]);
+
+  const handleCancelEdit = useCallback(() => setDiscardAction("cancel"), []);
 
   const combinedError = headerError || detailError || recordLoadError;
-  const headerMetaReady = headerColumns.length > 0;
-  const filterPanelLoading = headerFetching || detailFetching;
+  const isLoading = headerFetching || detailFetching || recordLoading;
 
-  const smExtraButtons = useMemo(() => [
-    {
-      Icon: Save,
-      variant: "save",
-      onClick: () => handleSave(),
-      disabled: isSaving,
-      loading: isSaving,
-      accessKey: "s",
-      title: "Save (Alt+S)",
-    },
-  ], [handleSave, isSaving]);
+  const footer = useMemo(() => {
+    if (!isEditMode) {
+      return (
+        <button type="button" className="master-modal-btn master-modal-btn--edit"
+                onClick={() => setIsEditMode(true)}>
+          <Pencil size={13} strokeWidth={2} /> Edit
+        </button>
+      );
+    }
+    return (
+      <div className="master-modal-footer-actions">
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+                onClick={handleCancelEdit} disabled={isSaving}>
+          Cancel
+        </button>
+        <button type="button" className="master-modal-btn master-modal-btn--save"
+                onClick={handleSave} disabled={isSaving}>
+          <Save size={13} strokeWidth={2} />
+          {isSaving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    );
+  }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
 
   return (
-    <div className="workspace-page sm-page">
-      <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
+      subtitle={MODAL_SUBTITLE}
+      icon={<Truck size={16} strokeWidth={2} />}
+      size="xl"
+      variant="enterprise"
+      dialogClassName="modal-dialog--supplier"
+      footer={footer}
+    >
       <ConfirmDialog
-        isOpen={discardOpen}
-        message="Discard changes and go back to the list?"
+        isOpen={discardAction !== null}
+        message="Discard unsaved changes?"
         onConfirm={handleDiscardConfirm}
-        onCancel={() => setDiscardOpen(false)}
+        onCancel={() => setDiscardAction(null)}
       />
-
-      <section className="workspace-page__filters">
-        {combinedError ? (
-          <div className="workspace-error">
-            <AlertCircle size={16} strokeWidth={2} />
-            <span>{combinedError}</span>
-            <button type="button" onClick={() => { fetchHeaderMeta(); fetchDetailMeta(); }}>
-              Retry
-            </button>
-          </div>
-        ) : (
-          <EnterpriseFilterPanel
-            key={filterResetKey}
-            panelRef={filterPanelRef}
-            title="Supplier Detail"
-            staticFilters={syncedCoreFilters}
-            initialValues={filterInitialValues}
-            cascadeResets={SM_FILTER_CASCADE_RESETS}
-            onFilterChange={handleFilterChange}
-            isSearching={filterPanelLoading}
-            isMetaLoading={!headerMetaReady || recordLoading}
-            disabled={filterPanelLoading || !headerMetaReady}
-            fieldTones={coreFieldTones}
-          />
-        )}
-      </section>
-
-      <section className="sm-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {SM_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          {activeTab === "consignee" && (
-            <div className="grid-tabbar__controls">
-              <button type="button" className="eg-tab-btn" onClick={addConsigneeRow} disabled={!isEditMode}>
-                + Add Row
-              </button>
-              <button
-                type="button"
-                className="eg-tab-btn eg-tab-btn--danger"
-                onClick={handleDeleteConsigneeSelected}
-                disabled={!isEditMode}
-              >
-                Delete
-              </button>
+      {isLoading ? (
+        <div className="master-modal-loader">Loading…</div>
+      ) : combinedError ? (
+        <div className="master-modal-error">
+          <AlertCircle size={14} strokeWidth={2} /> {combinedError}
+        </div>
+      ) : (
+        <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <div className="sm-form-scroll">
+            <div className="sm-form-layout">
+              <div className="sm-form-layout__left">
+                <section className="sm-form-section sm-form-section--main">
+                  <div className="sm-form-section__body">
+                    {renderPanelBody(layout.mainRows, "main")}
+                  </div>
+                </section>
+              </div>
+              <div className="sm-form-layout__right">
+                <section className="sm-form-section sm-form-section--transporter">
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.transporter.title}</h3>
+                  <div className="sm-form-section__body">
+                    {renderPanelBody(layout.transporterRows, "transporter")}
+                  </div>
+                </section>
+                <section className="sm-form-section sm-form-section--tds">
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.tds.title}</h3>
+                  <div className="sm-form-section__body">
+                    {renderPanelBody(layout.tdsRows, "tds")}
+                  </div>
+                </section>
+                <section className="sm-form-section sm-form-section--bank">
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.bank.title}</h3>
+                  <div className="sm-form-section__body">
+                    {renderPanelBody(layout.bankRows, "bank")}
+                  </div>
+                </section>
+                <section className="sm-form-section sm-form-section--contact">
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.contact.title}</h3>
+                  <div className="sm-form-section__body">
+                    {renderPanelBody(layout.contactRows, "contact")}
+                  </div>
+                </section>
+              </div>
             </div>
-          )}
-        </div>
 
-        {activeTab === "contacts" && (
-          <div className="sm-tab-pane sm-tab-pane--active sm-sub-panel">
-            <EnterpriseFilterPanel
-              key={`contacts-${filterResetKey}`}
-              title="Contacts"
-              staticFilters={syncedContactsFilters}
-              initialValues={filterInitialValues}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={contactsFieldTones}
-            />
+            <section className="sm-form-section sm-form-section--consignee">
+              <div className="sm-form-section__title sm-form-section__title--grid">
+                <span>Consignee Detail</span>
+                <div className="sm-form-section__title-actions">
+                  <button type="button" className="eg-tab-btn" onClick={addConsigneeRow} disabled={!isEditMode}>
+                    <Plus size={12} strokeWidth={2.5} /> Add Row
+                  </button>
+                  <button
+                    type="button"
+                    className="eg-tab-btn eg-tab-btn--danger"
+                    onClick={handleDeleteConsigneeSelected}
+                    disabled={!isEditMode}
+                  >
+                    <Trash2 size={12} strokeWidth={2} /> Delete
+                  </button>
+                </div>
+              </div>
+              <div className="sm-form-consignee-grid">
+                <EntryGrid
+                  ref={consigneeGridRef}
+                  config={consigneeGridConfig}
+                  title=""
+                  hideBottomPanel
+                  readOnly={!isEditMode}
+                  emptyMessage="No consignees yet. Click + Add Row above."
+                  onRowsChange={handleConsigneeRowsChange}
+                  existingRecordEdit={!isAddMode && isEditMode}
+                />
+              </div>
+            </section>
           </div>
-        )}
-
-        {activeTab === "transporter" && (
-          <div className="sm-tab-pane sm-tab-pane--active sm-sub-panel">
-            <EnterpriseFilterPanel
-              key={`transporter-${filterResetKey}`}
-              title="Transporter Detail"
-              staticFilters={syncedTransporterFilters}
-              initialValues={filterInitialValues}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={transporterFieldTones}
-            />
-          </div>
-        )}
-
-        {activeTab === "tds" && (
-          <div className="sm-tab-pane sm-tab-pane--active sm-sub-panel">
-            <EnterpriseFilterPanel
-              key={`tds-${filterResetKey}`}
-              title="TDS Deduction"
-              staticFilters={syncedTdsFilters}
-              initialValues={filterInitialValues}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={tdsFieldTones}
-            />
-          </div>
-        )}
-
-        {activeTab === "bank" && (
-          <div className="sm-tab-pane sm-tab-pane--active sm-sub-panel">
-            <EnterpriseFilterPanel
-              key={`bank-${filterResetKey}`}
-              title="Bank Information"
-              staticFilters={syncedBankFilters}
-              initialValues={filterInitialValues}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={bankFieldTones}
-            />
-          </div>
-        )}
-
-        <div className={`sm-tab-pane${activeTab === "consignee" ? " sm-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={consigneeGridRef}
-            config={consigneeGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No consignees yet. Click + Add Row above."
-            onRowsChange={handleConsigneeRowsChange}
-            existingRecordEdit={isEditRoute && isEditMode}
-          />
-        </div>
-      </section>
-
-      <ActionBar
-        alignEnd
-        isEditMode={isEditMode}
-        onAdd={enterEditMode}
-        onCancel={handleCancel}
-        addLabel={isEditRoute ? "Edit" : "Add"}
-        addAccessKey="a"
-        cancelAccessKey="n"
-        extraButtons={smExtraButtons}
-      />
-    </div>
+        </>
+      )}
+    </Modal>
   );
 }

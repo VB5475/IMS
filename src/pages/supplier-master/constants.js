@@ -2,6 +2,9 @@
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Supplier Master";
 export const PAGE_TITLE_NEW = "New Supplier";
+export const MODAL_TITLE_ADD  = "New Supplier";
+export const MODAL_TITLE_EDIT = "Edit Supplier";
+export const MODAL_SUBTITLE   = "Admin › Master › Supplier";
 
 // RB codes, SP names, IDs — live-verified 2026-07-02 against rb_suppliermst
 // (RBID 10112) and rb_consigneedet (RBID 10113). Source: MRD_Template4SupplierMaster.docx
@@ -28,6 +31,25 @@ export const SM_CONFIG = {
   // (State/City need a parent ID parameter) — fetched directly.
   SP_STATE: "fn_tbl_statemst_fatch",
   SP_CITY: "fn_tbl_citymst_fatch",
+
+  // Header dropdowns — explicit fn_tbl_* calls (not the generic RBID-driven
+  // GET_FILTER_DETAIL mechanism). All live-verified 2026-07-03 via direct
+  // FN_Fetch_Data calls (ObjType=2, zero params, [{}]); every SP below is
+  // confirmed to exist and returns rows in the shape noted.
+  SP_CATEGORY: "fn_tbl_lookupmst_fetch",             // → {idnumber, lookupdesc}
+  SP_ACCOUNT_GROUP: "fn_tbl_accountgroup_fatch",     // → {idnumber, grpname}
+  SP_COUNTRY: "fn_tbl_countrymst_fatch",             // → {idnumber, countryname}
+  SP_REGISTRATION_TYPE: "fn_tbl_registrationtype_fatch", // → {idnumber, name}
+  SP_CURRENCY: "fn_tbl_currency_fatch",              // → {idnumber, currencycode}
+  SP_TRANSPORTER: "fn_tbl_transporter_fatch",        // → zero params; no rows in this env yet (data gap, not wiring)
+  SP_TRANSPORTER_DESTINATION: "fn_tbl_transpoterdestination_fatch", // → zero params, no header cascade documented in MRD
+  SP_DEDUCTEE_TYPE: "fn_tbl_tdsdeducteetype_fatch",  // → {idnumber, name}
+  // ⚠️ DBA-CONFIRM — NOP (nopid): MRD names "ACC_TDSNatureOfPaymentMaster" as the
+  // source, but live-verified 2026-07-03 that it is a raw DB TABLE, not a
+  // function/procedure — FN_Fetch_Data rejects it under both ObjType 1 and 2
+  // ("is a table object" / "not a function"). No working fn_tbl_* wrapper exists
+  // yet. NOP dropdown ships with an empty option list until DBA adds one.
+  SP_NOP: null,
 
   // ⚠️ CONFIRM with DBA — not live-verified; MRD name used as-is
   LIST_OBJ_TYPE: 2,
@@ -75,20 +97,100 @@ export const SM_BANK_FIELDS = new Set([
 // ItemMasterForm.jsx's CHECKBOX_OVERRIDES.
 export const SM_CHECKBOX_OVERRIDE_FIELDS = new Set(["tds"]);
 
-export const SM_TABS = [
-  { id: "contacts", label: "Contacts" },
-  { id: "transporter", label: "Transporter Detail" },
-  { id: "tds", label: "TDS Deduction" },
-  { id: "bank", label: "Bank Information" },
-  { id: "consignee", label: "Consignee Detail" },
-];
-
-// Cascade: Country clears State + City; State clears City. The MRD's own text
-// ("When State changes → clear Country") is backwards — State depends on
-// Country, not the reverse — so this implements the sensible reading instead.
-export const SM_FILTER_CASCADE_RESETS = {
-  countryid: ["stateid", "cityid"],
-  stateid: ["cityid"],
+/**
+ * Two-column form layout — mirrors CompanyForm's CO_FORM_LAYOUT exactly
+ * (see src/pages/company/constants.js). All field names are live PG lowercase
+ * colnames. "main" and "contact" render on the left, the remaining three
+ * blocks stack on the right. Consignee Detail is NOT part of this layout —
+ * it stays a data grid, rendered as its own full-width section below.
+ */
+export const SM_FORM_LAYOUT = {
+  left: {
+    main: {
+      rows: [
+        ["supcode"],
+        ["supname"],
+        ["catrgoryid"],
+        ["accountgroupid"],
+        ["partyname"],
+        ["address"],
+        ["mailingaddress"],
+        ["countryid", "stateid"],
+        ["cityid", "zipcode"],
+        ["district"],
+        ["msmedate"],
+        ["msmeno"],
+        ["registrationtypeid"],
+        ["gstno"],
+        ["currencyid"],
+        ["crlimit"],
+        ["creditamt"],
+      ],
+    },
+  },
+  right: {
+    transporter: {
+      title: "Transporter Detail",
+      rows: [
+        ["transporterid"],
+        ["transpoterdestinationid"],
+      ],
+    },
+    tds: {
+      title: "TDS Deduction",
+      rows: [
+        ["tds"],
+        ["deducteetypeid", "nopid"],
+      ],
+    },
+    bank: {
+      title: "Bank Information",
+      rows: [
+        ["bankname"],
+        ["bankaddress"],
+        ["branch"],
+        ["beneficiaryname"],
+        ["bankmobileno", "accountno"],
+        ["accounttype", "ifsccode"],
+      ],
+    },
+    contact: {
+      title: "Contacts",
+      rows: [
+        ["contactperson"],
+        ["designation"],
+        ["emailaddress"],
+        ["mobileno"],
+      ],
+    },
+  },
 };
+
+/** Resolve a layout field name against a fieldMap keyed by lowercase colname. */
+export function resolveSmLayoutField(fieldMap, colname) {
+  if (!colname) return null;
+  return fieldMap[colname] ?? null;
+}
+
+/** Ordered flat field list for validation / save — keyed by lowercase colname. */
+export function getSmLayoutFieldNames(fieldMap = null) {
+  const names = [];
+  const pushRow = (row) => {
+    row.forEach((colname) => {
+      if (fieldMap) {
+        const field = resolveSmLayoutField(fieldMap, colname);
+        if (field) names.push(field.colname);
+      } else {
+        names.push(colname);
+      }
+    });
+  };
+  SM_FORM_LAYOUT.left.main.rows.forEach(pushRow);
+  SM_FORM_LAYOUT.right.transporter.rows.forEach(pushRow);
+  SM_FORM_LAYOUT.right.tds.rows.forEach(pushRow);
+  SM_FORM_LAYOUT.right.bank.rows.forEach(pushRow);
+  SM_FORM_LAYOUT.right.contact.rows.forEach(pushRow);
+  return names;
+}
 
 export { controlTypeMap };

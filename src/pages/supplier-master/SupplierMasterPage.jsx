@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Truck, Plus } from "lucide-react";
+import { Truck, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { normalizeListRows } from "../../utils/listGridUtils";
+import { useSupplierMaster } from "../../hooks/useSupplierMaster";
+import SupplierMasterForm from "./SupplierMasterForm";
 import { SM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SupplierMasterPage.css";
+import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   const session = getUserSession();
+   const today = formatTranDate(new Date(), { invalidValue: "" });
   return {
     ObjType: SM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SM_CONFIG.SP_LIST,
@@ -20,8 +23,8 @@ function buildListParams() {
       {
         prmcompanyid: session.companyId ?? DEFAULT_COMPANY_ID,
         prmdivisionid: SM_CONFIG.LIST_DIVISION_ID,
-        prmfromdate: "",
-        prmtodate: "",
+        prmfromdate: today,
+        prmtodate: today,
       },
     ]),
     p_ErrCode: -1,
@@ -29,14 +32,55 @@ function buildListParams() {
   };
 }
 
+const HIDDEN_COLS = new Set(["idnumber"]);
+
+function buildColumnsFromData(data, onEdit) {
+  if (!data || data.length === 0) return [];
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
+  return [
+    ...keys.map((key) => ({ key, label: key, filterable: true, align: "left" })),
+    {
+      key: "_actions",
+      label: "Edit",
+      width: "80px",
+      align: "center",
+      render: (_value, row) => (
+        <button
+          type="button"
+          className="sm-list__edit-btn"
+          title={`Edit ${row.suppliername ?? row.supname ?? ""}`}
+          aria-label={`Edit ${row.suppliername ?? row.supname ?? ""}`}
+          disabled={!row.idnumber}
+          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
+        >
+          <Pencil size={13} strokeWidth={2} />
+        </button>
+      ),
+    },
+  ];
+}
+
 export default function SupplierMasterPage() {
-  const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
+
+  const {
+    headerColumns, headerFetching, headerError, fetchHeaderMeta,
+    detailColumns, detailAllColumns, detailFetching, detailError, fetchDetailMeta,
+    stateOptions, cityOptions, fetchStateOptions, fetchCityOptions, clearStates, clearCities,
+    categoryOptions, accountGroupOptions, countryOptions, registrationTypeOptions,
+    currencyOptions, transporterOptions, transporterDestinationOptions,
+    deducteeTypeOptions, nopOptions,
+    fetchEditRecord,
+  } = useSupplierMaster();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
+  const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
     title: "Supplier Master",
@@ -45,15 +89,10 @@ export default function SupplierMasterPage() {
     backTo: "/",
   });
 
-  const columns = useMemo(
-    () =>
-      buildListPageColumns(data, {
-        navigate,
-        basePath: "/admin/master/supplier-master",
-        editBtnClass: "sm-list__edit-btn",
-      }),
-    [data, navigate]
-  );
+  useEffect(() => {
+    fetchHeaderMeta();
+    fetchDetailMeta();
+  }, [fetchHeaderMeta, fetchDetailMeta]);
 
   const fetchSupplierList = useCallback(async () => {
     try {
@@ -74,8 +113,23 @@ export default function SupplierMasterPage() {
   }, [fetchSupplierList]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/admin/master/supplier-master/new");
-  }, [navigate]);
+    setModalMode("add");
+    setEditRecordId(null);
+    setModalOpen(true);
+  }, []);
+
+  const handleEdit = useCallback((idNumber) => {
+    setModalMode("edit");
+    setEditRecordId(idNumber);
+    setModalOpen(true);
+  }, []);
+
+  const handleSaved = useCallback(() => {
+    setModalOpen(false);
+    fetchSupplierList();
+  }, [fetchSupplierList]);
+
+  const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
   return (
     <div className="workspace-page sm-list-page">
@@ -125,6 +179,37 @@ export default function SupplierMasterPage() {
           fill
         />
       </section>
+
+      <SupplierMasterForm
+        isOpen={modalOpen}
+        mode={modalMode}
+        recordId={editRecordId}
+        onClose={() => setModalOpen(false)}
+        onSaved={handleSaved}
+        headerColumns={headerColumns}
+        headerFetching={headerFetching}
+        headerError={headerError}
+        detailColumns={detailColumns}
+        detailAllColumns={detailAllColumns}
+        detailFetching={detailFetching}
+        detailError={detailError}
+        stateOptions={stateOptions}
+        cityOptions={cityOptions}
+        fetchStateOptions={fetchStateOptions}
+        fetchCityOptions={fetchCityOptions}
+        clearStates={clearStates}
+        clearCities={clearCities}
+        categoryOptions={categoryOptions}
+        accountGroupOptions={accountGroupOptions}
+        countryOptions={countryOptions}
+        registrationTypeOptions={registrationTypeOptions}
+        currencyOptions={currencyOptions}
+        transporterOptions={transporterOptions}
+        transporterDestinationOptions={transporterDestinationOptions}
+        deducteeTypeOptions={deducteeTypeOptions}
+        nopOptions={nopOptions}
+        fetchEditRecord={fetchEditRecord}
+      />
     </div>
   );
 }
