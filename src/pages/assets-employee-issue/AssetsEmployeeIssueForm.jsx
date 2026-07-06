@@ -20,6 +20,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -106,6 +107,7 @@ function queryEditableFilterFields(panel) {
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => {
+
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
@@ -301,7 +303,7 @@ export default function AssetsEmployeeIssueForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-    const divId = headerValues.fromdivisionid ?? 0;
+      const divId = headerValues.fromdivisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
@@ -710,24 +712,20 @@ export default function AssetsEmployeeIssueForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = applyAeiHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: AEI_CONFIG.FRM_TYPE,
+      issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
+      loginid: DEFAULT_LOGIN_ID,
     });
-    mstRow.frmtype = AEI_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = AEI_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
-
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: AEI_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),

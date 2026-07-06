@@ -29,6 +29,12 @@ import "./enterprise-filter-query.css";
 
 const COLS = 3;
 
+function formatFilterDisplayValue(value, filter) {
+  const formatted = formatColumnDisplayValue(value, filter.columnMeta ?? filter);
+  if (formatted) return formatted;
+  return value != null && value !== "" ? String(value) : "";
+}
+
 function getAccentClass(filter) {
   const t = filter.FilterColCtrlType;
   if (t === controlTypeMap.DROPDOWN || t === controlTypeMap.LABEL) {
@@ -93,15 +99,14 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
 
   const renderInput = () => {
     switch (FilterColCtrlType) {
-      case controlTypeMap.LABEL:
-        return <span className="efq-cell__value">{value || "—"}</span>;
+      case controlTypeMap.LABEL: {
+        const display = formatFilterDisplayValue(value, filter);
+        return <span className="efq-cell__value">{display || "—"}</span>;
+      }
 
       case controlTypeMap.TEXTBOX: {
         if (readOnly) {
-          const display =
-            filter.columnMeta?.dataKind === "numeric"
-              ? formatColumnDisplayValue(value, filter.columnMeta)
-              : value || "";
+          const display = formatFilterDisplayValue(value, filter);
           return <span className="efq-cell__value">{display || "—"}</span>;
         }
         if (filter.columnMeta?.dataKind === "numeric") {
@@ -141,7 +146,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
 
       case controlTypeMap.DATE:
         if (isView || isFrozen) {
-          const display = formatColumnDisplayValue(value, filter.columnMeta ?? filter);
+          const display = formatFilterDisplayValue(value, filter);
           return <span className="efq-cell__value">{display || "—"}</span>;
         }
         return (
@@ -615,6 +620,13 @@ export default function EnterpriseFilterPanel({
               display =
                 match.label || match.Name || match[match.filterctrldisplaycol || "Name"] || display;
             }
+          } else if (
+            f.FilterColCtrlType === controlTypeMap.DATE
+            || f.FilterColCtrlType === controlTypeMap.LABEL
+            || f.FilterColCtrlType === controlTypeMap.TEXTBOX
+          ) {
+            const formatted = formatFilterDisplayValue(values[f.FilterColName], f);
+            if (formatted) display = formatted;
           }
           return { colName: f.FilterColName, caption: f.FilterCaption, display };
         }),

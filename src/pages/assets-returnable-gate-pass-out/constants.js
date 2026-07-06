@@ -2,22 +2,22 @@ import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
-export const PAGE_TITLE = "Assets Department Issue";
-export const PAGE_TITLE_NEW = "New Assets Department Issue";
+export const PAGE_TITLE = "Assets Returnable Gate Pass Out";
+export const PAGE_TITLE_NEW = "New Assets Returnable Gate Pass Out";
 
-export const ADI_CONFIG = {
-  RB_MASTER: "Rb_astdeptissmst",
-  RB_DETAIL: "Rb_astdeptissdet",
-  RB_ITEM_PICKER: "rb_astdeptissselonly",
+export const ARGO_CONFIG = {
+  RB_MASTER: "Rb_astissrgomst",
+  RB_DETAIL: "Rb_astissrgodet",
+  RB_ITEM_PICKER: "rb_astissrgoselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astdeptissmst",
-  TRAN_BOOK: "DI",
-  FRM_TYPE: "DI",
-  FRM_TYPE_LABEL: "DI",
+  FORM_TAG: "Rb_astissrgomst",
+  TRAN_BOOK: "RGO",
+  FRM_TYPE: "RGO",
+  FRM_TYPE_LABEL: "RGO",
   CONFIG_FORM_TAG: "ASTIS",
-  CONFIG_REF_TYPE: "DI",
-  ISSUE_TYPE_ID: 4,
+  CONFIG_REF_TYPE: "RGO",
+  ISSUE_TYPE_ID: 5,
 
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
@@ -28,35 +28,35 @@ export const ADI_CONFIG = {
   SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
   SP_FROM_DEPT: "fn_tbl_fetchfromdepartmentdata",
-  SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
-  SP_CONFIG: "Fn_tbl_ddl_prod_configuration",
-  SP_ITEM_PICKER: "fn_tbl_rb_astdeptissselonly",
+  SP_TO_VENDOR: "fn_gen_fetchtovendor",
+  SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
+  SP_ITEM_PICKER: "fn_tbl_rb_astissrgoselonly",
 
-  SP_MASTER_FILL: "fn_tbl_Rb_astdeptissmst",
-  SP_DETAIL_FILL: "fn_tbl_Rb_astdeptissdet",
+  SP_MASTER_FILL: "fn_tbl_Rb_astissrgomst",
+  SP_DETAIL_FILL: "fn_tbl_Rb_astissrgodet",
 
-  SAVE_ENDPOINT: "/API/AstDeptIssMst/Post_RB_AstDeptIssMst_Save",
+  SAVE_ENDPOINT: "/API/AstIssRGOMst/Post_RB_AstIssRGOMst_Save",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_astdeptissmst_list",
+  SP_LIST: "fn_tbl_rb_astissrgomst_list",
   LIST_FROM_DIVISION_ID: 15,
 
-  STORAGE_HEADER_META: "adiHeaderMeta",
-  STORAGE_ENTRY_META: "adiEntryMeta",
+  STORAGE_HEADER_META: "argoHeaderMeta",
+  STORAGE_ENTRY_META: "argoEntryMeta",
 };
 
-export const ADI_GRID_TABS = [{ id: "items", label: "Item Grid" }];
+export const ARGO_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-export const ADI_FRM_TYPE_OPTIONS = [
-  { value: String(ADI_CONFIG.FRM_TYPE), label: ADI_CONFIG.FRM_TYPE_LABEL },
+export const ARGO_FRM_TYPE_OPTIONS = [
+  { value: String(ARGO_CONFIG.FRM_TYPE), label: ARGO_CONFIG.FRM_TYPE_LABEL },
 ];
 
-const ADI_ITEM_PICKER_REQUIRED_FIELDS = [
+const ARGO_ITEM_PICKER_REQUIRED_FIELDS = [
   { keys: ["fromdivisionid", "FromDivisionID"], label: "Division" },
   { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
   { keys: ["fromlocationid", "FromLocationID"], label: "From Location" },
   { keys: ["fromdeptid", "FromDeptID"], label: "From Department" },
-  { keys: ["todeptid", "ToDeptID"], label: "To Department" },
+  { keys: ["tovendorid", "ToVendorID"], label: "Supplier" },
   { keys: ["configid", "ConfigID"], label: "Configuration" },
 ];
 
@@ -83,17 +83,17 @@ function pickHeaderInt(headerValues, ...keys) {
 }
 
 export function getMissingItemPickerHeaderFields(headerValues) {
-  return ADI_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
+  return ARGO_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
     isMissingValue(f, pickHeaderValue(headerValues, f.keys))
   ).map((f) => f.label);
 }
 
-export function buildAdiItemPickerJsonPayload(
+export function buildArgoItemPickerJsonPayload(
   headerValues,
   {
     companyId = DEFAULT_COMPANY_ID,
     loginId = DEFAULT_LOGIN_ID,
-    yearId = ADI_CONFIG.CONFIG_YEAR_ID,
+    yearId = ARGO_CONFIG.CONFIG_YEAR_ID,
   } = {}
 ) {
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
@@ -101,7 +101,7 @@ export function buildAdiItemPickerJsonPayload(
   return {
     prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
     prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || ADI_CONFIG.CONFIG_YEAR_ID,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || ARGO_CONFIG.CONFIG_YEAR_ID,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: fromDivisionId,
     prmtodivisionid: pickHeaderInt(headerValues, "todivisionid", "ToDivisionID") || fromDivisionId,
@@ -116,40 +116,42 @@ export function buildAdiItemPickerJsonPayload(
     prmfromvendorid: pickHeaderInt(headerValues, "fromvendorid", "FromVendorID"),
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
-    prmissuetypeid: ADI_CONFIG.ISSUE_TYPE_ID,
+    prmissuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
   };
 }
 
-export function buildAdiListJsonPayload({
+export function buildArgoListJsonPayload({
   companyId = DEFAULT_COMPANY_ID,
   loginId = DEFAULT_LOGIN_ID,
-  yearId = ADI_CONFIG.CONFIG_YEAR_ID,
+  yearId = ARGO_CONFIG.CONFIG_YEAR_ID,
   fromDate,
   toDate,
-  fromDivisionId = ADI_CONFIG.LIST_FROM_DIVISION_ID,
+  fromDivisionId = ARGO_CONFIG.LIST_FROM_DIVISION_ID,
   fromDeptId = 0,
+  toVendorId = 0,
 } = {}) {
   const year = new Date().getFullYear();
   return {
     prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
     prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || ADI_CONFIG.CONFIG_YEAR_ID,
+    prmyearid: Number(yearId) || ARGO_CONFIG.CONFIG_YEAR_ID,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmfromdivisionid: Number(fromDivisionId) || 0,
     prmfromdeptid: Number(fromDeptId) || 0,
+    prmtovendorid: Number(toVendorId) || 0,
   };
 }
 
-export function applyAdiHardcodedHeaderValues(headerValues = {}) {
+export function applyArgoHardcodedHeaderValues(headerValues = {}) {
   return {
     ...headerValues,
-    frmtype: ADI_CONFIG.FRM_TYPE,
-    issuetypeid: ADI_CONFIG.ISSUE_TYPE_ID,
+    frmtype: ARGO_CONFIG.FRM_TYPE,
+    issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
   };
 }
 
-export function resolveAdiColKey(fieldDefs, ...hints) {
+export function resolveArgoColKey(fieldDefs, ...hints) {
   const lowerHints = hints.map((h) => String(h).toLowerCase());
   const found = (fieldDefs || []).find((col) => {
     const name = String(col.colname ?? col.ColName ?? "").toLowerCase();
@@ -158,36 +160,40 @@ export function resolveAdiColKey(fieldDefs, ...hints) {
   return found?.colname ?? found?.ColName ?? hints[0] ?? "";
 }
 
-export function buildAdiCascadeResets(fieldDefs) {
-  const fromDiv = resolveAdiColKey(fieldDefs, "fromdivisionid");
-  const fromLoc = resolveAdiColKey(fieldDefs, "fromlocationid");
-  const toLoc = resolveAdiColKey(fieldDefs, "tolocationid");
-  const fromDept = resolveAdiColKey(fieldDefs, "fromdeptid");
-  const toDept = resolveAdiColKey(fieldDefs, "todeptid");
+export function buildArgoCascadeResets(fieldDefs) {
+  const fromDiv = resolveArgoColKey(fieldDefs, "fromdivisionid");
+  const fromLoc = resolveArgoColKey(fieldDefs, "fromlocationid");
+  const toLoc = resolveArgoColKey(fieldDefs, "tolocationid");
+  const fromDept = resolveArgoColKey(fieldDefs, "fromdeptid");
+  const toVendor = resolveArgoColKey(fieldDefs, "tovendorid");
+  const config = resolveArgoColKey(fieldDefs, "configid");
 
   const resets = {};
-  if (fromDiv) resets[fromDiv] = [fromLoc, toLoc, fromDept, toDept].filter(Boolean);
+  if (fromDiv) {
+    resets[fromDiv] = [fromLoc, toLoc, fromDept, toVendor, config].filter(Boolean);
+  }
   if (fromLoc) resets[fromLoc] = [];
   if (fromDept) resets[fromDept] = [];
   return resets;
 }
 
-export function validateAdiBusinessRules(headerValues = {}) {
+export function validateArgoBusinessRules(headerValues = {}) {
   const errors = [];
   const fromLoc = Number(headerValues.fromlocationid ?? 0);
   const toLoc = Number(headerValues.tolocationid ?? 0);
-  const fromDept = Number(headerValues.fromdeptid ?? 0);
-  const toDept = Number(headerValues.todeptid ?? 0);
   const tranDate = headerValues.trandate ? new Date(headerValues.trandate) : null;
   const issueDate = headerValues.issuedate ? new Date(headerValues.issuedate) : null;
 
   if (fromLoc > 0 && toLoc > 0 && fromLoc === toLoc) {
     errors.push("From Location and To Location cannot be the same.");
   }
-  if (fromDept > 0 && toDept > 0 && fromDept === toDept) {
-    errors.push("From Department and To Department cannot be the same.");
-  }
-  if (tranDate && issueDate && !Number.isNaN(tranDate.getTime()) && !Number.isNaN(issueDate.getTime()) && tranDate < issueDate) {
+  if (
+    tranDate
+    && issueDate
+    && !Number.isNaN(tranDate.getTime())
+    && !Number.isNaN(issueDate.getTime())
+    && tranDate < issueDate
+  ) {
     errors.push("Tran Date cannot be smaller than Issue Date.");
   }
 

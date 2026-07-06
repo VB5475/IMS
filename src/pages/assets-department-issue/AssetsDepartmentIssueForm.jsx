@@ -400,8 +400,18 @@ export default function AssetsDepartmentIssueForm() {
         hv.todeptid = 0;
         hv.configid = 0;
         itemGridRef.current?.clearRows?.();
-        if (Number(val) > 0 && hasVisibleCol(headerColumns, "configid")) {
-          await fetchConfigOptions(val);
+        if (Number(val) > 0) {
+          const fetches = [];
+          if (hasVisibleCol(headerColumns, "fromlocationid")) {
+            fetches.push(fetchFromLocations());
+          }
+          if (hasVisibleCol(headerColumns, "tolocationid")) {
+            fetches.push(fetchToLocations());
+          }
+          if (hasVisibleCol(headerColumns, "configid")) {
+            fetches.push(fetchConfigOptions(val));
+          }
+          if (fetches.length) await Promise.all(fetches);
         }
       });
       return;
@@ -419,7 +429,13 @@ export default function AssetsDepartmentIssueForm() {
         itemGridRef.current?.clearRows?.();
       });
     }
-  }, [requestGridClear, headerColumns, fetchConfigOptions]);
+  }, [
+    requestGridClear,
+    headerColumns,
+    fetchConfigOptions,
+    fetchFromLocations,
+    fetchToLocations,
+  ]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
