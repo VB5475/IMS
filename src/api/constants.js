@@ -112,7 +112,12 @@ export function buildSaveRowFromColumns(rest, columnDefs, extraFields = {}) {
   const row = {};
   columnDefs.forEach(({ key, colDataType }) => {
     const raw = rest[key];
-    row[key] = raw != null && raw !== "" ? raw : getColDefault(colDataType);
+    if (raw == null || raw === "") {
+      row[key] = getColDefault(colDataType);
+      return;
+    }
+    const lower = colDataType ? String(colDataType).toLowerCase() : "";
+    row[key] = lower && isNumericTypeStr(lower) ? (Number(raw) || 0) : raw;
   });
   Object.entries(rest).forEach(([k, v]) => {
     if (k === "id" || k in row) return;

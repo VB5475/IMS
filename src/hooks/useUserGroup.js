@@ -13,19 +13,19 @@ import { UG_CONFIG } from "../pages/user-group/constants";
 // Dual-case normalization — PG returns lowercase; legacy utilities need ColName
 // ---------------------------------------------------------------------------
 function normalizeColumn(col) {
-  const colname = col.colname ?? col.ColName ?? "";
-  const colseqno = col.colseqno ?? col.ColSeqNo ?? 999;
-  const isvisible = col.isvisible ?? col.IsVisible ?? false;
-  const colctrltype = col.colctrltype ?? col.ColCtrlType ?? 0;
-  const updatekeycolname = col.updatekeycolname ?? col.UpdateKeyColName ?? "";
-  const displayname = col.displayname ?? col.DisplayName ?? colname;
-  const iseditallow = col.iseditallow ?? col.IsEditAllow ?? false;
-  const islockoneditmodeallow = col.islockoneditmodeallow ?? col.IsLockOnEditModeAllow ?? false;
-  const objdetid = col.objdetid ?? col.ObjDetID ?? null;
-  const ismandatory = col.ismandatory ?? col.IsMandatory ?? false;
-  const coldatatype = col.coldatatype ?? col.ColDataType ?? null;
-  const ctrlvaluecol = col.ctrlvaluecol ?? col.CtrlValueCol ?? colname;
-  const ctrldisplaycol = col.ctrldisplaycol ?? col.CtrlDisplayCol ?? colname;
+  const colname               = col.colname               ?? "";
+  const colseqno              = col.colseqno              ?? 999;
+  const isvisible             = col.isvisible             ?? false;
+  const colctrltype           = col.colctrltype           ?? 0;
+  const updatekeycolname      = col.updatekeycolname      ?? "";
+  const displayname           = col.displayname           ?? colname;
+  const iseditallow           = col.iseditallow           ?? false;
+  const islockoneditmodeallow = col.islockoneditmodeallow ?? false;
+  const objdetid              = col.objdetid              ?? null;
+  const ismandatory           = col.ismandatory           ?? false;
+  const coldatatype           = col.coldatatype           ?? null;
+  const ctrlvaluecol          = col.ctrlvaluecol          ?? colname;
+  const ctrldisplaycol        = col.ctrldisplaycol        ?? colname;
   return {
     ...col,
     colname, colseqno, isvisible, colctrltype, updatekeycolname,

@@ -38,14 +38,14 @@ export function getMissingItemPickerHeaderFields(headerValues, fields, opts = {}
  */
 export function buildItemPickerJsonPayload(headerValues, loginId, { configYearId, tranBook }) {
   return {
-    prmDivisionID: Number(headerValues.divisionid ?? headerValues.DivisionID),
-    prmYearID: configYearId,
-    prmLoginID: loginId,
-    prmTranDate: formatTranDate(headerValues.trandate ?? headerValues.TranDate),
-    prmConfigID: Number(headerValues.configid ?? headerValues.ConfigID),
-    prmSupplierID: Number(headerValues.supplierid ?? headerValues.SupplierID ?? 0),
-    prmTranBook: tranBook,
-    prmFrmOption: Number(headerValues.basedonid ?? headerValues.BasedOnID) || 0,
+    prmdivisionid: Number(headerValues.divisionid ?? headerValues.DivisionID),
+    prmyearid: configYearId,
+    prmloginid: loginId,
+    prmtrandate: formatTranDate(headerValues.trandate ?? headerValues.TranDate),
+    prmconfigid: Number(headerValues.configid ?? headerValues.ConfigID),
+    prmsupplierid: Number(headerValues.supplierid ?? headerValues.SupplierID ?? 0),
+    prmtranbook: tranBook,
+    prmfrmoption: Number(headerValues.basedonid ?? headerValues.BasedOnID) || 0,
   };
 }
 

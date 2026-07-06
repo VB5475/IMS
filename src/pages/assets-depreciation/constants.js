@@ -58,9 +58,9 @@ export const DPC_FILTER_CASCADE_RESETS = {
 
 // ── Item picker required header fields (MRD § 3) ─────────────────────────────
 const DPC_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "DivisionID",   label: "Division" },
-  { headerKey: "TranDate",     label: "Tran Date", isDate: true },
-  { headerKey: "FixedAstAcID", label: "Fixed Asset A/C" },
+  { headerKey: "divisionid",   label: "Division" },
+  { headerKey: "trandate",     label: "Tran Date", isDate: true },
+  { headerKey: "fixedastacid", label: "Fixed Asset A/C" },
 ];
 
 function isMissingValue(field, value) {

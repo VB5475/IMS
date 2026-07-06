@@ -38,7 +38,6 @@ import {
 import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
-  buildDropdownOptionFromRow,
   editRecordGridColumnOpts,
   isLockOnEditModeCol,
   syncEditGridDropdownValues,
@@ -85,7 +84,10 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     divisionid: String(headerValues.divisionid ?? ""),
     configid: String(headerValues.configid ?? ""),
     supplierid: String(headerValues.supplierid ?? ""),
-    currencyname: masterRow?.currencyname ?? String(headerValues.currencyname ?? ""),
+    // Edit-mode master fill (fn_tbl_rb_purgrnmst) returns the display name under
+    // "currency", not "currencyname" — that key is only present on the supplier
+    // row (fn_tbl_fetchcustomersuppliertranws4web), used when cascading from Add mode.
+    currencyname: masterRow?.currency ?? String(headerValues.currency ?? ""),
     currencyrate: headerValues.currencyrate != null ? String(headerValues.currencyrate) : "",
     basedonid: String(headerValues.basedonid ?? "0"),
     billno: headerValues.billno ?? "",
@@ -500,8 +502,22 @@ export default function GoodsReceivedNoteForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // Always attach the fully-fetched options list (real names) regardless of
+  // lock/edit state — mirrors Purchase Order's DROPDOWN_OPTIONS_BY_COL pattern.
+  // Avoids depending on live ctrlvaluecol/ctrldisplaycol RB metadata, which is
+  // blank for several GRN header columns (configid, supplierid, ...) and was
+  // causing locked/edit-mode fields to display raw IDs instead of names.
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
+    divisionid:    divisionOptions,
+    configid:      grnTypeOptions,
+    supplierid:    supplierOptions,
+    basedonid:     GRN_CONFIG.BASED_ON_OPTIONS,
+    transporterid: transporterOptions,
+    destinationid: destinationOptions,
+  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions]);
+
   const buildFilterDef = useCallback(
-    (filter, apiColMap, optionInjectors) => {
+    (filter, apiColMap) => {
       const apiCol = resolveHeaderApiCol(filter, apiColMap);
       const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
       const forceListDropdown = GRN_LIST_DROPDOWN_FIELDS.has(filter.FilterParameterID);
@@ -514,74 +530,28 @@ export default function GoodsReceivedNoteForm() {
           : (apiCol.colctrltype ?? filter.FilterColCtrlType);
       }
 
-      const isDropdownField = forceListDropdown || def.FilterColCtrlType === controlTypeMap.DROPDOWN;
+      const staticOptions = DROPDOWN_OPTIONS_BY_COL[filter.FilterParameterID];
+      if (staticOptions) def.staticOptions = staticOptions;
 
-      if (isEditRoute && loadedMasterRow) {
-        if (filter.FilterParameterID === "basedonid") {
-          const basedOnVal = String(
-            loadedMasterRow.basedonid ?? headerValuesRef.current?.basedonid ?? "0"
-          );
-          if (lockOnEditMode || !isEditMode) {
-            const match = GRN_CONFIG.BASED_ON_OPTIONS.find((o) => o.value === basedOnVal);
-            def.staticOptions = [{ value: basedOnVal, label: match?.label ?? basedOnVal }];
-          } else {
-            def.staticOptions = GRN_CONFIG.BASED_ON_OPTIONS;
-          }
-          return def;
-        }
-
-        if (isDropdownField) {
-          if (lockOnEditMode || !isEditMode) {
-            def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
-          } else {
-            return optionInjectors(filter, def);
-          }
-          return def;
-        }
-        return def;
-      }
-
-      return optionInjectors(filter, def);
+      return def;
     },
-    [isEditRoute, loadedMasterRow, isEditMode]
+    [DROPDOWN_OPTIONS_BY_COL]
   );
 
   const syncedHeaderFilters = useMemo(() => {
-    const apiColMap = buildHeaderColMap(headerColumns);
-    const inject = (filter, baseFilter) => {
-      switch (filter.FilterParameterID) {
-        case "divisionid":
-          return { ...baseFilter, staticOptions: divisionOptions };
-        case "configid":
-          return { ...baseFilter, staticOptions: grnTypeOptions };
-        case "supplierid":
-          return { ...baseFilter, staticOptions: supplierOptions };
-        default:
-          return baseFilter;
-      }
-    };
     if (headerColumns.length === 0) return [];
-    return GRN_HEADER_FILTERS.map((f) => buildFilterDef(f, apiColMap, inject));
-  }, [headerColumns, divisionOptions, grnTypeOptions, supplierOptions, buildFilterDef]);
+    const apiColMap = buildHeaderColMap(headerColumns);
+    return GRN_HEADER_FILTERS.map((f) => buildFilterDef(f, apiColMap));
+  }, [headerColumns, buildFilterDef]);
 
   const syncedTransporterFilters = useMemo(() => {
     const apiColMap = buildHeaderColMap(headerColumns);
-    const inject = (filter, baseFilter) => {
-      switch (filter.FilterParameterID) {
-        case "transporterid":
-          return { ...baseFilter, staticOptions: transporterOptions };
-        case "destinationid":
-          return { ...baseFilter, staticOptions: destinationOptions };
-        default:
-          return baseFilter;
-      }
-    };
-    return GRN_TRANSPORTER_FILTERS.map((f) => buildFilterDef(f, apiColMap, inject));
-  }, [headerColumns, transporterOptions, destinationOptions, buildFilterDef]);
+    return GRN_TRANSPORTER_FILTERS.map((f) => buildFilterDef(f, apiColMap));
+  }, [headerColumns, buildFilterDef]);
 
   const syncedDriverFilters = useMemo(() => {
     const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_DRIVER_FILTERS.map((f) => buildFilterDef(f, apiColMap, (_, def) => def));
+    return GRN_DRIVER_FILTERS.map((f) => buildFilterDef(f, apiColMap));
   }, [headerColumns, buildFilterDef]);
 
   const buildFieldTones = useCallback(

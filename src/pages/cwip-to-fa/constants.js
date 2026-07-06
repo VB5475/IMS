@@ -73,11 +73,11 @@ export const C2F_FILTER_CASCADE_RESETS = {
 
 // ── Item picker required fields ───────────────────────────────────────────────
 const C2F_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "DivisionID",       label: "Division" },
-  { headerKey: "TranDate",         label: "Tran Date",       isDate: true },
-  { headerKey: "PutToUseInstDate", label: "Put To Use Date", isDate: true },
-  { headerKey: "LocationID",       label: "Location" },
-  { headerKey: "CWIPAccID",        label: "CWIP A/C" },
+  { headerKey: "divisionid",       label: "Division" },
+  { headerKey: "trandate",         label: "Tran Date",       isDate: true },
+  { headerKey: "puttouseinstdate", label: "Put To Use Date", isDate: true },
+  { headerKey: "locationid",       label: "Location" },
+  { headerKey: "cwipaccid",        label: "CWIP A/C" },
 ];
 
 const MONTH_ABBR = [

@@ -55,8 +55,11 @@ export function isNumericColDataType(colDataType) {
 }
 
 function hasNumericRangeMeta(apiCol) {
-  return (apiCol?.valueminrange ?? apiCol?.ValueMinRange) != null
-    || (apiCol?.valuemaxrange ?? apiCol?.ValueMaxRange) != null;
+  const min = apiCol?.valueminrange ?? apiCol?.ValueMinRange;
+  const max = apiCol?.valuemaxrange ?? apiCol?.ValueMaxRange;
+  if (min == null && max == null) return false;
+  if (min === 0 && max === 0) return false;
+  return true;
 }
 
 function looksLikeNumericFormat(inputFormat) {
@@ -91,6 +94,29 @@ export function isNumericColumnDef(col) {
   const colDataType = col.colDataType ?? col.ColDataType ?? col.columnMeta?.colDataType;
   if (isNumericColDataType(colDataType)) return true;
   return inferColumnDataKind(col, colDataType) === "numeric";
+}
+
+/**
+ * Coerce a row's values to match each column's coldatatype (numeric → Number,
+ * everything else left as-is). Used to close the gap where API responses
+ * return numeric-typed columns as strings (e.g. PG numeric type) and that
+ * string then rides untouched through to the save payload.
+ * @param {object} row
+ * @param {object[]} columns  - GET_DETAIL_COL_DATA rows (colname/coldatatype) or grid column defs (key/colDataType)
+ */
+export function coerceRowByColumns(row, columns) {
+  if (!row) return row;
+  const next = { ...row };
+  (columns || []).forEach((col) => {
+    const key = col.colname ?? col.ColName ?? col.key;
+    if (!key || next[key] == null || next[key] === "") return;
+    const colDataType = col.coldatatype ?? col.ColDataType ?? col.colDataType;
+    if (isNumericColDataType(colDataType)) {
+      const num = Number(next[key]);
+      if (!Number.isNaN(num)) next[key] = num;
+    }
+  });
+  return next;
 }
 
 /** Extract decimal places (N) from ColDataType like "numeric(M,N)" or "decimal(M,N)". */

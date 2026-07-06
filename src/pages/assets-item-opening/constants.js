@@ -13,7 +13,7 @@ export const AOP_CONFIG = {
   FORM_TAG:  "rb_astitemopemst",
   TRAN_BOOK: "AOP",
 
-  CONFIG_YEAR_ID:   2,   // ⚠️ DBA CONFIRM
+  CONFIG_YEAR_ID:   1,   // ⚠️ DBA CONFIRM
   DIVISION_YEAR_ID: 2,   // ⚠️ DBA CONFIRM
 
   // SP names
@@ -63,8 +63,8 @@ export const AOP_ITEM_TYPE_ID = 1;
 
 // Item picker required header fields (gate before opening item picker)
 const AOP_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "DivisionID",  label: "Division" },
-  { headerKey: "ItemGroupID", label: "Item Group" },
+  { headerKey: "divisionid",  label: "Division" },
+  { headerKey: "itemgroupid", label: "Item Group" },
 ];
 
 function isMissingValue(field, value) {

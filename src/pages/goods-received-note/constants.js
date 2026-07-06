@@ -336,33 +336,13 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
 
-  const payload = buildPickerPayload(headerValues, loginId, {
+  return buildPickerPayload(headerValues, loginId, {
 
     configYearId: GRN_CONFIG.CONFIG_YEAR_ID,
 
     tranBook: GRN_CONFIG.TRAN_BOOK,
 
   });
-
-  return {
-
-    prmdivisionid: payload.prmDivisionID,
-
-    prmyearid:     payload.prmYearID,
-
-    prmloginid:    payload.prmLoginID,
-
-    prmtrandate:   payload.prmTranDate,
-
-    prmconfigid:   payload.prmConfigID,
-
-    prmsupplierid: payload.prmSupplierID,
-
-    prmtranbook:   payload.prmTranBook,
-
-    prmfrmoption:  payload.prmFrmOption,
-
-  };
 
 }
 

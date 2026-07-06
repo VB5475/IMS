@@ -467,12 +467,12 @@ export default function EnterpriseFilterPanel({
           dropdownFilters.map(async (f) => {
             try {
               const detailData = await get(ENDPOINTS.GET_FILTER_DETAIL, {
-                prmMasterID: masterID,
-                prmFilterParameterName: f.FilterParameterID,
-                prmCboMode: CBO_MODE.FILTER,
-                prmFuncCode: funcCode,
-                prmDivisionID: divisionID,
-                prmLoginID: loginID,
+                prmmasterid: masterID,
+                prmfilterparametername: f.FilterParameterID,
+                prmcbomode: CBO_MODE.FILTER,
+                prmfunccode: funcCode,
+                prmdivisionid: divisionID,
+                prmloginid: loginID,
               });
               optionsMap[f.FilterParameterID] = detailData || [];
             } catch {
