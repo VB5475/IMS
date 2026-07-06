@@ -11,6 +11,7 @@ import {
   getColDefault,
   buildSaveRowFromColumns,
 } from "../../api/constants";
+import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
@@ -64,6 +65,7 @@ export default function ItemMasterForm({
   onSubMainGroupChange,
 }) {
   const isAddMode = mode === "add";
+  const { post } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
 
   const [isEditMode, setIsEditMode] = useState(true);
@@ -240,13 +242,7 @@ export default function ItemMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-      const res = await fetch(`${API_BASE_URL_IMS}${IM_CONFIG.SAVE_ENDPOINT}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await post(IM_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
