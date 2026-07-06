@@ -8,6 +8,7 @@ import {
   DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
   getColDefault, buildSaveRowFromColumns,
 } from "../../api/constants";
+import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
@@ -34,6 +35,7 @@ export default function SubGroupMasterForm({
   fetchEditRecord,
 }) {
   const isAddMode = mode === "add";
+  const { post } = useApi(API_BASE_URL_IMS);
 
   const [isEditMode,      setIsEditMode]      = useState(true);
   const [formValues,      setFormValues]      = useState({});
@@ -159,13 +161,7 @@ export default function SubGroupMasterForm({
         },
         { divisionId: 0, isEdit: !isAddMode }
       );
-      const res    = await fetch(`${API_BASE_URL_IMS}${SGM_CONFIG.SAVE_ENDPOINT}`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await post(SGM_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);

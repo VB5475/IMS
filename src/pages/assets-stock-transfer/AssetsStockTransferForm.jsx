@@ -125,6 +125,7 @@ export default function AssetsStockTransferForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
+  const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -568,13 +569,7 @@ export default function AssetsStockTransferForm() {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL_IMS}${AST_CONFIG.SAVE_ENDPOINT}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await postSave(AST_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);

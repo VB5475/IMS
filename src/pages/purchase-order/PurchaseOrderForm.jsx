@@ -153,6 +153,7 @@ export default function PurchaseOrderForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
+  const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns,
@@ -743,18 +744,13 @@ export default function PurchaseOrderForm() {
       const cleanItems = selectedItems.map(({ id: _id, ...rest }) => rest);
       setIsGridLoading(true);
       try {
-        const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ObjType: OBJ_TYPE.FUNCTION,
-            ObjName: PO_CONFIG.SP_INDENT_SUMMARY,
-            JSon: [{ prmJSon: cleanItems }],
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          }),
+        const summaryRes = await postSave(ENDPOINTS.API_VALUES, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: PO_CONFIG.SP_INDENT_SUMMARY,
+          JSon: [{ prmJSon: cleanItems }],
+          p_ErrCode: -1,
+          p_ErrMsg: "",
         });
-        const summaryRes = await summaryResponse.json();
 
         const parents = summaryRes ?? [];
         if (!parents.length) return;
@@ -785,7 +781,7 @@ export default function PurchaseOrderForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, itemModalColumns]
+    [ensureItemColumns, allColumns, addItemRow, itemModalColumns, postSave]
   );
 
   const handleSelectListShortcut = useCallback(() => {
@@ -866,13 +862,7 @@ export default function PurchaseOrderForm() {
 
     setIsSavingPO(true);
     try {
-      const res = await fetch(`${API_BASE_URL_IMS}${PO_CONFIG.SAVE_ENDPOINT}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await postSave(PO_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
@@ -885,7 +875,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave, postSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });

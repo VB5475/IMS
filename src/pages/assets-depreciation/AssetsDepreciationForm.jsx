@@ -162,6 +162,7 @@ export default function AssetsDepreciationForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef        = useRef([]);
   const { get: getLive }     = useApi(API_BASE_URL);
+  const { post: postSave }   = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -570,13 +571,7 @@ export default function AssetsDepreciationForm() {
 
     setIsSaving(true);
     try {
-      const res    = await fetch(`${API_BASE_URL_IMS}${DPC_CONFIG.SAVE_ENDPOINT}`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await postSave(DPC_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
@@ -589,7 +584,7 @@ export default function AssetsDepreciationForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave, postSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });

@@ -709,18 +709,13 @@ export default function PurchaseInquiryForm() {
 
       setIsGridLoading(true);
       try {
-        const summaryResponse = await fetch(`${API_BASE_URL_IMS}${ENDPOINTS.API_VALUES}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ObjType: OBJ_TYPE.FUNCTION,
-            ObjName: PI_CONFIG.SP_INDENT_SUMMARY,
-            JSon: [{ prmJSon: cleanItems }],
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          }),
+        const summaryRes = await postSave(ENDPOINTS.API_VALUES, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: PI_CONFIG.SP_INDENT_SUMMARY,
+          JSon: [{ prmJSon: cleanItems }],
+          p_ErrCode: -1,
+          p_ErrMsg: "",
         });
-        const summaryRes = await summaryResponse.json();
 
         const parents = summaryRes ?? [];
         if (!parents.length) return;
@@ -769,7 +764,7 @@ export default function PurchaseInquiryForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns]
+    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns, postSave]
   );
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────

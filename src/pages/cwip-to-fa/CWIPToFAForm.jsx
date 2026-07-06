@@ -179,6 +179,7 @@ export default function CWIPToFAForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef        = useRef([]);
   const { get: getLive }     = useApi(API_BASE_URL);
+  const { post: postSave }   = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -652,13 +653,7 @@ export default function CWIPToFAForm() {
 
     setIsSaving(true);
     try {
-      const res    = await fetch(`${API_BASE_URL_IMS}${C2F_CONFIG.SAVE_ENDPOINT}`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.message || `HTTP ${res.status}`);
+      const result = await postSave(C2F_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
