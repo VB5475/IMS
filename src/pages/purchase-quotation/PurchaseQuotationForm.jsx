@@ -53,8 +53,10 @@ import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   QTN_CONFIG,
@@ -103,26 +105,6 @@ function buildCurrencyPatchFromSupplier(supplier) {
     currencyname: supplier.currencyname ?? "",
     currencyrate: supplier.currencyrate != null ? String(supplier.currencyrate) : "",
   };
-}
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.idnumber ?? recordId,
-  };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 // Map an item picker row → items grid row (seeded from allColumns).
@@ -260,14 +242,9 @@ export default function PurchaseQuotationForm() {
 
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
-  const resetFormToInitialState = useCallback(() => {
-    localStorage.removeItem(QTN_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(QTN_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(QTN_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(QTN_CONFIG.STORAGE_ENTRY_META);
-
+  const buildDefaultHeaderValues = useCallback(() => {
     const resetSession = getUserSession();
-    headerValuesRef.current = {
+    return {
       trancode: "",
       trandate: todayISO,
       configid: 0,
@@ -287,40 +264,7 @@ export default function PurchaseQuotationForm() {
       userid: resetSession.userId,
       idnumber: 0,
     };
-
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-
-    clearQuotationTypes();
-    clearSuppliers();
-
-    setActiveTab("items");
-    setApprovedFilter("all");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-
-    setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
-
-    itemGridRef.current?.clearRows?.();
-    setGridRows([]);
-
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearQuotationTypes, clearSuppliers, exitEditMode, todayISO]);
-
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) {
-      navigate("/purchase-quotation");
-    } else {
-      resetFormToInitialState();
-    }
-  }, [isEditRoute, navigate, resetFormToInitialState]);
+  }, [todayISO]);
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("items");
@@ -357,7 +301,10 @@ export default function PurchaseQuotationForm() {
     setRecordLoadError(null);
 
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: [],
+        configYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
@@ -545,7 +492,13 @@ export default function PurchaseQuotationForm() {
 
         if (isDropdownField) {
           if (lockOnEditMode || !isEditMode) {
-            def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
+            // RB_PurQtnMst leaves CtrlDisplayCol blank for supplierid — fall back to
+            // the "suppliername" field GET_MASTER_DATA_FILL actually returns.
+            const effectiveApiCol =
+              filter.FilterParameterID === "supplierid" && !apiCol?.ctrldisplaycol
+                ? { ...apiCol, ctrldisplaycol: "suppliername" }
+                : apiCol;
+            def.staticOptions = buildDropdownOptionFromRow(effectiveApiCol, loadedMasterRow);
           } else {
             return injectListOptions(filter, def);
           }
@@ -718,6 +671,44 @@ export default function PurchaseQuotationForm() {
     },
     [fireCellEvent]
   );
+
+  const { resetFormToInitialState } = useTransactionFormReset({
+    storageKeys: [QTN_CONFIG.STORAGE_HEADER_META, QTN_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearQuotationTypes, clearSuppliers],
+    extraReset: () => {
+      setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+      setApprovedFilter("all");
+      setLoadedMasterRow(null);
+    },
+  });
+
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) {
+      navigate("/purchase-quotation");
+    } else {
+      resetFormToInitialState();
+    }
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingQtn, setIsSavingQtn] = useState(false);

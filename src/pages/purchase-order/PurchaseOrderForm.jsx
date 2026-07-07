@@ -46,8 +46,10 @@ import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilte
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PO_CONFIG,
@@ -75,17 +77,6 @@ const PO_LABEL_OVERRIDE_COLS = new Set(["currencyname", "currencyrate"]);
 let _poTempId = -1;
 const nextTempId = () => _poTempId--;
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? PO_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.poid ?? listRecord?.idnumber ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
 
@@ -109,16 +100,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     creditdays:   String(headerValues.creditdays ?? ""),
     remarks:      headerValues.remarks ?? "",
   };
-}
-
-// Returns all focusable, visible filter field elements inside a panel node.
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -353,7 +334,10 @@ export default function PurchaseOrderForm() {
     setRecordLoadError(null);
 
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["poid"],
+        configYearId: PO_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details, indentDetails } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
@@ -803,15 +787,74 @@ export default function PurchaseOrderForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingPO, setIsSavingPO] = useState(false);
 
+  const buildDefaultHeaderValues = useCallback(() => ({
+    trancode:      "",
+    trandate:      todayISO,
+    configid:      0,
+    deliverydate:  null,
+    divisionid:    0,
+    supplierid:    0,
+    deptid:        0,
+    currencyid:    0,
+    currencyname:  "",
+    currencyrate:  0,
+    creditdays:    0,
+    basedonid:     "0",
+    remarks:       "",
+    tranmstgenid:  0,
+    companyid:     1,
+    yearid:        PO_CONFIG.DIVISION_YEAR_ID,
+    loginid:       1,
+    idnumber:      0,
+    isamend:       0,
+    amendpoid:     0,
+    compuniquekey: 0,
+    funccode:      PO_CONFIG.RB_MASTER,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [PO_CONFIG.STORAGE_HEADER_META, PO_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearPoTypes],
+    extraReset: () => {
+      sessionStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
+      sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
+      setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
+      setIsAmend(false);
+      setAmendPOID("");
+      setApprovedFilter("all");
+      setChildRowsMap({});
+      setChildColumns([]);
+    },
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
       navigate("/purchase-order");
     } else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
+      resetFormToInitialState();
     }
-  }, [isEditRoute, navigate, exitEditMode]);
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const hv = headerValuesRef.current;
@@ -888,66 +931,8 @@ export default function PurchaseOrderForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
-
-    headerValuesRef.current = {
-      trancode:      "",
-      trandate:      todayISO,
-      configid:      0,
-      deliverydate:  null,
-      divisionid:    0,
-      supplierid:    0,
-      deptid:        0,
-      currencyid:    0,
-      currencyname:  "",
-      currencyrate:  0,
-      creditdays:    0,
-      basedonid:     "0",
-      remarks:       "",
-      tranmstgenid:  0,
-      companyid:     1,
-      yearid:        PO_CONFIG.DIVISION_YEAR_ID,
-      loginid:       1,
-      idnumber:      0,
-      isamend:       0,
-      amendpoid:     0,
-      compuniquekey: 0,
-      funccode:      PO_CONFIG.RB_MASTER,
-    };
-    setGridRows([]);
-    setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
-
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-
-    clearPoTypes();
-    clearSaveError();
-
-    setIsAmend(false);
-    setAmendPOID("");
-    setActiveTab("items");
-    setApprovedFilter("all");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-
-    setChildRowsMap({});
-    setChildColumns([]);
-
-    itemGridRef.current?.clearRows?.();
-
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearPoTypes, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

@@ -39,7 +39,6 @@ import {
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -49,8 +48,10 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   C2F_CONFIG,
@@ -113,17 +114,6 @@ function buildPickerColumnsFromData(firstRow) {
   return [PICKER_CB_COL, ...dataCols];
 }
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.yearid    ?? session.yearId    ?? C2F_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.loginid   ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.sessionid ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.C2FID     ?? listRecord?.idnumber   ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
@@ -138,15 +128,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     nettotal:         String(headerValues.nettotal         ?? "0"),
     remark:           headerValues.remark            ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -318,7 +299,10 @@ export default function CWIPToFAForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["C2FID"],
+        configYearId: C2F_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("CWIP To FA record not found.");
 
@@ -611,14 +595,51 @@ export default function CWIPToFAForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
+  const buildDefaultHeaderValues = useCallback(() => ({
+    tranno: "", trandate: todayISO, puttouseinstdate: null,
+    divisionid: 0, locationid: 0, conversionfactor: 0,
+    cwipaccid: 0, costcenteraccid: 0,
+    convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
+    tranmstgenid: 0,
+    companyid: DEFAULT_COMPANY_ID, yearid: C2F_CONFIG.CONFIG_YEAR_ID,
+    loginid: DEFAULT_LOGIN_ID, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
+  }), [todayISO]);
+
+  const clearC2fStorage = useCallback(() => {
+    sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
+    sessionStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
+  }, []);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [C2F_CONFIG.STORAGE_HEADER_META, C2F_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearC2fStorage],
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) navigate("/cwip-to-fa");
-    else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
-    }
-  }, [isEditRoute, navigate, exitEditMode]);
+    else resetFormToInitialState();
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -682,42 +703,8 @@ export default function CWIPToFAForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
-
-    clearLocations();
-    clearCWIPAccOptions();
-    clearCostCenterOptions();
-
-    headerValuesRef.current = {
-      tranno: "", trandate: todayISO, puttouseinstdate: null,
-      divisionid: 0, locationid: 0, conversionfactor: 0,
-      cwipaccid: 0, costcenteraccid: 0,
-      convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID, yearid: C2F_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
-    };
-
-    queuedRowsRef.current        = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

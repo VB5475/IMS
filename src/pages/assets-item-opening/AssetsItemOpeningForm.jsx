@@ -32,7 +32,6 @@ import {
   DEFAULT_SESSION_ID,
   getColDefault,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   isLockOnEditModeCol,
   isTruthyApiFlag,
@@ -41,8 +40,10 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AOP_CONFIG,
@@ -60,17 +61,6 @@ const nextTempId = () => _aopTempId--;
 // Summary panel fields — exclude from header filter (already shown in footer EnterpriseSummaryPanel)
 const AOP_SUMMARY_COL_NAMES = new Set(AOP_SUMMARY_FIELDS.map((f) => f.SummaryParameterID.toLowerCase()));
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid  ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.yearid     ?? session.yearId    ?? AOP_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.loginid    ?? session.loginId,
-    sessionId: listRecord?.sessionid  ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.aopid      ?? listRecord?.idnumber  ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
@@ -82,15 +72,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     remark:      headerValues.remark     ?? "",
     funccode:    headerValues.funccode   ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -231,7 +212,10 @@ export default function AssetsItemOpeningForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["aopid"],
+        configYearId: AOP_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Item Opening record not found.");
 
@@ -426,14 +410,38 @@ export default function AssetsItemOpeningForm() {
   }, []);
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  const buildDefaultHeaderValues = useCallback(() => ({
+    trancode: "", divisionid: 0, itemgroupid: 0, itemid: 0, accountid: 0, remark: "",
+    funccode: AOP_CONFIG.RB_MASTER, tranmstgenid: 0,
+    companyid: DEFAULT_COMPANY_ID, yearid: AOP_CONFIG.CONFIG_YEAR_ID,
+    loginid: DEFAULT_LOGIN_ID, idnumber: 0,
+  }), []);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [AOP_CONFIG.STORAGE_HEADER_META, AOP_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearItemGroupOptions, clearItemOptions, clearAssetsAccOptions],
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) navigate("/assets-item-opening");
-    else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
-    }
-  }, [isEditRoute, navigate, exitEditMode]);
+    else resetFormToInitialState();
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -488,32 +496,8 @@ export default function AssetsItemOpeningForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(AOP_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AOP_CONFIG.STORAGE_ENTRY_META);
-
-    clearItemGroupOptions();
-    clearItemOptions();
-    clearAssetsAccOptions();
-
-    headerValuesRef.current = {
-      trancode: "", divisionid: 0, itemgroupid: 0, itemid: 0, accountid: 0, remark: "",
-      funccode: AOP_CONFIG.RB_MASTER, tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID, yearid: AOP_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID, idnumber: 0,
-    };
-
-    queuedRowsRef.current        = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearItemGroupOptions, clearItemOptions, clearAssetsAccOptions, clearSaveError, exitEditMode]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

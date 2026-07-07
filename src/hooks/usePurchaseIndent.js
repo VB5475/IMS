@@ -160,7 +160,6 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_DEPT,
-        // JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID }]),
         JSon: JSON.stringify([{ prmdeptid : 0, prmloginid: DEFAULT_LOGIN_ID }]),
         p_ErrCode: -1,
         p_ErrMsg: "",

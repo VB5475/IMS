@@ -54,6 +54,8 @@ function mapMasterRowToHeaderValues(master) {
     trandate: toDateInput(master.trandate),
     inquiryexpirydate: toDateInput(master.inquiryexpirydate ?? master.expirydate) || null,
     suppquotdate: toDateInput(master.suppquotdate ?? master.supplierquotdate) || null,
+    // PG returns "currency" (not "currencyname") as the display label
+    currencyname: master.currencyname ?? master.currency ?? "",
     // Context fields: always use live values, not stale DB values
     yearid:    QTN_CONFIG.CONFIG_YEAR_ID,
     funccode:  QTN_CONFIG.RB_MASTER,
@@ -339,17 +341,17 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
       rawDetailColumnsRef.current = apiColumns;
       setEventColumns(
         buildEventColumnSet(apiColumns, [
-          "ItemID",
-          "TranQty",
-          "BaseQty",
-          "BaseRate",
-          "TranRate",
-          "DiscPerc",
-          "Expense",
-          "GSTPerc",
-          "Rate",
-          "Qty",
-          "Amount",
+          "itemid",
+          "tranqty",
+          "baseqty",
+          "baserate",
+          "tranrate",
+          "discperc",
+          "expense",
+          "gstperc",
+          "rate",
+          "qty",
+          "amount",
         ])
       );
       setAllColumns(

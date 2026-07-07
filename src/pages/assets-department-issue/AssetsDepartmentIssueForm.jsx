@@ -20,7 +20,6 @@ import {
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -33,8 +32,10 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ADI_CONFIG,
@@ -52,17 +53,6 @@ import "./AssetsDepartmentIssuePage.css";
 
 let _adiTempId = -1;
 const nextTempId = () => _adiTempId--;
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? ADI_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.astdeptissid ?? listRecord?.AstDeptIssID ?? listRecord?.idnumber ?? listRecord?.IDNumber ?? recordId,
-  };
-}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -84,15 +74,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     frmtype: str(headerValues.frmtype ?? ADI_CONFIG.FRM_TYPE),
     issuetypeid: str(headerValues.issuetypeid ?? ADI_CONFIG.ISSUE_TYPE_ID),
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -262,7 +243,10 @@ export default function AssetsDepartmentIssueForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astdeptissid", "AstDeptIssID"],
+        configYearId: ADI_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Department Issue record not found.");
 
@@ -533,7 +517,55 @@ export default function AssetsDepartmentIssueForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const buildDefaultHeaderValues = useCallback(() => applyAdiHardcodedHeaderValues({
+    trancode: "",
+    trandate: todayISO,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    fromlocationid: 0,
+    tolocationid: 0,
+    fromdeptid: 0,
+    todeptid: 0,
+    configid: 0,
+    expecteddays: 0,
+    expecteddate: null,
+    includestockitems: 0,
+    remarks: "",
+    frmtype: ADI_CONFIG.FRM_TYPE,
+    issuetypeid: ADI_CONFIG.ISSUE_TYPE_ID,
+    funccode: ADI_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: DEFAULT_COMPANY_ID,
+    yearid: ADI_CONFIG.CONFIG_YEAR_ID,
+    loginid: DEFAULT_LOGIN_ID,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [ADI_CONFIG.STORAGE_HEADER_META, ADI_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+  });
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateAdiBusinessRules(headerValuesRef.current);
@@ -577,6 +609,7 @@ export default function AssetsDepartmentIssueForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[ADI Save] Failed:", err);
@@ -585,58 +618,21 @@ export default function AssetsDepartmentIssueForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(ADI_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(ADI_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyAdiHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      fromlocationid: 0,
-      tolocationid: 0,
-      fromdeptid: 0,
-      todeptid: 0,
-      configid: 0,
-      expecteddays: 0,
-      expecteddate: null,
-      includestockitems: 0,
-      remarks: "",
-      frmtype: ADI_CONFIG.FRM_TYPE,
-      issuetypeid: ADI_CONFIG.ISSUE_TYPE_ID,
-      funccode: ADI_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: ADI_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

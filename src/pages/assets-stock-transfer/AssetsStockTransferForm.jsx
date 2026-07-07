@@ -20,7 +20,6 @@ import {
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -33,8 +32,10 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AST_CONFIG,
@@ -53,22 +54,6 @@ import "./AssetsStockTransferPage.css";
 let _astTempId = -1;
 const nextTempId = () => _astTempId--;
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AST_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:
-      listRecord?.astissstktrid
-      ?? listRecord?.AstIssStktrID
-      ?? listRecord?.idnumber
-      ?? listRecord?.IDNumber
-      ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   const str = (v) => (v == null || v === "" ? "" : String(v));
@@ -86,15 +71,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     frmtype: str(headerValues.frmtype ?? AST_CONFIG.FRM_TYPE),
     issuetypeid: str(headerValues.issuetypeid ?? AST_CONFIG.ISSUE_TYPE_ID),
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -258,7 +234,10 @@ export default function AssetsStockTransferForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astissstktrid", "AstIssStktrID"],
+        configYearId: AST_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) {
         throw new Error("Assets Stock Transfer record not found.");
@@ -532,44 +511,50 @@ export default function AssetsStockTransferForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const resetFormToInitialState = useCallback(() => {
-    localStorage.removeItem(AST_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AST_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyAstHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      todivisionid: 0,
-      fromlocationid: 0,
-      tolocationid: 0,
-      configid: 0,
-      includestockitems: 0,
-      remarks: "",
-      frmtype: AST_CONFIG.FRM_TYPE,
-      issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
-      funccode: AST_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AST_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+  const buildDefaultHeaderValues = useCallback(() => applyAstHardcodedHeaderValues({
+    trancode: "",
+    trandate: todayISO,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    todivisionid: 0,
+    fromlocationid: 0,
+    tolocationid: 0,
+    configid: 0,
+    includestockitems: 0,
+    remarks: "",
+    frmtype: AST_CONFIG.FRM_TYPE,
+    issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
+    funccode: AST_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: DEFAULT_COMPANY_ID,
+    yearid: AST_CONFIG.CONFIG_YEAR_ID,
+    loginid: DEFAULT_LOGIN_ID,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [AST_CONFIG.STORAGE_HEADER_META, AST_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+  });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -637,8 +622,8 @@ export default function AssetsStockTransferForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    resetFormToInitialState();
-  }, [resetFormToInitialState]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

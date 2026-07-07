@@ -44,16 +44,16 @@ export const INDENT_DETAILS_COLUMNS = [
   { key: "Unit", label: "Unit", width: 80 },
 ];
 
-/** GST summary fields — SummaryParameterID matches RB master ColName. */
+/** GST summary fields — SummaryParameterID/detKey match RB master/detail ColName (API returns lowercase). */
 export const PURCHASE_GST_SUMMARY_FIELDS = [
-  { SummaryParameterID: "MstBaseAmount", detKey: "BaseAmount" },
-  { SummaryParameterID: "MstExpense", detKey: "Expense" },
-  { SummaryParameterID: "MstTaxableValue", detKey: "TaxableValue" },
-  { SummaryParameterID: "MstCGST", detKey: "CGST" },
-  { SummaryParameterID: "MstSGST", detKey: "SGST" },
-  { SummaryParameterID: "MstIGST", detKey: "IGST" },
-  { SummaryParameterID: "MstRoundOff", detKey: "RoundOff" },
-  { SummaryParameterID: "MstNetBaseAmount", detKey: "NetBaseAmount" },
+  { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
+  { SummaryParameterID: "mstexpense", detKey: "expense" },
+  { SummaryParameterID: "msttaxablevalue", detKey: "taxablevalue" },
+  { SummaryParameterID: "mstcgst", detKey: "cgst" },
+  { SummaryParameterID: "mstsgst", detKey: "sgst" },
+  { SummaryParameterID: "mstigst", detKey: "igst" },
+  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
+  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
 ];
 
 export const CURRENCY_READONLY_FIELDS = ["currencyid", "currencyrate"];

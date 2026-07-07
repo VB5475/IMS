@@ -22,7 +22,6 @@ import {
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -35,8 +34,10 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AWF_CONFIG,
@@ -50,17 +51,6 @@ import "./AssetsWriteOffPage.css";
 
 let _awfTempId = -1;
 const nextTempId = () => _awfTempId--;
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AWF_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.astwriteoffid ?? listRecord?.idnumber ?? listRecord?.IDNumber ?? recordId,
-  };
-}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -77,15 +67,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     totaldepvalue: headerValues.totaldepvalue ?? "",
     totalcurrbookvalue: headerValues.totalcurrbookvalue ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -246,7 +227,10 @@ export default function AssetsWriteOffForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astwriteoffid"],
+        configYearId: AWF_CONFIG.CONFIG_YEAR_ID,
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Write Off record not found.");
 
@@ -515,7 +499,53 @@ export default function AssetsWriteOffForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const buildDefaultHeaderValues = useCallback(() => ({
+    trancode: "",
+    trandate: todayISO,
+    divisionid: 0,
+    fromlocid: 0,
+    accountid: 0,
+    profitlossactid: 0,
+    remarks: "",
+    totalpurvalue: 0,
+    totalrevvalue: 0,
+    totaldepvalue: 0,
+    totalcurrbookvalue: 0,
+    funccode: AWF_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: DEFAULT_COMPANY_ID,
+    yearid: AWF_CONFIG.CONFIG_YEAR_ID,
+    loginid: DEFAULT_LOGIN_ID,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [AWF_CONFIG.STORAGE_HEADER_META, AWF_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions],
+  });
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
@@ -557,6 +587,7 @@ export default function AssetsWriteOffForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[AWF Save] Failed:", err);
@@ -565,61 +596,21 @@ export default function AssetsWriteOffForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify, postSave]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, postSave, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AWF_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AWF_CONFIG.STORAGE_ENTRY_META);
-    clearLocationOptions();
-    clearAssetsAccOptions();
-    clearProfitLossAccOptions();
-    headerValuesRef.current = {
-      trancode: "",
-      trandate: todayISO,
-      divisionid: 0,
-      fromlocid: 0,
-      accountid: 0,
-      profitlossactid: 0,
-      remarks: "",
-      totalpurvalue: 0,
-      totalrevvalue: 0,
-      totaldepvalue: 0,
-      totalcurrbookvalue: 0,
-      funccode: AWF_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AWF_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    };
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [
-    clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions,
-    clearSaveError, exitEditMode, todayISO,
-  ]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
