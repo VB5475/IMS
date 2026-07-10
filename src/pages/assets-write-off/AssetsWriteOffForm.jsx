@@ -655,7 +655,7 @@ export default function AssetsWriteOffForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page awf-page">
+    <div className="workspace-page workspace-page--fill awf-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

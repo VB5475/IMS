@@ -673,7 +673,7 @@ export default function AssetsDepreciationForm() {
   const combinedError  = metaError || headerError;
 
   return (
-    <div className="workspace-page dpc-page">
+    <div className="workspace-page workspace-page--fill dpc-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

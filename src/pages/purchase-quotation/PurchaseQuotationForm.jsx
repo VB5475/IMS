@@ -870,7 +870,7 @@ export default function PurchaseQuotationForm() {
   );
 
   return (
-    <div className="workspace-page pq-page">
+    <div className="workspace-page workspace-page--fill pq-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

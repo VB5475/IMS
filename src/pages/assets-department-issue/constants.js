@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Assets Department Issue";
 
 export const ADI_CONFIG = {
   RB_MASTER: "rb_astdeptissmst",
+  DELETE_PROC_NAME: "pr_rb_astdeptissmst_delete",
   RB_DETAIL: "rb_astdeptissdet",
   RB_ITEM_PICKER: "rb_astdeptissselonly",
 

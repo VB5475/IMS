@@ -695,7 +695,7 @@ export default function AssetsEmployeeReturnForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page aer-page">
+    <div className="workspace-page workspace-page--fill aer-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

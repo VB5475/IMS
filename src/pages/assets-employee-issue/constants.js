@@ -9,6 +9,7 @@ export const PAGE_TITLE_NEW = "New Assets Employee Issue";
 
 export const AEI_CONFIG = {
   RB_MASTER: "rb_astempissmst",
+  DELETE_PROC_NAME: "pr_rb_astempissmst_delete",
   RB_DETAIL: "rb_astempissdet",
   RB_ITEM_PICKER: "rb_astempissselonly",
 

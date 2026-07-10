@@ -111,6 +111,8 @@ export default function AssetsReturnableGatePassInPage() {
           emptyMessage="No Assets Returnable Gate Pass In records found."
           hideHeader
           searchable
+          deleteProcName={ARGI_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

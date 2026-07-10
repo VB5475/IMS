@@ -134,6 +134,8 @@ export default function GoodsReceivedNotePage() {
           emptyMessage="No goods received notes found."
           hideHeader
           searchable
+          deleteProcName={GRN_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchGrnList}
           fill
         />
       </section>

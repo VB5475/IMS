@@ -725,7 +725,7 @@ export default function PurchaseVoucherForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page pv-page">
+    <div className="workspace-page workspace-page--fill pv-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

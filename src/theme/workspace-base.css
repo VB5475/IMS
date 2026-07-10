@@ -21,11 +21,45 @@
 
 .workspace-page--fill .workspace-page__filters {
   flex: 0 1 auto;
+  flex-shrink: 0;
   min-height: 0;
   max-height: 42vh;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
+}
+
+/* Entry forms (EntryGrid): grid section fills remaining viewport height */
+.workspace-page.workspace-page--fill:not([class*="-list-page"]) {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.workspace-page--fill [class$="-grid-section"] {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-page--fill [class$="-grid-section"] .grid-tabbar {
+  flex-shrink: 0;
+}
+
+.workspace-page--fill [class$="-tab-pane"] {
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-page--fill [class$="-tab-pane--active"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-page--fill [class$="-tab-pane--active"] > .erp-grid-container--fill {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
 .workspace-page__grid {

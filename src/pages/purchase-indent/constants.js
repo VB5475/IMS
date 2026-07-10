@@ -17,6 +17,7 @@ export const IND_CONFIG = {
   SP_INDENT_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
   RB_MASTER: "rb_purindtmst",
+  DELETE_PROC_NAME: "pr_rb_purindtmst_delete",
   RB_DETAIL: "rb_purindtdet",
   RB_DETAIL_SELECT: "rb_purindtselitem",
 

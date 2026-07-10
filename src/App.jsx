@@ -35,6 +35,10 @@ const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-retu
 const AssetsEmployeeReturnForm = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnForm"));
 const AssetsDepartmentIssuePage = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssuePage"));
 const AssetsDepartmentIssueForm = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssueForm"));
+const AssetsHealthStatusUpdationPage = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationPage"));
+const AssetsHealthStatusUpdationForm = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm"));
+const AssetsRevaluationPage = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationPage"));
+const AssetsRevaluationForm = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationForm"));
 const AssetsReturnableGatePassOutPage = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage"));
 const AssetsReturnableGatePassOutForm = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutForm"));
 const AssetsReturnableGatePassInPage = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInPage"));
@@ -55,6 +59,8 @@ const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/A
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetItemMasterPage"));
+const AssetsItemOpeningExcelPage = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage"));
+const AssetsItemOpeningExcelForm = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm"));
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
 
 function AppLayout() {
@@ -139,6 +145,14 @@ function AppRoutes() {
           <Route path="assets-department-issue/new" element={<AssetsDepartmentIssueForm />} />
           <Route path="assets-department-issue/:id" element={<AssetsDepartmentIssueForm />} />
           <Route path="assets-department-issue/:id/edit" element={<AssetsDepartmentIssueForm />} />
+          <Route path="assets-health-status-updation" element={<AssetsHealthStatusUpdationPage />} />
+          <Route path="assets-health-status-updation/new" element={<AssetsHealthStatusUpdationForm />} />
+          <Route path="assets-health-status-updation/:id" element={<AssetsHealthStatusUpdationForm />} />
+          <Route path="assets-health-status-updation/:id/edit" element={<AssetsHealthStatusUpdationForm />} />
+          <Route path="assets-revaluation" element={<AssetsRevaluationPage />} />
+          <Route path="assets-revaluation/new" element={<AssetsRevaluationForm />} />
+          <Route path="assets-revaluation/:id" element={<AssetsRevaluationForm />} />
+          <Route path="assets-revaluation/:id/edit" element={<AssetsRevaluationForm />} />
           <Route path="assets-returnable-gate-pass-out" element={<AssetsReturnableGatePassOutPage />} />
           <Route path="assets-returnable-gate-pass-out/new" element={<AssetsReturnableGatePassOutForm />} />
           <Route path="assets-returnable-gate-pass-out/:id" element={<AssetsReturnableGatePassOutForm />} />
@@ -158,6 +172,8 @@ function AppRoutes() {
           <Route path="admin/company/location-master" element={<LocationMasterPage />} />
           <Route path="admin/company/division-master" element={<DivisionMasterPage />} />
           <Route path="account/master/asset-item-master" element={<AssetItemMasterPage />} />
+          <Route path="account/master/asset-item-opening-excel" element={<AssetsItemOpeningExcelPage />} />
+          <Route path="account/master/asset-item-opening-excel/new" element={<AssetsItemOpeningExcelForm />} />
           <Route path="admin/master/supplier-master" element={<SupplierMasterPage />} />
           <Route path="admin/user-master" element={<UserMasterPage />} />
           <Route path="admin/user-group" element={<UserGroupPage />} />

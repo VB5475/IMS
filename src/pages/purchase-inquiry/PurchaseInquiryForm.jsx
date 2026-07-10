@@ -1038,7 +1038,7 @@ export default function PurchaseInquiryForm() {
   );
 
   return (
-    <div className="workspace-page pi-page">
+    <div className="workspace-page workspace-page--fill pi-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

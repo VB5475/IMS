@@ -132,6 +132,8 @@ export default function PurchaseOrderPage() {
           emptyMessage="No purchase orders found."
           hideHeader
           searchable
+          deleteProcName={PO_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchOrders}
           fill
         />
       </section>

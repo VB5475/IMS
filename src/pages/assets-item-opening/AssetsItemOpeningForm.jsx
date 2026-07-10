@@ -543,7 +543,7 @@ export default function AssetsItemOpeningForm() {
   const combinedError  = metaError || headerError;
 
   return (
-    <div className="workspace-page aop-page">
+    <div className="workspace-page workspace-page--fill aop-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

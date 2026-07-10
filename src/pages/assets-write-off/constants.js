@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Assets Write Off";
 
 export const AWF_CONFIG = {
   RB_MASTER: "rb_astwriteoffmst",
+  DELETE_PROC_NAME: "pr_rb_astwriteoffmst_delete",
   RB_DETAIL: "rb_astwriteoffdet",
   RB_ITEM_PICKER: "rb_astwritoffselonly",
 

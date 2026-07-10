@@ -756,7 +756,7 @@ export default function CWIPToFAForm() {
   const combinedError  = metaError || headerError;
 
   return (
-    <div className="workspace-page c2f-page">
+    <div className="workspace-page workspace-page--fill c2f-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

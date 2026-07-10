@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Assets Employee Return";
 
 export const AER_CONFIG = {
   RB_MASTER: "rb_astempretmst",
+  DELETE_PROC_NAME: "pr_rb_astempretmst_delete",
   RB_DETAIL: "rb_astempretdet",
   RB_ITEM_PICKER: "rb_astempretselonly",
 

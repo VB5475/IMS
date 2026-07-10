@@ -111,6 +111,8 @@ export default function AssetsReturnableGatePassOutPage() {
           emptyMessage="No Assets Returnable Gate Pass Out records found."
           hideHeader
           searchable
+          deleteProcName={ARGO_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

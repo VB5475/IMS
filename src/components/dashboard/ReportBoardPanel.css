@@ -57,6 +57,140 @@
   padding: 0 24px 0 8px;
 }
 
+.rbp-panel__qr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rbp-panel__qr-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.rbp-panel__qr-btn--secondary {
+  background: #fff;
+  color: var(--primary);
+}
+
+.rbp-panel__print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #15803d;
+  border-radius: var(--radius-sm, 4px);
+  background: #15803d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rbp-panel__print-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.rbp-panel__print-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rbp-panel__printer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rbp-panel__printer-status--ready {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.rbp-panel__printer-status--checking {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.rbp-panel__printer-status--offline {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.rbp-panel__printer-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.rbp-panel__printer-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rbp-panel__printer-retry {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.rbp-panel__printer-select {
+  min-width: 120px;
+  max-width: 160px;
+}
+
+.rbp-panel__printer-input {
+  height: 26px;
+  min-width: 110px;
+  max-width: 140px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.rbp-panel__sticker-size-select {
+  min-width: 88px;
+}
+
+.rbp-panel--compact .rbp-panel__printer-text {
+  max-width: 90px;
+}
+
+.rbp-panel--compact .rbp-panel__printer-select {
+  min-width: 100px;
+  max-width: 120px;
+}
+
 /* Nested grid — panel supplies the header; flatten the inner card chrome */
 .rbp-panel .ng-card {
   border: none;

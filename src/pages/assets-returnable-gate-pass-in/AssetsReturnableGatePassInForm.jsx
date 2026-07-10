@@ -643,7 +643,7 @@ export default function AssetsReturnableGatePassInForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page argi-page">
+    <div className="workspace-page workspace-page--fill argi-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

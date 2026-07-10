@@ -33,6 +33,7 @@ export const QTN_CONFIG = {
   SP_QUOTATION_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
   RB_MASTER: "rb_purqtnmst",
+  DELETE_PROC_NAME: "pr_rb_purqtnmst_delete",
   RB_DETAIL: "rb_purqtndet",
 
   FORM_TAG: "PQ",

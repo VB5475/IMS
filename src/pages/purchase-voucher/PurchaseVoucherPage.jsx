@@ -128,6 +128,8 @@ export default function PurchaseVoucherPage() {
           emptyMessage="No purchase vouchers found."
           hideHeader
           searchable
+          deleteProcName={PV_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchVouchers}
           fill
         />
       </section>

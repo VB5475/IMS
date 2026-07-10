@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Assets Returnable Gate Pass In";
 
 export const ARGI_CONFIG = {
   RB_MASTER: "rb_astissrgimst",
+  DELETE_PROC_NAME: "pr_rb_astissrgimst_delete",
   RB_DETAIL: "rb_astissrgidet",
   RB_ITEM_PICKER: "rb_astissrgiselonly",
 

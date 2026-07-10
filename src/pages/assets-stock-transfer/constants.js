@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Assets Stock Transfer";
 
 export const AST_CONFIG = {
   RB_MASTER: "rb_astissstktrmst",
+  DELETE_PROC_NAME: "pr_rb_astissstktrmst_delete",
   RB_DETAIL: "rb_astissstktrdet",
   RB_ITEM_PICKER: "rb_astisstktrselonly",
 

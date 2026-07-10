@@ -39,6 +39,7 @@ export const PI_CONFIG = {
   SUPPLIER_SP: "fn_tbl_rb_purinqselonlysupp",
 
   RB_MASTER: "rb_purinquirymst",
+  DELETE_PROC_NAME: "pr_rb_purinquirymst_delete",
   RB_DETAIL: "rb_purinquirydet",
   RB_INDT_DETAIL: "rb_purinquiryindtdet",
 

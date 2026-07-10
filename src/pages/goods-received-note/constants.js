@@ -59,6 +59,7 @@ export const GRN_CONFIG = {
 
 
   RB_MASTER: "rb_purgrnmst",
+  DELETE_PROC_NAME: "pr_rb_purgrnmst_delete",
 
   RB_DETAIL: "rb_purgrndet",
 

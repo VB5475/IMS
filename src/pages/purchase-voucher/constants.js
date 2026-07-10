@@ -18,6 +18,7 @@ export const PV_CONFIG = {
   SP_PV_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
   RB_MASTER: "rb_purpvmst",
+  DELETE_PROC_NAME: "pr_rb_purpvmst_delete",
   RB_DETAIL: "rb_purpvdet",
 
   FORM_TAG: "PV",

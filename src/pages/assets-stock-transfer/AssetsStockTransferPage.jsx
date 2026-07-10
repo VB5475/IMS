@@ -111,6 +111,8 @@ export default function AssetsStockTransferPage() {
           emptyMessage="No Assets Stock Transfer records found."
           hideHeader
           searchable
+          deleteProcName={AST_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

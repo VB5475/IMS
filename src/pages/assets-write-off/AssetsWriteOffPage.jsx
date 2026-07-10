@@ -125,6 +125,8 @@ export default function AssetsWriteOffPage() {
           emptyMessage="No Assets Write Off records found."
           hideHeader
           searchable
+          deleteProcName={AWF_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

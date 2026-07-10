@@ -40,6 +40,7 @@ export const ENDPOINTS = {
   RB_REPORTBOARD_DETAIL_SAVE: "/RB_ReportBoardDetail_Save",
   FN_TBL_RB_GRID_EVENT: "/fn_tbl_RB_Grid_Event",
   TRAN_FORM_EVENT: "/API/TransactionFormEvent/Post_RB_TransactionFormEvent",
+  TRAN_FORM_DELETE: "/API/TranFormDelete/Post_TranFormDelete",
   RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save",
 };
 
@@ -50,6 +51,14 @@ export const ENDPOINTS = {
 export const DEFAULT_SESSION_ID = 88;
 export const DEFAULT_DIVISION_ID = 0;
 export const API_TIMEOUT = 30000;
+
+// TODO(tech-debt): Asset Revaluation / Health Status Updation / Item Opening Excel
+// import these instead of reading getUserSession().loginId / .companyId, breaking the
+// convention above. Values mirror DEFAULT_USER_SESSION's fallback (session/userSession.js)
+// purely to unblock the build — those pages should be migrated to getUserSession() and
+// these two exports removed.
+export const DEFAULT_LOGIN_ID = 1;
+export const DEFAULT_COMPANY_ID = 1;
 
 /** FN_Fetch_Data / API/Values — ObjType discriminator */
 export const OBJ_TYPE = {

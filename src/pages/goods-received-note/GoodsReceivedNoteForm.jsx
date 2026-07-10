@@ -1012,7 +1012,7 @@ export default function GoodsReceivedNoteForm() {
   );
 
   return (
-    <div className="workspace-page grn-page">
+    <div className="workspace-page workspace-page--fill grn-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
