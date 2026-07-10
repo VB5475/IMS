@@ -1,0 +1,247 @@
+HORIZON ENTERPRISE IMS
+Module Requirements Template
+Module: [Admin]
+Submitted by: [Om]
+Date: [24-Jun-2026]
+COLOUR GUIDE
+  GREEN   — Example value from Asset Item Master— replace for your module
+  BLUE   — Empty slot — add your own rows here
+  AMBER   — Instruction — read once, ignore after
+HOW TO USE THIS TEMPLATE
+1.  Save a copy — rename to  MRD_[ModuleName].docx  before editing.
+2.  Replace every green value with your module's equivalent (SP names, RB codes, field names, routes, etc.).
+3.  Add your own rows in the blue slots at the bottom of each table.
+4.  In Section 2, delete the placeholder box and paste your design screenshot (Insert → Pictures).
+5.  Send completed document to the development team BEFORE coding starts.
+6.  Dev team signs off by stamping "Dev Confirmed" on each section.
+1. Module Overview
+Replace every green value below with your module's equivalent.
+Module Name Account Item Opening Excel
+Module Code: “AIME”
+Purpose: Create Asset Item opening from Excel.
+Primary Users: Management Team
+Listing Route: /Account/Master/Asset – Asset Item Opening Excel
+New Form Route/Account/Master/Asset – Asset Item Opening Excel /new
+Edit Route: /Account/Master/Asset – Asset Item Opening Excel /:id
+Nav Menu Label Asset Item opening from excel
+2. Screen Design
+Delete the placeholder box below and paste your design screenshot (Insert → Pictures). Add a second image for the listing view if applicable.
+. 
+3. Form Fields
+One row per field shown in the Form Panel. Control types: Textbox | Date | Dropdown | Textarea | Checkbox.
+Field Label
+Field ID (ColName)
+Control Type
+Required
+Is ReadOnly
+Is Lock 
+On Edit
+Source SP / Cascade Note
+Item Code
+ItemCode
+Textbox
+Yes
+No
+Yes
+Item Name
+ItemName
+Text Box
+Yes
+No
+Yes
+Base Unit Code
+BaseUnitCode
+Textbox
+Yes
+No
+Yes
+Main Group Name
+MainGroupName
+Textbox
+Yes
+No
+Yes
+Sub Main Group Name
+SubMainGroupName
+Textbox
+Yes
+No
+Yes
+Fixed Asset Account Name
+FixedAssetAccountName
+Textbox
+Yes
+No
+Yes
+Life Period In Month
+LifePeriodInMonth
+Textbox
+Yes
+No
+Yes
+Supplier Account Code
+SupplierAccountCode
+Textbox
+Yes
+No
+Yes
+Supplier Account Name
+SupplierAccountName
+Textbox
+Yes
+No
+Yes
+Bill No
+BillNo
+Textbox
+Yes
+No
+Yes
+Bill Date
+BillDate
+Textbox
+Yes
+No
+Yes
+Inst Date
+InstDate
+Textbox
+Yes
+No
+Yes
+Purchase Qty
+PurchaseQty
+Textbox
+Yes
+No
+Yes
+Purchase Amount
+PurchaseAmount
+Textbox
+Yes
+No
+Yes
+SR NO
+SRNO
+Textbox
+Yes
+No
+Yes
+Opening Amount
+OpeningAmount
+Textbox
+Yes
+No
+Yes
+Acm Depreciation Amount
+AcmDepreciationAmount
+Textbox
+Yes
+No
+Yes
+Acm Depreciation Account Name
+AcmDepreciationAccountName
+Textbox
+Yes
+No
+Yes
+Depreciation Account Name
+DepreciationAccountName
+Textbox
+Yes
+No
+Yes
+Depreciation Amount B4 Life
+DepreciationAmountB4Life
+Textbox
+Yes
+No
+Yes
+Depreciation Days B4 Life
+DepreciationDaysB4Life
+Textbox
+Yes
+No
+Yes
+Division Name
+DivisionName
+Textbox
+Yes
+No
+Yes
+Location Name
+LocationName
+Textbox
+Yes
+No
+Yes
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+Cascade resets:
+► When upload excel button click then clear the gird which store past data.
+Save endpoint (REST POST):
+Endpoint path: /API/ assetitmopnexl /Post_RB_assetitmopnexl_Save 
+Payload keys: prmStrDetJSON | 
+5.1 RB Structure Detail
+SP / Function Name
+RB Name
+Purpose
+Detail Data RB
+rb_assetitmopnexl
+Load Master Controls in form
+RB Save API
+/API/ AstItemMst /Post_RB_AstItemMst_Save 
+6. Business Rules
+Every rule the developer must implement. Add or remove lines for your module.
+1. (add here)
+7. Constants  (constants.js)
+All values for the constants.js file. RB codes and SP names come from the backend DBA. Mark CONFIRM = Yes if value is uncertain.
+Constant Name
+Value
+CONFIRM?
+Notes
+RB_MASTER
+Rb_assetitmopnexl
+No
+Master board code — header column metadata
+FORM_TAG
+Rb_assetitmopnexl
+No
+Short module tag used in save payload
+TRAN_BOOK
+AIO
+No
+Transaction book name for item picker SP
+CONFIG_YEAR_ID
+2
+CONFIRM
+Year ID passed to configuration SPs
+DIVISION_YEAR_ID
+2
+CONFIRM
+Year ID passed to division fetch SP
+LIST_OBJ_TYPE
+2
+No
+OBJ_TYPE.FUNCTION — for listing SP call
+LIST_DIVISION_ID
+Fn_tbl_FetchUserwsDivision
+CONFIRM
+Default division ID for listing data fetch
+SAVE_ENDPOINT
+/API/ AstItemMst /Post_RB_AstItemMst_Save
+No
+REST gateway save path
+STORAGE_HEADER_META
+piHeaderMeta
+No
+localStorage key for cached header RB metadata
+— END OF TEMPLATE —
