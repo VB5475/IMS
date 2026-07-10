@@ -260,14 +260,14 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     setDownloadingQr(true);
     try {
       const { downloadAssetQrCodes } = await import("../../utils/assetQrPrint");
-      const count = await downloadAssetQrCodes(selectedRows);
+      const count = await downloadAssetQrCodes(selectedRows, stickerSize);
       notify.success(`Downloaded PDF with ${count} QR code(s).`);
     } catch (err) {
       notify.error(err?.message || "Failed to generate QR codes.");
     } finally {
       setDownloadingQr(false);
     }
-  }, [notify, selectedRows]);
+  }, [notify, selectedRows, stickerSize]);
 
   const handlePrintStickers = useCallback(async () => {
     if (selectedRows.length === 0) {
