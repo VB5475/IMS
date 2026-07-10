@@ -278,17 +278,6 @@ export function validateMasterFormFields(fields, values, options = {}) {
   return errors;
 }
 
-/** Show validateMasterFormFields errors — intended for Save handler only. */
-export function alertMasterFormValidationErrors(errors) {
-  if (!errors?.length) return false;
-  window.alert(errors.join("\n"));
-  return true;
-}
-
-/** Defer action until after field blur handlers (avoids validation alerts before discard confirm). */
-export function runAfterFieldBlur(fn) {
-  window.setTimeout(fn, 0);
-}
 
 /** Normalize GET_DETAIL_COL_DATA link — API may return PascalCase or camelCase keys. */
 export function normalizeDetailColField(field) {
@@ -334,8 +323,12 @@ export function resolveDetailColLinks(payload) {
 
 /** Map master-fill row to header form values with case-insensitive field lookup. */
 export function mapMasterRowToHeaderValues(master, fieldDefs, context = {}) {
+  const idNumber = Number(resolveRowFieldValue(master, "IDNumber") ?? context.idNumber) || 0;
   const header = {
-    IDNumber: Number(resolveRowFieldValue(master, "IDNumber") ?? context.idNumber) || 0,
+    IDNumber: idNumber,
+    // Save SPs read lowercase "idnumber" (PG column casing) — without this the
+    // edit save payload carries only the PascalCase key and the SP defaults to 0.
+    idnumber: idNumber,
     CompanyID: Number(context.companyId) || 0,
     YearID: Number(resolveRowFieldValue(master, "YearID") ?? context.yearId) || 0,
     LoginID: Number(resolveRowFieldValue(master, "LoginID") ?? context.loginId) || 0,

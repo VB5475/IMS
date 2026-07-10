@@ -34,8 +34,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
@@ -196,9 +194,9 @@ export default function PurchaseOrderForm() {
     basedonid:     "0",
     remarks:       "",
     tranmstgenid:  0,
-    companyid:     1,
-    yearid:        PO_CONFIG.DIVISION_YEAR_ID,
-    loginid:       1,
+    companyid:     getUserSession().companyId,
+    yearid:        getUserSession().yearId,
+    loginid:       getUserSession().loginId,
     idnumber:      recordId,
     isamend:       0,
     amendpoid:     0,
@@ -336,7 +334,6 @@ export default function PurchaseOrderForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["poid"],
-        configYearId: PO_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details, indentDetails } = await fetchEditRecord(params);
 
@@ -401,7 +398,7 @@ export default function PurchaseOrderForm() {
             if (rbRow) {
               const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
                 prmMasterID: rbRow.rbid,
-                prmLoginID: DEFAULT_LOGIN_ID,
+                prmLoginID: getUserSession().loginId,
               });
               const pickerCols = buildGridColumns(colRes || [], {}, {
                 filterable: false,
@@ -668,7 +665,7 @@ export default function PurchaseOrderForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(
         colRes || [],
@@ -686,8 +683,8 @@ export default function PurchaseOrderForm() {
         JSon: JSON.stringify([
           {
             prmdivisionid: Number(divisionID),
-            prmyearid:     PO_CONFIG.CONFIG_YEAR_ID,
-            prmloginid:    DEFAULT_LOGIN_ID,
+            prmyearid:     getUserSession().yearId,
+            prmloginid:    getUserSession().loginId,
             prmtrandate:   formatTranDate(trandate),
             prmconfigid:   Number(configid ?? 0),
             prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
@@ -802,9 +799,9 @@ export default function PurchaseOrderForm() {
     basedonid:     "0",
     remarks:       "",
     tranmstgenid:  0,
-    companyid:     1,
-    yearid:        PO_CONFIG.DIVISION_YEAR_ID,
-    loginid:       1,
+    companyid:     getUserSession().companyId,
+    yearid:        getUserSession().yearId,
+    loginid:       getUserSession().loginId,
     idnumber:      0,
     isamend:       0,
     amendpoid:     0,

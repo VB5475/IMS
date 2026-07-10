@@ -5,9 +5,6 @@ export const UM_CONFIG = {
   FORM_TAG: "rb_genusermst",
   TRAN_BOOK: "UM",
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_genusermst",
   SP_DESIGNATION: "fn_tbl_fetch_designation",

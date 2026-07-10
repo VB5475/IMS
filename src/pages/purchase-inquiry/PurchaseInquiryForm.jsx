@@ -38,7 +38,6 @@ import {
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -108,8 +107,8 @@ function mapHeaderValuesToFilterValues(headerValues) {
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? PI_CONFIG.CONFIG_YEAR_ID,
+    companyId: listRecord?.companyid ?? session.companyId,
+    yearId: listRecord?.yearid ?? session.yearId,
     loginId: listRecord?.loginid ?? session.loginId,
     sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
     idNumber: listRecord?.idnumber ?? recordId,
@@ -215,7 +214,7 @@ export default function PurchaseInquiryForm() {
     deptid:       0,
     basedonid:    "0",
     remarks:      "",
-    yearid:       PI_CONFIG.DIVISION_YEAR_ID,
+    yearid:       session.yearId,
     funccode:     PI_CONFIG.RB_MASTER,
     tranmstgenid: 0,
     loginid:      session.loginId,
@@ -280,7 +279,7 @@ export default function PurchaseInquiryForm() {
       deptid:       0,
       basedonid:    "0",
       remarks:      "",
-      yearid:       PI_CONFIG.DIVISION_YEAR_ID,
+      yearid:       resetSession.yearId,
       funccode:     PI_CONFIG.RB_MASTER,
       tranmstgenid: 0,
       loginid:      resetSession.loginId,
@@ -768,12 +767,18 @@ export default function PurchaseInquiryForm() {
   );
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────
+  // Uses the same header-field gate + JSON payload shape as the item picker
+  // (PI_CONFIG.SUPPLIER_SP is the PI-only rb_purinqselonlysupp RB — see constants.js).
   const handleSelectSupplier = useCallback(async () => {
-    const divisionID = headerValuesRef.current?.divisionid ?? 0;
-    if (!divisionID || divisionID === "0" || divisionID === 0) {
-      setFormErrors(["Please select a Division before selecting suppliers."]);
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      setFormErrors(missingFields);
       return;
     }
+
+    const loginId = getUserSession().loginId;
+
     setSupplierModalOpen(true);
     setSupplierModalItems([]);
     setSupplierModalError(null);
@@ -782,14 +787,12 @@ export default function PurchaseInquiryForm() {
       const response = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SUPPLIER_SP,
-        JSon: JSON.stringify([
-          {
-            PrmDivisionId: Number(divisionID),
-            PrmLoginId: getUserSession().loginId,
-            PrmYearId: PI_CONFIG.CONFIG_YEAR_ID,
-            PrmPartyType: PI_CONFIG.SUPPLIER_PARTY_TYPE,
-          },
-        ]),
+        JSon: JSON.stringify([{
+            prmdivisionid: Number(headerValues.divisionid) || 0,
+            prmcompanyid:    getUserSession().companyId,
+            prmyearid:     getUserSession().yearId,
+            prmsupplieridnotin : "",
+          }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

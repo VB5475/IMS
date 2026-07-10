@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
@@ -32,8 +32,8 @@ function buildListParams() {
         prmsupplierid: 0,
         prmquotationtypeid: 0,
         prmloginid: session.loginId,
-        prmcompanyid: session.companyId ?? DEFAULT_COMPANY_ID,
-        prmyearid: session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
+        prmcompanyid: session.companyId,
+        prmyearid: session.yearId,
       },
     ]),
     p_ErrCode: -1,

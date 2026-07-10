@@ -34,13 +34,12 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
@@ -147,6 +146,8 @@ export default function PurchaseVoucherForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
+  const session = getUserSession();
+
   const headerValuesRef = useRef({
     trancode: "",
     trandate: todayISO,
@@ -163,9 +164,9 @@ export default function PurchaseVoucherForm() {
     narration: "",
     remarks: "",
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: PV_CONFIG.DIVISION_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
     idnumber: recordId,
     funccode: PV_CONFIG.RB_MASTER,
   });
@@ -263,7 +264,6 @@ export default function PurchaseVoucherForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["PVID"],
-        configYearId: PV_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Purchase Voucher record not found.");
@@ -517,7 +517,7 @@ export default function PurchaseVoucherForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false });
       setItemModalColumns(gridColumns);
@@ -532,8 +532,8 @@ export default function PurchaseVoucherForm() {
         ObjName: spItemPicker,
         JSon: JSON.stringify([{
           prmdivisionid: Number(divisionID),
-          prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
-          prmloginid: DEFAULT_LOGIN_ID,
+          prmyearid: getUserSession().yearId,
+          prmloginid: getUserSession().loginId,
           prmtrandate: formatPVTranDate(trandate),
           prmconfigid: Number(configid ?? 0),
           prmsupplierid: Number(supplierid ?? 0),
@@ -578,15 +578,18 @@ export default function PurchaseVoucherForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingPV, setIsSavingPV] = useState(false);
 
-  const buildDefaultHeaderValues = useCallback(() => ({
-    trancode: "", trandate: todayISO, divisionid: 0, configid: 0,
-    basedonid: "2", supplierid: 0, currencyid: 0, currencyrate: 0,
-    billno: "", billdate: null,
-    costcenterid: 0, creditstartdate: todayISO,
-    narration: "", remarks: "", tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID, yearid: PV_CONFIG.DIVISION_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID, idnumber: 0, funccode: PV_CONFIG.RB_MASTER,
-  }), [todayISO]);
+  const buildDefaultHeaderValues = useCallback(() => {
+    const resetSession = getUserSession();
+    return {
+      trancode: "", trandate: todayISO, divisionid: 0, configid: 0,
+      basedonid: "2", supplierid: 0, currencyid: 0, currencyrate: 0,
+      billno: "", billdate: null,
+      costcenterid: 0, creditstartdate: todayISO,
+      narration: "", remarks: "", tranmstgenid: 0,
+      companyid: resetSession.companyId, yearid: resetSession.yearId,
+      loginid: resetSession.loginId, idnumber: 0, funccode: PV_CONFIG.RB_MASTER,
+    };
+  }, [todayISO]);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [PV_CONFIG.STORAGE_HEADER_META, PV_CONFIG.STORAGE_ENTRY_META],
@@ -643,11 +646,11 @@ export default function PurchaseVoucherForm() {
     }));
     const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
       ...(summaryRef.current?.getSummary?.() ?? {}),
-      loginid: DEFAULT_LOGIN_ID,
+      loginid: getUserSession().loginId,
     });
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
     );
 
     const payload = await withSaveContextFields(

@@ -34,7 +34,6 @@ import {
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -196,8 +195,8 @@ export default function PurchaseQuotationForm() {
     suppquotdate: null,
     contactperson: "",
     remarks: "",
-    companyid: 1,
-    yearid: QTN_CONFIG.DIVISION_YEAR_ID,
+    companyid: session.companyId,
+    yearid: session.yearId,
     loginid: session.loginId,
     userid: session.userId,
     idnumber: recordId,
@@ -258,8 +257,8 @@ export default function PurchaseQuotationForm() {
       suppquotdate: null,
       contactperson: "",
       remarks: "",
-      companyid: 1,
-      yearid: QTN_CONFIG.DIVISION_YEAR_ID,
+      companyid: resetSession.companyId,
+      yearid: resetSession.yearId,
       loginid: resetSession.loginId,
       userid: resetSession.userId,
       idnumber: 0,
@@ -303,7 +302,6 @@ export default function PurchaseQuotationForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: [],
-        configYearId: QTN_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
 

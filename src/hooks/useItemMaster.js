@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { IM_CONFIG } from "../pages/item-master/constants";
 
 function mapItemTypeOptions(rows) {
@@ -163,7 +162,7 @@ export function useItemMaster() {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const apiColumns = colData || [];
       setHeaderColumns(apiColumns);
@@ -179,10 +178,11 @@ export function useItemMaster() {
   }, [get, fetchItemTypeOptions, fetchStaticDropdowns]);
 
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+    const session = getUserSession();
     const prmParameters = [
-      Number(companyId) || DEFAULT_COMPANY_ID,
-      Number(yearId) || IM_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId) || DEFAULT_LOGIN_ID,
+      Number(companyId) || session.companyId,
+      Number(yearId) || session.yearId,
+      Number(loginId) || session.loginId,
       Number(sessionId) || DEFAULT_SESSION_ID,
       Number(idNumber) || 0,
     ].join(",");
@@ -197,9 +197,9 @@ export function useItemMaster() {
       master,
       headerValues: master ? {
         ...master,
-        yearid: IM_CONFIG.CONFIG_YEAR_ID,
+        yearid: session.yearId,
         funccode: IM_CONFIG.RB_MASTER,
-        loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
+        loginid: Number(master.loginid ?? loginId) || session.loginId,
         sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
       } : null,
     };

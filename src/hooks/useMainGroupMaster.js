@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { MGM_CONFIG } from "../pages/main-group-master/constants";
 
 export function useMainGroupMaster() {
@@ -39,7 +38,7 @@ export function useMainGroupMaster() {
       // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  getUserSession().loginId,
       });
       setHeaderColumns(colData || []);
       setAllColumns(
@@ -91,10 +90,11 @@ export function useMainGroupMaster() {
   // Returns master spread directly (PG returns lowercase keys matching RB colnames).
   // System context fields are overlaid so the save SP always gets consistent values.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+    const session = getUserSession();
     const prmParameters = [
-      Number(companyId)  || DEFAULT_COMPANY_ID,
-      Number(yearId)     || MGM_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId)    || DEFAULT_LOGIN_ID,
+      Number(companyId)  || session.companyId,
+      Number(yearId)     || session.yearId,
+      Number(loginId)    || session.loginId,
       Number(sessionId)  || DEFAULT_SESSION_ID,
       Number(idNumber)   || 0,
     ].join(",");
@@ -109,8 +109,8 @@ export function useMainGroupMaster() {
       master,
       headerValues: master ? {
         ...master,
-        yearid:    Number(master.yearid    ?? yearId)    || MGM_CONFIG.CONFIG_YEAR_ID,
-        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        yearid:    Number(master.yearid    ?? yearId)    || session.yearId,
+        loginid:   Number(master.loginid   ?? loginId)   || session.loginId,
         sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
         funccode:  master.funccode ?? MGM_CONFIG.RB_MASTER,
       } : null,

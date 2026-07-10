@@ -18,9 +18,7 @@ export const SM_CONFIG = {
   FORM_TAG: "SM",
   TRAN_BOOK: "SM",
 
-  // ⚠️ CONFIRM with DBA — MRD flagged these as uncertain
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
+  // ⚠️ CONFIRM with DBA — MRD flagged this as uncertain
   LIST_DIVISION_ID: 15,
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",

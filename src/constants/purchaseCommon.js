@@ -9,8 +9,6 @@ export const PURCHASE_API = {
   SP_DEPT: "fn_tbl_tbd_departmentdata_ims",
   SUPPLIER_PARTY_TYPE: "S",
   SUPPLIER_SP: "fn_tbl_fetchcustomersuppliertranws4web",
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
   LIST_OBJ_TYPE: 2,
 };
 

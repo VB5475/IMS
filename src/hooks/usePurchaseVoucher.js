@@ -17,8 +17,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -28,8 +26,8 @@ import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || PV_CONFIG.CONFIG_YEAR_ID,
+    Number(companyId) || getUserSession().companyId,
+    Number(yearId) || getUserSession().yearId,
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
@@ -50,7 +48,7 @@ function mapMasterRowToHeaderValues(master) {
     trandate:       toDateInput(master.trandate),
     billdate:       toDateInput(master.billdate) || null,
     creditstartdate: toDateInput(master.creditstartdate) || null,
-    yearid:    PV_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  PV_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -89,7 +87,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -133,10 +131,10 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: PV_CONFIG.SP_PV_TYPES,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmcompanyid: getUserSession().companyId,
           prmdivisionid: Number(divisionId),
-          prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
-          prmuserid: DEFAULT_LOGIN_ID,
+          prmyearid: getUserSession().yearId,
+          prmuserid: getUserSession().loginId,
           prmformtag: PV_CONFIG.FORM_TAG,
           prmreftype: "",
         }]),
@@ -183,11 +181,11 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           prmdivisionid: Number(divisionId) || 0,
           prmtrandate: tranDate || "",
           prmaccountid: 0,
-          prmloginid: DEFAULT_LOGIN_ID,
+          prmloginid: getUserSession().loginId,
           prmlangcode: 1,
           prmmodulecode: "PU",
           prmismultidiv: 0,
-          prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
+          prmyearid: getUserSession().yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -223,7 +221,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       setHeaderColumns(colData || []);
       console.log("%c[PV] Header columns received:", "color:#8b5cf6;font-weight:600", (colData || []).length);
@@ -239,9 +237,9 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: PV_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmuserid: DEFAULT_LOGIN_ID,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid: PV_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: getUserSession().loginId,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[PV] Division fetch failed:", err); return null; }),
@@ -250,8 +248,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           ObjName: PV_CONFIG.SUPPLIER_SP,
           JSon: JSON.stringify([{
             prmdivisionid: 0,
-            prmloginid: DEFAULT_LOGIN_ID,
-            prmyearid: PV_CONFIG.CONFIG_YEAR_ID,
+            prmloginid: getUserSession().loginId,
+            prmyearid: getUserSession().yearId,
             prmpartytype: PV_CONFIG.SUPPLIER_PARTY_TYPE,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
@@ -398,13 +396,13 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PV_CONFIG.SP_DIVISIONS,
-          JSon: JSON.stringify([{ prmuserid: DEFAULT_LOGIN_ID, prmcompanyid: DEFAULT_COMPANY_ID, prmyearid: PV_CONFIG.DIVISION_YEAR_ID }]),
+          JSon: JSON.stringify([{ prmuserid: getUserSession().loginId, prmcompanyid: getUserSession().companyId, prmyearid: getUserSession().yearId }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).then((res) => setDivisionOptions((res || []).map((r) => ({ value: String(r.divisionid), label: r.divisionname })))).catch(() => {}),
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PV_CONFIG.SUPPLIER_SP,
-          JSon: JSON.stringify([{ prmdivisionid: 0, prmloginid: DEFAULT_LOGIN_ID, prmyearid: PV_CONFIG.CONFIG_YEAR_ID, prmpartytype: PV_CONFIG.SUPPLIER_PARTY_TYPE }]),
+          JSon: JSON.stringify([{ prmdivisionid: 0, prmloginid: getUserSession().loginId, prmyearid: getUserSession().yearId, prmpartytype: PV_CONFIG.SUPPLIER_PARTY_TYPE }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).then((res) => {
           const rows = res || [];

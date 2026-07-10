@@ -29,12 +29,11 @@ import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useCWIPToFA } from "../../hooks/useCWIPToFA";
 import { useApi } from "../../api/useApi";
+import { getUserSession } from "../../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
@@ -200,9 +199,9 @@ export default function CWIPToFAForm() {
     nettotal:          0,
     remark:           "",
     tranmstgenid:     0,
-    companyid:        DEFAULT_COMPANY_ID,
-    yearid:           C2F_CONFIG.CONFIG_YEAR_ID,
-    loginid:          DEFAULT_LOGIN_ID,
+    companyid:        getUserSession().companyId,
+    yearid:           getUserSession().yearId,
+    loginid:          getUserSession().loginId,
     idnumber:         recordId,
     funccode:         C2F_CONFIG.RB_MASTER,
   });
@@ -301,7 +300,6 @@ export default function CWIPToFAForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["C2FID"],
-        configYearId: C2F_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("CWIP To FA record not found.");
@@ -518,6 +516,7 @@ export default function CWIPToFAForm() {
     setItemModalLoading(true);
 
     try {
+      const session = getUserSession();
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: C2F_CONFIG.SP_RB_META,
@@ -531,7 +530,7 @@ export default function CWIPToFAForm() {
       const [colRes, rowRes] = await Promise.all([
         getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: rbRow.rbid,
-          prmLoginID:  DEFAULT_LOGIN_ID,
+          prmLoginID:  session.loginId,
         }),
         getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
@@ -540,8 +539,8 @@ export default function CWIPToFAForm() {
             prmdivisionid:   Number(divisionid  ?? 0),
             prmlocationid:   Number(locationid  ?? 0),
             prmcwipacid:     Number(cwipaccid   ?? 0),
-            prmyearid:       C2F_CONFIG.CONFIG_YEAR_ID,
-            prmloginid:      DEFAULT_LOGIN_ID,
+            prmyearid:       session.yearId,
+            prmloginid:      session.loginId,
             prmtrandate:     formatC2FTranDate(trandate),
             prmputtousedate: formatC2FTranDate(puttouseinstdate),
             prmconvtypeid:   C2F_CONFIG.CONV_TYPE_ID,
@@ -595,15 +594,18 @@ export default function CWIPToFAForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
-  const buildDefaultHeaderValues = useCallback(() => ({
-    tranno: "", trandate: todayISO, puttouseinstdate: null,
-    divisionid: 0, locationid: 0, conversionfactor: 0,
-    cwipaccid: 0, costcenteraccid: 0,
-    convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
-    tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID, yearid: C2F_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
-  }), [todayISO]);
+  const buildDefaultHeaderValues = useCallback(() => {
+    const session = getUserSession();
+    return {
+      tranno: "", trandate: todayISO, puttouseinstdate: null,
+      divisionid: 0, locationid: 0, conversionfactor: 0,
+      cwipaccid: 0, costcenteraccid: 0,
+      convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
+      tranmstgenid: 0,
+      companyid: session.companyId, yearid: session.yearId,
+      loginid: session.loginId, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
+    };
+  }, [todayISO]);
 
   const clearC2fStorage = useCallback(() => {
     sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
@@ -654,17 +656,18 @@ export default function CWIPToFAForm() {
       return false;
     }
 
+    const loginId = getUserSession().loginId;
     const mstRow = {};
     headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: loginId };
     });
 
     const payload = await withSaveContextFields(

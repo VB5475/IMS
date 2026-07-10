@@ -6,9 +6,10 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID, DEFAULT_SESSION_ID,
+  DEFAULT_SESSION_ID,
   getColDefault, buildSaveRowFromColumns,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -55,10 +56,11 @@ export default function MainGroupMasterForm({
     allColumns.forEach(({ key, colDataType }) => {
       row[key] = getColDefault(colDataType);
     });
+    const session = getUserSession();
     return {
       ...row,
-      yearid:    MGM_CONFIG.CONFIG_YEAR_ID,
-      loginid:   DEFAULT_LOGIN_ID,
+      yearid:    session.yearId,
+      loginid:   session.loginId,
       sessionid: DEFAULT_SESSION_ID,
       funccode:  MGM_CONFIG.RB_MASTER,
     };
@@ -79,10 +81,11 @@ export default function MainGroupMasterForm({
     if (!isOpen || isAddMode || !recordId) return;
     setRecordLoading(true);
     setRecordLoadError(null);
+    const session = getUserSession();
     fetchEditRecord({
-      companyId: DEFAULT_COMPANY_ID,
-      yearId:    MGM_CONFIG.CONFIG_YEAR_ID,
-      loginId:   DEFAULT_LOGIN_ID,
+      companyId: session.companyId,
+      yearId:    session.yearId,
+      loginId:   session.loginId,
       sessionId: DEFAULT_SESSION_ID,
       idNumber:  recordId,
     })

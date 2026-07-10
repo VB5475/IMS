@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { DV_CONFIG, DV_CASCADE_DROPDOWN_REFRESH } from "../pages/division-master/constants";
 
 // ---------------------------------------------------------------------------
@@ -186,7 +185,7 @@ export function useDivisionMaster() {
       // Phase 2 — column definitions
       const colData  = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  getUserSession().loginId,
       });
       const rawLinks = Array.isArray(colData) ? colData : (colData || []);
       const links    = rawLinks.map(normalizeColumn);
@@ -258,10 +257,11 @@ export function useDivisionMaster() {
   // PG returns lowercase column names — spread master directly as headerValues.
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+      const session = getUserSession();
       const prmParameters = [
-        Number(companyId)  || DEFAULT_COMPANY_ID,
-        Number(yearId)     || DV_CONFIG.CONFIG_YEAR_ID,
-        Number(loginId)    || DEFAULT_LOGIN_ID,
+        Number(companyId)  || session.companyId,
+        Number(yearId)     || session.yearId,
+        Number(loginId)    || session.loginId,
         Number(sessionId)  || DEFAULT_SESSION_ID,
         Number(idNumber)   || 0,
       ].join(",");
@@ -276,8 +276,8 @@ export function useDivisionMaster() {
         master,
         headerValues: master ? {
           ...master,
-          yearid:    Number(master.yearid    ?? yearId)    || DV_CONFIG.CONFIG_YEAR_ID,
-          loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+          yearid:    Number(master.yearid    ?? yearId)    || session.yearId,
+          loginid:   Number(master.loginid   ?? loginId)   || session.loginId,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode:  master.funccode ?? DV_CONFIG.RB_MASTER,
         } : null,

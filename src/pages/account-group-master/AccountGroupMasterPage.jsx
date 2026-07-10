@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Layers, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { DEFAULT_SESSION_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useAccountGroupMaster } from "../../hooks/useAccountGroupMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
@@ -96,10 +93,11 @@ export default function AccountGroupMasterPage() {
       setModalOpen(true);
       setEditLoading(true);
       try {
+        const session = getUserSession();
         const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: AGM_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
+          companyId: session.companyId,
+          yearId: session.yearId,
+          loginId: session.loginId,
           sessionId: DEFAULT_SESSION_ID,
           idNumber,
         });
@@ -196,6 +194,7 @@ export default function AccountGroupMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No account groups found."
           hideHeader
+          searchable
           fill
         />
       </section>

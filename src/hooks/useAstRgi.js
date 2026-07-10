@@ -3,8 +3,6 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -19,10 +17,11 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || ARGI_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -41,7 +40,7 @@ function mapMasterRowToHeaderValues(master) {
     ...master,
     trandate: toDateInput(master.trandate ?? master.TranDate),
     issuedate: toDateInput(master.issuedate ?? master.IssueDate) || toDateInput(master.trandate),
-    yearid: ARGI_CONFIG.CONFIG_YEAR_ID,
+    yearid: getUserSession().yearId,
     funccode: ARGI_CONFIG.RB_MASTER,
     loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -132,7 +131,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -160,28 +159,28 @@ export function useAstRgi(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  const divisionFetchJson = useCallback(
-    () => JSON.stringify([{
-      prmuserid: DEFAULT_LOGIN_ID,
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmyearid: ARGI_CONFIG.DIVISION_YEAR_ID,
-    }]),
-    []
-  );
+  const divisionFetchJson = useCallback(() => {
+    const session = getUserSession();
+    return JSON.stringify([{
+      prmuserid: session.loginId,
+      prmcompanyid: session.companyId,
+      prmyearid: session.yearId,
+    }]);
+  }, []);
 
-  const locationFetchJson = useCallback(
-    () => JSON.stringify([{
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmloginid: DEFAULT_LOGIN_ID,
+  const locationFetchJson = useCallback(() => {
+    const session = getUserSession();
+    return JSON.stringify([{
+      prmcompanyid: session.companyId,
+      prmloginid: session.loginId,
       prmlocationtype: "",
-    }]),
-    []
-  );
+    }]);
+  }, []);
 
-  const deptFetchJson = useCallback(
-    () => JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
-    []
-  );
+  const deptFetchJson = useCallback(() => {
+    const session = getUserSession();
+    return JSON.stringify([{ prmdeptid: 0, prmloginid: session.loginId }]);
+  }, []);
 
   const fetchFromDivisions = useCallback(async () => {
     try {
@@ -251,7 +250,7 @@ export function useAstRgi(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: ARGI_CONFIG.SP_FROM_VENDOR,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmcompanyid: getUserSession().companyId,
           prmdivisionid: resolvedDivisionId,
           prmissuetypeid: ARGI_CONFIG.ISSUE_TYPE_ID,
         }]),
@@ -275,14 +274,15 @@ export function useAstRgi(baseURL = API_BASE_URL) {
       return [];
     }
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: ARGI_CONFIG.SP_CONFIG,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmcompanyid: session.companyId,
           prmdivisionid: resolvedDivisionId,
-          prmyearid: ARGI_CONFIG.CONFIG_YEAR_ID,
-          prmuserid: DEFAULT_LOGIN_ID,
+          prmyearid: session.yearId,
+          prmuserid: session.loginId,
           prmformtag: ARGI_CONFIG.CONFIG_FORM_TAG,
           prmreftype: ARGI_CONFIG.CONFIG_REF_TYPE,
           prmref_mstid: 0,
@@ -323,7 +323,7 @@ export function useAstRgi(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const cols = colData || [];
       setHeaderColumns(cols);

@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { UM_CONFIG } from "../pages/user-master/constants";
 
 const EMPTY_JSON = JSON.stringify([{}]);
@@ -170,7 +169,7 @@ export function useUserMaster() {
       // Phase 2 — column definitions; PG returns flat array (not { Links: [...] })
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const rawLinks = Array.isArray(colData) ? colData : (colData?.Links || []);
       const links = rawLinks.map(normalizeColumn);
@@ -198,10 +197,11 @@ export function useUserMaster() {
   // PG returns lowercase keys — spread master directly; clear password fields.
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+      const session = getUserSession();
       const prmParameters = [
-        Number(companyId) || DEFAULT_COMPANY_ID,
-        Number(yearId) || UM_CONFIG.CONFIG_YEAR_ID,
-        Number(loginId) || DEFAULT_LOGIN_ID,
+        Number(companyId) || session.companyId,
+        Number(yearId) || session.yearId,
+        Number(loginId) || session.loginId,
         Number(sessionId) || DEFAULT_SESSION_ID,
         Number(idNumber) || 0,
       ].join(",");
@@ -216,8 +216,8 @@ export function useUserMaster() {
         master,
         headerValues: master ? {
           ...master,
-          yearid: UM_CONFIG.CONFIG_YEAR_ID,
-          loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
+          yearid: Number(master.yearid ?? yearId) || session.yearId,
+          loginid: Number(master.loginid ?? loginId) || session.loginId,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode: master.funccode ?? UM_CONFIG.RB_MASTER,
           pwd: "",       // never prefill password from API

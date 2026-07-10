@@ -36,6 +36,8 @@ import {
 
 } from "../../utils/purchaseItemPicker";
 
+import { getUserSession } from "../../session/userSession";
+
 
 
 export { formatTranDate };
@@ -102,7 +104,8 @@ export const GRN_CONFIG = {
 
 
 
-  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE, BASED_ON.INDENT_BASE],
+  // BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE, BASED_ON.INDENT_BASE], ## No need GRN BASED ON INDENT.
+  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE],
 
 
 
@@ -338,7 +341,7 @@ export function buildItemPickerJsonPayload(headerValues, loginId) {
 
   return buildPickerPayload(headerValues, loginId, {
 
-    configYearId: GRN_CONFIG.CONFIG_YEAR_ID,
+    configYearId: getUserSession().yearId,
 
     tranBook: GRN_CONFIG.TRAN_BOOK,
 

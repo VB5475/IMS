@@ -71,6 +71,7 @@ import { isDateColumnDef } from "../../utils/dateFormat";
 import RequiredFieldMark from "../ui/RequiredFieldMark";
 import { parseSerialNumbers } from "../../utils/parseSerialNumbers";
 import { isCheckboxColCtrlType } from "../../data/dummyData";
+import { useNotification } from "../../context/NotificationContext";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -139,6 +140,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   },
   ref
 ) {
+  const notify = useNotification();
   const columnEditOpts = useMemo(
     () => ({ existingRecordEdit, viewMode: readOnly }),
     [existingRecordEdit, readOnly]
@@ -429,7 +431,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       const cellKey = `${row.id}:${col.key}`;
       const result = validateColumnValue(liveValue, col);
       if (!result.valid) {
-        alert(result.message);
+        notify.error(result.message);
         const previous = lastValidCellValuesRef.current.get(cellKey);
         handleCellChange(row.id, col.key, previous ?? row[col.key]);
         return false;
@@ -438,7 +440,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       handleCellChange(row.id, col.key, liveValue);
       return true;
     },
-    [handleCellChange]
+    [handleCellChange, notify]
   );
 
   const makeCellFocus = useCallback((row, col) => {

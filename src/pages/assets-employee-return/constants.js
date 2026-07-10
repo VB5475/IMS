@@ -1,4 +1,4 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -20,9 +20,6 @@ export const AER_CONFIG = {
   ISSUE_TYPE_ID: 3,
   ITEM_PICKER_ISSUE_TYPE_ID: -1,
   EMP_ISSUE_TYPE_ID: -1,
-
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
@@ -88,16 +85,13 @@ function pickHeaderInt(headerValues, ...keys) {
 
 export function buildAerItemPickerJsonPayload(
   headerValues,
-  {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = AER_CONFIG.CONFIG_YEAR_ID,
-  } = {}
+  { companyId, loginId, yearId } = {}
 ) {
+  const session = getUserSession();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || AER_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || session.loginId,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || session.yearId,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID"),
     prmtodivisionid: 0,
@@ -117,19 +111,20 @@ export function buildAerItemPickerJsonPayload(
 }
 
 export function buildAerListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = AER_CONFIG.CONFIG_YEAR_ID,
+  companyId,
+  loginId,
+  yearId,
   fromDate,
   toDate,
   fromDivisionId = AER_CONFIG.LIST_FROM_DIVISION_ID,
   fromEmpUserId = 0,
 } = {}) {
+  const session = getUserSession();
   const year = new Date().getFullYear();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || AER_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId) || session.loginId,
+    prmyearid: Number(yearId) || session.yearId,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmfromdivisionid: Number(fromDivisionId) || 0,

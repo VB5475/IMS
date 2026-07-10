@@ -23,10 +23,6 @@ export const PV_CONFIG = {
   FORM_TAG: "PV",
   TRAN_BOOK: "PR",
 
-  // Year IDs
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
   // Supplier picker
   SUPPLIER_PARTY_TYPE: "S",
   SUPPLIER_SP: "fn_tbl_fetchcustomersuppliertranws4web",

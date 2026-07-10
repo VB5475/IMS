@@ -8,9 +8,8 @@ import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { AWF_CONFIG, ENTRY_FORM_LABEL } from "./constants";
@@ -19,14 +18,15 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: AWF_CONFIG.LIST_OBJ_TYPE,
     ObjName: AWF_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid: DEFAULT_COMPANY_ID,
+      prmcompanyid: session.companyId,
       prmdivisionid: AWF_CONFIG.LIST_DIVISION_ID,
-      prmloginid: DEFAULT_LOGIN_ID,
-      prmyearid: AWF_CONFIG.CONFIG_YEAR_ID,
+      prmloginid: session.loginId,
+      prmyearid: session.yearId,
       prmfromdate: `01-Jan-${year}`,
       prmtodate: `31-Dec-${year}`,
       prmaccountid: 0,

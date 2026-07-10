@@ -9,57 +9,60 @@ import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { Truck, CheckCheck, Users, AlertCircle } from "lucide-react";
 import "../txn/OrderItemModal.css";
 
+// Keys must match the live API's field casing (fn_tbl_fetchcustomersuppliertranws4web
+// returns fully lowercase field names, e.g. "suppliername", not "SupplierName") — EntryGrid
+// reads row[col.key] with no case-insensitive fallback, so a mismatch here renders blank cells.
 const SUPPLIER_COLUMNS = [
   { id: "cb", name: "", key: "cb", controlType: -1, width: 48, isFixed: true, isEditAllow: false },
   {
-    id: "SupplierCode",
+    id: "suppliercode",
     name: "Supplier Code",
-    key: "SupplierCode",
+    key: "suppliercode",
     controlType: 0,
     width: 120,
     isFixed: true,
     isEditAllow: false,
   },
   {
-    id: "SupplierName",
+    id: "suppliername",
     name: "Supplier Name",
-    key: "SupplierName",
+    key: "suppliername",
     controlType: 0,
     width: 200,
     isFixed: false,
     isEditAllow: false,
   },
   {
-    id: "GstRegNo",
+    id: "gstregno",
     name: "GST Reg No.",
-    key: "GstRegNo",
+    key: "gstregno",
     controlType: 0,
     width: 140,
     isFixed: false,
     isEditAllow: false,
   },
   {
-    id: "SuppAddress",
+    id: "suppaddress",
     name: "Address",
-    key: "SuppAddress",
+    key: "suppaddress",
     controlType: 0,
     width: 220,
     isFixed: false,
     isEditAllow: false,
   },
   {
-    id: "City",
+    id: "city",
     name: "City",
-    key: "City",
+    key: "city",
     controlType: 0,
     width: 120,
     isFixed: false,
     isEditAllow: false,
   },
   {
-    id: "ContactNo",
+    id: "contactno",
     name: "Contact No.",
-    key: "ContactNo",
+    key: "contactno",
     controlType: 0,
     width: 110,
     isFixed: false,

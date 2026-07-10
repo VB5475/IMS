@@ -5,7 +5,7 @@
 // logic (RB codes, SP names, header field shapes) — those stay in each
 // module's own constants.js and are passed in as parameters.
 
-import { DEFAULT_COMPANY_ID, DEFAULT_SESSION_ID } from "../api/constants";
+import { DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 
 /** Editable/focusable fields currently rendered inside a filter panel DOM node. */
@@ -25,7 +25,7 @@ export function queryEditableFilterFields(panel) {
  * the list API) to check on `listRecord` before falling back to the generic
  * `idnumber`/`IDNumber`/`recordId`.
  */
-export function resolveEditLoadParams(recordId, listRecord, { idFields = [], configYearId } = {}) {
+export function resolveEditLoadParams(recordId, listRecord, { idFields = [] } = {}) {
   const session = getUserSession();
   const idNumber = idFields.reduce(
     (found, key) => (found != null ? found : listRecord?.[key]),
@@ -33,8 +33,8 @@ export function resolveEditLoadParams(recordId, listRecord, { idFields = [], con
   ) ?? listRecord?.idnumber ?? listRecord?.IDNumber ?? recordId;
 
   return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? configYearId,
+    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId,
+    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId,
     loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
     idNumber,

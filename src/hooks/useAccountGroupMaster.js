@@ -1,12 +1,7 @@
 import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
-import {
-  ENDPOINTS,
-  API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_SESSION_ID,
-} from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import {
   fetchDropdownOptions,
   isTruthyApiFlag,
@@ -27,11 +22,16 @@ function pickCI(obj, key) {
 }
 
 function mapMasterRowToHeaderValues(master, fieldDefs, params) {
+  const session = getUserSession();
+  const idNumber = Number(pickCI(master, "IDNumber") ?? params.idNumber) || 0;
   const header = {
-    IDNumber: Number(pickCI(master, "IDNumber") ?? params.idNumber) || 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(pickCI(master, "YearID") ?? params.yearId) || AGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(pickCI(master, "LoginID") ?? params.loginId) || DEFAULT_LOGIN_ID,
+    IDNumber: idNumber,
+    // Save SP reads lowercase "idnumber" (PG column casing) — without this the
+    // edit save payload carries only the PascalCase key and the SP defaults to 0.
+    idnumber: idNumber,
+    CompanyID: Number(params.companyId) || session.companyId,
+    YearID: Number(pickCI(master, "YearID") ?? params.yearId) || session.yearId,
+    LoginID: Number(pickCI(master, "LoginID") ?? params.loginId) || session.loginId,
     SessionID: Number(pickCI(master, "SessionID") ?? params.sessionId) || DEFAULT_SESSION_ID,
     FuncCode: pickCI(master, "FuncCode") ?? AGM_CONFIG.RB_MASTER,
   };
@@ -47,10 +47,11 @@ function mapMasterRowToHeaderValues(master, fieldDefs, params) {
 }
 
 function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AGM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || DEFAULT_LOGIN_ID,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(masterId) || 0,
   ].join(",");
@@ -158,7 +159,7 @@ export function useAccountGroupMaster() {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const links = normalizeDetailColLinks(colData?.Links ?? resolveLinks(colData));
       setHeaderColumns(links);

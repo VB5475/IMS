@@ -13,9 +13,6 @@ export const AOP_CONFIG = {
   FORM_TAG:  "rb_astitemopemst",
   TRAN_BOOK: "AOP",
 
-  CONFIG_YEAR_ID:   1,   // ⚠️ DBA CONFIRM
-  DIVISION_YEAR_ID: 2,   // ⚠️ DBA CONFIRM
-
   // SP names
   SP_RB_META:    "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS:  "fn_tbl_fetchuserwsdivision",

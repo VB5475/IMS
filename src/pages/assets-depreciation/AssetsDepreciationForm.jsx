@@ -1,4 +1,4 @@
-// AssetsDepreciationForm.jsx — Assets Depreciation entry form (Add / Edit)
+// AssetsDepreciationForm.jsx — Company Act Depreciation entry form (Add / Edit)
 //
 // Pattern mirrors CWIPToFAForm.jsx exactly:
 //   1. fetchHeaderMeta  → RB_AstDepCAMst → GET_DETAIL_COL_DATA (header column METADATA — dynamic)
@@ -26,12 +26,11 @@ import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useAstDepCA } from "../../hooks/useAstDepCA";
 import { useApi } from "../../api/useApi";
+import { getUserSession } from "../../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
@@ -175,9 +174,9 @@ export default function AssetsDepreciationForm() {
     remarks:        "",
     funccode:       DPC_CONFIG.RB_MASTER,
     tranmstgenid:   0,
-    companyid:      DEFAULT_COMPANY_ID,
-    yearid:         DPC_CONFIG.CONFIG_YEAR_ID,
-    loginid:        DEFAULT_LOGIN_ID,
+    companyid:      getUserSession().companyId,
+    yearid:         getUserSession().yearId,
+    loginid:        getUserSession().loginId,
     idnumber:       recordId,
   });
 
@@ -271,10 +270,9 @@ export default function AssetsDepreciationForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["astdepid"],
-        configYearId: DPC_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Depreciation record not found.");
+      if (!master || !headerValues) throw new Error("Company Act Depreciation record not found.");
 
       headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
       setLoadedMasterRow(master);
@@ -298,7 +296,7 @@ export default function AssetsDepreciationForm() {
       }
     } catch (err) {
       console.error("[DPC] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Depreciation record.");
+      setRecordLoadError(err?.message || "Failed to load Company Act Depreciation record.");
     } finally {
       setRecordLoading(false);
     }
@@ -442,6 +440,7 @@ export default function AssetsDepreciationForm() {
     setItemModalLoading(true);
 
     try {
+      const session = getUserSession();
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: DPC_CONFIG.SP_RB_META,
@@ -454,7 +453,7 @@ export default function AssetsDepreciationForm() {
       const [colRes, rowRes] = await Promise.all([
         getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: rbRow.rbid,
-          prmLoginID:  DEFAULT_LOGIN_ID,
+          prmLoginID:  session.loginId,
         }),
         getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
@@ -462,8 +461,8 @@ export default function AssetsDepreciationForm() {
           JSon: JSON.stringify([{
             prmtrandate:    trandate ?? "",
             prmdivisionid:  Number(divisionid   ?? 0),
-            prmcompanyid:   DEFAULT_COMPANY_ID,
-            prmyearid:      DPC_CONFIG.CONFIG_YEAR_ID,
+            prmcompanyid:   session.companyId,
+            prmyearid:      session.yearId,
             prmmlnnotin:    "",
             prmgroupid:     0,
             prmaccountid:   Number(fixedastacid ?? 0),
@@ -514,14 +513,17 @@ export default function AssetsDepreciationForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
-  const buildDefaultHeaderValues = useCallback(() => ({
-    trancode: "", trandate: todayISO,
-    divisionid: 0, fixedastacid: 0,
-    totaldepamount: 0, remarks: "",
-    funccode: DPC_CONFIG.RB_MASTER, tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID, yearid: DPC_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID, idnumber: 0,
-  }), [todayISO]);
+  const buildDefaultHeaderValues = useCallback(() => {
+    const session = getUserSession();
+    return {
+      trancode: "", trandate: todayISO,
+      divisionid: 0, fixedastacid: 0,
+      totaldepamount: 0, remarks: "",
+      funccode: DPC_CONFIG.RB_MASTER, tranmstgenid: 0,
+      companyid: session.companyId, yearid: session.yearId,
+      loginid: session.loginId, idnumber: 0,
+    };
+  }, [todayISO]);
 
   const clearDpcStorage = useCallback(() => {
     sessionStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
@@ -571,17 +573,18 @@ export default function AssetsDepreciationForm() {
       return false;
     }
 
+    const loginId = getUserSession().loginId;
     const mstRow = {};
     headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -699,7 +702,7 @@ export default function AssetsDepreciationForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Depreciation Detail"
+            title="Company Act Depreciation Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={DPC_FILTER_CASCADE_RESETS}

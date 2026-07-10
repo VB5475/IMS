@@ -16,13 +16,12 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -172,9 +171,9 @@ export default function AssetsEmployeeIssueForm() {
     frmtype: AEI_CONFIG.FRM_TYPE,
     issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AEI_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AEI_CONFIG.RB_MASTER,
   }));
@@ -272,7 +271,6 @@ export default function AssetsEmployeeIssueForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["astempissid"],
-        configYearId: AEI_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Employee Issue record not found.");
@@ -641,7 +639,7 @@ export default function AssetsEmployeeIssueForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -712,9 +710,9 @@ export default function AssetsEmployeeIssueForm() {
     issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
     funccode: AEI_CONFIG.RB_MASTER,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AEI_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: 0,
   }), [todayISO]);
 
@@ -763,10 +761,10 @@ export default function AssetsEmployeeIssueForm() {
     const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
       frmtype: AEI_CONFIG.FRM_TYPE,
       issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      loginid: getUserSession().loginId,
     });
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
     );
 
     const payload = await withSaveContextFields(

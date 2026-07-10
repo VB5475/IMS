@@ -20,8 +20,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
@@ -38,8 +36,8 @@ import {
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || PI_CONFIG.CONFIG_YEAR_ID,
+    Number(companyId) || getUserSession().companyId,
+    Number(yearId) || getUserSession().yearId,
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
@@ -59,7 +57,7 @@ function mapMasterRowToHeaderValues(master) {
     ...master,
     trandate:     toDateInput(master.trandate),
     expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
-    yearid:    PI_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  PI_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -170,9 +168,9 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           ObjName: PI_CONFIG.SP_INQUIRY_TYPES,
           JSon: JSON.stringify([
             {
-              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmcompanyid: getUserSession().companyId,
               prmdivisionid: Number(divisionId),
-              prmyearid: PI_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmuserid: getUserSession().loginId,
               prmformtag: PI_CONFIG.FORM_TAG,
               prmreftype: "",
@@ -244,8 +242,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
             JSon: JSON.stringify([
               {
                 prmuserid: getUserSession().loginId,
-                prmcompanyid: DEFAULT_COMPANY_ID,
-                prmyearid: PI_CONFIG.DIVISION_YEAR_ID,
+                prmcompanyid: getUserSession().companyId,
+                prmyearid: getUserSession().yearId,
               },
             ]),
             p_ErrCode: -1,
@@ -257,7 +255,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: OBJ_TYPE.FUNCTION,
             ObjName: PI_CONFIG.SP_DEPARTMENTS,
-            JSon: JSON.stringify([{ prmdeptid: 0 ,prmloginid: DEFAULT_LOGIN_ID }]),
+            JSon: JSON.stringify([{ prmdeptid: 0 ,prmloginid: getUserSession().loginId }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
           }).catch((err) => {
@@ -300,8 +298,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([
           {
             prmuserid: getUserSession().loginId,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid: PI_CONFIG.DIVISION_YEAR_ID,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
           },
         ]),
         p_ErrCode: -1,
@@ -324,7 +322,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       const departmentData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_DEPARTMENTS,
-        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
+        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: getUserSession().loginId }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

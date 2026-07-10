@@ -15,9 +15,7 @@ import { useNotification } from "../../context/NotificationContext";
 import { useApi } from "../../api/useApi";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
-  DEFAULT_LOGIN_ID,
   getColDefault,
   buildSaveRowFromColumns,
 } from "../../api/constants";
@@ -142,14 +140,14 @@ export default function SupplierMasterForm({
     });
     return {
       ...row,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: SM_CONFIG.DIVISION_YEAR_ID,
+      companyid: session.companyId,
+      yearid: session.yearId,
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
       funccode: SM_CONFIG.RB_MASTER,
       idnumber: recordId || 0,
     };
-  }, [headerColumns, recordId, session.loginId]);
+  }, [headerColumns, recordId, session.companyId, session.yearId, session.loginId]);
 
   const [formValues, setFormValues] = useState({});
   const [recordLoading, setRecordLoading] = useState(false);
@@ -177,9 +175,9 @@ export default function SupplierMasterForm({
     setRecordLoading(true);
     setRecordLoadError(null);
     fetchEditRecord({
-      companyId: DEFAULT_COMPANY_ID,
-      yearId: SM_CONFIG.DIVISION_YEAR_ID,
-      loginId: DEFAULT_LOGIN_ID,
+      companyId: session.companyId,
+      yearId: session.yearId,
+      loginId: session.loginId,
       sessionId: DEFAULT_SESSION_ID,
       idNumber: recordId,
     })

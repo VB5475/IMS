@@ -16,10 +16,6 @@ export const C2F_CONFIG = {
   FORM_TAG:   "C2F",
   TRAN_BOOK:  "C2F",
 
-
-  CONFIG_YEAR_ID:   2,
-  DIVISION_YEAR_ID: 2,
-
   // SP names
   SP_RB_META:      "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS:    "fn_tbl_fetchuserwsdivision",

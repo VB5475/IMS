@@ -17,7 +17,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
@@ -30,10 +29,11 @@ import {
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || QTN_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -57,7 +57,7 @@ function mapMasterRowToHeaderValues(master) {
     // PG returns "currency" (not "currencyname") as the display label
     currencyname: master.currencyname ?? master.currency ?? "",
     // Context fields: always use live values, not stale DB values
-    yearid:    QTN_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  QTN_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -143,15 +143,16 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
       setIsLoadingQuotationTypes(true);
       try {
+        const session = getUserSession();
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: QTN_CONFIG.SP_QUOTATION_TYPES,
           JSon: JSON.stringify([
             {
-              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmcompanyid: session.companyId,
               prmdivisionid: Number(divisionId),
-              prmyearid: QTN_CONFIG.CONFIG_YEAR_ID,
-              prmuserid: getUserSession().loginId,
+              prmyearid: session.yearId,
+              prmuserid: session.loginId,
               prmformtag: QTN_CONFIG.FORM_TAG,
               prmreftype: "",
             },
@@ -193,7 +194,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
             {
               prmdivisionid: Number(divisionId),
               prmloginid: getUserSession().loginId,
-              prmyearid: QTN_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmpartytype: QTN_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
@@ -235,8 +236,8 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([
           {
             prmuserid: getUserSession().loginId,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid: QTN_CONFIG.DIVISION_YEAR_ID,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
           },
         ]),
         p_ErrCode: -1,

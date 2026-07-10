@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Package, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useSubGroupMaster } from "../../hooks/useSubGroupMaster";
 import SubGroupMasterForm from "./SubGroupMasterForm";
@@ -18,14 +19,15 @@ function todayFormatted() {
 
 function buildListParams() {
   const today = todayFormatted();
+  const session = getUserSession();
   return {
     ObjType: SGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
-      prmDivisionID: SGM_CONFIG.LIST_DIVISION_ID,
-      prmFromDate:   today,
-      prmToDate:     today,
+      prmcompanyid:  session.companyId,
+      prmdivisionid: SGM_CONFIG.LIST_DIVISION_ID,
+      prmfromdate:   today,
+      prmtodate:     today,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",

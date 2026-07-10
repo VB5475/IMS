@@ -15,9 +15,6 @@ export const AGM_CONFIG = {
   FORM_TAG: "rb_acountgroupmst",
   TRAN_BOOK: "ACC",
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   /** Edit mode fill — fn_tbl_RB_AcountGroupMst */
   SP_MASTER_FILL: "fn_tbl_rb_acountgroupmst",

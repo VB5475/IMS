@@ -16,12 +16,10 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -134,9 +132,9 @@ export default function AssetsWriteOffForm() {
     totaldepvalue: 0,
     totalcurrbookvalue: 0,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AWF_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AWF_CONFIG.RB_MASTER,
   });
@@ -229,7 +227,6 @@ export default function AssetsWriteOffForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["astwriteoffid"],
-        configYearId: AWF_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Write Off record not found.");
@@ -445,7 +442,7 @@ export default function AssetsWriteOffForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -457,8 +454,8 @@ export default function AssetsWriteOffForm() {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AWF_CONFIG.SP_ITEM_PICKER,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmyearid: AWF_CONFIG.CONFIG_YEAR_ID,
+          prmcompanyid: getUserSession().companyId,
+          prmyearid: getUserSession().yearId,
           prmdivisionid: Number(divisionid) || 0,
           prmtrandate: trandate ?? "",
           prmaccountid: Number(accountid) || 0,
@@ -513,9 +510,9 @@ export default function AssetsWriteOffForm() {
     totalcurrbookvalue: 0,
     funccode: AWF_CONFIG.RB_MASTER,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AWF_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: 0,
   }), [todayISO]);
 
@@ -565,12 +562,12 @@ export default function AssetsWriteOffForm() {
         mstRow[k] = v;
       }
     });
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(

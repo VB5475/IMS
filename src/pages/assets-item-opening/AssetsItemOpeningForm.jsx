@@ -27,11 +27,9 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_SESSION_ID,
   getColDefault,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import {
   isLockOnEditModeCol,
   isTruthyApiFlag,
@@ -123,9 +121,9 @@ export default function AssetsItemOpeningForm() {
     remark:      "",
     funccode:    AOP_CONFIG.RB_MASTER,
     tranmstgenid: 0,
-    companyid:   DEFAULT_COMPANY_ID,
-    yearid:      AOP_CONFIG.CONFIG_YEAR_ID,
-    loginid:     DEFAULT_LOGIN_ID,
+    companyid:   getUserSession().companyId,
+    yearid:      getUserSession().yearId,
+    loginid:     getUserSession().loginId,
     idnumber:    recordId,
   });
 
@@ -214,7 +212,6 @@ export default function AssetsItemOpeningForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["aopid"],
-        configYearId: AOP_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Item Opening record not found.");
@@ -413,8 +410,8 @@ export default function AssetsItemOpeningForm() {
   const buildDefaultHeaderValues = useCallback(() => ({
     trancode: "", divisionid: 0, itemgroupid: 0, itemid: 0, accountid: 0, remark: "",
     funccode: AOP_CONFIG.RB_MASTER, tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID, yearid: AOP_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID, idnumber: 0,
+    companyid: getUserSession().companyId, yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId, idnumber: 0,
   }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
@@ -457,12 +454,12 @@ export default function AssetsItemOpeningForm() {
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(

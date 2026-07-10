@@ -4,8 +4,6 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -20,10 +18,11 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AWF_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -41,7 +40,7 @@ function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
     trandate: toDateInput(master.trandate ?? master.TranDate),
-    yearid: AWF_CONFIG.CONFIG_YEAR_ID,
+    yearid: getUserSession().yearId,
     funccode: AWF_CONFIG.RB_MASTER,
     loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -89,7 +88,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -124,9 +123,9 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{
           prmdivisionid: Number(divisionId) || 0,
           prmacmaingroupid: Number(mainGroupId) || 0,
-          prmloginid: DEFAULT_LOGIN_ID,
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmyearid: AWF_CONFIG.CONFIG_YEAR_ID,
+          prmloginid: getUserSession().loginId,
+          prmcompanyid: getUserSession().companyId,
+          prmyearid: getUserSession().yearId,
         }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
@@ -142,8 +141,8 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: AWF_CONFIG.SP_LOCATION,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmloginid: DEFAULT_LOGIN_ID,
+          prmcompanyid: getUserSession().companyId,
+          prmloginid: getUserSession().loginId,
           prmlocationtype: "",
         }]),
         p_ErrCode: -1,
@@ -223,7 +222,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const cols = colData || [];
       setHeaderColumns(cols);
@@ -241,9 +240,9 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: AWF_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmuserid: DEFAULT_LOGIN_ID,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid: AWF_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: getUserSession().loginId,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
           }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
@@ -376,9 +375,9 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
             ObjType: 2,
             ObjName: AWF_CONFIG.SP_DIVISIONS,
             JSon: JSON.stringify([{
-              prmuserid: DEFAULT_LOGIN_ID,
-              prmcompanyid: DEFAULT_COMPANY_ID,
-              prmyearid: AWF_CONFIG.DIVISION_YEAR_ID,
+              prmuserid: getUserSession().loginId,
+              prmcompanyid: getUserSession().companyId,
+              prmyearid: getUserSession().yearId,
             }]),
             p_ErrCode: -1,
             p_ErrMsg: "",

@@ -1,4 +1,4 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -19,8 +19,6 @@ export const ARGI_CONFIG = {
   CONFIG_REF_TYPE: "RGI",
   ISSUE_TYPE_ID: 6,
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
   SUPPLIER_PARTY_TYPE: "S",
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
@@ -88,18 +86,15 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildArgiItemPickerJsonPayload(
   headerValues,
-  {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = ARGI_CONFIG.CONFIG_YEAR_ID,
-  } = {}
+  { companyId, loginId, yearId } = {}
 ) {
+  const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
 
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || ARGI_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || session.loginId,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || session.yearId,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: fromDivisionId,
     prmtodivisionid: pickHeaderInt(headerValues, "todivisionid", "ToDivisionID"),
@@ -119,19 +114,20 @@ export function buildArgiItemPickerJsonPayload(
 }
 
 export function buildArgiListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = ARGI_CONFIG.CONFIG_YEAR_ID,
+  companyId,
+  loginId,
+  yearId,
   fromDate,
   toDate,
   toDivisionId = ARGI_CONFIG.LIST_TO_DIVISION_ID,
   toDeptId = 0,
 } = {}) {
+  const session = getUserSession();
   const year = new Date().getFullYear();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || ARGI_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId) || session.loginId,
+    prmyearid: Number(yearId) || session.yearId,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmtodivisionid: Number(toDivisionId) || 0,

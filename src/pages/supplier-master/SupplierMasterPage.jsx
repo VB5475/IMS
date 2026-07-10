@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Truck, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { normalizeListRows } from "../../utils/listGridUtils";
@@ -21,7 +21,7 @@ function buildListParams() {
     ObjName: SM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid: session.companyId ?? DEFAULT_COMPANY_ID,
+        prmcompanyid: session.companyId,
         prmdivisionid: SM_CONFIG.LIST_DIVISION_ID,
         prmfromdate: today,
         prmtodate: today,

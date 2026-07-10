@@ -3,8 +3,6 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -19,10 +17,11 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AST_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -41,7 +40,7 @@ function mapMasterRowToHeaderValues(master) {
     ...master,
     trandate: toDateInput(master.trandate ?? master.TranDate),
     issuedate: toDateInput(master.issuedate ?? master.IssueDate) || toDateInput(master.trandate),
-    yearid: AST_CONFIG.CONFIG_YEAR_ID,
+    yearid: getUserSession().yearId,
     funccode: AST_CONFIG.RB_MASTER,
     loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -109,7 +108,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -139,17 +138,17 @@ export function useAstStktr(baseURL = API_BASE_URL) {
 
   const divisionFetchJson = useCallback(
     () => JSON.stringify([{
-      prmuserid: DEFAULT_LOGIN_ID,
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmyearid: AST_CONFIG.DIVISION_YEAR_ID,
+      prmuserid: getUserSession().loginId,
+      prmcompanyid: getUserSession().companyId,
+      prmyearid: getUserSession().yearId,
     }]),
     []
   );
 
   const locationFetchJson = useCallback(
     () => JSON.stringify([{
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmloginid: DEFAULT_LOGIN_ID,
+      prmcompanyid: getUserSession().companyId,
+      prmloginid: getUserSession().loginId,
       prmlocationtype: "",
     }]),
     []
@@ -250,10 +249,10 @@ export function useAstStktr(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: AST_CONFIG.SP_CONFIG,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmcompanyid: getUserSession().companyId,
           prmdivisionid: resolvedDivisionId,
-          prmyearid: AST_CONFIG.CONFIG_YEAR_ID,
-          prmuserid: DEFAULT_LOGIN_ID,
+          prmyearid: getUserSession().yearId,
+          prmuserid: getUserSession().loginId,
           prmformtag: AST_CONFIG.CONFIG_FORM_TAG,
           prmreftype: AST_CONFIG.CONFIG_REF_TYPE,
           prmref_mstid: 0,
@@ -294,7 +293,7 @@ export function useAstStktr(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const cols = colData || [];
       setHeaderColumns(cols);

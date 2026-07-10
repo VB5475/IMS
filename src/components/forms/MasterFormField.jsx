@@ -10,6 +10,7 @@ import {
 } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
 import { handleDateArrowKeys, parseFlexibleDate } from "../../utils/dateFormat";
+import { useNotification } from "../../context/NotificationContext";
 import {
   getCheckboxValue,
   getMasterFieldLabel,
@@ -22,19 +23,6 @@ import {
 import "./MasterFormField.css";
 
 const GridNumberInput = lazy(() => import("../grid/GridNumberInput"));
-
-/** Prevent stacked native alerts when multiple fields blur at once (e.g. closing a modal). */
-let fieldBlurAlertOpen = false;
-
-function showFieldBlurAlert(message) {
-  if (!message || fieldBlurAlertOpen) return;
-  fieldBlurAlertOpen = true;
-  try {
-    window.alert(message);
-  } finally {
-    fieldBlurAlertOpen = false;
-  }
-}
 
 function toNativeDateInputValue(value) {
   const date = parseFlexibleDate(value);
@@ -74,6 +62,7 @@ export default function MasterFormField({
   validateOnBlur = false,
   autoComplete,
 }) {
+  const notify = useNotification();
   const lastValidRef = useRef(value);
   const columnMeta = useMemo(() => buildColumnMeta(field), [field]);
   const controlType = resolveFieldControlType(field);
@@ -99,14 +88,14 @@ export default function MasterFormField({
         { skipMandatory: true }
       );
       if (!result.valid) {
-        showFieldBlurAlert(result.message);
+        notify.error(result.message);
         onChange(lastValidRef.current);
         return false;
       }
       lastValidRef.current = nextValue;
       return true;
     },
-    [validateOnBlur, field, columnMeta, onChange]
+    [validateOnBlur, field, columnMeta, onChange, notify]
   );
 
   const handleFocus = useCallback(() => {

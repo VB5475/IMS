@@ -44,9 +44,9 @@ export const ENDPOINTS = {
 };
 
 // ── Shared request defaults (used across pages) ────────────────────────
-export const DEFAULT_LOGIN_ID = 1;
-export const DEFAULT_COMPANY_ID = 1;
-export const DEFAULT_YEAR_ID = 13;
+// CompanyID/YearID/LoginID come from the login-time session (see
+// src/session/userSession.js, getUserSession()) — do not reintroduce
+// hardcoded fallbacks for those here.
 export const DEFAULT_SESSION_ID = 88;
 export const DEFAULT_DIVISION_ID = 0;
 export const API_TIMEOUT = 30000;

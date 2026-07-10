@@ -20,6 +20,7 @@ import { formatTranDate } from "../../utils/dateFormat";
 import {
   getMissingItemPickerHeaderFields as getMissingPickerFields,
 } from "../../utils/purchaseItemPicker";
+import { getUserSession } from "../../session/userSession";
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
@@ -31,6 +32,11 @@ export const PI_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 export const PI_CONFIG = {
   ...PURCHASE_API,
   SP_INQUIRY_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
+
+  // Purchase Inquiry-only override: dedicated supplier-picker RB (not the shared
+  // PURCHASE_API.SUPPLIER_SP used by other purchase modules). Takes the same JSON
+  // payload shape as the item picker — see buildItemPickerJsonPayload below.
+  SUPPLIER_SP: "fn_tbl_rb_purinqselonlysupp",
 
   RB_MASTER: "rb_purinquirymst",
   RB_DETAIL: "rb_purinquirydet",
@@ -114,7 +120,7 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return {
     prmdivisionid: Number(headerValues.divisionid) || 0,
-    prmyearid:     PI_CONFIG.CONFIG_YEAR_ID,
+    prmyearid:     getUserSession().yearId,
     prmloginid:    loginId,
     prmtrandate:   formatTranDate(headerValues.trandate),
     prmconfigid:   Number(headerValues.configid) || 0,

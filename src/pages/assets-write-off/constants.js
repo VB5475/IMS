@@ -13,9 +13,6 @@ export const AWF_CONFIG = {
   FORM_TAG: "rb_astwriteoffmst",
   TRAN_BOOK: "ASTWOF",
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
   SP_LOCATION: "Fn_Gen_FetchLocationMaster",

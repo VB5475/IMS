@@ -19,8 +19,6 @@ import {
   API_BASE_URL,
   API_BASE_URL_IMS,
   API_TIMEOUT,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -30,10 +28,11 @@ import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || IND_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -54,7 +53,7 @@ function mapMasterRowToHeaderValues(master) {
     trandate:     toDateInput(master.trandate),
     expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
     // Context fields: always use live values, not stale DB values
-    yearid:    IND_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  IND_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -96,7 +95,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   const apiColumns = colData || [];
   return { meta, apiColumns };
@@ -134,10 +133,11 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   // ── fetchLocations ──────────────────────────────────────────────────
   const fetchLocations = useCallback(async () => {
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_LOCATION,
-        JSon: JSON.stringify([{ prmcompanyid: DEFAULT_COMPANY_ID, prmloginid: DEFAULT_LOGIN_ID, prmlocationtype: "" }]),
+        JSon: JSON.stringify([{ prmcompanyid: session.companyId, prmloginid: session.loginId, prmlocationtype: "" }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -160,7 +160,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_DEPT,
-        JSon: JSON.stringify([{ prmdeptid : 0, prmloginid: DEFAULT_LOGIN_ID }]),
+        JSon: JSON.stringify([{ prmdeptid : 0, prmloginid: getUserSession().loginId }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -186,15 +186,16 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       }
       setIsLoadingIndentTypes(true);
       try {
+        const session = getUserSession();
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: IND_CONFIG.SP_INDENT_TYPES,
           JSon: JSON.stringify([
             {
-              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmcompanyid: session.companyId,
               prmdivisionid: Number(divisionId),
-              prmyearid: IND_CONFIG.CONFIG_YEAR_ID,
-              prmuserid: DEFAULT_LOGIN_ID,
+              prmyearid: session.yearId,
+              prmuserid: session.loginId,
               prmformtag: IND_CONFIG.FORM_TAG,
               prmreftype: "",
             },
@@ -242,7 +243,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const cols = colData || [];
       setHeaderColumns(cols);
@@ -271,9 +272,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             ObjName: IND_CONFIG.SP_DIVISIONS,
             JSon: JSON.stringify([
               {
-                prmuserid: DEFAULT_LOGIN_ID,
-                prmcompanyid: DEFAULT_COMPANY_ID,
-                prmyearid: IND_CONFIG.DIVISION_YEAR_ID,
+                prmuserid: getUserSession().loginId,
+                prmcompanyid: getUserSession().companyId,
+                prmyearid: getUserSession().yearId,
               },
             ]),
             p_ErrCode: -1,
@@ -298,7 +299,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: 2,
             ObjName: IND_CONFIG.SP_DEPT,
-            JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
+            JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: getUserSession().loginId }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
           })
@@ -322,8 +323,8 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             ObjType: 2,
             ObjName: IND_CONFIG.SP_LOCATION,
             JSon: JSON.stringify([{
-              prmcompanyid: DEFAULT_COMPANY_ID,
-              prmloginid: DEFAULT_LOGIN_ID,
+              prmcompanyid: getUserSession().companyId,
+              prmloginid: getUserSession().loginId,
               prmlocationtype: "",
             }]),
             p_ErrCode: -1,
@@ -555,9 +556,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             ObjType: 2,
             ObjName: IND_CONFIG.SP_DIVISIONS,
             JSon: JSON.stringify([{
-              prmUserID: DEFAULT_LOGIN_ID,
-              prmCompanyID: DEFAULT_COMPANY_ID,
-              prmYearID: IND_CONFIG.DIVISION_YEAR_ID,
+              prmUserID: getUserSession().loginId,
+              prmCompanyID: getUserSession().companyId,
+              prmYearID: getUserSession().yearId,
             }]),
             p_ErrCode: -1,
             p_ErrMsg: "",

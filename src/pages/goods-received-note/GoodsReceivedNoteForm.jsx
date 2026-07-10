@@ -32,7 +32,6 @@ import {
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -119,8 +118,8 @@ function buildCurrencyPatchFromSupplier(supplier) {
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? GRN_CONFIG.CONFIG_YEAR_ID,
+    companyId: listRecord?.companyid ?? session.companyId,
+    yearId: listRecord?.yearid ?? session.yearId,
     loginId: listRecord?.loginid ?? session.loginId,
     sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
     idNumber: listRecord?.idnumber ?? recordId,
@@ -241,8 +240,8 @@ export default function GoodsReceivedNoteForm() {
     drivername: "",
     drivercontactno: "",
     driverlicenceno: "",
-    companyid: 1,
-    yearid: GRN_CONFIG.DIVISION_YEAR_ID,
+    companyid: session.companyId,
+    yearid: session.yearId,
     loginid: session.loginId,
     userid: session.userId,
     idnumber: recordId,
@@ -354,8 +353,8 @@ export default function GoodsReceivedNoteForm() {
       drivername: "",
       drivercontactno: "",
       driverlicenceno: "",
-      companyid: 1,
-      yearid: GRN_CONFIG.DIVISION_YEAR_ID,
+      companyid: resetSession.companyId,
+      yearid: resetSession.yearId,
       loginid: resetSession.loginId,
       userid: resetSession.userId,
       idnumber: 0,

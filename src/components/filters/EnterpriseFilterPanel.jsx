@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, CBO_MODE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
+import { useNotification } from "../../context/NotificationContext";
 import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
@@ -70,6 +71,7 @@ function buildFilterRows(filters) {
 }
 
 function FilterControl({ filter, value, options, onChange, disabled = false, tone = "editable" }) {
+  const notify = useNotification();
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
   const accent = getAccentClass(filter);
   const isView = tone === "view";
@@ -83,7 +85,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
   const handleBlurValidate = (nextValue) => {
     if (readOnly || !filter.columnMeta) return;
     const result = validateColumnValue(nextValue, filter.columnMeta);
-    if (!result.valid) alert(result.message);
+    if (!result.valid) notify.error(result.message);
   };
 
   const isRequired = isColumnMandatory(filter);

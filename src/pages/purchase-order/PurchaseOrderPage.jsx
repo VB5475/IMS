@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
@@ -22,7 +23,7 @@ function buildListParams() {
     ObjName: PO_CONFIG.SP_PO_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:    DEFAULT_COMPANY_ID,
+        prmcompanyid:    getUserSession().companyId,
         prmdivisionid:   PO_CONFIG.LIST_DIVISION_ID,
         prmsupplierid:   0,
         prmfromdate:     `01-Jan-${year}`,

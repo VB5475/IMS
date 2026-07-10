@@ -1,12 +1,7 @@
 import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
-import {
-  ENDPOINTS,
-  API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_SESSION_ID,
-} from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { seedMasterDropdownOptions } from "../utils/gridUtils";
 import {
   mapMasterRowToHeaderValues,
@@ -24,10 +19,11 @@ function pickCI(obj, key) {
 }
 
 function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || DEFAULT_LOGIN_ID,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(masterId) || 0,
   ].join(",");
@@ -187,7 +183,7 @@ export function useAccountMaster() {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const links = normalizeDetailColLinks(resolveDetailColLinks(colData));
       setHeaderColumns(links);

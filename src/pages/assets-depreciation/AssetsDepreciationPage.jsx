@@ -1,4 +1,4 @@
-// AssetsDepreciationPage.jsx — Assets Depreciation listing / landing page
+// AssetsDepreciationPage.jsx — Company Act Depreciation listing / landing page
 // Clicking Add New → /assets-depreciation/new    (AssetsDepreciationForm — new mode)
 // Clicking Edit   → /assets-depreciation/:id/edit (AssetsDepreciationForm — edit mode)
 
@@ -7,7 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { Layers, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
@@ -27,14 +28,15 @@ function formatListDate(value) {
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: DPC_CONFIG.LIST_OBJ_TYPE,
     ObjName: DPC_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  DEFAULT_COMPANY_ID,
+      prmcompanyid:  session.companyId,
       prmdivisionid: DPC_CONFIG.LIST_DIVISION_ID,
-      prmloginid:    DEFAULT_LOGIN_ID,
-      prmyearid:     DPC_CONFIG.CONFIG_YEAR_ID,
+      prmloginid:    session.loginId,
+      prmyearid:     session.yearId,
       prmfromdate:   `01-Jan-${year}`,
       prmtodate:     `31-Dec-${year}`,
       prmaccountid:  0,
@@ -97,7 +99,7 @@ export default function AssetsDepreciationPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
-    title:    "Assets Depreciation",
+    title:    "Company Act Depreciation",
     subtitle: "Create and manage asset depreciation entries.",
     showBack: true,
     backTo:   "/",
@@ -113,7 +115,7 @@ export default function AssetsDepreciationPage() {
       setData(json ?? []);
     } catch (err) {
       console.error("[AssetsDepreciation] list fetch failed:", err);
-      setError("Failed to load Assets Depreciation records.");
+      setError("Failed to load Company Act Depreciation records.");
     } finally {
       setLoading(false);
     }
@@ -129,7 +131,7 @@ export default function AssetsDepreciationPage() {
         <header className="dpc-list-panel__header">
           <div className="dpc-list-panel__title">
             <Layers size={14} strokeWidth={2} />
-            <span>Assets Depreciation</span>
+            <span>Company Act Depreciation</span>
           </div>
           <div className="dpc-list-panel__toolbar">
             <button type="button" className="dpc-list-panel__add-btn" onClick={handleAddNew}>
@@ -157,11 +159,11 @@ export default function AssetsDepreciationPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading Assets Depreciation records…"
+          loaderText="Loading Company Act Depreciation records…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No Assets Depreciation records found."
+          emptyMessage="No Company Act Depreciation records found."
           hideHeader
           searchable
           fill

@@ -14,12 +14,11 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -144,9 +143,9 @@ export default function AssetsReturnableGatePassOutForm() {
     frmtype: ARGO_CONFIG.FRM_TYPE,
     issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: ARGO_CONFIG.RB_MASTER,
   }));
@@ -241,7 +240,6 @@ export default function AssetsReturnableGatePassOutForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["astissrgoid", "AstIssRGOID"],
-        configYearId: ARGO_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) {
@@ -468,7 +466,7 @@ export default function AssetsReturnableGatePassOutForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -527,9 +525,9 @@ export default function AssetsReturnableGatePassOutForm() {
     issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
     funccode: ARGO_CONFIG.RB_MASTER,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: 0,
   }), [todayISO]);
 
@@ -579,12 +577,12 @@ export default function AssetsReturnableGatePassOutForm() {
     });
     mstRow.frmtype = ARGO_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = ARGO_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(

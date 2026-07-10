@@ -65,6 +65,9 @@ const NAV_SECTIONS = [
       { to: "/admin/company/location-master", icon: MapPin, label: "Location Master", end: false },
       { to: "/admin/company/division-master", icon: Network, label: "Division Master", end: false },
       { to: "/admin/master/supplier-master", icon: Truck, label: "Supplier Master", end: false },
+      { to: "/account/master/asset-item-master", icon: LayoutList, label: "Asset Item Master", end: false },
+      { to: "/admin/account-group-master", icon: FolderTree, label: "Account Group Master", end: false },
+      { to: "/admin/account-master", icon: Landmark, label: "Account Master", end: false },
     ],
   },
   {
@@ -83,7 +86,7 @@ const NAV_SECTIONS = [
     label: "Assets",
     items: [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
-      { to: "/assets-depreciation", icon: TrendingDown, label: "Depreciation", end: false },
+      { to: "/assets-depreciation", icon: TrendingDown, label: "Company Act Depreciation", end: false },
       { to: "/assets-write-off", icon: FileX, label: "Assets Write Off", end: false },
       { to: "/assets-employee-issue", icon: UserRound, label: "Assets Employee Issue", end: false },
       { to: "/assets-employee-return", icon: RotateCcw, label: "Assets Employee Return", end: false },
@@ -92,9 +95,6 @@ const NAV_SECTIONS = [
       { to: "/assets-returnable-gate-pass-in", icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false },
       { to: "/assets-stock-transfer", icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },
       { to: "/assets-item-opening", icon: Package2, label: "Assets Item Opening", end: false },
-      { to: "/account/master/asset-item-master", icon: LayoutList, label: "Asset Item Master", end: false },
-      { to: "/admin/account-group-master", icon: FolderTree, label: "Account Group Master", end: false },
-      { to: "/admin/account-master", icon: Landmark, label: "Account Master", end: false },
     ],
   },
 

@@ -30,13 +30,12 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
@@ -164,9 +163,9 @@ export default function PurchaseIndentForm() {
     indentrefrenceno: "",
     enteredby:        "",
     tranmstgenid:     0,
-    companyid:        DEFAULT_COMPANY_ID,
-    yearid:           IND_CONFIG.DIVISION_YEAR_ID,
-    loginid:          DEFAULT_LOGIN_ID,
+    companyid:        getUserSession().companyId,
+    yearid:           getUserSession().yearId,
+    loginid:          getUserSession().loginId,
     idnumber:         recordId,
     funccode:         IND_CONFIG.RB_MASTER,
   });
@@ -261,7 +260,6 @@ export default function PurchaseIndentForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: ["indentid"],
-        configYearId: IND_CONFIG.CONFIG_YEAR_ID,
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
 
@@ -444,7 +442,7 @@ export default function PurchaseIndentForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -458,8 +456,8 @@ export default function PurchaseIndentForm() {
         JSon: JSON.stringify([
           {
             prmdivisionid: Number(divisionID),
-            prmyearid: IND_CONFIG.CONFIG_YEAR_ID,
-            prmloginid: DEFAULT_LOGIN_ID,
+            prmyearid: getUserSession().yearId,
+            prmloginid: getUserSession().loginId,
             prmtrandate: formatIndentTranDate(trandate),
             prmconfigid: Number(configid ?? 0),
             prmsupplierid: 0,
@@ -522,9 +520,9 @@ export default function PurchaseIndentForm() {
     indentrefrenceno: "",
     enteredby:        "",
     tranmstgenid:     0,
-    companyid:        DEFAULT_COMPANY_ID,
-    yearid:           IND_CONFIG.DIVISION_YEAR_ID,
-    loginid:          DEFAULT_LOGIN_ID,
+    companyid:        getUserSession().companyId,
+    yearid:           getUserSession().yearId,
+    loginid:          getUserSession().loginId,
     idnumber:         0,
     funccode:         IND_CONFIG.RB_MASTER,
   }), [todayISO]);
@@ -580,10 +578,10 @@ export default function PurchaseIndentForm() {
     Object.entries(hv).forEach(([k, v]) => {
       if (k !== "id") mstRow[k] = v;
     });
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
     );
 
     const payload = await withSaveContextFields(

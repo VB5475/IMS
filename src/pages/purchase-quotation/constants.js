@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Purchase Quotation";
 // Source of truth: MRD_Template4Qtn.docx (Module Requirements — Purchase Quotation).
 
 import { controlTypeMap } from "../../data/dummyData";
+import { getUserSession } from "../../session/userSession";
 import {
   APPROVED_FILTER_OPTS,
   BASED_ON,
@@ -126,7 +127,7 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return buildPickerPayload(headerValues, loginId, {
-    configYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+    configYearId: getUserSession().yearId,
     tranBook: QTN_CONFIG.TRAN_BOOK,
   });
 }

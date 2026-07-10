@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Package, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { DEFAULT_SESSION_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useItemMaster } from "../../hooks/useItemMaster";
 import { formatTranDate } from "../../utils/dateFormat";
@@ -129,10 +126,11 @@ export default function ItemMasterPage() {
       setEditLoading(true);
 
       try {
+        const session = getUserSession();
         const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: IM_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
+          companyId: session.companyId,
+          yearId: session.yearId,
+          loginId: session.loginId,
           sessionId: DEFAULT_SESSION_ID,
           idNumber,
         });
