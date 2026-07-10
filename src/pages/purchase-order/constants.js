@@ -40,6 +40,7 @@ export const PO_CONFIG = {
   SP_PO_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
   RB_MASTER: "rb_purpomst",
+  DELETE_PROC_NAME: "pr_rb_purpomst_delete",
   RB_DETAIL: "rb_purpodet",
   RB_INDT_DETAIL: "rb_purpoindtdet",
 

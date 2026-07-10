@@ -14,6 +14,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import axios from "axios";
 import { API_BASE_URL, API_TIMEOUT } from "./constants";
+import { getUserSession } from "../session/userSession";
 
 function attachInterceptors(client) {
   client.interceptors.request.use(
@@ -139,12 +140,39 @@ export function useApi(baseURL = API_BASE_URL) {
     [client]
   );
 
+  const postDelete = useCallback(
+    async (
+      url,
+      {
+        deleteProcName,
+        idNumber,
+        loginId,
+        yearId,
+        sessionId,
+      } = {},
+      params = {}
+    ) => {
+      const session = getUserSession();
+      const body = {
+        prmdeleteprocname: deleteProcName ?? "",
+        prmidnumber: Number(idNumber) || 0,
+        prmloginid: Number(loginId ?? session.loginId) || 0,
+        prmyearid: Number(yearId ?? session.yearId) || 0,
+        prmsessionid: Number(sessionId ?? session.sessionId) || 0,
+        prmErrCode: 0,
+        prmErrMsg: "",
+      };
+      return post(url, body, params);
+    },
+    [post]
+  );
+
   // GET with a JSON request body (mirrors: --request GET --header 'Content-Type: application/json' --data '{...}').
   // Uses client.request() instead of client.get() to guarantee Axios serialises
   // and sends the body even though the HTTP verb is GET.
 
   return useMemo(
-    () => ({ get, post, loading, error, client, baseURL }),
-    [get, post, loading, error, client, baseURL]
+    () => ({ get, post, postDelete, loading, error, client, baseURL }),
+    [get, post, postDelete, loading, error, client, baseURL]
   );
 }

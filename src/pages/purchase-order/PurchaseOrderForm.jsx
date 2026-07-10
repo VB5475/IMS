@@ -1014,7 +1014,7 @@ export default function PurchaseOrderForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page po-page">
+    <div className="workspace-page workspace-page--fill po-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

@@ -134,6 +134,8 @@ export default function PurchaseQuotationPage() {
           emptyMessage="No purchase quotations found."
           hideHeader
           searchable
+          deleteProcName={QTN_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchQuotations}
           fill
         />
       </section>

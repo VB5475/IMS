@@ -40,6 +40,7 @@ export const ENDPOINTS = {
   RB_REPORTBOARD_DETAIL_SAVE: "/RB_ReportBoardDetail_Save",
   FN_TBL_RB_GRID_EVENT: "/fn_tbl_RB_Grid_Event",
   TRAN_FORM_EVENT: "/API/TransactionFormEvent/Post_RB_TransactionFormEvent",
+  TRAN_FORM_DELETE: "/API/TranFormDelete/Post_TranFormDelete",
   RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save",
 };
 

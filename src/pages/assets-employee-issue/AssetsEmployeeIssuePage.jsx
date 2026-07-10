@@ -114,6 +114,8 @@ export default function AssetsEmployeeIssuePage() {
           emptyMessage="No Assets Employee Issue records found."
           hideHeader
           searchable
+          deleteProcName={AEI_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

@@ -1,0 +1,255 @@
+/* AssetsItemOpeningExcelPage.css */
+
+/* ── Listing page ──────────────────────────────────────────────────────────── */
+.aop-list-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.aop-list-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.aop-list-panel--fill {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.aop-list-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+}
+
+.aop-list-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.aop-list-panel__toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.aop-list-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aop-list-panel__add-btn:hover {
+  filter: brightness(1.05);
+}
+
+.aop-list-panel__pagesize-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.aop-list-panel__pagesize-select {
+  height: 26px;
+  min-width: 56px;
+  padding: 0 24px 0 8px;
+}
+
+.aop-list-panel .ng-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.aop-list-panel .ng-card-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.aop-list__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.aop-list__edit-btn:hover {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+/* ── Form page shell ───────────────────────────────────────────────────────── */
+.aop-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-page--fill.aop-page,
+.workspace-page--fill.aime-page {
+  flex: 1;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.aop-page .efq-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Grid section — grows to fill remaining page height ───────────────────── */
+.aop-grid-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(30, 74, 122, 0.08);
+  overflow: hidden;
+}
+
+.aop-grid-section .grid-tabbar {
+  flex-shrink: 0;
+}
+
+.aop-tab-pane {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.aop-tab-pane--active {
+  display: flex;
+  flex-direction: column;
+}
+
+.aop-tab-pane .erp-grid-container {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ── Excel upload form ───────────────────────────────────────────────────── */
+.aime-file-input {
+  display: none;
+}
+
+.aime-upload-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.aime-upload-bar__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.aime-upload-bar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aime-upload-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.aime-upload-bar__btn--secondary {
+  color: var(--primary);
+  background: var(--primary-lighter, #eef4ff);
+  border: 1px solid var(--primary-light, rgba(30, 74, 122, 0.2));
+}
+
+.aime-upload-bar__btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.aime-upload-bar__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.aime-page {
+  gap: 12px;
+}
+
+.workspace-page--fill.aime-page .aime-upload-bar,
+.workspace-page--fill.aime-page .workspace-page__filters {
+  flex-shrink: 0;
+}

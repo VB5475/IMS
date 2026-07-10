@@ -185,10 +185,9 @@
 
 /* ── 3-tab grid section ── */
 .po-grid-section {
-  flex: 0 0 auto;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 320px;
   min-height: 0;
   border: 2px solid var(--primary);
   border-radius: var(--radius-lg);

@@ -127,6 +127,8 @@ export default function PurchaseIndentPage() {
           emptyMessage="No purchase indents found."
           hideHeader
           searchable
+          deleteProcName={IND_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchIndents}
           fill
         />
       </section>

@@ -108,6 +108,8 @@ export default function AssetsDepartmentIssuePage() {
           emptyMessage="No Assets Department Issue records found."
           hideHeader
           searchable
+          deleteProcName={ADI_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

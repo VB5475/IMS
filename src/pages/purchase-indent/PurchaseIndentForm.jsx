@@ -688,7 +688,7 @@ export default function PurchaseIndentForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page ind-page">
+    <div className="workspace-page workspace-page--fill ind-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
