@@ -112,6 +112,8 @@ export default function AssetsEmployeeReturnPage() {
           emptyMessage="No Assets Employee Return records found."
           hideHeader
           searchable
+          deleteProcName={AER_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

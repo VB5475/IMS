@@ -215,6 +215,35 @@
   box-shadow: 2px 0 6px rgba(15, 23, 42, 0.12);
 }
 
+.ng-table thead th.ng-col--action-delete {
+  background: #b91c1c !important;
+  color: #ffffff !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+.ng-table thead th.ng-col--action-select,
+.ng-table tbody td.ng-col--action-select {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+
+.ng-table thead th.ng-col--action-select {
+  background: #475569 !important;
+  color: #ffffff !important;
+}
+
+.ng-row-select {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.ng-row-select--header {
+  vertical-align: middle;
+}
+
 .ng-table tbody td.ng-col--action {
   background: var(--surface);
   box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
@@ -317,6 +346,38 @@
 .ng-link:hover {
   color: var(--primary-hover);
   text-decoration: underline;
+}
+
+.list__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.list__edit-btn:hover:not(:disabled) {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+.list__edit-btn--delete {
+  color: #b91c1c;
+}
+
+.list__edit-btn--delete:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #b91c1c;
+}
+
+.list__edit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ─── Badge cell (badge columns) ─────────────────────────────────── */

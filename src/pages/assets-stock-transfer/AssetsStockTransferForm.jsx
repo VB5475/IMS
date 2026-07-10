@@ -680,7 +680,7 @@ export default function AssetsStockTransferForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page ast-page">
+    <div className="workspace-page workspace-page--fill ast-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

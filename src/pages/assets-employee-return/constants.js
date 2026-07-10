@@ -6,12 +6,13 @@ export const PAGE_TITLE = "Assets Employee Return";
 export const PAGE_TITLE_NEW = "New Assets Employee Return";
 
 export const AER_CONFIG = {
-  RB_MASTER: "Rb_astempretmst",
-  RB_DETAIL: "Rb_astempretdet",
-  RB_ITEM_PICKER: "Rb_astempretselonly",
+  RB_MASTER: "rb_astempretmst",
+  DELETE_PROC_NAME: "pr_rb_astempretmst_delete",
+  RB_DETAIL: "rb_astempretdet",
+  RB_ITEM_PICKER: "rb_astempretselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astempretmst",
+  FORM_TAG: "rb_astempretmst",
   TRAN_BOOK: "ER",
   FRM_TYPE: 3,
   FRM_TYPE_LABEL: "ER",

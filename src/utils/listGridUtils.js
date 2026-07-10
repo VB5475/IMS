@@ -1,7 +1,4 @@
-import { createElement } from "react";
-import { Pencil } from "lucide-react";
 import { formatListDate } from "./dateFormat";
-
 /** Normalize list row id fields for edit navigation. */
 export function normalizeListRow(row) {
   if (!row || typeof row !== "object") return row;
@@ -26,6 +23,10 @@ export function resolveListRecordId(row) {
     row.AstEmpIssID ??
     row.astempretid ??
     row.AstEmpRetID ??
+    row.astdeptissid ??
+    row.AstDeptIssID ??
+    row.asthealstamstid ??
+    row.AstHealStaMstID ??
     row.astwriteoffid ??
     row.AstWriteOffID ??
     row.IDNUMBER ??
@@ -130,43 +131,61 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
 }
 
 /**
- * Append a standard Edit action column for module list pages.
+ * Standard Edit action column for module list pages.
  */
 export function createListEditColumn({ navigate, basePath, className = "list__edit-btn" }) {
   return {
-    key: "_actions",
+    key: "_action_edit",
     label: "Edit",
     isAction: true,
+    actionType: "edit",
     width: "56px",
     minWidth: 56,
     align: "center",
     filterable: false,
-    render: (_value, row) => {
+    actionClassName: className,
+    getActionMeta: (row) => {
       const id = resolveListRecordId(row);
-      return createElement(
-        "button",
-        {
-          type: "button",
-          className,
-          title: `Edit record ${id}`,
-          "aria-label": `Edit record ${id}`,
-          onClick: (e) => {
-            e.stopPropagation();
-            navigate(`${basePath}/${id}/edit`, { state: { record: row } });
-          },
-        },
-        createElement(Pencil, { size: 13, strokeWidth: 2 })
-      );
+      return {
+        id,
+        title: `Edit record ${id}`,
+        ariaLabel: `Edit record ${id}`,
+        navigateTo: `${basePath}/${id}/edit`,
+        navigateState: { record: row },
+      };
     },
   };
 }
 
-/** API data columns + Edit action column. */
-export function buildListPageColumns(rows, { navigate, basePath, editBtnClass }) {
+export function createListDeleteColumn({ className = "list__edit-btn list__edit-btn--delete" }) {
+  return {
+    key: "_action_delete",
+    label: "Delete",
+    isAction: true,
+    actionType: "delete",
+    width: "64px",
+    minWidth: 64,
+    align: "center",
+    filterable: false,
+    actionClassName: className,
+    getActionMeta: (row) => {
+      const id = resolveListRecordId(row);
+      return {
+        id,
+        title: `Delete record ${id}`,
+        ariaLabel: `Delete record ${id}`,
+      };
+    },
+  };
+}
+
+/** API data columns + Edit/Delete action columns. */
+export function buildListPageColumns(rows, { navigate, basePath, editBtnClass, deleteBtnClass }) {
   const dataColumns = buildListColumnsFromRows(rows);
   if (dataColumns.length === 0) return [];
   return [
     ...dataColumns,
     createListEditColumn({ navigate, basePath, className: editBtnClass }),
+    createListDeleteColumn({ className: deleteBtnClass }),
   ];
 }

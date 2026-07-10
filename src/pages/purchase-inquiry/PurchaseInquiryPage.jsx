@@ -124,6 +124,8 @@ export default function PurchaseInquiryPage() {
           emptyMessage="No purchase inquiries found."
           hideHeader
           searchable
+          deleteProcName={PI_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchInquiries}
           fill
         />
       </section>

@@ -6,12 +6,13 @@ export const PAGE_TITLE = "Assets Returnable Gate Pass Out";
 export const PAGE_TITLE_NEW = "New Assets Returnable Gate Pass Out";
 
 export const ARGO_CONFIG = {
-  RB_MASTER: "Rb_astissrgomst",
-  RB_DETAIL: "Rb_astissrgodet",
+  RB_MASTER: "rb_astissrgomst",
+  DELETE_PROC_NAME: "pr_rb_astissrgomst_delete",
+  RB_DETAIL: "rb_astissrgodet",
   RB_ITEM_PICKER: "rb_astissrgoselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astissrgomst",
+  FORM_TAG: "rb_astissrgomst",
   TRAN_BOOK: "RGO",
   FRM_TYPE: "RGO",
   FRM_TYPE_LABEL: "RGO",

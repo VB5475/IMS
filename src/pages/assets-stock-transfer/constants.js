@@ -6,12 +6,13 @@ export const PAGE_TITLE = "Assets Stock Transfer";
 export const PAGE_TITLE_NEW = "New Assets Stock Transfer";
 
 export const AST_CONFIG = {
-  RB_MASTER: "Rb_astissstktrmst",
-  RB_DETAIL: "Rb_astissstktrdet",
+  RB_MASTER: "rb_astissstktrmst",
+  DELETE_PROC_NAME: "pr_rb_astissstktrmst_delete",
+  RB_DETAIL: "rb_astissstktrdet",
   RB_ITEM_PICKER: "rb_astisstktrselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "Rb_astissstktrmst",
+  FORM_TAG: "rb_astissstktrmst",
   TRAN_BOOK: "ST",
   FRM_TYPE: "ST",
   FRM_TYPE_LABEL: "ST",

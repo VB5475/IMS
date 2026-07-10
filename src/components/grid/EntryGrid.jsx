@@ -392,6 +392,16 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const safePage = Math.min(page, totalPages);
   const startIdx = (safePage - 1) * pageSize;
   const displayRows = processedRows.slice(startIdx, startIdx + pageSize);
+  const isEmpty = displayRows.length === 0;
+  const emptyStateContent =
+    emptyMessage ??
+    (readOnly ? (
+      "No data available."
+    ) : (
+      <>
+        Click <strong>Entry Form</strong> in the header panel to add a row.
+      </>
+    ));
 
   useEffect(() => {
     setPage(1);
@@ -874,7 +884,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           )}
 
           <div
-            className={`table-wrapper ${scrollState.left ? "scrolled-left" : ""} ${scrollState.right ? "scrolled-right" : ""}`}
+            className={`table-wrapper ${isEmpty ? "eg-table-wrapper--empty" : ""} ${scrollState.left ? "scrolled-left" : ""} ${scrollState.right ? "scrolled-right" : ""}`}
             ref={tableWrapperRef}
             onScroll={handleScroll}
             onKeyDown={handleGridKeyDown}
@@ -931,6 +941,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                 </tr>
               </thead>
 
+              {!isEmpty && (
               <tbody>
                 {displayRows.map((row) => {
                   const rowId = String(row.id);
@@ -1014,25 +1025,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                   );
                 })}
 
-                {displayRows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={columns.length}
-                      style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}
-                    >
-                      {emptyMessage ??
-                        (readOnly ? (
-                          "No data available."
-                        ) : (
-                          <>
-                            Click <strong>Entry Form</strong> in the header panel to add a row.
-                          </>
-                        ))}
-                    </td>
-                  </tr>
-                )}
               </tbody>
+              )}
             </table>
+            {isEmpty && (
+              <div className="eg-empty-state" role="status">
+                {emptyStateContent}
+              </div>
+            )}
           </div>
 
           {!hidePagination && (
