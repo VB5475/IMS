@@ -13,6 +13,7 @@ const PurchaseInquiryPage = lazy(() => import("./pages/purchase-inquiry/Purchase
 const PurchaseInquiryForm = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryForm"));
 const PurchaseQuotationPage = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationPage"));
 const PurchaseQuotationForm = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
+const PurchaseQuotationComparisonPage = lazy(() => import("./pages/purchase-quotation-comparison/PurchaseQuotationComparisonPage"));
 const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
 const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
 const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
@@ -106,6 +107,7 @@ function AppRoutes() {
           <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
           <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
+          <Route path="purchase-quotation-comparison" element={<PurchaseQuotationComparisonPage />} />
           <Route path="purchase-indent" element={<PurchaseIndentPage />} />
           <Route path="purchase-indent/new" element={<PurchaseIndentForm />} />
           <Route path="purchase-indent/:id" element={<PurchaseIndentForm />} />

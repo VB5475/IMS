@@ -1,0 +1,263 @@
+/* ComparisonGrid — bespoke pivot table for Purchase Quotation Comparison */
+
+.pqc-grid-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.pqc-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.pqc-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-size: 12px;
+}
+
+.pqc-grid thead th {
+  background: var(--col-base-header-bg);
+  color: var(--col-base-header-text);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.pqc-grid__item-col {
+  min-width: 210px;
+  padding: 10px 14px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.pqc-grid__item-col--sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
+}
+
+thead .pqc-grid__item-col--sticky {
+  z-index: 2;
+  background: var(--col-base-header-bg);
+}
+
+.pqc-grid__item-name {
+  font-weight: 600;
+  color: var(--text-primary, inherit);
+}
+
+.pqc-grid__item-code {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.pqc-grid__supplier-col {
+  min-width: 180px;
+}
+
+.pqc-grid__supplier-name {
+  font-size: 11px;
+}
+
+.pqc-grid__expiry-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  color: #b45309;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ── Body rows ─────────────────────────────────────────────────────── */
+
+.pqc-grid tbody tr:hover td:not(.pqc-grid__item-col) {
+  background: color-mix(in srgb, var(--text-secondary) 5%, transparent);
+}
+
+.pqc-grid tbody tr:hover td.pqc-grid__item-col--sticky {
+  background: color-mix(in srgb, var(--text-secondary) 5%, var(--surface));
+}
+
+.pqc-grid__cell {
+  padding: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.pqc-grid__cell--not-quoted {
+  padding: 10px 14px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 11px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Whole cell is the click target — no visible radio, selection reads through
+   the checkmark badge + tinted border below. */
+.pqc-grid__cell-select {
+  display: block;
+  position: relative;
+  padding: 10px 30px 10px 14px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.pqc-grid__cell-select:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+/* Standard visually-hidden pattern — kept in the DOM (not display:none) so
+   Tab/Space and screen readers still reach it; only the round dot is hidden. */
+.pqc-grid__cell-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pqc-grid__cell-radio:focus-visible ~ .pqc-grid__cell-check,
+.pqc-grid__cell-radio:focus-visible ~ .pqc-grid__cell-content {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.pqc-grid__cell-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: all 0.12s ease;
+}
+
+.pqc-grid__cell-select:hover .pqc-grid__cell-check {
+  border-color: var(--primary);
+}
+
+.pqc-grid__cell--selected {
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+
+.pqc-grid__cell--selected .pqc-grid__cell-select {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.pqc-grid__cell--selected .pqc-grid__cell-check {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.pqc-grid__cell-rate-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pqc-grid__cell-rate {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.pqc-grid__badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.pqc-grid__badge--rate {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pqc-grid__badge--overall {
+  background: #dbeafe;
+  color: #1e40af;
+  cursor: help;
+}
+
+.pqc-grid__cell-meta {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.pqc-grid__cell-qtn {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Totals footer ─────────────────────────────────────────────────── */
+
+.pqc-grid tfoot td {
+  border-top: 2px solid var(--border);
+  background: var(--col-base-header-bg);
+}
+
+.pqc-grid__total-label {
+  font-weight: 700;
+  padding: 10px 14px;
+}
+
+.pqc-grid__total-sub {
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: none;
+}
+
+.pqc-grid__total-cell {
+  vertical-align: middle;
+  padding: 10px 14px;
+}
+
+.pqc-grid__footnote {
+  margin: 10px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

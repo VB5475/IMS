@@ -516,7 +516,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   );
 
   // ── seedOptionsFromMaster — seed single-item options from master fill response ──
-  // API returns display names as: DivisionName, ConfigName, Department (not DeptName), Location (not LocationName)
+  // API returns display names as: DivisionName, ConfigName, Department (not DeptName),
+  // location_name (not Location/LocationName — confirmed via live GetMasterDataFill dump,
+  // the one field in this response that uses a snake_case name).
   const seedOptionsFromMaster = useCallback((master) => {
     if (master.divisionid != null && master.divisionname) {
       setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
@@ -528,7 +530,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
     if (master.deptid != null && master.deptid !== 0 && deptLabel) {
       setDepartmentOptions([{ value: String(master.deptid), label: deptLabel }]);
     }
-    const locLabel = master.locationname ?? master.location;
+    const locLabel = master.locationname ?? master.location_name ?? master.location;
     if (master.locationid != null && master.locationid !== 0 && locLabel) {
       setLocationOptions([{ value: String(master.locationid), label: locLabel }]);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Tag, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -11,6 +12,11 @@ import MainGroupMasterForm from "./MainGroupMasterForm";
 import { MGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./MainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildMainGroupReportParams() {
+  return [buildCompanyReportParam()];
+}
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function todayFormatted() {
@@ -136,6 +142,11 @@ export default function MainGroupMasterPage() {
             <button type="button" className="mgm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Main Group Master Report"
+              reportFileName="RptMainGroupList_PG.rpt"
+              buildParams={buildMainGroupReportParams}
+            />
             <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">
               Rows per page
             </label>

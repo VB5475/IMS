@@ -7,10 +7,18 @@ export function getSaveMode(isEdit) {
 
 /**
  * Build prmStr*JSON fields from raw row arrays and log the full body before stringify.
- * @param {{ label?: string, mst?: object|object[], det?: object[], indtDet?: object[], extra?: object }} parts
+ * @param {{ label?: string, mst?: object|object[], det?: object[], indtDet?: object[], supplierDet?: object[], termsDet?: object[], extra?: object }} parts
  * @returns {object} payload fragment with stringified JSON fields
  */
-export function buildSaveJsonFields({ label = "Save", mst, det, indtDet, extra = {} } = {}) {
+export function buildSaveJsonFields({
+  label = "Save",
+  mst,
+  det,
+  indtDet,
+  supplierDet,
+  termsDet,
+  extra = {},
+} = {}) {
   const rawBody = { ...extra };
 
   if (mst !== undefined) {
@@ -21,6 +29,14 @@ export function buildSaveJsonFields({ label = "Save", mst, det, indtDet, extra =
   }
   if (indtDet !== undefined) {
     rawBody.prmStrIndtDetJSON = indtDet;
+  }
+  // MRD-specified keys for Post_RB_PurInquiryMst_Save — verbatim casing (incl.
+  // "TermsNConditiontDet"), confirmed against the SP signature, not a typo fix.
+  if (supplierDet !== undefined) {
+    rawBody.prmPurSupplierDetJson = supplierDet;
+  }
+  if (termsDet !== undefined) {
+    rawBody.prmPurTermsNConditiontDetJson = termsDet;
   }
 
   console.log(
@@ -38,6 +54,12 @@ export function buildSaveJsonFields({ label = "Save", mst, det, indtDet, extra =
   }
   if (rawBody.prmStrIndtDetJSON) {
     payload.prmStrIndtDetJSON = JSON.stringify(rawBody.prmStrIndtDetJSON);
+  }
+  if (rawBody.prmPurSupplierDetJson) {
+    payload.prmPurSupplierDetJson = JSON.stringify(rawBody.prmPurSupplierDetJson);
+  }
+  if (rawBody.prmPurTermsNConditiontDetJson) {
+    payload.prmPurTermsNConditiontDetJson = JSON.stringify(rawBody.prmPurTermsNConditiontDetJson);
   }
 
   return payload;

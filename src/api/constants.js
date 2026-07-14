@@ -42,6 +42,7 @@ export const ENDPOINTS = {
   TRAN_FORM_EVENT: "/API/TransactionFormEvent/Post_RB_TransactionFormEvent",
   TRAN_FORM_DELETE: "/API/TranFormDelete/Post_TranFormDelete",
   RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save",
+  GENERATE_REPORT: "/API/Report/GenerateReport",
 };
 
 // ── Shared request defaults (used across pages) ────────────────────────

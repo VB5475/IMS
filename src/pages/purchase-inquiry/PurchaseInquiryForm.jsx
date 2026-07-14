@@ -4,21 +4,22 @@
 // Layout (top → bottom):
 //   1. EnterpriseFilterPanel  — header fields only (no action buttons)
 //   2. pi-grid-section        — custom 3-tab wrapper
-//        • Item Grid tab  → EntryGrid (RB_PurInquiryDet)
+//        • Item Grid tab  → EntryGrid (rb_purinquirydet)
 //                           button: Select Item
-//        • Suppliers tab  → EntryGrid (hardcoded SUPPLIER_GRID_CONFIG)
+//        • Suppliers tab  → EntryGrid (RB-driven, rb_purinqsuppdet)
 //                           button: Select Supplier
-//        • Terms tab      → static terms table (no buttons)
+//        • Terms tab      → EntryGrid (RB-driven, rb_purinqtncdet)
+//                           button: Select Terms
 //        Fixed controls (always): Approved filter | Delete
 //   3. CollapsibleGrid        — Indent Details
 //   4. PIActionBar            — Save / Cancel etc.
 //
-// Both the Items and Suppliers EntryGrid instances are always mounted (CSS
-// show/hide) so their row state is preserved when switching tabs.
+// All three EntryGrid instances (Items, Suppliers, Terms) are always mounted
+// (CSS show/hide) so their row state is preserved when switching tabs.
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Truck, Trash2, Package, FileText, Printer, Save } from "lucide-react";
+import { AlertCircle, Truck, Trash2, Package, FileText, ClipboardList, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
@@ -27,6 +28,7 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 import SupplierPickerModal from "../../components/purchase-inquiry/SupplierPickerModal";
+import TermsPickerModal from "../../components/purchase-inquiry/TermsPickerModal";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseInquiry } from "../../hooks/usePurchaseInquiry";
@@ -62,14 +64,13 @@ import {
   PI_HEADER_FILTERS,
   PI_GRID_TABS,
   APPROVED_OPTS,
-  TERMS_COLUMNS,
   INDENT_DETAILS_COLUMNS,
   PI_FILTER_CASCADE_RESETS,
   PI_ITEM_PICKER_CONTEXT_FIELDS,
-  SUPPLIER_GRID_CONFIG,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
+  buildTermsPickerJsonPayload,
   getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./PurchaseInquiryForm.css";
@@ -78,16 +79,55 @@ import "./PurchaseInquiryForm.css";
 let _piTempId = -1;
 const nextTempId = () => _piTempId--;
 
-// Map a supplier picker row → supplier grid row (hardcoded column keys).
-function mapPickerToSupplierRow(item, srNo) {
-  return {
-    id: String(item.supplierid ?? item.SupplierID ?? nextTempId()),
-    SrNo: srNo,
-    SupplierName: item.suppliername ?? item.SupplierName ?? "",
-    Address: item.suppaddress ?? item.SuppAddress ?? item.address ?? item.Address ?? "",
-    City: item.city ?? item.City ?? "",
-    MobileNo: item.contactno ?? item.ContactNo ?? item.mobileno ?? item.MobileNo ?? "",
-  };
+// Row-identity / audit columns present on every rb_purinq*det RB (confirmed
+// live on rb_purinqsuppdet: idnumber, masterid, detailid, compuniquekey,
+// randomgenid, tranmstgenid, childfkey, entrystatus — all hidden, iseditallow=0).
+// These must always come from getColDefault (0 for a brand-new row) or an
+// explicit override — never from the picker source object. A picker SP's row
+// commonly carries its own "idnumber" (the picked master record's own PK,
+// e.g. the supplier's id in Supplier Master) which is a DIFFERENT thing from
+// this DETAIL row's own save-identity — silently overlaying it here was
+// exactly why supplier rows were saving with a non-zero idnumber in Add mode.
+const PICKER_OVERLAY_EXCLUDED_KEYS = new Set([
+  "idnumber",
+  "masterid",
+  "detailid",
+  "compuniquekey",
+  "randomgenid",
+  "tranmstgenid",
+  "childfkey",
+  "entrystatus",
+]);
+
+// Map a picker row → RB-driven grid row (supplier or terms tab). Seeds every
+// RB column with its default, applies known key aliases (picker field names
+// don't always match the grid RB's ColName, e.g. suppaddress → address), then
+// overlays any remaining exact lowercase-key matches — same approach as
+// mapPickerToItemRow below, generalized for grids whose columns are RB-driven.
+function mapPickerRowToGridRow(item, allGridColumns, aliasMap = {}, overrides = {}) {
+  const row = { id: nextTempId() };
+  allGridColumns.forEach(({ key, colDataType }) => {
+    row[key] = getColDefault(colDataType);
+  });
+  Object.entries(aliasMap).forEach(([targetKey, sourceKeys]) => {
+    if (!Object.prototype.hasOwnProperty.call(row, targetKey)) return;
+    for (const sourceKey of sourceKeys) {
+      const val = item[sourceKey];
+      if (val != null && val !== "") {
+        row[targetKey] = val;
+        break;
+      }
+    }
+  });
+  Object.entries(item).forEach(([k, v]) => {
+    const lk = k.toLowerCase();
+    if (lk === "id" || PICKER_OVERLAY_EXCLUDED_KEYS.has(lk)) return;
+    if (v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
+  });
+  Object.entries(overrides).forEach(([k, v]) => {
+    if (Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+  });
+  return row;
 }
 
 function mapHeaderValuesToFilterValues(headerValues) {
@@ -132,7 +172,8 @@ function mapPickerToItemRow(item, allColumns) {
   });
   Object.entries(item).forEach(([k, v]) => {
     const lk = k.toLowerCase();
-    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
+    if (lk === "id" || PICKER_OVERLAY_EXCLUDED_KEYS.has(lk)) return;
+    if (v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -152,10 +193,15 @@ export default function PurchaseInquiryForm() {
 
   const itemGridRef = useRef(null);
   const supplierGridRef = useRef(null);
+  const termsGridRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
+  const supplierColumnsLoadedRef = useRef(false);
+  const termsColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const queuedSupplierRowsRef = useRef([]);
+  const queuedTermsRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -187,6 +233,14 @@ export default function PurchaseInquiryForm() {
     isSaving,
     saveError,
     clearSaveError,
+    supplierColumns,
+    allSupplierColumns,
+    fetchSupplierDetailMeta,
+    fetchSupplierGridColumns,
+    termsColumns,
+    allTermsColumns,
+    fetchTermsDetailMeta,
+    fetchTermsGridColumns,
   } = usePurchaseInquiry(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
@@ -266,6 +320,8 @@ export default function PurchaseInquiryForm() {
     localStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
     localStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
     localStorage.removeItem(PI_CONFIG.STORAGE_INDT_META);
+    localStorage.removeItem(PI_CONFIG.STORAGE_SUPP_META);
+    localStorage.removeItem(PI_CONFIG.STORAGE_TERMS_META);
     sessionStorage.removeItem(PI_CONFIG.STORAGE_HEADER_META);
     sessionStorage.removeItem(PI_CONFIG.STORAGE_ENTRY_META);
 
@@ -288,7 +344,11 @@ export default function PurchaseInquiryForm() {
     };
 
     queuedRowsRef.current = [];
+    queuedSupplierRowsRef.current = [];
+    queuedTermsRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
+    supplierColumnsLoadedRef.current = false;
+    termsColumnsLoadedRef.current = false;
 
     clearInquiryTypes();
     clearSaveError();
@@ -299,6 +359,7 @@ export default function PurchaseInquiryForm() {
     setIndentRows([]);
     setItemSelectionCount(0);
     setSupplierSelectionCount(0);
+    setTermsSelectionCount(0);
 
     setItemModalOpen(false);
     setItemModalItems([]);
@@ -314,8 +375,15 @@ export default function PurchaseInquiryForm() {
     setSupplierModalLoading(false);
     setSupplierModalError(null);
 
+    setTermsModalOpen(false);
+    setTermsModalItems([]);
+    setTermsModalColumns([]);
+    setTermsModalLoading(false);
+    setTermsModalError(null);
+
     itemGridRef.current?.clearRows?.();
     supplierGridRef.current?.clearRows?.();
+    termsGridRef.current?.clearRows?.();
 
     setFilterResetKey((k) => k + 1);
     exitEditMode();
@@ -334,12 +402,15 @@ export default function PurchaseInquiryForm() {
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [supplierSelectionCount, setSupplierSelectionCount] = useState(0);
+  const [termsSelectionCount, setTermsSelectionCount] = useState(0);
   const activeSelectionCount =
     activeTab === "items"
       ? itemSelectionCount
       : activeTab === "suppliers"
         ? supplierSelectionCount
-        : 0;
+        : activeTab === "terms"
+          ? termsSelectionCount
+          : 0;
 
   const [approvedFilter, setApprovedFilter] = useState("all");
   const [isGridLoading, setIsGridLoading] = useState(false);
@@ -349,6 +420,12 @@ export default function PurchaseInquiryForm() {
   const [supplierModalItems, setSupplierModalItems] = useState([]);
   const [supplierModalLoading, setSupplierModalLoading] = useState(false);
   const [supplierModalError, setSupplierModalError] = useState(null);
+
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsModalItems, setTermsModalItems] = useState([]);
+  const [termsModalColumns, setTermsModalColumns] = useState([]);
+  const [termsModalLoading, setTermsModalLoading] = useState(false);
+  const [termsModalError, setTermsModalError] = useState(null);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [itemModalItems, setItemModalItems] = useState([]);
@@ -374,7 +451,9 @@ export default function PurchaseInquiryForm() {
   useEffect(() => {
     fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
+    fetchSupplierDetailMeta();
+    fetchTermsDetailMeta();
+  }, [fetchHeaderMeta, fetchDetailMeta, fetchSupplierDetailMeta, fetchTermsDetailMeta, isEditRoute]);
 
   const loadEditRecord = useCallback(async () => {
     setRecordLoading(true);
@@ -387,6 +466,8 @@ export default function PurchaseInquiryForm() {
         headerValues,
         details,
         childRowsMap: loadedChildRowsMap,
+        supplierDetails,
+        termsDetails,
       } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
@@ -420,13 +501,45 @@ export default function PurchaseInquiryForm() {
       } else {
         queuedRowsRef.current = syncedDetails;
       }
+
+      const activeSupplierCols = await fetchSupplierGridColumns(
+        headerValues.divisionid ?? 0,
+        editRecordGridColumnOpts(master)
+      );
+      if (activeSupplierCols?.length > 0) supplierColumnsLoadedRef.current = true;
+      const syncedSupplierDetails = syncEditGridDropdownValues(supplierDetails, activeSupplierCols || []);
+      if (supplierGridRef.current?.loadRows) {
+        supplierGridRef.current.loadRows(syncedSupplierDetails);
+      } else {
+        queuedSupplierRowsRef.current = syncedSupplierDetails;
+      }
+
+      const activeTermsCols = await fetchTermsGridColumns(
+        headerValues.divisionid ?? 0,
+        editRecordGridColumnOpts(master)
+      );
+      if (activeTermsCols?.length > 0) termsColumnsLoadedRef.current = true;
+      const syncedTermsDetails = syncEditGridDropdownValues(termsDetails, activeTermsCols || []);
+      if (termsGridRef.current?.loadRows) {
+        termsGridRef.current.loadRows(syncedTermsDetails);
+      } else {
+        queuedTermsRowsRef.current = syncedTermsDetails;
+      }
     } catch (err) {
       console.error("[PI] Edit record load failed:", err);
       setRecordLoadError(err?.message || "Failed to load inquiry record.");
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, fetchIndentDetailColumns, fetchGridColumns]);
+  }, [
+    recordId,
+    listRecord,
+    fetchEditRecord,
+    fetchIndentDetailColumns,
+    fetchGridColumns,
+    fetchSupplierGridColumns,
+    fetchTermsGridColumns,
+  ]);
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
@@ -438,7 +551,25 @@ export default function PurchaseInquiryForm() {
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
     });
-  }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns]);
+    fetchSupplierGridColumns(divisionId, {
+      existingRecordEdit: true,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+    fetchTermsGridColumns(divisionId, {
+      existingRecordEdit: true,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+  }, [
+    isEditRoute,
+    isEditMode,
+    loadedMasterRow,
+    fetchUnlockedHeaderDropdowns,
+    fetchGridColumns,
+    fetchSupplierGridColumns,
+    fetchTermsGridColumns,
+  ]);
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
@@ -446,6 +577,20 @@ export default function PurchaseInquiryForm() {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
+
+  useEffect(() => {
+    if (allSupplierColumns.length === 0 || supplierColumnsLoadedRef.current || isEditRoute) return;
+    fetchSupplierGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
+      if (cols?.length > 0) supplierColumnsLoadedRef.current = true;
+    });
+  }, [allSupplierColumns, fetchSupplierGridColumns, isEditRoute]);
+
+  useEffect(() => {
+    if (allTermsColumns.length === 0 || termsColumnsLoadedRef.current || isEditRoute) return;
+    fetchTermsGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
+      if (cols?.length > 0) termsColumnsLoadedRef.current = true;
+    });
+  }, [allTermsColumns, fetchTermsGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -462,6 +607,28 @@ export default function PurchaseInquiryForm() {
       queuedRowsRef.current = [];
     }
   }, [columns]);
+
+  useEffect(() => {
+    if (supplierColumns.length > 0 && supplierGridRef.current && queuedSupplierRowsRef.current.length > 0) {
+      if (supplierGridRef.current.loadRows) {
+        supplierGridRef.current.loadRows(queuedSupplierRowsRef.current);
+      } else {
+        queuedSupplierRowsRef.current.forEach((r) => supplierGridRef.current.addRow(r));
+      }
+      queuedSupplierRowsRef.current = [];
+    }
+  }, [supplierColumns]);
+
+  useEffect(() => {
+    if (termsColumns.length > 0 && termsGridRef.current && queuedTermsRowsRef.current.length > 0) {
+      if (termsGridRef.current.loadRows) {
+        termsGridRef.current.loadRows(queuedTermsRowsRef.current);
+      } else {
+        queuedTermsRowsRef.current.forEach((r) => termsGridRef.current.addRow(r));
+      }
+      queuedTermsRowsRef.current = [];
+    }
+  }, [termsColumns]);
 
   const addItemRow = useCallback((row) => {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
@@ -577,12 +744,21 @@ export default function PurchaseInquiryForm() {
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
         clearInquiryTypes();
+        // MRD cascade rule: division change on the master reloads Tab-2 Supplier
+        // Detail (division-scoped dropdown options — city/state/country — plus
+        // clearing any previously-picked rows tied to the old division).
         supplierGridRef.current?.clearRows?.();
         setSupplierSelectionCount(0);
-        if (val && val !== "0") await fetchInquiryTypes(val);
+        termsGridRef.current?.clearRows?.();
+        setTermsSelectionCount(0);
+        if (val && val !== "0") {
+          await fetchInquiryTypes(val);
+          fetchSupplierGridColumns(val);
+          fetchTermsGridColumns(val);
+        }
       }
     },
-    [fetchInquiryTypes, clearInquiryTypes, clearItemGridState]
+    [fetchInquiryTypes, clearInquiryTypes, clearItemGridState, fetchSupplierGridColumns, fetchTermsGridColumns]
   );
 
   const ensureItemColumns = useCallback(async () => {
@@ -601,6 +777,30 @@ export default function PurchaseInquiryForm() {
       setIsGridLoading(false);
     }
   }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
+
+  const ensureSupplierColumns = useCallback(async () => {
+    if (supplierColumnsLoadedRef.current && supplierColumns.length > 0) return supplierColumns;
+    if (allSupplierColumns.length === 0) return [];
+    const activeCols = await fetchSupplierGridColumns(headerValuesRef.current?.divisionid ?? 0, {
+      existingRecordEdit: isEditRoute,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+    if (activeCols?.length > 0) supplierColumnsLoadedRef.current = true;
+    return activeCols;
+  }, [supplierColumns, allSupplierColumns, fetchSupplierGridColumns, isEditRoute, loadedMasterRow]);
+
+  const ensureTermsColumns = useCallback(async () => {
+    if (termsColumnsLoadedRef.current && termsColumns.length > 0) return termsColumns;
+    if (allTermsColumns.length === 0) return [];
+    const activeCols = await fetchTermsGridColumns(headerValuesRef.current?.divisionid ?? 0, {
+      existingRecordEdit: isEditRoute,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+    if (activeCols?.length > 0) termsColumnsLoadedRef.current = true;
+    return activeCols;
+  }, [termsColumns, allTermsColumns, fetchTermsGridColumns, isEditRoute, loadedMasterRow]);
 
   // ── Select Item (Items tab) ────────────────────────────────────────
   // Flow:
@@ -810,37 +1010,127 @@ export default function PurchaseInquiryForm() {
     }
   }, [getLive]);
 
-  const handleInsertSuppliers = useCallback((selectedSuppliers) => {
-    if (!selectedSuppliers?.length) return;
-    setActiveTab("suppliers");
-    const existing = supplierGridRef.current?.getRows?.() ?? [];
-    const existingIds = new Set(existing.map((r) => String(r.supplierid ?? r.SupplierID ?? r.id)));
-    let nextSrNo = existing.length;
-    selectedSuppliers.forEach((item) => {
-      const sid = String(item.supplierid ?? item.SupplierID ?? item.id);
-      if (existingIds.has(sid)) return;
-      existingIds.add(sid);
-      nextSrNo += 1;
-      supplierGridRef.current?.addRow(mapPickerToSupplierRow(item, nextSrNo));
-    });
-  }, []);
+  const handleInsertSuppliers = useCallback(
+    async (selectedSuppliers) => {
+      if (!selectedSuppliers?.length) return;
+      setActiveTab("suppliers");
+
+      const activeCols = await ensureSupplierColumns();
+      if (!activeCols?.length) return;
+
+      const existing = supplierGridRef.current?.getRows?.() ?? [];
+      const existingIds = new Set(existing.map((r) => String(r.supplierid ?? r.id)));
+      const divisionId = Number(headerValuesRef.current?.divisionid) || 0;
+
+      selectedSuppliers.forEach((item) => {
+        const sid = String(item.supplierid ?? item.SupplierID ?? item.id);
+        if (existingIds.has(sid)) return;
+        existingIds.add(sid);
+        supplierGridRef.current?.addRow(
+          mapPickerRowToGridRow(
+            item,
+            allSupplierColumns,
+            { address: ["suppaddress", "address"] },
+            { divisionid: divisionId }
+          )
+        );
+      });
+    },
+    [ensureSupplierColumns, allSupplierColumns]
+  );
+
+  // ── Select Terms (Terms tab) ─────────────────────────────────────
+  // Same 3-step flow as handleSelectItem: RB code → RBID → GetDetailColData
+  // (picker's own columns) → row-fetch SP. Picker RB fields aren't specified
+  // in the MRD, so columns are entirely RB-driven (no hardcoded field names).
+  const handleSelectTerms = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      setFormErrors(missingFields);
+      return;
+    }
+
+    setTermsModalOpen(true);
+    setTermsModalItems([]);
+    setTermsModalColumns([]);
+    setTermsModalError(null);
+    setTermsModalLoading(true);
+
+    try {
+      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: PI_CONFIG.RB_TERMS_PICKER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const rbRow = rbRes?.[0];
+      if (!rbRow) throw new Error("Could not load terms & conditions picker configuration.");
+
+      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: rbRow.rbid,
+        prmLoginID: getUserSession().loginId,
+      });
+      const gridColumns = buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false });
+      setTermsModalColumns(gridColumns);
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_TERMS_PICKER,
+        JSon: JSON.stringify([
+          buildTermsPickerJsonPayload(headerValues, getUserSession().loginId),
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setTermsModalItems(rowRes || []);
+    } catch (err) {
+      console.error("[PI] Terms picker fetch failed:", err);
+      setTermsModalError(err?.message || "Failed to fetch terms & conditions.");
+    } finally {
+      setTermsModalLoading(false);
+    }
+  }, [getLive]);
+
+  const handleInsertTerms = useCallback(
+    async (selectedTerms) => {
+      if (!selectedTerms?.length) return;
+      setActiveTab("terms");
+
+      const activeCols = await ensureTermsColumns();
+      if (!activeCols?.length) return;
+
+      const existing = termsGridRef.current?.getRows?.() ?? [];
+      const existingIds = new Set(existing.map((r) => String(r.termid ?? r.id)));
+      const divisionId = Number(headerValuesRef.current?.divisionid) || 0;
+
+      selectedTerms.forEach((item) => {
+        const tid = String(item.termid ?? item.TermID ?? item.id);
+        if (existingIds.has(tid)) return;
+        existingIds.add(tid);
+        termsGridRef.current?.addRow(
+          mapPickerRowToGridRow(item, allTermsColumns, {}, { divisionid: divisionId })
+        );
+      });
+    },
+    [ensureTermsColumns, allTermsColumns]
+  );
 
   // ── Delete selected rows (active tab's grid) ───────────────────────
   const handleDeleteSelected = useCallback(() => {
     const ref =
-      activeTab === "items" ? itemGridRef : activeTab === "suppliers" ? supplierGridRef : null;
+      activeTab === "items"
+        ? itemGridRef
+        : activeTab === "suppliers"
+          ? supplierGridRef
+          : activeTab === "terms"
+            ? termsGridRef
+            : null;
     if (!ref?.current) return;
     const selected = ref.current.getSelectedRows?.() ?? [];
     if (selected.length === 0) return;
     ref.current.removeRows?.(selected.map((r) => r.id));
-    if (activeTab === "suppliers") {
-      const remaining = ref.current.getRows?.() ?? [];
-      remaining.forEach((row, idx) => {
-        if (Object.prototype.hasOwnProperty.call(row, "SrNo")) {
-          ref.current.updateRow?.(row.id, { SrNo: idx + 1 });
-        }
-      });
-    }
   }, [activeTab]);
 
   const handleCellEvent = useCallback(
@@ -880,7 +1170,13 @@ export default function PurchaseInquiryForm() {
       const indentChildRows = Object.values(childRowsMap).flat();
       const indentErrors = validateGridRows(indentChildRows, childColumns);
 
-      const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
+      const supplierRows = supplierGridRef.current?.getRows?.() ?? [];
+      const supplierErrors = validateGridRows(supplierRows, supplierColumns);
+
+      const termsRows = termsGridRef.current?.getRows?.() ?? [];
+      const termsErrors = validateGridRows(termsRows, termsColumns);
+
+      const allErrors = [...headerErrors, ...detailErrors, ...indentErrors, ...supplierErrors, ...termsErrors];
       if (allErrors.length > 0) {
         setFormErrors(allErrors);
         return false;
@@ -909,12 +1205,22 @@ export default function PurchaseInquiryForm() {
         buildSaveRowFromColumns(rest, allIndentColumns, sessionFields)
       );
 
+      // ── Supplier Detail (Tab-2) + Terms & Conditions (Tab-3) ───────────
+      const supplierDetailRows = supplierRows.map(({ id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allSupplierColumns, sessionFields)
+      );
+      const termsDetailRows = termsRows.map(({ id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allTermsColumns, sessionFields)
+      );
+
       const payload = await withSaveContextFields(
         buildSaveJsonFields({
           label: "PI",
           mst: mstRow,
           det: detRows,
           indtDet: indentDetailRows,
+          supplierDet: supplierDetailRows,
+          termsDet: termsDetailRows,
         }),
         { divisionId: hv.divisionid, isEdit: isEditRoute }
       );
@@ -936,7 +1242,21 @@ export default function PurchaseInquiryForm() {
         setIsSavingPI(false);
       }
     },
-    [headerColumns, allColumns, allIndentColumns, childRowsMap, childColumns, columns, postSave, completeSuccessfulSave, isEditRoute]
+    [
+      headerColumns,
+      allColumns,
+      allIndentColumns,
+      allSupplierColumns,
+      allTermsColumns,
+      childRowsMap,
+      childColumns,
+      columns,
+      supplierColumns,
+      termsColumns,
+      postSave,
+      completeSuccessfulSave,
+      isEditRoute,
+    ]
   );
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -956,6 +1276,7 @@ export default function PurchaseInquiryForm() {
       setChildRowsMap({});
       setChildColumns([]);
       supplierGridRef.current?.clearRows?.();
+      termsGridRef.current?.clearRows?.();
       editRecordLoadedRef.current = false;
       loadEditRecord();
       return;
@@ -973,7 +1294,8 @@ export default function PurchaseInquiryForm() {
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
     else if (activeTab === "suppliers") handleSelectSupplier();
-  }, [activeTab, handleSelectItem, handleSelectSupplier]);
+    else if (activeTab === "terms") handleSelectTerms();
+  }, [activeTab, handleSelectItem, handleSelectSupplier, handleSelectTerms]);
 
   const handleToggleCollapsible = useCallback(() => {
     itemGridRef.current?.toggleFocusedRowCollapsible?.();
@@ -983,13 +1305,21 @@ export default function PurchaseInquiryForm() {
     columns,
     pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
   };
+  const supplierGridConfig = {
+    columns: supplierColumns,
+    pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
+  };
+  const termsGridConfig = {
+    columns: termsColumns,
+    pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
+  };
   const combinedError = metaError || headerError || recordLoadError;
   const filterPanelLoading = headerFetching || recordLoading;
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy = filterPanelLoading || isLoadingInquiryTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || supplierModalOpen,
+    blocked: itemModalOpen || supplierModalOpen || termsModalOpen,
     isEditMode,
     isSaving: isSavingPI,
     addDisabled: filterBusy,
@@ -1123,6 +1453,19 @@ export default function PurchaseInquiryForm() {
               </button>
             )}
 
+            {activeTab === "terms" && (
+              <button
+                type="button"
+                className="eg-tab-btn"
+                onClick={handleSelectTerms}
+                disabled={!isEditMode}
+                title={FORM_SHORTCUT_TITLES.selectList}
+              >
+                <ClipboardList size={12} strokeWidth={2.5} />
+                Select Terms
+              </button>
+            )}
+
             <div className="pi-tab-filter">
               <span className="pi-tab-filter__label">Approved</span>
               <SearchSelect
@@ -1170,34 +1513,26 @@ export default function PurchaseInquiryForm() {
         <div className={`pi-tab-pane${activeTab === "suppliers" ? " pi-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={supplierGridRef}
-            config={SUPPLIER_GRID_CONFIG}
+            config={supplierGridConfig}
             title=""
             hideBottomPanel
+            readOnly={isEditRoute && !isEditMode}
             emptyMessage="No suppliers added. Click Select Supplier above."
             onSelectionChange={setSupplierSelectionCount}
           />
         </div>
 
-        {activeTab === "terms" && (
-          <div className="pi-terms-pane">
-            <table className="pi-terms-table">
-              <thead>
-                <tr>
-                  {TERMS_COLUMNS.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={TERMS_COLUMNS.length} className="pi-terms-empty">
-                    No terms &amp; conditions added.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className={`pi-tab-pane${activeTab === "terms" ? " pi-tab-pane--active" : ""}`}>
+          <EntryGrid
+            ref={termsGridRef}
+            config={termsGridConfig}
+            title=""
+            hideBottomPanel
+            readOnly={isEditRoute && !isEditMode}
+            emptyMessage="No terms & conditions added. Click Select Terms above."
+            onSelectionChange={setTermsSelectionCount}
+          />
+        </div>
       </section>
 
       {/* <section className="pi-page__section">
@@ -1227,6 +1562,16 @@ export default function PurchaseInquiryForm() {
         isLoading={supplierModalLoading}
         error={supplierModalError}
         onInsert={handleInsertSuppliers}
+      />
+
+      <TermsPickerModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        items={termsModalItems}
+        columns={termsModalColumns}
+        isLoading={termsModalLoading}
+        error={termsModalError}
+        onInsert={handleInsertTerms}
       />
 
       <Suspense fallback={null}>

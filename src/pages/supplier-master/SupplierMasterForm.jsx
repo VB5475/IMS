@@ -359,12 +359,19 @@ export default function SupplierMasterForm({
       sessionid: DEFAULT_SESSION_ID,
     });
 
-    const consigneeSaveRows = consigneeRows.map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, detailAllColumns, {
+    // autogenid: 0 for a newly-added row (grid id is a negative nextTempId()
+    // placeholder), the real backend row id for an existing consignee loaded
+    // on edit (grid id was seeded from compuniquekey/idnumber — see
+    // useSupplierMaster.js fetchEditRecord). Per-row, so it can't live in the
+    // shared extraFields bag below — merged into `rest` before column-building.
+    const consigneeSaveRows = consigneeRows.map(({ id, ...rest }) => {
+      const rawId = Number(id);
+      const autogenid = Number.isFinite(rawId) && rawId > 0 ? rawId : 0;
+      return buildSaveRowFromColumns({ ...rest, autogenid }, detailAllColumns, {
         loginid: session.loginId,
         sessionid: DEFAULT_SESSION_ID,
-      })
-    );
+      });
+    });
     console.log("payload of SM");
     console.log("mstRow",mstRow);
     console.log("consigneeSaveRows",consigneeSaveRows);
