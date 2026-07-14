@@ -19,10 +19,10 @@ export function resolveAssetQrFields(row) {
     row?.assetSrNo ??
     row?.ASSETSRNO ??
     "";
-  // return { itemcode: String(itemcode).trim(), srno: String(srno).trim() };
+  return { itemcode: String(itemcode).trim(), srno: String(srno).trim() };
 
-  return {
-    "itemcode": "ASS000595",
-    "srno": "S4EUNZ0R200413"
-  }
+  // return {
+  //   "itemcode": "ASS000595",
+  //   "srno": "S4EUNZ0R200413"
+  // }
 }
