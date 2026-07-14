@@ -8,7 +8,7 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { useAstWriteOff } from "../../hooks/useAstWriteOff";
+import { useMntComplaint } from "../../hooks/useMntComplaint";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -37,32 +37,32 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  AWO_CONFIG,
-  AWO_GRID_TABS,
-  AWO_FRM_TYPE_OPTIONS,
+  MCR_CONFIG,
+  MCR_GRID_TABS,
+  MCR_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
-  buildAwoItemPickerJsonPayload,
-  applyAwoHardcodedHeaderValues,
-  buildAwoCascadeResets,
-  validateAwoBusinessRules,
+  buildMcrItemPickerJsonPayload,
+  applyMcrHardcodedHeaderValues,
+  buildMcrCascadeResets,
+  validateMcrBusinessRules,
 } from "./constants";
-import "./AssetsWriteOffPage.css";
+import "./ComplaintRegisterPage.css";
 
-let _awoTempId = -1;
-const nextTempId = () => _awoTempId--;
+let _mcrTempId = -1;
+const nextTempId = () => _mcrTempId--;
 
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
     companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AWO_CONFIG.CONFIG_YEAR_ID,
+    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? MCR_CONFIG.CONFIG_YEAR_ID,
     loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
     idNumber:
-      listRecord?.astwrtoffmstid
-      ?? listRecord?.AstWrtOffMstID
+      listRecord?.mntcomplmstid
+      ?? listRecord?.MntComplMstID
       ?? listRecord?.idnumber
       ?? listRecord?.IDNumber
       ?? recordId,
@@ -75,13 +75,12 @@ function mapHeaderValuesToFilterValues(headerValues) {
   return {
     trancode: str(headerValues.trancode),
     trandate: headerValues.trandate ?? "",
-    issuedate: headerValues.issuedate ?? "",
-    fromdivisionid: str(headerValues.fromdivisionid),
+    divisionid: str(headerValues.divisionid),
     fromlocationid: str(headerValues.fromlocationid),
+    deptid: str(headerValues.deptid),
     remarks: headerValues.remarks ?? "",
     configid: str(headerValues.configid),
-    frmtype: str(headerValues.frmtype ?? AWO_CONFIG.FRM_TYPE),
-    issuetypeid: str(headerValues.issuetypeid ?? AWO_CONFIG.ISSUE_TYPE_ID),
+    frmtype: str(headerValues.frmtype ?? MCR_CONFIG.FRM_TYPE),
   };
 }
 
@@ -106,7 +105,7 @@ function buildGridRow(source, allColumns) {
   return row;
 }
 
-export default function AssetsWriteOffForm() {
+export default function ComplaintRegisterForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
@@ -126,13 +125,13 @@ export default function AssetsWriteOffForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    fromDivisionOptions, fromLocationOptions, configOptions,
-    fetchFromLocations, fetchConfigOptions,
+    divisionOptions, locationOptions, departmentOptions, configOptions,
+    fetchLocations, fetchDepartments, fetchConfigOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useAstWriteOff(API_BASE_URL);
+  } = useMntComplaint(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -145,31 +144,28 @@ export default function AssetsWriteOffForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const headerValuesRef = useRef(applyAwoHardcodedHeaderValues({
+  const headerValuesRef = useRef(applyMcrHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
-    issuedate: todayISO,
-    fromdivisionid: 0,
+    divisionid: 0,
     fromlocationid: 0,
+    deptid: 0,
     remarks: "",
     configid: 0,
-    frmtype: AWO_CONFIG.FRM_TYPE,
-    issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
+    frmtype: MCR_CONFIG.FRM_TYPE,
     tranmstgenid: 0,
     companyid: DEFAULT_COMPANY_ID,
-    yearid: AWO_CONFIG.CONFIG_YEAR_ID,
+    yearid: MCR_CONFIG.CONFIG_YEAR_ID,
     loginid: DEFAULT_LOGIN_ID,
     idnumber: recordId,
-    funccode: AWO_CONFIG.RB_MASTER,
+    funccode: MCR_CONFIG.RB_MASTER,
   }));
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
       trandate: todayISO,
-      issuedate: todayISO,
-      frmtype: String(AWO_CONFIG.FRM_TYPE),
-      issuetypeid: String(AWO_CONFIG.ISSUE_TYPE_ID),
+      frmtype: String(MCR_CONFIG.FRM_TYPE),
     };
   }, [loadedFilterValues, todayISO]);
 
@@ -187,7 +183,7 @@ export default function AssetsWriteOffForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const cascadeResets = useMemo(() => buildAwoCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildMcrCascadeResets(headerColumns), [headerColumns]);
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -221,9 +217,9 @@ export default function AssetsWriteOffForm() {
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `Write Off #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Complaint #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-write-off",
+    backTo: "/complaint-register",
   });
 
   useEffect(() => {
@@ -233,7 +229,7 @@ export default function AssetsWriteOffForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
@@ -252,9 +248,9 @@ export default function AssetsWriteOffForm() {
     try {
       const params = resolveEditLoadParams(recordId, listRecord);
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Write Off record not found.");
+      if (!master || !headerValues) throw new Error("Complaint Register record not found.");
 
-      headerValuesRef.current = applyAwoHardcodedHeaderValues({
+      headerValuesRef.current = applyMcrHardcodedHeaderValues({
         ...headerValuesRef.current,
         ...headerValues,
       });
@@ -265,7 +261,7 @@ export default function AssetsWriteOffForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const divId = headerValues.fromdivisionid ?? 0;
+      const divId = headerValues.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
@@ -273,8 +269,8 @@ export default function AssetsWriteOffForm() {
       if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
       else queuedRowsRef.current = syncedDetails;
     } catch (err) {
-      console.error("[AWO] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Write Off record.");
+      console.error("[MCR] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Complaint Register record.");
     } finally {
       setRecordLoading(false);
     }
@@ -288,7 +284,7 @@ export default function AssetsWriteOffForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     fetchUnlockedHeaderDropdowns(headerValuesRef.current);
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? loadedMasterRow?.fromdivisionid ?? 0, {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -301,11 +297,12 @@ export default function AssetsWriteOffForm() {
   }, []);
 
   const dropdownSources = useMemo(() => ({
-    fromdivisionid: fromDivisionOptions,
-    fromlocationid: fromLocationOptions,
+    divisionid: divisionOptions,
+    fromlocationid: locationOptions,
+    deptid: departmentOptions,
     configid: configOptions,
-    frmtype: AWO_FRM_TYPE_OPTIONS,
-  }), [fromDivisionOptions, fromLocationOptions, configOptions]);
+    frmtype: MCR_FRM_TYPE_OPTIONS,
+  }), [divisionOptions, locationOptions, departmentOptions, configOptions]);
 
   const dropdownOptionsByCol = useMemo(() => {
     const map = { ...dropdownSources };
@@ -364,45 +361,43 @@ export default function AssetsWriteOffForm() {
   }, []);
 
   const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = applyAwoHardcodedHeaderValues({
+    headerValuesRef.current = applyMcrHardcodedHeaderValues({
       ...headerValuesRef.current,
       [colName]: val,
     });
     const hv = headerValuesRef.current;
     const col = String(colName).toLowerCase();
 
-    if (col === "fromdivisionid") {
+    if (col === "divisionid") {
       requestGridClear("Division", async () => {
         hv.fromlocationid = 0;
+        hv.deptid = 0;
         hv.configid = 0;
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
-          if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            fetches.push(fetchFromLocations());
-          }
-          if (hasVisibleCol(headerColumns, "configid")) {
-            fetches.push(fetchConfigOptions(val));
-          }
+          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchLocations());
+          if (hasVisibleCol(headerColumns, "deptid")) fetches.push(fetchDepartments());
+          if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);
         }
       });
       return;
     }
-
-    if (col === "fromlocationid") {
-      requestGridClear("Location", async () => {
-        itemGridRef.current?.clearRows?.();
-      });
-    }
-  }, [requestGridClear, headerColumns, fetchFromLocations, fetchConfigOptions]);
+  }, [
+    requestGridClear,
+    headerColumns,
+    fetchLocations,
+    fetchDepartments,
+    fetchConfigOptions,
+  ]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const divId = headerValuesRef.current?.fromdivisionid ?? 0;
+      const divId = headerValuesRef.current?.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
@@ -446,8 +441,8 @@ export default function AssetsWriteOffForm() {
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AWO_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: MCR_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: MCR_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -466,14 +461,14 @@ export default function AssetsWriteOffForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWO_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAwoItemPickerJsonPayload(headerValues)]),
+        ObjName: MCR_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildMcrItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[AWO] Item picker fetch failed:", err);
+      console.error("[MCR] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
@@ -502,7 +497,7 @@ export default function AssetsWriteOffForm() {
   const handleSave = useCallback(async () => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const businessErrors = validateAwoBusinessRules(headerValuesRef.current);
+    const businessErrors = validateMcrBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
     const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
     if (allErrors.length > 0) {
@@ -514,13 +509,12 @@ export default function AssetsWriteOffForm() {
     headerColumns.forEach((col) => {
       mstRow[col.colname] = getColDefault(col.coldatatype);
     });
-    const hv = applyAwoHardcodedHeaderValues(headerValuesRef.current);
+    const hv = applyMcrHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
     Object.entries(hv).forEach(([k, v]) => {
       if (k !== "id") mstRow[k] = v;
     });
-    mstRow.frmtype = AWO_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = AWO_CONFIG.ISSUE_TYPE_ID;
+    mstRow.frmtype = MCR_CONFIG.FRM_TYPE;
     mstRow.loginid = DEFAULT_LOGIN_ID;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
@@ -530,13 +524,13 @@ export default function AssetsWriteOffForm() {
     });
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AWO_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
+      buildSaveJsonFields({ label: MCR_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const result = await postSave(AWO_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await postSave(MCR_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
@@ -545,7 +539,7 @@ export default function AssetsWriteOffForm() {
       notify.success(message);
       return true;
     } catch (err) {
-      console.error("[AWO Save] Failed:", err);
+      console.error("[MCR Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
@@ -563,22 +557,21 @@ export default function AssetsWriteOffForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AWO_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AWO_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyAwoHardcodedHeaderValues({
+    localStorage.removeItem(MCR_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
+    headerValuesRef.current = applyMcrHardcodedHeaderValues({
       trancode: "",
       trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
+      divisionid: 0,
       fromlocationid: 0,
+      deptid: 0,
       remarks: "",
       configid: 0,
-      frmtype: AWO_CONFIG.FRM_TYPE,
-      issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
-      funccode: AWO_CONFIG.RB_MASTER,
+      frmtype: MCR_CONFIG.FRM_TYPE,
+      funccode: MCR_CONFIG.RB_MASTER,
       tranmstgenid: 0,
       companyid: DEFAULT_COMPANY_ID,
-      yearid: AWO_CONFIG.CONFIG_YEAR_ID,
+      yearid: MCR_CONFIG.CONFIG_YEAR_ID,
       loginid: DEFAULT_LOGIN_ID,
       idnumber: 0,
     });
@@ -644,7 +637,7 @@ export default function AssetsWriteOffForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page workspace-page--fill awo-page">
+    <div className="workspace-page workspace-page--fill mcr-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -673,7 +666,7 @@ export default function AssetsWriteOffForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Write Off Detail"
+            title="Complaint Register Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -687,10 +680,10 @@ export default function AssetsWriteOffForm() {
         )}
       </section>
 
-      <section className="awo-grid-section">
+      <section className="mcr-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {AWO_GRID_TABS.map((t) => (
+            {MCR_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -708,7 +701,7 @@ export default function AssetsWriteOffForm() {
               className="eg-tab-btn"
               onClick={handleAddNewItem}
               disabled={!isEditMode}
-              title="Add a blank item row"
+              title="Add a blank complaint item row"
             >
               <Plus size={12} strokeWidth={2.5} />
               Add New
@@ -720,7 +713,7 @@ export default function AssetsWriteOffForm() {
               className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
-              title="Pick assets for write off"
+              title="Pick items for complaint register"
             >
               <Package size={12} strokeWidth={2.5} />
               Select Item
@@ -739,7 +732,7 @@ export default function AssetsWriteOffForm() {
           </div>
         </div>
 
-        <div className={`awo-tab-pane${activeTab === "items" ? " awo-tab-pane--active" : ""}`}>
+        <div className={`mcr-tab-pane${activeTab === "items" ? " mcr-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}

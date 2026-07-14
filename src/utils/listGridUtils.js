@@ -27,8 +27,12 @@ export function resolveListRecordId(row) {
     row.AstDeptIssID ??
     row.asthealstamstid ??
     row.AstHealStaMstID ??
-    row.astwriteoffid ??
-    row.AstWriteOffID ??
+    row.astwrtoffmstid ??
+    row.AstWrtOffMstID ??
+    row.astcliallomstid ??
+    row.AstCliAlloMstID ??
+    row.mntcomplmstid ??
+    row.MntComplMstID ??
     row.IDNUMBER ??
     row.IDNumber ??
     row.idnumber ??

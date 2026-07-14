@@ -1,26 +1,26 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileX, Plus } from "lucide-react";
+import { MessageSquareWarning, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { AWO_CONFIG, ENTRY_FORM_LABEL, buildAwoListJsonPayload } from "./constants";
-import "./AssetsWriteOffPage.css";
+import { MCR_CONFIG, ENTRY_FORM_LABEL, buildMcrListJsonPayload } from "./constants";
+import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
   return {
-    ObjType: AWO_CONFIG.LIST_OBJ_TYPE,
-    ObjName: AWO_CONFIG.SP_LIST,
-    JSon: JSON.stringify([buildAwoListJsonPayload()]),
+    ObjType: MCR_CONFIG.LIST_OBJ_TYPE,
+    ObjName: MCR_CONFIG.SP_LIST,
+    JSon: JSON.stringify([buildMcrListJsonPayload()]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   };
 }
 
-export default function AssetsWriteOffPage() {
+export default function ComplaintRegisterPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -29,8 +29,8 @@ export default function AssetsWriteOffPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
-    title: "Assets Write Off",
-    subtitle: "Write off asset items by serial number.",
+    title: "Complaint Register",
+    subtitle: "Register and track maintenance complaints.",
     showBack: true,
     backTo: "/",
   });
@@ -39,8 +39,8 @@ export default function AssetsWriteOffPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-write-off",
-        editBtnClass: "awo-list__edit-btn",
+        basePath: "/complaint-register",
+        editBtnClass: "mcr-list__edit-btn",
       }),
     [data, navigate]
   );
@@ -52,8 +52,8 @@ export default function AssetsWriteOffPage() {
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
       setData(normalizeListRows(json ?? []));
     } catch (err) {
-      console.error("[AWO] list fetch failed:", err);
-      setError("Failed to load Assets Write Off records.");
+      console.error("[MCR] list fetch failed:", err);
+      setError("Failed to load Complaint Register records.");
     } finally {
       setLoading(false);
     }
@@ -64,29 +64,29 @@ export default function AssetsWriteOffPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-write-off/new"),
+    () => navigate("/complaint-register/new"),
     [navigate]
   );
 
   return (
-    <div className="workspace-page awo-list-page">
-      <section className="awo-list-panel awo-list-panel--fill">
-        <header className="awo-list-panel__header">
-          <div className="awo-list-panel__title">
-            <FileX size={14} strokeWidth={2} />
-            <span>Assets Write Off</span>
+    <div className="workspace-page mcr-list-page">
+      <section className="mcr-list-panel mcr-list-panel--fill">
+        <header className="mcr-list-panel__header">
+          <div className="mcr-list-panel__title">
+            <MessageSquareWarning size={14} strokeWidth={2} />
+            <span>Complaint Register</span>
           </div>
-          <div className="awo-list-panel__toolbar">
-            <button type="button" className="awo-list-panel__add-btn" onClick={handleAddNew}>
+          <div className="mcr-list-panel__toolbar">
+            <button type="button" className="mcr-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
-            <label htmlFor="awo-list-page-size" className="awo-list-panel__pagesize-label">
+            <label htmlFor="mcr-list-page-size" className="mcr-list-panel__pagesize-label">
               Rows per page
             </label>
             <select
-              id="awo-list-page-size"
-              className="ng-select awo-list-panel__pagesize-select"
+              id="mcr-list-page-size"
+              className="ng-select mcr-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               aria-label="Rows per page"
@@ -104,14 +104,14 @@ export default function AssetsWriteOffPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading Assets Write Off records…"
+          loaderText="Loading Complaint Register records…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No Assets Write Off records found."
+          emptyMessage="No Complaint Register records found."
           hideHeader
           searchable
-          deleteProcName={AWO_CONFIG.DELETE_PROC_NAME}
+          deleteProcName={MCR_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
         />
