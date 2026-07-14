@@ -238,7 +238,8 @@ export function useAssetsRevaluation(baseURL = API_BASE_URL) {
       const { meta, apiColumns } = await loadRbDetailGridMeta(get, ARV_CONFIG.RB_DETAIL, ARV_CONFIG.STORAGE_ENTRY_META);
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
-      setAllColumns(buildGridColumns(apiColumns, {}, { filterable: false, allEditable: true }));
+      // Keep ALL RB columns for save (incl. hidden); visible UI cols come from buildGridColumns.
+      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
       setEventColumns(buildEventColumnSet(apiColumns, ["qty", "rate"]));
     } catch (err) {
       console.error("[ARV] detail meta fetch failed:", err);
