@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FileText, QrCode, Printer } from "lucide-react";
 import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
 import { useStickerPrinter } from "../../hooks/useStickerPrinter";
@@ -156,10 +156,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
   const notify = useNotification();
 
   const [data, setData] = useState([]);
-  const [gridColumns, setGridColumns] = useState([]);
-  const [columnsLoading, setColumnsLoading] = useState(true);
-  const [columnsError, setColumnsError] = useState(null);
-  const rbMetaRef = useRef({ rbid: null });
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [selectedDivision, setSelectedDivision] = useState("");
   const [loading, setLoading] = useState(true);
@@ -192,22 +188,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
   useEffect(() => {
     setPageSize(compact ? 8 : 10);
   }, [compact]);
-
-  const loadGridColumns = useCallback(async (divisionId = 0) => {
-    try {
-      setColumnsLoading(true);
-      setColumnsError(null);
-      const { rbid, columns } = await fetchReportBoardColumns(get, divisionId);
-      rbMetaRef.current = { rbid };
-      setGridColumns(columns);
-    } catch (err) {
-      console.error("[ReportBoardPanel] column meta fetch failed:", err);
-      setColumnsError("Failed to load report board column configuration.");
-      setGridColumns([]);
-    } finally {
-      setColumnsLoading(false);
-    }
-  }, [get]);
 
   const fetchDivisions = useCallback(async () => {
     try {
@@ -265,10 +245,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
   useEffect(() => {
     fetchReportBoards(selectedDivision);
     setSelectedRowKeys([]);
-    if (selectedDivision) {
-      loadGridColumns(selectedDivision);
-    }
-  }, [fetchReportBoards, loadGridColumns, selectedDivision]);
   }, [fetchReportBoards, selectedDivision]);
 
   const selectedRows = useMemo(() => {
@@ -338,10 +314,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     if (printerStatus === "connecting") return "checking";
     return "offline";
   }, [isPrinterReady, printerStatus]);
-
-  const combinedError = columnsError || error;
-  const gridLoading = loading || columnsLoading;
-  const gridReady = gridColumns.length > 0;
 
   return (
     <section

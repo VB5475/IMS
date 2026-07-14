@@ -40,8 +40,6 @@ const AssetsHealthStatusUpdationPage = lazy(() => import("./pages/assets-health-
 const AssetsHealthStatusUpdationForm = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm"));
 const AssetsRevaluationPage = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationPage"));
 const AssetsRevaluationForm = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationForm"));
-const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
-const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsClientAllocationPage = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationPage"));
 const AssetsClientAllocationForm = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationForm"));
 const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
@@ -161,10 +159,6 @@ function AppRoutes() {
           <Route path="assets-revaluation/new" element={<AssetsRevaluationForm />} />
           <Route path="assets-revaluation/:id" element={<AssetsRevaluationForm />} />
           <Route path="assets-revaluation/:id/edit" element={<AssetsRevaluationForm />} />
-          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
-          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
           <Route path="assets-client-allocation" element={<AssetsClientAllocationPage />} />
           <Route path="assets-client-allocation/new" element={<AssetsClientAllocationForm />} />
           <Route path="assets-client-allocation/:id" element={<AssetsClientAllocationForm />} />

@@ -517,7 +517,6 @@ function EnterpriseDataGrid({
                           className={
                             actionCol
                               ? `ng-col--action${col.actionType === "delete" ? " ng-col--action-delete" : ""}${col.actionType === "actions" ? " ng-col--actions" : ""}${selectCol ? " ng-col--action-select" : ""}`
-                              ? `ng-col--action${col.actionType === "delete" ? " ng-col--action-delete" : ""}${selectCol ? " ng-col--action-select" : ""}`
                               : undefined
                           }
                           style={{
@@ -576,7 +575,6 @@ function EnterpriseDataGrid({
                             className={
                               isActionColumn(col)
                                 ? `ng-col--action${isSelectColumn(col) ? " ng-col--action-select" : ""}${col.actionType === "delete" ? " ng-col--action-delete" : ""}${col.actionType === "actions" ? " ng-col--actions" : ""}`
-                                ? `ng-col--action${isSelectColumn(col) ? " ng-col--action-select" : ""}${col.actionType === "delete" ? " ng-col--action-delete" : ""}`
                                 : undefined
                             }
                             style={{
