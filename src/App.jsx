@@ -28,8 +28,6 @@ const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/As
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
-const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
-const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsEmployeeIssuePage = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssuePage"));
 const AssetsEmployeeIssueForm = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssueForm"));
 const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnPage"));
@@ -40,6 +38,16 @@ const AssetsHealthStatusUpdationPage = lazy(() => import("./pages/assets-health-
 const AssetsHealthStatusUpdationForm = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm"));
 const AssetsRevaluationPage = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationPage"));
 const AssetsRevaluationForm = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationForm"));
+const AssetsHealthStatusUpdationPage = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationPage"));
+const AssetsHealthStatusUpdationForm = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm"));
+const AssetsRevaluationPage = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationPage"));
+const AssetsRevaluationForm = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationForm"));
+const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
+const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
+const AssetsClientAllocationPage = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationPage"));
+const AssetsClientAllocationForm = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationForm"));
+const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
+const ComplaintRegisterForm = lazy(() => import("./pages/complaint-register/ComplaintRegisterForm"));
 const AssetsReturnableGatePassOutPage = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage"));
 const AssetsReturnableGatePassOutForm = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutForm"));
 const AssetsReturnableGatePassInPage = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInPage"));
@@ -60,6 +68,8 @@ const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/A
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetItemMasterPage"));
+const AssetsItemOpeningExcelPage = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage"));
+const AssetsItemOpeningExcelForm = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm"));
 const AssetsItemOpeningExcelPage = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage"));
 const AssetsItemOpeningExcelForm = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm"));
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
@@ -131,10 +141,6 @@ function AppRoutes() {
           <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
-          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
-          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
           <Route path="assets-employee-issue" element={<AssetsEmployeeIssuePage />} />
           <Route path="assets-employee-issue/new" element={<AssetsEmployeeIssueForm />} />
           <Route path="assets-employee-issue/:id" element={<AssetsEmployeeIssueForm />} />
@@ -155,6 +161,22 @@ function AppRoutes() {
           <Route path="assets-revaluation/new" element={<AssetsRevaluationForm />} />
           <Route path="assets-revaluation/:id" element={<AssetsRevaluationForm />} />
           <Route path="assets-revaluation/:id/edit" element={<AssetsRevaluationForm />} />
+          <Route path="assets-health-status-updation" element={<AssetsHealthStatusUpdationPage />} />
+          <Route path="assets-health-status-updation/new" element={<AssetsHealthStatusUpdationForm />} />
+          <Route path="assets-health-status-updation/:id" element={<AssetsHealthStatusUpdationForm />} />
+          <Route path="assets-health-status-updation/:id/edit" element={<AssetsHealthStatusUpdationForm />} />
+          <Route path="assets-revaluation" element={<AssetsRevaluationPage />} />
+          <Route path="assets-revaluation/new" element={<AssetsRevaluationForm />} />
+          <Route path="assets-revaluation/:id" element={<AssetsRevaluationForm />} />
+          <Route path="assets-revaluation/:id/edit" element={<AssetsRevaluationForm />} />
+          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
+          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
+          <Route path="assets-client-allocation" element={<AssetsClientAllocationPage />} />
+          <Route path="assets-client-allocation/new" element={<AssetsClientAllocationForm />} />
+          <Route path="assets-client-allocation/:id" element={<AssetsClientAllocationForm />} />
+          <Route path="assets-client-allocation/:id/edit" element={<AssetsClientAllocationForm />} />
           <Route path="assets-returnable-gate-pass-out" element={<AssetsReturnableGatePassOutPage />} />
           <Route path="assets-returnable-gate-pass-out/new" element={<AssetsReturnableGatePassOutForm />} />
           <Route path="assets-returnable-gate-pass-out/:id" element={<AssetsReturnableGatePassOutForm />} />
@@ -167,6 +189,10 @@ function AppRoutes() {
           <Route path="assets-stock-transfer/new" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id/edit" element={<AssetsStockTransferForm />} />
+          <Route path="complaint-register" element={<ComplaintRegisterPage />} />
+          <Route path="complaint-register/new" element={<ComplaintRegisterForm />} />
+          <Route path="complaint-register/:id" element={<ComplaintRegisterForm />} />
+          <Route path="complaint-register/:id/edit" element={<ComplaintRegisterForm />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
@@ -174,6 +200,8 @@ function AppRoutes() {
           <Route path="admin/company/location-master" element={<LocationMasterPage />} />
           <Route path="admin/company/division-master" element={<DivisionMasterPage />} />
           <Route path="account/master/asset-item-master" element={<AssetItemMasterPage />} />
+          <Route path="account/master/asset-item-opening-excel" element={<AssetsItemOpeningExcelPage />} />
+          <Route path="account/master/asset-item-opening-excel/new" element={<AssetsItemOpeningExcelForm />} />
           <Route path="account/master/asset-item-opening-excel" element={<AssetsItemOpeningExcelPage />} />
           <Route path="account/master/asset-item-opening-excel/new" element={<AssetsItemOpeningExcelForm />} />
           <Route path="admin/master/supplier-master" element={<SupplierMasterPage />} />

@@ -3,10 +3,12 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  DEFAULT_LOGIN_ID,
+  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
-import { AWO_CONFIG } from "../pages/assets-write-off/constants";
+import { MCR_CONFIG } from "../pages/complaint-register/constants";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -17,10 +19,9 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
-  const session = getUserSession();
   return [
     Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AWO_CONFIG.CONFIG_YEAR_ID,
+    Number(yearId) || MCR_CONFIG.CONFIG_YEAR_ID,
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
@@ -39,13 +40,11 @@ function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
     trandate: toDateInput(master.trandate ?? master.TranDate),
-    issuedate: toDateInput(master.issuedate ?? master.IssueDate) || toDateInput(master.trandate),
-    yearid: AWO_CONFIG.CONFIG_YEAR_ID,
-    funccode: AWO_CONFIG.RB_MASTER,
+    yearid: MCR_CONFIG.CONFIG_YEAR_ID,
+    funccode: MCR_CONFIG.RB_MASTER,
     loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
-    frmtype: AWO_CONFIG.FRM_TYPE,
-    issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
+    frmtype: MCR_CONFIG.FRM_TYPE,
   };
 }
 
@@ -69,22 +68,29 @@ function buildEventColumnSet(apiColumns, fallbackKeys = []) {
 
 function mapDivisionRows(rows) {
   return (rows || []).map((r) => ({
-    value: String(r.fromdivisionid ?? r.FromDivisionID ?? r.divisionid ?? 0),
-    label: String(r.fromdivision ?? r.FromDivision ?? r.divisionname ?? ""),
+    value: String(r.divisionid ?? r.DivisionID ?? r.fromdivisionid ?? r.FromDivisionID ?? 0),
+    label: String(r.division ?? r.Division ?? r.divisionname ?? r.fromdivision ?? ""),
   }));
 }
 
-function mapLocationRows(rows, valueKey = "locationid", labelKey = "locationname") {
+function mapLocationRows(rows) {
   return (rows || []).map((r) => ({
-    value: String(r[valueKey] ?? r.LocationID ?? r.locationid ?? 0),
-    label: String(r[labelKey] ?? r.LocationName ?? r.locationname ?? ""),
+    value: String(r.fromlocationid ?? r.FromLocationID ?? r.locationid ?? r.LocationID ?? 0),
+    label: String(r.fromlocation ?? r.FromLocation ?? r.locationname ?? r.LocationName ?? ""),
+  }));
+}
+
+function mapDeptRows(rows) {
+  return (rows || []).map((r) => ({
+    value: String(r.deptid ?? r.DeptID ?? r.departmentid ?? 0),
+    label: String(r.dept ?? r.deptname ?? r.department ?? r.DeptName ?? ""),
   }));
 }
 
 async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
-    ObjName: AWO_CONFIG.SP_RB_META,
+    ObjName: MCR_CONFIG.SP_RB_META,
     JSon: JSON.stringify([{ prmRBCode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
@@ -97,20 +103,21 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: getUserSession().loginId,
+    prmLoginID: DEFAULT_LOGIN_ID,
   });
   return { meta, apiColumns: colData || [] };
 }
 
-export function useAstWriteOff(baseURL = API_BASE_URL) {
+export function useMntComplaint(baseURL = API_BASE_URL) {
   const { get } = useApi(baseURL);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
 
-  const [fromDivisionOptions, setFromDivisionOptions] = useState([]);
-  const [fromLocationOptions, setFromLocationOptions] = useState([]);
+  const [divisionOptions, setDivisionOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
   const [configOptions, setConfigOptions] = useState([]);
 
   const [columns, setColumns] = useState([]);
@@ -127,7 +134,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     () => JSON.stringify([{
       prmuserid: DEFAULT_LOGIN_ID,
       prmcompanyid: DEFAULT_COMPANY_ID,
-      prmyearid: AWO_CONFIG.DIVISION_YEAR_ID,
+      prmyearid: MCR_CONFIG.DIVISION_YEAR_ID,
     }]),
     []
   );
@@ -141,43 +148,70 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     []
   );
 
-  const fetchFromDivisions = useCallback(async () => {
+  const deptFetchJson = useCallback(
+    () => JSON.stringify([{
+      prmcompanyid: DEFAULT_COMPANY_ID,
+      prmloginid: DEFAULT_LOGIN_ID,
+    }]),
+    []
+  );
+
+  const fetchDivisions = useCallback(async () => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: AWO_CONFIG.SP_FROM_DIVISION,
+        ObjName: MCR_CONFIG.SP_DIVISION,
         JSon: divisionFetchJson(),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       const opts = mapDivisionRows(res);
-      setFromDivisionOptions(opts);
+      setDivisionOptions(opts);
       return opts;
     } catch (err) {
-      console.warn("[AWO] Division fetch failed:", err);
-      setFromDivisionOptions([]);
+      console.warn("[MCR] Division fetch failed:", err);
+      setDivisionOptions([]);
       return [];
     }
   }, [get, divisionFetchJson]);
 
-  const fetchFromLocations = useCallback(async () => {
+  const fetchLocations = useCallback(async () => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: AWO_CONFIG.SP_FROM_LOCATION,
+        ObjName: MCR_CONFIG.SP_FROM_LOCATION,
         JSon: locationFetchJson(),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const opts = mapLocationRows(res, "fromlocationid", "fromlocation");
-      setFromLocationOptions(opts);
+      const opts = mapLocationRows(res);
+      setLocationOptions(opts);
       return opts;
     } catch (err) {
-      console.warn("[AWO] From location fetch failed:", err);
-      setFromLocationOptions([]);
+      console.warn("[MCR] Location fetch failed:", err);
+      setLocationOptions([]);
       return [];
     }
   }, [get, locationFetchJson]);
+
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: MCR_CONFIG.SP_DEPARTMENT,
+        JSon: deptFetchJson(),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapDeptRows(res);
+      setDepartmentOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[MCR] Department fetch failed:", err);
+      setDepartmentOptions([]);
+      return [];
+    }
+  }, [get, deptFetchJson]);
 
   const fetchConfigOptions = useCallback(async (divisionId = 0) => {
     const resolvedDivisionId = Number(divisionId) || 0;
@@ -188,14 +222,14 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: AWO_CONFIG.SP_CONFIG,
+        ObjName: MCR_CONFIG.SP_CONFIG,
         JSon: JSON.stringify([{
           prmcompanyid: DEFAULT_COMPANY_ID,
           prmdivisionid: resolvedDivisionId,
-          prmyearid: AWO_CONFIG.CONFIG_YEAR_ID,
+          prmyearid: MCR_CONFIG.CONFIG_YEAR_ID,
           prmuserid: DEFAULT_LOGIN_ID,
-          prmformtag: AWO_CONFIG.CONFIG_FORM_TAG,
-          prmreftype: AWO_CONFIG.CONFIG_REF_TYPE,
+          prmformtag: MCR_CONFIG.CONFIG_FORM_TAG,
+          prmreftype: MCR_CONFIG.CONFIG_REF_TYPE,
           prmref_mstid: 0,
           prmref_detid: 0,
         }]),
@@ -216,7 +250,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
       setConfigOptions(opts);
       return opts;
     } catch (err) {
-      console.warn("[AWO] Config fetch failed:", err);
+      console.warn("[MCR] Config fetch failed:", err);
       setConfigOptions([]);
       return [];
     }
@@ -228,42 +262,44 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     try {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: AWO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AWO_CONFIG.RB_MASTER }]),
+        ObjName: MCR_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: MCR_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
-      if (!tableRow) throw new Error("No Assets Write Off header RB metadata returned from server.");
+      if (!tableRow) throw new Error("No Complaint Register header RB metadata returned.");
 
       const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
-      localStorage.setItem(AWO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
+      localStorage.setItem(MCR_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: getUserSession().loginId,
+        prmLoginID: DEFAULT_LOGIN_ID,
       });
       const cols = colData || [];
       setHeaderColumns(cols);
 
       if (skipListDropdowns) {
-        setFromDivisionOptions([]);
-        setFromLocationOptions([]);
+        setDivisionOptions([]);
+        setLocationOptions([]);
+        setDepartmentOptions([]);
         setConfigOptions([]);
         return;
       }
 
       const tasks = [];
-      if (hasVisibleCol(cols, "fromdivisionid")) tasks.push(fetchFromDivisions());
-      if (hasVisibleCol(cols, "fromlocationid")) tasks.push(fetchFromLocations());
+      if (hasVisibleCol(cols, "divisionid")) tasks.push(fetchDivisions());
+      if (hasVisibleCol(cols, "fromlocationid")) tasks.push(fetchLocations());
+      if (hasVisibleCol(cols, "deptid")) tasks.push(fetchDepartments());
       await Promise.all(tasks);
     } catch (err) {
-      console.error("[AWO] fetchHeaderMeta failed:", err);
-      setHeaderError(err?.message || "Failed to load Assets Write Off configuration.");
+      console.error("[MCR] fetchHeaderMeta failed:", err);
+      setHeaderError(err?.message || "Failed to load Complaint Register configuration.");
     } finally {
       setHeaderFetching(false);
     }
-  }, [get, fetchFromDivisions, fetchFromLocations]);
+  }, [get, fetchDivisions, fetchLocations, fetchDepartments]);
 
   const fetchDetailMeta = useCallback(async () => {
     setIsFetching(true);
@@ -271,19 +307,18 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     try {
       const { meta, apiColumns } = await loadRbDetailGridMeta(
         get,
-        AWO_CONFIG.RB_DETAIL,
-        AWO_CONFIG.STORAGE_ENTRY_META
+        MCR_CONFIG.RB_DETAIL,
+        MCR_CONFIG.STORAGE_ENTRY_META
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      const evtSet = buildEventColumnSet(apiColumns, ["qty", "rate"]);
-      ["qty", "rate", "Qty", "Rate"].forEach((k) => evtSet.add(k));
+      const evtSet = buildEventColumnSet(apiColumns, []);
       setEventColumns(evtSet);
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
     } catch (err) {
-      console.error("[AWO] fetchDetailMeta failed:", err);
+      console.error("[MCR] fetchDetailMeta failed:", err);
       setMetaError(err?.message || "Failed to load item grid configuration.");
     } finally {
       setIsFetching(false);
@@ -299,7 +334,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
 
     try {
       const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
-        funcCode: AWO_CONFIG.RB_DETAIL,
+        funcCode: MCR_CONFIG.RB_DETAIL,
         divisionID: Number(divisionID) || 0,
         existingRecordEdit,
         rowData: masterRow,
@@ -313,7 +348,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
       setColumns(gridColumns);
       return gridColumns;
     } catch (err) {
-      console.error("[AWO] fetchGridColumns failed:", err);
+      console.error("[MCR] fetchGridColumns failed:", err);
       return [];
     }
   }, [get]);
@@ -323,14 +358,19 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
       if (id != null && id !== 0 && label) setter([{ value: String(id), label: String(label) }]);
     };
     seedOne(
-      master.fromdivisionid,
-      master.fromdivision ?? master.fromdivisionname ?? master.divisionname,
-      setFromDivisionOptions
+      master.divisionid ?? master.DivisionID,
+      master.division ?? master.divisionname ?? master.Division,
+      setDivisionOptions
     );
     seedOne(
-      master.fromlocationid,
+      master.fromlocationid ?? master.FromLocationID,
       master.fromlocation ?? master.fromlocationname ?? master.locationname,
-      setFromLocationOptions
+      setLocationOptions
+    );
+    seedOne(
+      master.deptid ?? master.DeptID,
+      master.dept ?? master.deptname ?? master.department,
+      setDepartmentOptions
     );
     seedOne(
       master.configid ?? master.ConfigID ?? master.configurationid ?? master.ConfigurationId,
@@ -350,26 +390,27 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
           && !isLockOnEditModeCol(c);
       });
 
-    const fromDiv = headerValues.fromdivisionid ?? 0;
+    const divId = headerValues.divisionid ?? 0;
     const tasks = [];
-    if (needsCol("fromdivisionid")) tasks.push(fetchFromDivisions());
-    if (needsCol("fromlocationid")) tasks.push(fetchFromLocations());
-    if (needsCol("configid")) tasks.push(fetchConfigOptions(fromDiv));
+    if (needsCol("divisionid")) tasks.push(fetchDivisions());
+    if (needsCol("fromlocationid")) tasks.push(fetchLocations());
+    if (needsCol("deptid")) tasks.push(fetchDepartments());
+    if (needsCol("configid")) tasks.push(fetchConfigOptions(divId));
     await Promise.all(tasks);
-  }, [headerColumns, fetchFromDivisions, fetchFromLocations, fetchConfigOptions]);
+  }, [headerColumns, fetchDivisions, fetchLocations, fetchDepartments, fetchConfigOptions]);
 
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber });
     const [mstRes, detRes] = await Promise.all([
       get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: AWO_CONFIG.SP_MASTER_FILL,
+        prmProcedure: MCR_CONFIG.SP_MASTER_FILL,
         prmParameters,
-        prmFuncCode: AWO_CONFIG.RB_MASTER,
+        prmFuncCode: MCR_CONFIG.RB_MASTER,
       }),
       get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: AWO_CONFIG.SP_DETAIL_FILL,
+        prmProcedure: MCR_CONFIG.SP_DETAIL_FILL,
         prmParameters,
-        prmFuncCode: AWO_CONFIG.RB_DETAIL,
+        prmFuncCode: MCR_CONFIG.RB_DETAIL,
       }),
     ]);
 
@@ -388,11 +429,13 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     headerFetching,
     headerError,
     fetchHeaderMeta,
-    fromDivisionOptions,
-    fromLocationOptions,
+    divisionOptions,
+    locationOptions,
+    departmentOptions,
     configOptions,
-    fetchFromDivisions,
-    fetchFromLocations,
+    fetchDivisions,
+    fetchLocations,
+    fetchDepartments,
     fetchConfigOptions,
     columns,
     allColumns,
