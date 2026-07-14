@@ -221,6 +221,19 @@
   border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
 }
 
+.ng-table .ng-col--actions {
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+}
+
+.ng-action-btns {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .ng-table thead th.ng-col--action-select,
 .ng-table tbody td.ng-col--action-select {
   width: 40px;

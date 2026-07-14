@@ -1,6 +1,8 @@
+// AssetsWriteOffForm.jsx — Assets Write Off entry form (Add / Edit)
+
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Plus, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -36,44 +38,41 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  AWO_CONFIG,
-  AWO_GRID_TABS,
-  AWO_FRM_TYPE_OPTIONS,
+  AWF_CONFIG,
+  AWF_GRID_TABS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
-  buildAwoItemPickerJsonPayload,
-  applyAwoHardcodedHeaderValues,
-  buildAwoCascadeResets,
-  validateAwoBusinessRules,
+  buildAwfCascadeResets,
 } from "./constants";
 import "./AssetsWriteOffPage.css";
 
-let _awoTempId = -1;
-const nextTempId = () => _awoTempId--;
+let _awfTempId = -1;
+const nextTempId = () => _awfTempId--;
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
-  const str = (v) => (v == null || v === "" ? "" : String(v));
   return {
-    trancode: str(headerValues.trancode),
+    trancode: String(headerValues.trancode ?? ""),
     trandate: headerValues.trandate ?? "",
-    issuedate: headerValues.issuedate ?? "",
-    fromdivisionid: str(headerValues.fromdivisionid),
-    fromlocationid: str(headerValues.fromlocationid),
+    divisionid: String(headerValues.divisionid ?? ""),
+    fromlocid: String(headerValues.fromlocid ?? headerValues.locationid ?? ""),
+    accountid: String(headerValues.accountid ?? ""),
+    profitlossactid: String(headerValues.profitlossactid ?? ""),
     remarks: headerValues.remarks ?? "",
-    configid: str(headerValues.configid),
-    frmtype: str(headerValues.frmtype ?? AWO_CONFIG.FRM_TYPE),
-    issuetypeid: str(headerValues.issuetypeid ?? AWO_CONFIG.ISSUE_TYPE_ID),
+    totalpurvalue: headerValues.totalpurvalue ?? "",
+    totalrevvalue: headerValues.totalrevvalue ?? "",
+    totaldepvalue: headerValues.totaldepvalue ?? "",
+    totalcurrbookvalue: headerValues.totalcurrbookvalue ?? "",
   };
 }
 
-function buildGridRow(source, allColumns) {
+function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => {
     row[key] = getColDefault(colDataType);
   });
-  Object.entries(source || {}).forEach(([k, v]) => {
+  Object.entries(item).forEach(([k, v]) => {
     const lk = k.toLowerCase();
     if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
@@ -100,8 +99,9 @@ export default function AssetsWriteOffForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    fromDivisionOptions, fromLocationOptions, configOptions,
-    fetchFromLocations, fetchConfigOptions,
+    divisionOptions, locationOptions, assetsAccOptions, profitLossAccOptions,
+    fetchLocations, fetchAssetsAccByDivision, fetchProfitLossAccByDivision,
+    clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
@@ -119,38 +119,36 @@ export default function AssetsWriteOffForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const headerValuesRef = useRef(applyAwoHardcodedHeaderValues({
+  const headerValuesRef = useRef({
     trancode: "",
     trandate: todayISO,
-    issuedate: todayISO,
-    fromdivisionid: 0,
-    fromlocationid: 0,
+    divisionid: 0,
+    fromlocid: 0,
+    accountid: 0,
+    profitlossactid: 0,
     remarks: "",
-    configid: 0,
-    frmtype: AWO_CONFIG.FRM_TYPE,
-    issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
+    totalpurvalue: 0,
+    totalrevvalue: 0,
+    totaldepvalue: 0,
+    totalcurrbookvalue: 0,
     tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: recordId,
-    funccode: AWO_CONFIG.RB_MASTER,
-  }));
+    funccode: AWF_CONFIG.RB_MASTER,
+  });
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return {
-      trandate: todayISO,
-      issuedate: todayISO,
-      frmtype: String(AWO_CONFIG.FRM_TYPE),
-      issuetypeid: String(AWO_CONFIG.ISSUE_TYPE_ID),
-    };
+    return { trandate: todayISO };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
+  const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -161,7 +159,7 @@ export default function AssetsWriteOffForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const cascadeResets = useMemo(() => buildAwoCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildAwfCascadeResets(headerColumns), [headerColumns]);
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -207,15 +205,18 @@ export default function AssetsWriteOffForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      if (itemGridRef.current.loadRows) itemGridRef.current.loadRows(queuedRowsRef.current);
-      else queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      if (itemGridRef.current.loadRows) {
+        itemGridRef.current.loadRows(queuedRowsRef.current);
+      } else {
+        queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      }
       queuedRowsRef.current = [];
     }
   }, [columns]);
@@ -230,10 +231,7 @@ export default function AssetsWriteOffForm() {
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Write Off record not found.");
 
-      headerValuesRef.current = applyAwoHardcodedHeaderValues({
-        ...headerValuesRef.current,
-        ...headerValues,
-      });
+      headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
       setLoadedMasterRow(master);
       editRecordLoadedRef.current = true;
 
@@ -241,15 +239,19 @@ export default function AssetsWriteOffForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const divId = headerValues.fromdivisionid ?? 0;
+    const divId = headerValues.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
-      if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
-      else queuedRowsRef.current = syncedDetails;
+
+      if (itemGridRef.current?.loadRows) {
+        itemGridRef.current.loadRows(syncedDetails);
+      } else {
+        queuedRowsRef.current = syncedDetails;
+      }
     } catch (err) {
-      console.error("[AWO] Edit record load failed:", err);
+      console.error("[AWF] Edit record load failed:", err);
       setRecordLoadError(err?.message || "Failed to load Assets Write Off record.");
     } finally {
       setRecordLoading(false);
@@ -263,8 +265,9 @@ export default function AssetsWriteOffForm() {
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
-    fetchUnlockedHeaderDropdowns(headerValuesRef.current);
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? loadedMasterRow?.fromdivisionid ?? 0, {
+    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
+    fetchUnlockedHeaderDropdowns(divisionId);
+    fetchGridColumns(divisionId, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -276,23 +279,13 @@ export default function AssetsWriteOffForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  const dropdownSources = useMemo(() => ({
-    fromdivisionid: fromDivisionOptions,
-    fromlocationid: fromLocationOptions,
-    configid: configOptions,
-    frmtype: AWO_FRM_TYPE_OPTIONS,
-  }), [fromDivisionOptions, fromLocationOptions, configOptions]);
-
-  const dropdownOptionsByCol = useMemo(() => {
-    const map = { ...dropdownSources };
-    headerColumns.forEach((col) => {
-      const key = col.colname;
-      if (!key) return;
-      const opts = dropdownSources[String(key).toLowerCase()];
-      if (opts) map[key] = opts;
-    });
-    return map;
-  }, [headerColumns, dropdownSources]);
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
+    divisionid: divisionOptions,
+    fromlocid: locationOptions,
+    locationid: locationOptions,
+    accountid: assetsAccOptions,
+    profitlossactid: profitLossAccOptions,
+  }), [divisionOptions, locationOptions, assetsAccOptions, profitLossAccOptions]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
@@ -300,7 +293,7 @@ export default function AssetsWriteOffForm() {
       .filter((col) => isTruthyApiFlag(col.isvisible))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions = dropdownOptionsByCol[col.colname];
+        const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
           FilterParameterID: col.colname,
           FilterColName: col.colname,
@@ -310,7 +303,7 @@ export default function AssetsWriteOffForm() {
         };
         return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
       });
-  }, [headerColumns, dropdownOptionsByCol]);
+  }, [headerColumns, DROPDOWN_OPTIONS_BY_COL]);
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -339,46 +332,63 @@ export default function AssetsWriteOffForm() {
     setClearRowsOpen(true);
   }, []);
 
-  const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = applyAwoHardcodedHeaderValues({
-      ...headerValuesRef.current,
-      [colName]: val,
-    });
-    const hv = headerValuesRef.current;
-    const col = String(colName).toLowerCase();
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
 
-    if (col === "fromdivisionid") {
-      requestGridClear("Division", async () => {
-        hv.fromlocationid = 0;
-        hv.configid = 0;
-        itemGridRef.current?.clearRows?.();
-        if (Number(val) > 0) {
-          const fetches = [];
-          if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            fetches.push(fetchFromLocations());
+      if (colName === "divisionid") {
+        requestGridClear("Division", async () => {
+          headerValuesRef.current.fromlocid = 0;
+          headerValuesRef.current.accountid = 0;
+          headerValuesRef.current.profitlossactid = 0;
+          clearLocationOptions();
+          clearAssetsAccOptions();
+          clearProfitLossAccOptions();
+          itemGridRef.current?.clearRows?.();
+          if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "fromlocid", "locationid")) {
+              fetches.push(fetchLocations());
+            }
+            if (hasVisibleCol(headerColumns, "accountid")) {
+              fetches.push(fetchAssetsAccByDivision(val));
+            }
+            if (hasVisibleCol(headerColumns, "profitlossactid")) {
+              fetches.push(fetchProfitLossAccByDivision(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            if (hasVisibleCol(headerColumns, "fromlocid", "locationid")) {
+              requestAnimationFrame(() =>
+                filterPanelRef.current
+                  ?.querySelector("#efq-fromlocid .search-select__trigger")
+                  ?.focus()
+              );
+            }
           }
-          if (hasVisibleCol(headerColumns, "configid")) {
-            fetches.push(fetchConfigOptions(val));
-          }
-          if (fetches.length) await Promise.all(fetches);
-        }
-      });
-      return;
-    }
+        });
+        return;
+      }
 
-    if (col === "fromlocationid") {
-      requestGridClear("Location", async () => {
-        itemGridRef.current?.clearRows?.();
-      });
-    }
-  }, [requestGridClear, headerColumns, fetchFromLocations, fetchConfigOptions]);
+      if (colName === "fromlocid" || colName === "locationid") {
+        requestGridClear("Location", () => {
+          itemGridRef.current?.clearRows?.();
+        });
+      }
+    },
+    [
+      headerColumns,
+      requestGridClear,
+      clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions,
+      fetchLocations, fetchAssetsAccByDivision, fetchProfitLossAccByDivision,
+    ]
+  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const divId = headerValuesRef.current?.fromdivisionid ?? 0;
+      const divId = headerValuesRef.current?.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
@@ -392,26 +402,26 @@ export default function AssetsWriteOffForm() {
     if (key === "qty" || key === "rate") {
       const qty = Number(rowData.qty ?? rowData.Qty) || 0;
       const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-      const amount = qty * rate;
-      const patch = { amount };
-      if ("Amount" in rowData) patch.Amount = amount;
+      const patch = { amount: qty * rate };
+      if ("Amount" in rowData) patch.Amount = qty * rate;
       itemGridRef.current?.updateRow?.(rowId, patch);
     }
   }, []);
-
-  const handleAddNewItem = useCallback(async () => {
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    addItemRow(buildGridRow({}, allColumns));
-  }, [ensureItemColumns, addItemRow, allColumns]);
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
     if (missingFields.length > 0) {
-      setFormErrors(missingFields.map((label) => `${label} is required before selecting items.`));
+      setFormErrors(missingFields);
       return;
     }
+
+    const { divisionid, accountid, trandate, fromlocid, locationid } = headerValues;
+    const existingRows = itemGridRef.current?.getRows?.() ?? [];
+    const notIn = existingRows
+      .map((r) => r.itemid ?? r.compuniquekey)
+      .filter(Boolean)
+      .join(",");
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -422,8 +432,8 @@ export default function AssetsWriteOffForm() {
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AWO_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: AWF_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: AWF_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -442,27 +452,38 @@ export default function AssetsWriteOffForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWO_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAwoItemPickerJsonPayload(headerValues)]),
+        ObjName: AWF_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([{
+          prmcompanyid: getUserSession().companyId,
+          prmyearid: getUserSession().yearId,
+          prmdivisionid: Number(divisionid) || 0,
+          prmtrandate: trandate ?? "",
+          prmaccountid: Number(accountid) || 0,
+          prmlocationid: Number(fromlocid ?? locationid) || 0,
+          prmnotin: notIn,
+        }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[AWO] Item picker fetch failed:", err);
+      console.error("[AWF] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab("items");
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(buildGridRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    },
+    [ensureItemColumns, allColumns, addItemRow]
+  );
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -520,9 +541,8 @@ export default function AssetsWriteOffForm() {
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const businessErrors = validateAwoBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
-    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
+    const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -532,13 +552,12 @@ export default function AssetsWriteOffForm() {
     headerColumns.forEach((col) => {
       mstRow[col.colname] = getColDefault(col.coldatatype);
     });
-    const hv = applyAwoHardcodedHeaderValues(headerValuesRef.current);
-    headerValuesRef.current = hv;
+    const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+      if (k !== "id") {
+        mstRow[k] = v;
+      }
     });
-    mstRow.frmtype = AWO_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = AWO_CONFIG.ISSUE_TYPE_ID;
     mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
@@ -548,13 +567,13 @@ export default function AssetsWriteOffForm() {
     });
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AWO_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
+      buildSaveJsonFields({ label: AWF_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const result = await postSave(AWO_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await postSave(AWF_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
@@ -564,13 +583,13 @@ export default function AssetsWriteOffForm() {
       if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
-      console.error("[AWO Save] Failed:", err);
+      console.error("[AWF Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, postSave, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -583,40 +602,8 @@ export default function AssetsWriteOffForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AWO_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AWO_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyAwoHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      fromlocationid: 0,
-      remarks: "",
-      configid: 0,
-      frmtype: AWO_CONFIG.FRM_TYPE,
-      issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
-      funccode: AWO_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: getUserSession().companyId,
-      yearid: getUserSession().yearId,
-      loginid: getUserSession().loginId,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -664,7 +651,7 @@ export default function AssetsWriteOffForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page workspace-page--fill awo-page">
+    <div className="workspace-page workspace-page--fill awf-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -707,10 +694,10 @@ export default function AssetsWriteOffForm() {
         )}
       </section>
 
-      <section className="awo-grid-section">
+      <section className="awf-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {AWO_GRID_TABS.map((t) => (
+            {AWF_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -724,23 +711,12 @@ export default function AssetsWriteOffForm() {
 
           <div className="grid-tabbar__controls">
             <button
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleAddNewItem}
-              disabled={!isEditMode}
-              title="Add a blank item row"
-            >
-              <Plus size={12} strokeWidth={2.5} />
-              Add New
-            </button>
-
-            <button
               ref={selectItemBtnRef}
               type="button"
               className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
-              title="Pick assets for write off"
+              title="Pick write-off items (Tab here after header fields)"
             >
               <Package size={12} strokeWidth={2.5} />
               Select Item
@@ -759,14 +735,15 @@ export default function AssetsWriteOffForm() {
           </div>
         </div>
 
-        <div className={`awo-tab-pane${activeTab === "items" ? " awo-tab-pane--active" : ""}`}>
+        <div className={`awf-tab-pane${activeTab === "items" ? " awf-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
             title=""
             hideBottomPanel
-            emptyMessage="No items yet. Click Add New or Select Item above."
+            emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}

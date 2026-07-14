@@ -28,6 +28,8 @@ const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/As
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
+const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
+const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsEmployeeIssuePage = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssuePage"));
 const AssetsEmployeeIssueForm = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssueForm"));
 const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnPage"));
@@ -135,6 +137,10 @@ function AppRoutes() {
           <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
+          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
+          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
           <Route path="assets-employee-issue" element={<AssetsEmployeeIssuePage />} />
           <Route path="assets-employee-issue/new" element={<AssetsEmployeeIssueForm />} />
           <Route path="assets-employee-issue/:id" element={<AssetsEmployeeIssueForm />} />
@@ -175,10 +181,6 @@ function AppRoutes() {
           <Route path="assets-stock-transfer/new" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id/edit" element={<AssetsStockTransferForm />} />
-          <Route path="complaint-register" element={<ComplaintRegisterPage />} />
-          <Route path="complaint-register/new" element={<ComplaintRegisterForm />} />
-          <Route path="complaint-register/:id" element={<ComplaintRegisterForm />} />
-          <Route path="complaint-register/:id/edit" element={<ComplaintRegisterForm />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />

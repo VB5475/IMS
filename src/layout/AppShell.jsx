@@ -16,6 +16,7 @@ import {
   TrendingDown,
   UserRound,
   RotateCcw,
+  FileX,
   DoorOpen,
   DoorClosed,
   ArrowLeftRight,
@@ -92,6 +93,7 @@ const NAV_SECTIONS = [
     items: [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
       { to: "/assets-depreciation", icon: TrendingDown, label: "Company Act Depreciation", end: false },
+      { to: "/assets-write-off", icon: FileX, label: "Assets Write Off", end: false },
       { to: "/assets-employee-issue", icon: UserRound, label: "Assets Employee Issue", end: false },
       { to: "/assets-employee-return", icon: RotateCcw, label: "Assets Employee Return", end: false },
       { to: "/assets-department-issue", icon: Building2, label: "Assets Department Issue", end: false },

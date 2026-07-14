@@ -27,12 +27,8 @@ export function resolveListRecordId(row) {
     row.AstDeptIssID ??
     row.asthealstamstid ??
     row.AstHealStaMstID ??
-    row.astwrtoffmstid ??
-    row.AstWrtOffMstID ??
-    row.astcliallomstid ??
-    row.AstCliAlloMstID ??
-    row.mntcomplmstid ??
-    row.MntComplMstID ??
+    row.astwriteoffid ??
+    row.AstWriteOffID ??
     row.IDNUMBER ??
     row.IDNumber ??
     row.idnumber ??
@@ -135,7 +131,7 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
 }
 
 /**
- * Standard Edit action column for module list pages.
+ * Single combined Action column (Edit + Delete under one "Action" header) for module list pages.
  */
 export function createListActionsColumn({
   navigate,
@@ -144,16 +140,17 @@ export function createListActionsColumn({
   deleteClassName = "list__edit-btn list__edit-btn--delete",
 }) {
   return {
-    key: "_action_edit",
-    label: "Edit",
+    key: "_actions",
+    label: "Action",
     isAction: true,
-    actionType: "edit",
-    width: "56px",
-    minWidth: 56,
+    actionType: "actions",
+    width: "84px",
+    minWidth: 84,
     align: "center",
     filterable: false,
-    actionClassName: editClassName,
-    getActionMeta: (row) => {
+    editClassName,
+    deleteClassName,
+    getEditMeta: (row) => {
       const id = resolveListRecordId(row);
       return {
         id,
@@ -163,21 +160,7 @@ export function createListActionsColumn({
         navigateState: { record: row },
       };
     },
-  };
-}
-
-export function createListDeleteColumn({ className = "list__edit-btn list__edit-btn--delete" }) {
-  return {
-    key: "_action_delete",
-    label: "Delete",
-    isAction: true,
-    actionType: "delete",
-    width: "64px",
-    minWidth: 64,
-    align: "center",
-    filterable: false,
-    actionClassName: className,
-    getActionMeta: (row) => {
+    getDeleteMeta: (row) => {
       const id = resolveListRecordId(row);
       return {
         id,
@@ -188,13 +171,17 @@ export function createListDeleteColumn({ className = "list__edit-btn list__edit-
   };
 }
 
-/** API data columns + Edit/Delete action columns. */
+/** API data columns + a single combined Action (Edit + Delete) column. */
 export function buildListPageColumns(rows, { navigate, basePath, editBtnClass, deleteBtnClass }) {
   const dataColumns = buildListColumnsFromRows(rows);
   if (dataColumns.length === 0) return [];
   return [
     ...dataColumns,
-    createListActionsColumn({ navigate, basePath, editClassName: editBtnClass }),
-    createListDeleteColumn({ className: deleteBtnClass }),
+    createListActionsColumn({
+      navigate,
+      basePath,
+      editClassName: editBtnClass,
+      deleteClassName: deleteBtnClass,
+    }),
   ];
 }
