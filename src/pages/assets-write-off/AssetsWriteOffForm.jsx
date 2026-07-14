@@ -52,22 +52,6 @@ import "./AssetsWriteOffPage.css";
 let _awoTempId = -1;
 const nextTempId = () => _awoTempId--;
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AWO_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:
-      listRecord?.astwrtoffmstid
-      ?? listRecord?.AstWrtOffMstID
-      ?? listRecord?.idnumber
-      ?? listRecord?.IDNumber
-      ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   const str = (v) => (v == null || v === "" ? "" : String(v));
@@ -82,15 +66,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     frmtype: str(headerValues.frmtype ?? AWO_CONFIG.FRM_TYPE),
     issuetypeid: str(headerValues.issuetypeid ?? AWO_CONFIG.ISSUE_TYPE_ID),
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function buildGridRow(source, allColumns) {
@@ -155,9 +130,9 @@ export default function AssetsWriteOffForm() {
     frmtype: AWO_CONFIG.FRM_TYPE,
     issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AWO_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AWO_CONFIG.RB_MASTER,
   }));
@@ -500,19 +475,17 @@ export default function AssetsWriteOffForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const buildDefaultHeaderValues = useCallback(() => ({
+  const buildDefaultHeaderValues = useCallback(() => applyAwoHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
-    divisionid: 0,
-    fromlocid: 0,
-    accountid: 0,
-    profitlossactid: 0,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    fromlocationid: 0,
     remarks: "",
-    totalpurvalue: 0,
-    totalrevvalue: 0,
-    totaldepvalue: 0,
-    totalcurrbookvalue: 0,
-    funccode: AWF_CONFIG.RB_MASTER,
+    configid: 0,
+    frmtype: AWO_CONFIG.FRM_TYPE,
+    issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
+    funccode: AWO_CONFIG.RB_MASTER,
     tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
@@ -521,7 +494,7 @@ export default function AssetsWriteOffForm() {
   }), [todayISO]);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
-    storageKeys: [AWF_CONFIG.STORAGE_HEADER_META, AWF_CONFIG.STORAGE_ENTRY_META],
+    storageKeys: [AWO_CONFIG.STORAGE_HEADER_META, AWO_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
     queuedRowsRef,
@@ -542,8 +515,6 @@ export default function AssetsWriteOffForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
-    setGridRows,
-    extraClearFns: [clearLocationOptions, clearAssetsAccOptions, clearProfitLossAccOptions],
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
@@ -568,7 +539,7 @@ export default function AssetsWriteOffForm() {
     });
     mstRow.frmtype = AWO_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = AWO_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
@@ -626,9 +597,9 @@ export default function AssetsWriteOffForm() {
       issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
       funccode: AWO_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AWO_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];

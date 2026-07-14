@@ -59,6 +59,9 @@ export function pivotQuotationRows(flatRows = []) {
       // selection status back to the backend (see PurchaseQuotationComparisonPage
       // handleSave). Falls back to a composite key only if genuinely absent.
       qtndetid: firstDefined(row, ["qtndetid", "qtnmstid"]),
+      // Prior save's selection status, so a re-opened comparison shows the
+      // previously chosen supplier per item instead of starting blank.
+      isselected: Number(firstDefined(row, ["isselected", "IsSelected"]) ?? 0) === 1,
     });
   });
 

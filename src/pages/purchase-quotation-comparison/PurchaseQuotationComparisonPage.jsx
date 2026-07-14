@@ -84,6 +84,19 @@ export default function PurchaseQuotationComparisonPage() {
   const pivoted = useMemo(() => pivotQuotationRows(comparisonRows), [comparisonRows]);
   const badges = useMemo(() => computeComparisonBadges(pivoted), [pivoted]);
 
+  // Seed selections from the API's own isselected flag whenever fresh
+  // comparison data loads, so a previously-saved comparison reopens with its
+  // chosen supplier per item already checked instead of starting blank.
+  useEffect(() => {
+    const initial = {};
+    pivoted.cells.forEach((cell, key) => {
+      if (!cell.isselected) return;
+      const [itemId, supplierId] = key.split("::");
+      initial[itemId] = supplierId;
+    });
+    setSelections(initial);
+  }, [pivoted]);
+
   const handleSelect = useCallback((itemId, supplierId) => {
     setSelections((prev) => ({ ...prev, [itemId]: supplierId }));
   }, []);

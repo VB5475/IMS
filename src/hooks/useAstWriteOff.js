@@ -19,9 +19,9 @@ import {
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AWO_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -123,23 +123,23 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  const divisionFetchJson = useCallback(
-    () => JSON.stringify([{
-      prmuserid: DEFAULT_LOGIN_ID,
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmyearid: AWO_CONFIG.DIVISION_YEAR_ID,
-    }]),
-    []
-  );
+  const divisionFetchJson = useCallback(() => {
+    const session = getUserSession();
+    return JSON.stringify([{
+      prmuserid: session.loginId,
+      prmcompanyid: session.companyId,
+      prmyearid: session.yearId,
+    }]);
+  }, []);
 
-  const locationFetchJson = useCallback(
-    () => JSON.stringify([{
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmloginid: DEFAULT_LOGIN_ID,
+  const locationFetchJson = useCallback(() => {
+    const session = getUserSession();
+    return JSON.stringify([{
+      prmcompanyid: session.companyId,
+      prmloginid: session.loginId,
       prmlocationtype: "",
-    }]),
-    []
-  );
+    }]);
+  }, []);
 
   const fetchFromDivisions = useCallback(async () => {
     try {
@@ -186,14 +186,15 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
       return [];
     }
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AWO_CONFIG.SP_CONFIG,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
+          prmcompanyid: session.companyId,
           prmdivisionid: resolvedDivisionId,
-          prmyearid: AWO_CONFIG.CONFIG_YEAR_ID,
-          prmuserid: DEFAULT_LOGIN_ID,
+          prmyearid: session.yearId,
+          prmuserid: session.loginId,
           prmformtag: AWO_CONFIG.CONFIG_FORM_TAG,
           prmreftype: AWO_CONFIG.CONFIG_REF_TYPE,
           prmref_mstid: 0,

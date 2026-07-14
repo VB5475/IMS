@@ -152,7 +152,7 @@ export function createListActionsColumn({
     minWidth: 56,
     align: "center",
     filterable: false,
-    actionClassName: className,
+    actionClassName: editClassName,
     getActionMeta: (row) => {
       const id = resolveListRecordId(row);
       return {
@@ -194,7 +194,7 @@ export function buildListPageColumns(rows, { navigate, basePath, editBtnClass, d
   if (dataColumns.length === 0) return [];
   return [
     ...dataColumns,
-    createListEditColumn({ navigate, basePath, className: editBtnClass }),
+    createListActionsColumn({ navigate, basePath, editClassName: editBtnClass }),
     createListDeleteColumn({ className: deleteBtnClass }),
   ];
 }

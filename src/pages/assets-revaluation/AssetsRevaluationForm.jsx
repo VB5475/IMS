@@ -152,9 +152,9 @@ export default function AssetsRevaluationForm() {
     frmtype: ARV_CONFIG.FRM_TYPE,
     issuetypeid: ARV_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: ARV_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: ARV_CONFIG.RB_MASTER,
   }));
@@ -436,7 +436,7 @@ export default function AssetsRevaluationForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -501,12 +501,12 @@ export default function AssetsRevaluationForm() {
     });
     mstRow.frmtype = ARV_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = ARV_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -556,9 +556,9 @@ export default function AssetsRevaluationForm() {
       issuetypeid: ARV_CONFIG.ISSUE_TYPE_ID,
       funccode: ARV_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: ARV_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];

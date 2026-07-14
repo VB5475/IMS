@@ -1,4 +1,4 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -83,18 +83,15 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildArvItemPickerJsonPayload(
   headerValues,
-  {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = ARV_CONFIG.CONFIG_YEAR_ID,
-  } = {}
+  { companyId, loginId, yearId } = {}
 ) {
+  const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
 
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || ARV_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || session.loginId,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || session.yearId,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: fromDivisionId,
     prmtodivisionid: pickHeaderInt(headerValues, "todivisionid", "ToDivisionID") || fromDivisionId,
@@ -114,18 +111,19 @@ export function buildArvItemPickerJsonPayload(
 }
 
 export function buildArvListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = ARV_CONFIG.CONFIG_YEAR_ID,
+  companyId,
+  loginId,
+  yearId,
   fromDate,
   toDate,
   fromDivisionId = ARV_CONFIG.LIST_FROM_DIVISION_ID,
 } = {}) {
+  const session = getUserSession();
   const year = new Date().getFullYear();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || ARV_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId) || session.loginId,
+    prmyearid: Number(yearId) || session.yearId,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmfromdivisionid: Number(fromDivisionId) || 0,

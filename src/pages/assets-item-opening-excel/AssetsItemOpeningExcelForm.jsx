@@ -19,9 +19,9 @@ import { useApi } from "../../api/useApi";
 import {
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
   getColDefault,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -197,7 +197,7 @@ export default function AssetsItemOpeningExcelForm() {
       allColumns.forEach(({ key, colDataType }) => {
         row[key] = getColDefault(colDataType);
       });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
