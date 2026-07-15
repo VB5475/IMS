@@ -5,6 +5,12 @@ export const PAGE_TITLE_NEW = "New Company Act Depreciation";
 
 // Values aligned to MRD_Template4Depriciation.docx (Richa, 16-Jun-2026).
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const DPC_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const DPC_REMARK_COLUMNS = new Set(["remark"]);
+
 export const DPC_CONFIG = {
   // RB board codes (MRD § 5.1)
   RB_MASTER:      "rb_astdepcamst",

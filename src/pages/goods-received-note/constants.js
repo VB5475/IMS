@@ -50,6 +50,12 @@ export { CURRENCY_READONLY_FIELDS as GRN_READONLY_FIELDS };
 
 
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const GRN_MULTI_PASTE_COLUMNS = new Set(["batchnosrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const GRN_REMARK_COLUMNS = new Set(["remarks"]);
+
 export const GRN_CONFIG = {
 
   ...PURCHASE_API,

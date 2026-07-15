@@ -1,11 +1,11 @@
-// SupplierMasterForm.jsx
-// Supplier Master entry form — modal (Add / Edit), matching CompanyForm.jsx's
-// two-column sectioned Master-form layout (not tabs): Main + Contacts stack on
-// the left, Transporter Detail + TDS Deduction + Bank Information stack on the
-// right, and Consignee Detail is the only remaining data grid, full-width below.
+// CustomerMasterForm.jsx
+// Customer Master entry form — clone of SupplierMasterForm.jsx. Customer and
+// Supplier share the exact same backend RB codes/SPs/layout (see
+// customer-master/constants.js); the only functional difference is the
+// prmmode discriminator ("C" here vs "S" for Supplier) sent on save.
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { AlertCircle, Save, Pencil, Truck, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Save, Pencil, UserCheck, Plus, Trash2 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import EntryGrid from "../../components/grid/EntryGrid";
 import AlertPanel from "../../components/ui/AlertPanel";
@@ -30,20 +30,20 @@ import {
   isMasterToggleField,
 } from "../../utils/masterFormUtils";
 import {
-  SM_CONFIG,
-  SM_FORM_LAYOUT,
-  SM_CHECKBOX_OVERRIDE_FIELDS,
-  resolveSmLayoutField,
-  getSmLayoutFieldNames,
+  CM_CONFIG,
+  CM_FORM_LAYOUT,
+  CM_CHECKBOX_OVERRIDE_FIELDS,
+  resolveCmLayoutField,
+  getCmLayoutFieldNames,
   MODAL_TITLE_ADD,
   MODAL_TITLE_EDIT,
   MODAL_SUBTITLE,
   controlTypeMap,
 } from "./constants";
-import "./SupplierMasterPage.css";
+import "../supplier-master/SupplierMasterPage.css";
 
-let _smTempId = -1;
-const nextTempId = () => _smTempId--;
+let _cmTempId = -1;
+const nextTempId = () => _cmTempId--;
 
 function isTdsChecked(values) {
   const v = values?.tds;
@@ -58,9 +58,7 @@ function buildFieldMap(headerColumns) {
   const map = {};
   headerColumns.forEach((f) => {
     if (!f.colname) return;
-    // "tds" is a Textbox in the live RB but the MRD requires it as a checkbox
-    // gate — same override pattern as ItemMasterForm's CHECKBOX_OVERRIDES.
-    if (SM_CHECKBOX_OVERRIDE_FIELDS.has(f.colname)) {
+    if (CM_CHECKBOX_OVERRIDE_FIELDS.has(f.colname)) {
       map[f.colname] = { ...f, colctrltype: controlTypeMap.CHECKBOX };
     } else {
       map[f.colname] = f;
@@ -71,11 +69,11 @@ function buildFieldMap(headerColumns) {
 
 function resolveLayoutRows(rows, fieldMap) {
   return rows
-    .map((row) => row.map((name) => resolveSmLayoutField(fieldMap, name)).filter(Boolean))
+    .map((row) => row.map((name) => resolveCmLayoutField(fieldMap, name)).filter(Boolean))
     .filter((row) => row.length > 0);
 }
 
-export default function SupplierMasterForm({
+export default function CustomerMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
   headerColumns = [], headerFetching = false, headerError = null,
   detailColumns = [], detailAllColumns = [], detailFetching = false, detailError = null,
@@ -99,22 +97,19 @@ export default function SupplierMasterForm({
   const fieldMap = useMemo(() => buildFieldMap(headerColumns), [headerColumns]);
 
   const layout = useMemo(() => ({
-    mainRows: resolveLayoutRows(SM_FORM_LAYOUT.left.main.rows, fieldMap),
-    transporterRows: resolveLayoutRows(SM_FORM_LAYOUT.right.transporter.rows, fieldMap),
-    tdsRows: resolveLayoutRows(SM_FORM_LAYOUT.right.tds.rows, fieldMap),
-    bankRows: resolveLayoutRows(SM_FORM_LAYOUT.right.bank.rows, fieldMap),
-    contactRows: resolveLayoutRows(SM_FORM_LAYOUT.right.contact.rows, fieldMap),
+    mainRows: resolveLayoutRows(CM_FORM_LAYOUT.left.main.rows, fieldMap),
+    transporterRows: resolveLayoutRows(CM_FORM_LAYOUT.right.transporter.rows, fieldMap),
+    tdsRows: resolveLayoutRows(CM_FORM_LAYOUT.right.tds.rows, fieldMap),
+    bankRows: resolveLayoutRows(CM_FORM_LAYOUT.right.bank.rows, fieldMap),
+    contactRows: resolveLayoutRows(CM_FORM_LAYOUT.right.contact.rows, fieldMap),
   }), [fieldMap]);
 
   // Ordered list of visible fields for validation (from layout definition)
   const visibleFields = useMemo(() => {
-    const names = new Set(getSmLayoutFieldNames(fieldMap));
+    const names = new Set(getCmLayoutFieldNames(fieldMap));
     return headerColumns.filter((f) => names.has(f.colname));
   }, [fieldMap, headerColumns]);
 
-  // Dropdown options keyed by lowercase colname — same source as before,
-  // just fed through MasterFormField's `options` prop instead of
-  // EnterpriseFilterPanel's `staticFilters`.
   const dropdownOptions = useMemo(() => ({
     catrgoryid: categoryOptions,
     accountgroupid: accountGroupOptions,
@@ -144,7 +139,7 @@ export default function SupplierMasterForm({
       yearid: session.yearId,
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
-      funccode: SM_CONFIG.RB_MASTER,
+      funccode: CM_CONFIG.RB_MASTER,
       idnumber: recordId || 0,
     };
   }, [headerColumns, recordId, session.companyId, session.yearId, session.loginId]);
@@ -193,7 +188,7 @@ export default function SupplierMasterForm({
         }
       })
       .catch((err) => {
-        console.error("[SM] loadEditRecord failed:", err);
+        console.error("[CM] loadEditRecord failed:", err);
         setRecordLoadError(err?.message || "Failed to load record.");
       })
       .finally(() => setRecordLoading(false));
@@ -304,12 +299,8 @@ export default function SupplierMasterForm({
     consigneeGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  // Consignee grid's own Country → State → City cascade. EntryGrid's dropdown
-  // options are column-level, not per-row, so this refreshes the shared
-  // stateOptions/cityOptions to match whichever row's Country/State was most
-  // recently changed — a known simplification (rows editing different
-  // countries simultaneously will momentarily see the last-changed row's
-  // list) rather than a true per-row filtered option set.
+  // Consignee grid's own Country → State → City cascade — same known
+  // simplification as Supplier Master's (see useSupplierMaster.js).
   const prevConsigneeRowsRef = useRef([]);
   const handleConsigneeRowsChange = useCallback((rows) => {
     const prev = prevConsigneeRowsRef.current;
@@ -359,11 +350,9 @@ export default function SupplierMasterForm({
       sessionid: DEFAULT_SESSION_ID,
     });
 
-    // autogenid: 0 for a newly-added row (grid id is a negative nextTempId()
-    // placeholder), the real backend row id for an existing consignee loaded
-    // on edit (grid id was seeded from compuniquekey/idnumber — see
-    // useSupplierMaster.js fetchEditRecord). Per-row, so it can't live in the
-    // shared extraFields bag below — merged into `rest` before column-building.
+    // autogenid: 0 for a newly-added row, the real backend row id for an
+    // existing consignee loaded on edit — same pattern as Supplier Master's
+    // save (see SupplierMasterForm.jsx for the full rationale).
     const consigneeSaveRows = consigneeRows.map(({ id, ...rest }) => {
       const rawId = Number(id);
       const autogenid = Number.isFinite(rawId) && rawId > 0 ? rawId : 0;
@@ -372,17 +361,14 @@ export default function SupplierMasterForm({
         sessionid: DEFAULT_SESSION_ID,
       });
     });
-    console.log("payload of SM");
-    console.log("mstRow",mstRow);
-    console.log("consigneeSaveRows",consigneeSaveRows);
 
     const payload = withSaveContextFields(
       buildSaveJsonFields({
-        label: SM_CONFIG.FORM_TAG,
+        label: CM_CONFIG.FORM_TAG,
         mst: mstRow,
         extra: {
           prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows),
-          prmmode: SM_CONFIG.CUSTOMER_SUPPLIER_MODE,
+          prmmode: CM_CONFIG.CUSTOMER_SUPPLIER_MODE,
         },
       }),
       { divisionId: 0, isEdit: !isAddMode }
@@ -390,14 +376,14 @@ export default function SupplierMasterForm({
 
     setIsSaving(true);
     try {
-      const result = await post(SM_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await post(CM_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
       onSaved?.();
       return true;
     } catch (err) {
-      console.error("[SM Save] Failed:", err);
+      console.error("[CM Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
@@ -456,7 +442,7 @@ export default function SupplierMasterForm({
       onClose={handleClose}
       title={isAddMode ? MODAL_TITLE_ADD : MODAL_TITLE_EDIT}
       subtitle={MODAL_SUBTITLE}
-      icon={<Truck size={16} strokeWidth={2} />}
+      icon={<UserCheck size={16} strokeWidth={2} />}
       size="xl"
       variant="enterprise"
       dialogClassName="modal-dialog--supplier"
@@ -488,25 +474,25 @@ export default function SupplierMasterForm({
               </div>
               <div className="sm-form-layout__right">
                 <section className="sm-form-section sm-form-section--transporter">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.transporter.title}</h3>
+                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.transporter.title}</h3>
                   <div className="sm-form-section__body">
                     {renderPanelBody(layout.transporterRows, "transporter")}
                   </div>
                 </section>
                 <section className="sm-form-section sm-form-section--tds">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.tds.title}</h3>
+                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.tds.title}</h3>
                   <div className="sm-form-section__body">
                     {renderPanelBody(layout.tdsRows, "tds")}
                   </div>
                 </section>
                 <section className="sm-form-section sm-form-section--bank">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.bank.title}</h3>
+                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.bank.title}</h3>
                   <div className="sm-form-section__body">
                     {renderPanelBody(layout.bankRows, "bank")}
                   </div>
                 </section>
                 <section className="sm-form-section sm-form-section--contact">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.contact.title}</h3>
+                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.contact.title}</h3>
                   <div className="sm-form-section__body">
                     {renderPanelBody(layout.contactRows, "contact")}
                   </div>

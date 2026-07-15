@@ -5,6 +5,12 @@ export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Client Allocation";
 export const PAGE_TITLE_NEW = "New Assets Client Allocation";
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const ACA_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const ACA_REMARK_COLUMNS = new Set(["remark"]);
+
 export const ACA_CONFIG = {
   RB_MASTER: "rb_astcliallomst",
   DELETE_PROC_NAME: "pr_rb_astcliallomst_delete",

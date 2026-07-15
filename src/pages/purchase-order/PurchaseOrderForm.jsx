@@ -51,6 +51,7 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PO_CONFIG,
+  PO_REMARK_COLUMNS,
   PO_GRID_TABS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
@@ -933,10 +934,6 @@ export default function PurchaseOrderForm() {
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
-  const handleDocument = useCallback(() => {
-    console.log("[PO] Document F6 — reserved for document generation.");
-  }, []);
-
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy = headerFetching || isLoadingPoTypes;
 
@@ -956,14 +953,6 @@ export default function PurchaseOrderForm() {
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const poExtraButtons = useMemo(
     () => [
-      {
-        key: "document",
-        label: "Document F6",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleDocument,
-      },
-      { key: "sep1", separator: true },
       {
         key: "saveprint",
         label: "Save & Print",
@@ -986,7 +975,7 @@ export default function PurchaseOrderForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingPO, handleSave]
+    [handleSaveAndPrint, isSavingPO, handleSave]
   );
 
   const itemGridConfig = {
@@ -1142,6 +1131,7 @@ export default function PurchaseOrderForm() {
             childColumns={childColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            remarkModalColumns={PO_REMARK_COLUMNS}
           />
         </div>
 

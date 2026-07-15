@@ -27,11 +27,11 @@ import { UDR_CONFIG } from "./constants";
 function buildSaveContext() {
   const session = getUserSession();
   return {
-    CompanyID: session.companyId,
-    YearID: session.yearId,
-    LoginID: session.loginId,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: UDR_CONFIG.RB_MASTER,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    funccode: UDR_CONFIG.RB_MASTER,
   };
 }
 

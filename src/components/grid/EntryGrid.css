@@ -908,6 +908,73 @@
   height: auto;
 }
 
+/* ── Remark cell (icon opens paste-friendly modal) ── */
+.cell-remark {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cell-remark__text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.cell-remark__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.cell-remark__icon:hover {
+  border-color: var(--border-dark);
+  background: var(--surface);
+  color: var(--primary);
+}
+
+.cell-remark-modal__textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.cell-remark-modal__textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.cell-remark-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: none;
+  padding: 0;
+}
+
 /* ── Checkbox ── */
 .cell-checkbox {
   display: flex;

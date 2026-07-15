@@ -37,6 +37,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AST_CONFIG,
+  AST_MULTI_PASTE_COLUMNS,
+  AST_REMARK_COLUMNS,
   AST_GRID_TABS,
   AST_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -285,6 +287,14 @@ export default function AssetsStockTransferForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -765,6 +775,9 @@ export default function AssetsStockTransferForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AST_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AST_REMARK_COLUMNS}
           />
         </div>
       </section>

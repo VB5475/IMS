@@ -25,6 +25,9 @@ export { INDENT_DETAILS_COLUMNS };
 export { DEFAULT_BASED_ON_FILTER_VALUES as PI_FILTER_INITIAL_VALUES };
 export const PI_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const PI_REMARK_COLUMNS = new Set(["remarks"]);
+
 export const PI_CONFIG = {
   ...PURCHASE_API,
   SP_INQUIRY_TYPES: PURCHASE_API.SP_CONFIG_TYPES,

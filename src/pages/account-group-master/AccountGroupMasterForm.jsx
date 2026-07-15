@@ -30,11 +30,11 @@ import "./AccountGroupMasterPage.css";
 function buildSaveContext() {
   const session = getUserSession();
   return {
-    CompanyID: session.companyId,
-    YearID: session.yearId,
-    LoginID: session.loginId,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: AGM_CONFIG.RB_MASTER,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    funccode: AGM_CONFIG.RB_MASTER,
   };
 }
 

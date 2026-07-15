@@ -47,6 +47,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   IND_CONFIG,
+  IND_MULTI_PASTE_COLUMNS,
+  IND_REMARK_COLUMNS,
   IND_GRID_TABS,
   IND_FILTER_CASCADE_RESETS,
   PAGE_TITLE,
@@ -313,6 +315,14 @@ export default function PurchaseIndentForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
@@ -768,6 +778,9 @@ export default function PurchaseIndentForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={IND_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={IND_REMARK_COLUMNS}
           />
         </div>
       </section>

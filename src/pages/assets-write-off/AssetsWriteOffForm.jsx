@@ -39,6 +39,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AWF_CONFIG,
+  AWF_MULTI_PASTE_COLUMNS,
+  AWF_REMARK_COLUMNS,
   AWF_GRID_TABS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
@@ -278,6 +280,14 @@ export default function AssetsWriteOffForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid: divisionOptions,
@@ -751,6 +761,9 @@ export default function AssetsWriteOffForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AWF_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AWF_REMARK_COLUMNS}
           />
         </div>
       </section>

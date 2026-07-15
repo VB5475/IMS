@@ -28,6 +28,9 @@ export { TERMS_COLUMNS };
 export const QTN_READONLY_FIELDS = ["currencyname", "currencyrate"];
 export { DEFAULT_BASED_ON_FILTER_VALUES as QTN_FILTER_INITIAL_VALUES };
 
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const QTN_REMARK_COLUMNS = new Set(["remarks"]);
+
 export const QTN_CONFIG = {
   ...PURCHASE_API,
   SP_QUOTATION_TYPES: PURCHASE_API.SP_CONFIG_TYPES,

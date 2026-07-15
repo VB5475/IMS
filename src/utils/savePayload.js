@@ -6,6 +6,34 @@ export function getSaveMode(isEdit) {
 }
 
 /**
+ * Collapse same-name keys that differ only by case (e.g. "IDNumber" vs "idnumber")
+ * to a single lowercase-preferring entry. Save SPs read lowercase (PG column
+ * casing) — a stray PascalCase duplicate from upstream header-value spreading
+ * must not reach the wire.
+ */
+function dedupeRowCaseKeys(row) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+  const groups = new Map();
+  for (const [key, value] of Object.entries(row)) {
+    const lower = key.toLowerCase();
+    const existing = groups.get(lower);
+    if (!existing || (key === lower && existing.key !== lower)) {
+      groups.set(lower, { key, value });
+    }
+  }
+  const result = {};
+  groups.forEach(({ key, value }) => {
+    result[key] = value;
+  });
+  return result;
+}
+
+function dedupeRowsCaseKeys(rows) {
+  if (Array.isArray(rows)) return rows.map(dedupeRowCaseKeys);
+  return dedupeRowCaseKeys(rows);
+}
+
+/**
  * Build prmStr*JSON fields from raw row arrays and log the full body before stringify.
  * @param {{ label?: string, mst?: object|object[], det?: object[], indtDet?: object[], supplierDet?: object[], termsDet?: object[], extra?: object }} parts
  * @returns {object} payload fragment with stringified JSON fields
@@ -22,21 +50,21 @@ export function buildSaveJsonFields({
   const rawBody = { ...extra };
 
   if (mst !== undefined) {
-    rawBody.prmStrMstJSON = Array.isArray(mst) ? mst : [mst];
+    rawBody.prmStrMstJSON = dedupeRowsCaseKeys(Array.isArray(mst) ? mst : [mst]);
   }
   if (det !== undefined) {
-    rawBody.prmStrDetJSON = det;
+    rawBody.prmStrDetJSON = dedupeRowsCaseKeys(det);
   }
   if (indtDet !== undefined) {
-    rawBody.prmStrIndtDetJSON = indtDet;
+    rawBody.prmStrIndtDetJSON = dedupeRowsCaseKeys(indtDet);
   }
   // MRD-specified keys for Post_RB_PurInquiryMst_Save — verbatim casing (incl.
   // "TermsNConditiontDet"), confirmed against the SP signature, not a typo fix.
   if (supplierDet !== undefined) {
-    rawBody.prmPurSupplierDetJson = supplierDet;
+    rawBody.prmPurSupplierDetJson = dedupeRowsCaseKeys(supplierDet);
   }
   if (termsDet !== undefined) {
-    rawBody.prmPurTermsNConditiontDetJson = termsDet;
+    rawBody.prmPurTermsNConditiontDetJson = dedupeRowsCaseKeys(termsDet);
   }
 
   console.log(

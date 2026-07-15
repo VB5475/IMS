@@ -6,6 +6,9 @@ export const PAGE_TITLE_NEW = "New CWIP To FA";
 // All RB codes, SP names, IDs, and request defaults for the C2F module.
 // Values aligned to MRD_Template4CWIPToFA.docx (Richa, 16-Jun-2026).
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const C2F_MULTI_PASTE_COLUMNS = new Set(["batchsrno"]);
+
 export const C2F_CONFIG = {
   // RB board codes
   RB_MASTER:      "rb_astcwip2famst",

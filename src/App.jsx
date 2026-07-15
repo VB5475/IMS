@@ -67,6 +67,7 @@ const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetIt
 const AssetsItemOpeningExcelPage = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage"));
 const AssetsItemOpeningExcelForm = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm"));
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
+const CustomerMasterPage = lazy(() => import("./pages/customer-master/CustomerMasterPage"));
 const TrialBalanceDemoPage = lazy(() => import("./pages/trial-balance-demo/TrialBalanceDemoPage"));
 
 function AppLayout() {
@@ -186,6 +187,7 @@ function AppRoutes() {
           <Route path="account/master/asset-item-opening-excel" element={<AssetsItemOpeningExcelPage />} />
           <Route path="account/master/asset-item-opening-excel/new" element={<AssetsItemOpeningExcelForm />} />
           <Route path="admin/master/supplier-master" element={<SupplierMasterPage />} />
+          <Route path="admin/master/customer-master" element={<CustomerMasterPage />} />
           <Route path="admin/user-master" element={<UserMasterPage />} />
           <Route path="admin/user-group" element={<UserGroupPage />} />
           <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />

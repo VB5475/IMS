@@ -61,6 +61,7 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PI_CONFIG,
+  PI_REMARK_COLUMNS,
   PI_HEADER_FILTERS,
   PI_GRID_TABS,
   APPROVED_OPTS,
@@ -1287,10 +1288,6 @@ export default function PurchaseInquiryForm() {
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
-  const handleDocument = useCallback(() => {
-    console.log("[PI] Document F6 — reserved for document generation.");
-  }, []);
-
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
     else if (activeTab === "suppliers") handleSelectSupplier();
@@ -1335,14 +1332,6 @@ export default function PurchaseInquiryForm() {
   const piExtraButtons = useMemo(
     () => [
       {
-        key: "document",
-        label: "Document F6",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleDocument,
-      },
-      { key: "sep1", separator: true },
-      {
         key: "saveprint",
         label: "Save & Print",
         Icon: Printer,
@@ -1364,7 +1353,7 @@ export default function PurchaseInquiryForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingPI, handleSave]
+    [handleSaveAndPrint, isSavingPI, handleSave]
   );
 
   return (
@@ -1507,6 +1496,7 @@ export default function PurchaseInquiryForm() {
             childColumns={childColumns}
             existingRecordEdit={isEditRoute}
             containerClassName="pi-item-entry-grid"
+            remarkModalColumns={PI_REMARK_COLUMNS}
           />
         </div>
 

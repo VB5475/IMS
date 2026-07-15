@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Truck, Plus, Pencil } from "lucide-react";
+import { UserCheck, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { normalizeListRows } from "../../utils/listGridUtils";
-import { useSupplierMaster } from "../../hooks/useSupplierMaster";
-import SupplierMasterForm from "./SupplierMasterForm";
-import { SM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
-import "./SupplierMasterPage.css";
+import { useCustomerMaster } from "../../hooks/useCustomerMaster";
+import CustomerMasterForm from "./CustomerMasterForm";
+import { CM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import "../supplier-master/SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
@@ -17,15 +17,15 @@ function buildListParams() {
   const session = getUserSession();
    const today = formatTranDate(new Date(), { invalidValue: "" });
   return {
-    ObjType: SM_CONFIG.LIST_OBJ_TYPE,
-    ObjName: SM_CONFIG.SP_LIST,
+    ObjType: CM_CONFIG.LIST_OBJ_TYPE,
+    ObjName: CM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
         prmcompanyid: session.companyId,
-        prmdivisionid: SM_CONFIG.LIST_DIVISION_ID,
+        prmdivisionid: CM_CONFIG.LIST_DIVISION_ID,
         prmfromdate: today,
         prmtodate: today,
-        prmmode: SM_CONFIG.CUSTOMER_SUPPLIER_MODE,
+        prmmode: CM_CONFIG.CUSTOMER_SUPPLIER_MODE,
       },
     ]),
     p_ErrCode: -1,
@@ -61,7 +61,7 @@ function buildColumnsFromData(data, onEdit) {
   ];
 }
 
-export default function SupplierMasterPage() {
+export default function CustomerMasterPage() {
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -72,7 +72,7 @@ export default function SupplierMasterPage() {
     currencyOptions, transporterOptions, transporterDestinationOptions,
     deducteeTypeOptions, nopOptions,
     fetchEditRecord,
-  } = useSupplierMaster();
+  } = useCustomerMaster();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,8 +84,8 @@ export default function SupplierMasterPage() {
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title: "Supplier Master",
-    subtitle: "Browse suppliers or create a new one.",
+    title: "Customer Master",
+    subtitle: "Browse customers or create a new one.",
     showBack: true,
     backTo: "/",
   });
@@ -95,23 +95,23 @@ export default function SupplierMasterPage() {
     fetchDetailMeta();
   }, [fetchHeaderMeta, fetchDetailMeta]);
 
-  const fetchSupplierList = useCallback(async () => {
+  const fetchCustomerList = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
       setData(normalizeListRows(json ?? []));
     } catch (err) {
-      console.error("[SupplierMasterPage] list fetch failed:", err);
-      setError("Failed to load suppliers.");
+      console.error("[CustomerMasterPage] list fetch failed:", err);
+      setError("Failed to load customers.");
     } finally {
       setLoading(false);
     }
   }, [get]);
 
   useEffect(() => {
-    fetchSupplierList();
-  }, [fetchSupplierList]);
+    fetchCustomerList();
+  }, [fetchCustomerList]);
 
   const handleAddNew = useCallback(() => {
     setModalMode("add");
@@ -127,8 +127,8 @@ export default function SupplierMasterPage() {
 
   const handleSaved = useCallback(() => {
     setModalOpen(false);
-    fetchSupplierList();
-  }, [fetchSupplierList]);
+    fetchCustomerList();
+  }, [fetchCustomerList]);
 
   const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
@@ -137,19 +137,19 @@ export default function SupplierMasterPage() {
       <section className="sm-list-panel sm-list-panel--compact sm-list-panel--fill">
         <header className="sm-list-panel__header">
           <div className="sm-list-panel__title">
-            <Truck size={14} strokeWidth={2} />
-            <span>Suppliers</span>
+            <UserCheck size={14} strokeWidth={2} />
+            <span>Customers</span>
           </div>
           <div className="sm-list-panel__toolbar">
             <button type="button" className="sm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
-            <label htmlFor="sm-list-page-size" className="sm-list-panel__pagesize-label">
+            <label htmlFor="cm-list-page-size" className="sm-list-panel__pagesize-label">
               Rows per page
             </label>
             <select
-              id="sm-list-page-size"
+              id="cm-list-page-size"
               className="ng-select sm-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
@@ -170,18 +170,18 @@ export default function SupplierMasterPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading suppliers…"
+          loaderText="Loading customers…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No suppliers found."
+          emptyMessage="No customers found."
           hideHeader
           searchable
           fill
         />
       </section>
 
-      <SupplierMasterForm
+      <CustomerMasterForm
         isOpen={modalOpen}
         mode={modalMode}
         recordId={editRecordId}

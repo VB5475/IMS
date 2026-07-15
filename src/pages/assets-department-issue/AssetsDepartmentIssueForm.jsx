@@ -38,6 +38,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ADI_CONFIG,
+  ADI_MULTI_PASTE_COLUMNS,
+  ADI_REMARK_COLUMNS,
   ADI_GRID_TABS,
   ADI_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -293,6 +295,14 @@ export default function AssetsDepartmentIssueForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -775,6 +785,9 @@ export default function AssetsDepartmentIssueForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ADI_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ADI_REMARK_COLUMNS}
           />
         </div>
       </section>

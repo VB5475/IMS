@@ -38,6 +38,8 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ACA_CONFIG,
+  ACA_MULTI_PASTE_COLUMNS,
+  ACA_REMARK_COLUMNS,
   ACA_GRID_TABS,
   ACA_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -303,6 +305,14 @@ export default function AssetsClientAllocationForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -767,6 +777,9 @@ export default function AssetsClientAllocationForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ACA_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ACA_REMARK_COLUMNS}
           />
         </div>
       </section>

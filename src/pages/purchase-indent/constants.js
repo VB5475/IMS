@@ -12,6 +12,12 @@ import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../.
 
 export { formatTranDate as formatIndentTranDate };
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const IND_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const IND_REMARK_COLUMNS = new Set(["remarks"]);
+
 export const IND_CONFIG = {
   ...PURCHASE_API,
   SP_INDENT_TYPES: PURCHASE_API.SP_CONFIG_TYPES,

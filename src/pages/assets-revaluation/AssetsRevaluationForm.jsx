@@ -37,6 +37,8 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ARV_CONFIG,
+  ARV_MULTI_PASTE_COLUMNS,
+  ARV_REMARK_COLUMNS,
   ARV_GRID_TABS,
   ARV_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -295,6 +297,14 @@ export default function AssetsRevaluationForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: divisionOptions,
@@ -731,6 +741,9 @@ export default function AssetsRevaluationForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ARV_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ARV_REMARK_COLUMNS}
           />
         </div>
       </section>

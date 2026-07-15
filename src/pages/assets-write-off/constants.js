@@ -5,6 +5,12 @@ export const PAGE_TITLE_NEW = "New Assets Write Off";
 
 // Values aligned to MRD_Template4AssetsWriteOff.docx (Richa, 16-Jun-2026).
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AWF_MULTI_PASTE_COLUMNS = new Set(["batchsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AWF_REMARK_COLUMNS = new Set(["remark"]);
+
 export const AWF_CONFIG = {
   RB_MASTER: "rb_astwriteoffmst",
   DELETE_PROC_NAME: "pr_rb_astwriteoffmst_delete",

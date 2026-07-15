@@ -40,6 +40,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AER_CONFIG,
+  AER_MULTI_PASTE_COLUMNS,
+  AER_REMARK_COLUMNS,
   AER_GRID_TABS,
   AER_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -297,6 +299,14 @@ export default function AssetsEmployeeReturnForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -793,6 +803,9 @@ export default function AssetsEmployeeReturnForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AER_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AER_REMARK_COLUMNS}
           />
         </div>
       </section>

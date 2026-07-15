@@ -5,6 +5,12 @@ export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Revaluation";
 export const PAGE_TITLE_NEW = "New Assets Revaluation";
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const ARV_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const ARV_REMARK_COLUMNS = new Set(["remark"]);
+
 export const ARV_CONFIG = {
   RB_MASTER: "rb_astrevalmst",
   DELETE_PROC_NAME: "pr_rb_astrevalmst_delete",

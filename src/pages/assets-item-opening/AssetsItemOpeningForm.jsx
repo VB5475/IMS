@@ -45,6 +45,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AOP_CONFIG,
+  AOP_MULTI_PASTE_COLUMNS,
+  AOP_REMARK_COLUMNS,
   AOP_SUMMARY_FIELDS,
   AOP_GRID_TABS,
   AOP_FILTER_CASCADE_RESETS,
@@ -267,6 +269,14 @@ export default function AssetsItemOpeningForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   // ── syncedSummaryFields ───────────────────────────────────────────────────
   const syncedSummaryFields = useMemo(() => {
@@ -639,6 +649,9 @@ export default function AssetsItemOpeningForm() {
             onRowsChange={setGridRows}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={AOP_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AOP_REMARK_COLUMNS}
           />
         </div>
       </section>

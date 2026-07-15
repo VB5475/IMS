@@ -4,6 +4,12 @@ export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Assets Item Opening";
 export const PAGE_TITLE_NEW = "New Assets Item Opening";
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AOP_MULTI_PASTE_COLUMNS = new Set(["batchsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AOP_REMARK_COLUMNS = new Set(["remark"]);
+
 export const AOP_CONFIG = {
   // RB board codes
   RB_MASTER: "rb_astitemopemst",
@@ -56,7 +62,7 @@ export const AOP_FILTER_CASCADE_RESETS = {
 };
 
 // Item Type ID for Item Group SP — ⚠️ DBA CONFIRM
-export const AOP_ITEM_TYPE_ID = 1;
+export const AOP_ITEM_TYPE_ID = 7;
 
 // Item picker required header fields (gate before opening item picker)
 const AOP_ITEM_PICKER_REQUIRED_FIELDS = [

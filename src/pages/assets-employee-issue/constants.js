@@ -7,6 +7,12 @@ export const PAGE_TITLE_NEW = "New Assets Employee Issue";
 
 // Values aligned to MRD_Template4AssetsIssue.docx (Richa, 23-Jun-2026).
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AEI_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AEI_REMARK_COLUMNS = new Set(["remark"]);
+
 export const AEI_CONFIG = {
   RB_MASTER: "rb_astempissmst",
   DELETE_PROC_NAME: "pr_rb_astempissmst_delete",

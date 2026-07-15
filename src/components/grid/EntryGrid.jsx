@@ -27,7 +27,7 @@ import React, {
   lazy,
   Suspense,
 } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, StickyNote } from "lucide-react";
 import GridSearch from "./GridSearch";
 const SearchSelect = lazy(() => import("../ui/SearchSelect"));
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
@@ -35,6 +35,7 @@ const CollapsibleGrid = lazy(() => import("./CollapsibleGrid"));
 const GridDatePicker = lazy(() => import("./GridDatePicker"));
 const GridNumberInput = lazy(() => import("./GridNumberInput"));
 import Loader from "../ui/Loader";
+import Modal from "../ui/Modal";
 import "./EntryGrid.css";
 
 const gridCellLazyFallback = (
@@ -136,6 +137,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     embedded = false, // true → nested in scroll host; parent owns overflow
     multiValuePasteColumns = null, // Set<string> | string[] — column keys that intercept multi-value paste
     onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
+    remarkModalColumns = null, // Set<string> | string[] — column keys that open a paste-friendly remark modal
     searchable = true, // false → hide built-in search bar
   },
   ref
@@ -151,6 +153,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     if (multiValuePasteColumns instanceof Set) return multiValuePasteColumns;
     return new Set(multiValuePasteColumns);
   }, [multiValuePasteColumns]);
+
+  const remarkModalSet = useMemo(() => {
+    if (!remarkModalColumns) return null;
+    if (remarkModalColumns instanceof Set) return remarkModalColumns;
+    return new Set(remarkModalColumns);
+  }, [remarkModalColumns]);
+
+  const [remarkEditor, setRemarkEditor] = useState(null); // { rowId, colKey, colName, value, readOnly }
 
   const { columns, pagination } = config;
   const { pageSize: defaultPageSize = 25, pageSizeOptions = [10, 25, 50, 100] } = pagination || {};
@@ -345,6 +355,20 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const getDropdownLabel = useCallback((col, rawValue, row = null) => {
     return resolveDropdownLabel(col, row, rawValue);
   }, []);
+
+  // ── Remark modal context — identifies the row via its first frozen column ──
+  const remarkContextCol = useMemo(() => columns.find((c) => isColumnFixed(c)) ?? null, [columns]);
+
+  const getRemarkContextLabel = useCallback((row) => {
+    if (!remarkContextCol) return null;
+    const raw =
+      remarkContextCol.controlType === 4
+        ? resolveRowCellValue(row, remarkContextCol)
+        : row[remarkContextCol.key];
+    const label =
+      remarkContextCol.controlType === 4 ? getDropdownLabel(remarkContextCol, raw, row) : raw;
+    return label != null && label !== "" ? String(label) : null;
+  }, [remarkContextCol, getDropdownLabel]);
 
   // ── Search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -588,6 +612,35 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
     const columnMeta = resolveColumnMeta(col);
     const displayValue = formatColumnDisplayValue(value, col);
+
+    // ── Remark columns: truncated preview + icon that opens the paste-friendly modal ──
+    if (remarkModalSet?.has(col.key)) {
+      const remarkText = value == null ? "" : String(value);
+      return (
+        <div className="cell-remark">
+          <span className="cell-remark__text" title={remarkText}>
+            {remarkText || "—"}
+          </span>
+          <button
+            type="button"
+            className="cell-remark__icon"
+            aria-label={`${cellReadOnly ? "View" : "Edit"} ${col.name} for row ${row.id}`}
+            onClick={() =>
+              setRemarkEditor({
+                rowId: row.id,
+                colKey: col.key,
+                colName: col.name,
+                value: remarkText,
+                readOnly: cellReadOnly,
+                contextLabel: getRemarkContextLabel(row),
+              })
+            }
+          >
+            <StickyNote size={14} strokeWidth={2} />
+          </button>
+        </div>
+      );
+    }
 
     // ── Read-only mode: always render as label ──
     if (cellReadOnly) {
@@ -1121,6 +1174,45 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             />
           )}
         </>
+      )}
+
+      {remarkEditor && (
+        <Modal
+          isOpen
+          onClose={() => setRemarkEditor(null)}
+          title={remarkEditor.readOnly ? remarkEditor.colName : `Edit ${remarkEditor.colName}`}
+          subtitle={remarkEditor.contextLabel || undefined}
+          size="sm"
+          footer={
+            remarkEditor.readOnly ? null : (
+              <div className="filter-actions cell-remark-modal__footer">
+                <button type="button" onClick={() => setRemarkEditor(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    handleCellChange(remarkEditor.rowId, remarkEditor.colKey, remarkEditor.value);
+                    setRemarkEditor(null);
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            )
+          }
+        >
+          <textarea
+            className="cell-remark-modal__textarea"
+            value={remarkEditor.value}
+            readOnly={remarkEditor.readOnly}
+            onChange={(e) => setRemarkEditor((prev) => ({ ...prev, value: e.target.value }))}
+            placeholder="Type or paste a remark…"
+            rows={5}
+            autoFocus
+          />
+        </Modal>
       )}
     </div>
   );

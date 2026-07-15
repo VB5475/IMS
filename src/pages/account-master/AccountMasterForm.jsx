@@ -37,11 +37,11 @@ const BANK_DETAIL_COL_FALLBACK = new Set(["bankname", "accountno", "bankaddress"
 function buildSaveContext() {
   const session = getUserSession();
   return {
-    CompanyID: session.companyId,
-    YearID: session.yearId,
-    LoginID: session.loginId,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: AM_CONFIG.RB_MASTER,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    funccode: AM_CONFIG.RB_MASTER,
   };
 }
 

@@ -5,6 +5,12 @@ export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Health Status Updation";
 export const PAGE_TITLE_NEW = "New Assets Health Status Updation";
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AHS_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AHS_REMARK_COLUMNS = new Set(["remark"]);
+
 export const AHS_CONFIG = {
   RB_MASTER: "rb_asthealstamst",
   DELETE_PROC_NAME: "pr_rb_asthealstamst_delete",

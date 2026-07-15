@@ -323,17 +323,15 @@ export function resolveDetailColLinks(payload) {
 
 /** Map master-fill row to header form values with case-insensitive field lookup. */
 export function mapMasterRowToHeaderValues(master, fieldDefs, context = {}) {
-  const idNumber = Number(resolveRowFieldValue(master, "IDNumber") ?? context.idNumber) || 0;
+  // Save SPs read lowercase keys (PG column casing) — emit lowercase only,
+  // a PascalCase duplicate here leaks straight into the save payload.
   const header = {
-    IDNumber: idNumber,
-    // Save SPs read lowercase "idnumber" (PG column casing) — without this the
-    // edit save payload carries only the PascalCase key and the SP defaults to 0.
-    idnumber: idNumber,
-    CompanyID: Number(context.companyId) || 0,
-    YearID: Number(resolveRowFieldValue(master, "YearID") ?? context.yearId) || 0,
-    LoginID: Number(resolveRowFieldValue(master, "LoginID") ?? context.loginId) || 0,
-    SessionID: Number(resolveRowFieldValue(master, "SessionID") ?? context.sessionId) || 0,
-    FuncCode: resolveRowFieldValue(master, "FuncCode") ?? context.funcCode ?? "",
+    idnumber: Number(resolveRowFieldValue(master, "IDNumber") ?? context.idNumber) || 0,
+    companyid: Number(context.companyId) || 0,
+    yearid: Number(resolveRowFieldValue(master, "YearID") ?? context.yearId) || 0,
+    loginid: Number(resolveRowFieldValue(master, "LoginID") ?? context.loginId) || 0,
+    sessionid: Number(resolveRowFieldValue(master, "SessionID") ?? context.sessionId) || 0,
+    funccode: resolveRowFieldValue(master, "FuncCode") ?? context.funcCode ?? "",
   };
 
   getVisibleHeaderFields(fieldDefs).forEach((field) => {

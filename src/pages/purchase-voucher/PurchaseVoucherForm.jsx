@@ -56,6 +56,7 @@ import {
   PV_FILTER_CASCADE_RESETS,
   PV_SUMMARY_FIELDS,
   PV_MULTI_PASTE_COLUMNS,
+  PV_REMARK_COLUMNS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatPVTranDate,
@@ -823,6 +824,7 @@ export default function PurchaseVoucherForm() {
             existingRecordEdit={isEditRoute && isEditMode}
             multiValuePasteColumns={basedOnId === "2" ? PV_MULTI_PASTE_COLUMNS : null}
             onMultiValuePaste={basedOnId === "2" ? handleMultiValuePaste : null}
+            remarkModalColumns={PV_REMARK_COLUMNS}
           />
         </div>
       </section>

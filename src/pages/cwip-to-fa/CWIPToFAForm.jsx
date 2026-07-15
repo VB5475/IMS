@@ -54,6 +54,7 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   C2F_CONFIG,
+  C2F_MULTI_PASTE_COLUMNS,
   C2F_CONV_FACTOR_OPTIONS,
   C2F_SUMMARY_FIELDS,
   C2F_GRID_TABS,
@@ -352,6 +353,14 @@ export default function CWIPToFAForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   // ── syncedSummaryFields — labels from API headerColumns, structure from C2F_SUMMARY_FIELDS ──
   const syncedSummaryFields = useMemo(() => {
@@ -854,6 +863,8 @@ export default function CWIPToFAForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={C2F_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
           />
         </div>
       </section>

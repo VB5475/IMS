@@ -59,6 +59,7 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   QTN_CONFIG,
+  QTN_REMARK_COLUMNS,
   QTN_MASTER,
   QTN_HEADER_FILTERS,
   QTN_GRID_TABS,
@@ -799,10 +800,6 @@ export default function PurchaseQuotationForm() {
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
-  const handleDocument = useCallback(() => {
-    console.log("[PQ] Document F6 — reserved for document generation.");
-  }, []);
-
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
   }, [activeTab, handleSelectItem]);
@@ -837,14 +834,6 @@ export default function PurchaseQuotationForm() {
   const qtnExtraButtons = useMemo(
     () => [
       {
-        key: "document",
-        label: "Document F6",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleDocument,
-      },
-      { key: "sep1", separator: true },
-      {
         key: "saveprint",
         label: "Save & Print",
         Icon: Printer,
@@ -866,7 +855,7 @@ export default function PurchaseQuotationForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave]
+    [handleSaveAndPrint, isSavingQtn, handleSave]
   );
 
   return (
@@ -979,6 +968,7 @@ export default function PurchaseQuotationForm() {
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             existingRecordEdit={isEditRoute}
+            remarkModalColumns={QTN_REMARK_COLUMNS}
           />
         </div>
 

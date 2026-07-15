@@ -302,22 +302,28 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.divisionid != null && master.divisionname) {
-      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
+    // Label fields confirmed live on GetMasterDataFill (fn_tbl_rb_astitemopemst):
+    // division, itemgroup, item, account — not the guessed *name/ac* variants.
+    const divisionLabel = master.division ?? master.divisionname;
+    if (master.divisionid != null && divisionLabel) {
+      setDivisionOptions([{ value: String(master.divisionid), label: divisionLabel }]);
     }
-    if (master.itemgroupid != null && master.itemgroupname) {
-      setItemGroupOptions([{ value: String(master.itemgroupid), label: master.itemgroupname }]);
+    const itemGroupLabel = master.itemgroup ?? master.itemgroupname;
+    if (master.itemgroupid != null && itemGroupLabel) {
+      setItemGroupOptions([{ value: String(master.itemgroupid), label: itemGroupLabel }]);
     }
-    if (master.itemid != null && master.itemname) {
+    const itemLabel = master.item ?? master.itemname;
+    if (master.itemid != null && itemLabel) {
       setItemOptions([{
         value: String(master.itemid),
-        label: String((master.itemcode ? master.itemcode + " | " : "") + (master.itemname ?? "")),
+        label: String((master.itemcode ? master.itemcode + " | " : "") + itemLabel),
       }]);
     }
-    if (master.accountid != null && (master.accountname ?? master.acname)) {
+    const accountLabel = master.account ?? master.accountname ?? master.acname;
+    if (master.accountid != null && master.accountid !== 0 && accountLabel) {
       setAssetsAccOptions([{
         value: String(master.accountid),
-        label: String((master.accode ?? "") + " | " + (master.accountname ?? master.acname ?? "")),
+        label: String((master.accode ?? "") + " | " + accountLabel),
       }]);
     }
   }, []);

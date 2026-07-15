@@ -51,6 +51,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   DPC_CONFIG,
+  DPC_MULTI_PASTE_COLUMNS,
+  DPC_REMARK_COLUMNS,
   DPC_SUMMARY_FIELDS,
   DPC_GRID_TABS,
   DPC_FILTER_CASCADE_RESETS,
@@ -322,6 +324,14 @@ export default function AssetsDepreciationForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   // ── syncedSummaryFields — labels from API headerColumns ───────────────────
   const syncedSummaryFields = useMemo(() => {
@@ -769,6 +779,9 @@ export default function AssetsDepreciationForm() {
             onRowsChange={setGridRows}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={DPC_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={DPC_REMARK_COLUMNS}
           />
         </div>
       </section>

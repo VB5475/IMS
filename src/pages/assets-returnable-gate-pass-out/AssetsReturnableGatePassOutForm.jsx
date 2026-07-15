@@ -38,6 +38,8 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ARGO_CONFIG,
+  ARGO_MULTI_PASTE_COLUMNS,
+  ARGO_REMARK_COLUMNS,
   ARGO_GRID_TABS,
   ARGO_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -291,6 +293,14 @@ export default function AssetsReturnableGatePassOutForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -767,6 +777,9 @@ export default function AssetsReturnableGatePassOutForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ARGO_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ARGO_REMARK_COLUMNS}
           />
         </div>
       </section>

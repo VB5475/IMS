@@ -114,23 +114,34 @@ export function getColDefault(colDataType) {
   return null;
 }
 
+/** Current timestamp in the app's stored-date format (matches dateToStoredValue's "T" shape). */
+function nowStoredValue() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 /**
  * Build a save payload row: seed every column from GET_DETAIL_COL_DATA (incl. hidden),
  * then overlay row values. Empty/null/"" uses getColDefault(ColDataType).
+ * "logdate" is a hidden audit-timestamp column present across RB tables — some save
+ * SPs stamp it server-side, others (e.g. pr_rb_accountmst_save) enforce NOT NULL and
+ * expect the caller to supply it, so it's stamped client-side here rather than left null.
  */
 export function buildSaveRowFromColumns(rest, columnDefs, extraFields = {}) {
   const row = {};
   columnDefs.forEach(({ key, colDataType }) => {
     const raw = rest[key];
     if (raw == null || raw === "") {
-      row[key] = getColDefault(colDataType);
+      row[key] = key.toLowerCase() === "logdate" ? nowStoredValue() : getColDefault(colDataType);
       return;
     }
     const lower = colDataType ? String(colDataType).toLowerCase() : "";
     row[key] = lower && isNumericTypeStr(lower) ? (Number(raw) || 0) : raw;
   });
+  const rowKeysLower = new Set(Object.keys(row).map((k) => k.toLowerCase()));
   Object.entries(rest).forEach(([k, v]) => {
-    if (k === "id" || k in row) return;
+    if (k === "id" || k in row || rowKeysLower.has(k.toLowerCase())) return;
     row[k] = v;
   });
   return { ...row, ...extraFields };

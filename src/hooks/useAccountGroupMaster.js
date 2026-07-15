@@ -23,17 +23,15 @@ function pickCI(obj, key) {
 
 function mapMasterRowToHeaderValues(master, fieldDefs, params) {
   const session = getUserSession();
-  const idNumber = Number(pickCI(master, "IDNumber") ?? params.idNumber) || 0;
+  // Save SP reads lowercase keys (PG column casing) — emit lowercase only,
+  // a PascalCase duplicate here leaks straight into the save payload.
   const header = {
-    IDNumber: idNumber,
-    // Save SP reads lowercase "idnumber" (PG column casing) — without this the
-    // edit save payload carries only the PascalCase key and the SP defaults to 0.
-    idnumber: idNumber,
-    CompanyID: Number(params.companyId) || session.companyId,
-    YearID: Number(pickCI(master, "YearID") ?? params.yearId) || session.yearId,
-    LoginID: Number(pickCI(master, "LoginID") ?? params.loginId) || session.loginId,
-    SessionID: Number(pickCI(master, "SessionID") ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode: pickCI(master, "FuncCode") ?? AGM_CONFIG.RB_MASTER,
+    idnumber: Number(pickCI(master, "IDNumber") ?? params.idNumber) || 0,
+    companyid: Number(params.companyId) || session.companyId,
+    yearid: Number(pickCI(master, "YearID") ?? params.yearId) || session.yearId,
+    loginid: Number(pickCI(master, "LoginID") ?? params.loginId) || session.loginId,
+    sessionid: Number(pickCI(master, "SessionID") ?? params.sessionId) || DEFAULT_SESSION_ID,
+    funccode: pickCI(master, "FuncCode") ?? AGM_CONFIG.RB_MASTER,
   };
 
   getVisibleHeaderFields(fieldDefs).forEach((field) => {

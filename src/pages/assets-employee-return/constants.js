@@ -5,6 +5,12 @@ export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Employee Return";
 export const PAGE_TITLE_NEW = "New Assets Employee Return";
 
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AER_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AER_REMARK_COLUMNS = new Set(["remark"]);
+
 export const AER_CONFIG = {
   RB_MASTER: "rb_astempretmst",
   DELETE_PROC_NAME: "pr_rb_astempretmst_delete",

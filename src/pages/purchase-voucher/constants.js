@@ -213,8 +213,13 @@ export const PV_SHORTCUT_CONFIG = {
 /**
  * Columns that support multi-value paste (Serial Number replication) in Direct mode.
  * Reuse pattern: each module exports its own Set with the relevant column key(s).
+ * Both keys are listed because the live column name differs by backend project —
+ * "batchsrno" on IMS_LIVE, "batchnosrno" on IMS_PGLIVE (verified against GetDetailColData).
  */
-export const PV_MULTI_PASTE_COLUMNS = new Set(["batchnosrno"]);
+export const PV_MULTI_PASTE_COLUMNS = new Set(["batchsrno", "batchnosrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const PV_REMARK_COLUMNS = new Set(["remarks"]);
 
 /** Header fields required before Select Item can be opened */
 export const PV_ITEM_PICKER_JSON_FIELDS = [
