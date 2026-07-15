@@ -6,18 +6,17 @@ export const PAGE_TITLE = "Complaint Register";
 export const PAGE_TITLE_NEW = "New Complaint Register";
 
 export const MCR_CONFIG = {
-  RB_MASTER: "rb_mntcomplmst",
-  DELETE_PROC_NAME: "pr_rb_mntcomplmst_delete",
-  RB_DETAIL: "rb_mntcompldet",
-  RB_ITEM_PICKER: "rb_mntcomplselonly",
+  RB_MASTER: "rb_mntcpnmst",
+  RB_DETAIL: "rb_mntcpndet",
+  RB_ITEM_PICKER: "rb_mntcpnselonly",
 
   MODULE_CODE: "MNT",
-  FORM_TAG: "rb_mntcomplmst",
-  TRAN_BOOK: "HS",
+  FORM_TAG: "rb_mntcpnmst",
+  TRAN_BOOK: "CPN",
   FRM_TYPE: "CPN",
   FRM_TYPE_LABEL: "CPN",
   CONFIG_FORM_TAG: "MNTCLT",
-  CONFIG_REF_TYPE: "HS",
+  CONFIG_REF_TYPE: "CPN",
 
   CONFIG_YEAR_ID: 2,
   DIVISION_YEAR_ID: 2,
@@ -27,15 +26,15 @@ export const MCR_CONFIG = {
   SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
   SP_DEPARTMENT: "fn_gen_fetchdepartmentmaster",
   SP_CONFIG: "fn_tbl_ddl_maintenanceconfiguration",
-  SP_ITEM_PICKER: "fn_tbl_rb_mntcomplselonly",
+  SP_ITEM_PICKER: "fn_tbl_rb_mntcpnselonly",
 
-  SP_MASTER_FILL: "fn_tbl_rb_mntcomplmst",
-  SP_DETAIL_FILL: "fn_tbl_rb_mntcompldet",
+  SP_MASTER_FILL: "fn_tbl_rb_mntcpnmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_mntcpndet",
 
   SAVE_ENDPOINT: "/API/MntComplainMstSave/Post_RB_MntComplainMst_Save",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_mntcomplmst_list",
+  SP_LIST: "fn_tbl_rb_mntcpnmst_list",
   LIST_FROM_DIVISION_ID: 15,
 
   STORAGE_HEADER_META: "mcrHeaderMeta",
@@ -52,7 +51,7 @@ const MCR_ITEM_PICKER_REQUIRED_FIELDS = [
   { keys: ["divisionid", "DivisionID"], label: "Division" },
   { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
   { keys: ["fromlocationid", "FromLocationID"], label: "Location" },
-  { keys: ["deptid", "DeptID"], label: "Department" },
+  { keys: ["fromdeptid", "FromDeptID"], label: "Department" },
   { keys: ["configid", "ConfigID"], label: "Configuration" },
 ];
 
@@ -99,20 +98,14 @@ export function buildMcrItemPickerJsonPayload(
     prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
     prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || MCR_CONFIG.CONFIG_YEAR_ID,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
-    prmfromdivisionid: divisionId,
-    prmtodivisionid: divisionId,
+    prmdivisionid: divisionId,
     prmfromlocationid: pickHeaderInt(headerValues, "fromlocationid", "FromLocationID"),
-    prmtolocationid: pickHeaderInt(headerValues, "fromlocationid", "FromLocationID"),
-    prmfromdeptid: pickHeaderInt(headerValues, "deptid", "DeptID"),
-    prmtodeptid: pickHeaderInt(headerValues, "deptid", "DeptID"),
-    prmfromempuserid: 0,
-    prmtoempuserid: 0,
-    prmfromworkingclientid: 0,
-    prmtoworkingclientid: 0,
-    prmfromvendorid: 0,
-    prmtovendorid: 0,
+    prmtolocationid: 0,
+    prmfromdeptid: pickHeaderInt(headerValues, "fromdeptid", "FromDeptID"),
+    prmtodeptid: 0,
+    prmservicetypeid: 0,
+    prmvendorid: 0,
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
-    prmissuetypeid: 0,
   };
 }
 
@@ -135,11 +128,12 @@ export function resolveMcrColKey(fieldDefs, ...hints) {
 export function buildMcrCascadeResets(fieldDefs) {
   const division = resolveMcrColKey(fieldDefs, "divisionid");
   const location = resolveMcrColKey(fieldDefs, "fromlocationid");
-  const dept = resolveMcrColKey(fieldDefs, "deptid");
+  const dept = resolveMcrColKey(fieldDefs, "fromdeptid");
   const config = resolveMcrColKey(fieldDefs, "configid");
 
   const resets = {};
   if (division) resets[division] = [location, dept, config].filter(Boolean);
+  if (location) resets[location] = [config].filter(Boolean);
   return resets;
 }
 

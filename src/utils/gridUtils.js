@@ -103,6 +103,8 @@ export function syncHeaderFilterWithApiCol(filter, apiCol, patch = {}) {
     FilterCaption: apiCol?.displayname ?? colName,
     ctrlValueCol: apiCol?.ctrlvaluecol,
     ctrlDisplayCol: apiCol?.ctrldisplaycol,
+    isVisible: apiCol ? isTruthyApiFlag(apiCol.isvisible ?? apiCol.IsVisible) : false,
+    isEditAllow: apiCol ? isTruthyApiFlag(apiCol.iseditallow ?? apiCol.IsEditAllow) : false,
     columnMeta,
     dateMin: dateConstraints?.min ?? null,
     dateMax: dateConstraints?.max ?? null,

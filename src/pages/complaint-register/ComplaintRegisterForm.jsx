@@ -61,8 +61,8 @@ function resolveEditLoadParams(recordId, listRecord) {
     loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
     idNumber:
-      listRecord?.mntcomplmstid
-      ?? listRecord?.MntComplMstID
+      listRecord?.mntcpnmstid
+      ?? listRecord?.MntCpnMstID
       ?? listRecord?.idnumber
       ?? listRecord?.IDNumber
       ?? recordId,
@@ -77,9 +77,10 @@ function mapHeaderValuesToFilterValues(headerValues) {
     trandate: headerValues.trandate ?? "",
     divisionid: str(headerValues.divisionid),
     fromlocationid: str(headerValues.fromlocationid),
-    deptid: str(headerValues.deptid),
+    fromdeptid: str(headerValues.fromdeptid),
     remarks: headerValues.remarks ?? "",
     configid: str(headerValues.configid),
+    callgenbyuser: headerValues.callgenbyuser ?? "",
     frmtype: str(headerValues.frmtype ?? MCR_CONFIG.FRM_TYPE),
   };
 }
@@ -127,7 +128,7 @@ export default function ComplaintRegisterForm() {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, locationOptions, departmentOptions, configOptions,
     fetchLocations, fetchDepartments, fetchConfigOptions,
-    columns, allColumns, eventColumns, isFetching, metaError,
+    columns, allColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
@@ -143,15 +144,20 @@ export default function ComplaintRegisterForm() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
+  const callGenByUser = useMemo(() => {
+    const session = getUserSession();
+    return String(session.userName || session.userId || "");
+  }, []);
 
   const headerValuesRef = useRef(applyMcrHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
     divisionid: 0,
     fromlocationid: 0,
-    deptid: 0,
+    fromdeptid: 0,
     remarks: "",
     configid: 0,
+    callgenbyuser: callGenByUser,
     frmtype: MCR_CONFIG.FRM_TYPE,
     tranmstgenid: 0,
     companyid: DEFAULT_COMPANY_ID,
@@ -165,9 +171,10 @@ export default function ComplaintRegisterForm() {
     if (loadedFilterValues) return loadedFilterValues;
     return {
       trandate: todayISO,
+      callgenbyuser: callGenByUser,
       frmtype: String(MCR_CONFIG.FRM_TYPE),
     };
-  }, [loadedFilterValues, todayISO]);
+  }, [loadedFilterValues, todayISO, callGenByUser]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -299,7 +306,7 @@ export default function ComplaintRegisterForm() {
   const dropdownSources = useMemo(() => ({
     divisionid: divisionOptions,
     fromlocationid: locationOptions,
-    deptid: departmentOptions,
+    fromdeptid: departmentOptions,
     configid: configOptions,
     frmtype: MCR_FRM_TYPE_OPTIONS,
   }), [divisionOptions, locationOptions, departmentOptions, configOptions]);
@@ -371,18 +378,28 @@ export default function ComplaintRegisterForm() {
     if (col === "divisionid") {
       requestGridClear("Division", async () => {
         hv.fromlocationid = 0;
-        hv.deptid = 0;
+        hv.fromdeptid = 0;
         hv.configid = 0;
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
           if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchLocations());
-          if (hasVisibleCol(headerColumns, "deptid")) fetches.push(fetchDepartments());
+          if (hasVisibleCol(headerColumns, "fromdeptid")) fetches.push(fetchDepartments());
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);
         }
       });
       return;
+    }
+
+    if (col === "fromlocationid") {
+      requestGridClear("Location", async () => {
+        hv.configid = 0;
+        itemGridRef.current?.clearRows?.();
+        if (Number(hv.divisionid) > 0 && hasVisibleCol(headerColumns, "configid")) {
+          await fetchConfigOptions(hv.divisionid);
+        }
+      });
     }
   }, [
     requestGridClear,
@@ -405,18 +422,6 @@ export default function ComplaintRegisterForm() {
       setIsGridLoading(false);
     }
   }, [columns, allColumns, fetchGridColumns]);
-
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    const key = String(colKey).toLowerCase();
-    if (key === "qty" || key === "rate") {
-      const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-      const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-      const amount = qty * rate;
-      const patch = { amount };
-      if ("Amount" in rowData) patch.Amount = amount;
-      itemGridRef.current?.updateRow?.(rowId, patch);
-    }
-  }, []);
 
   const handleAddNewItem = useCallback(async () => {
     const activeCols = await ensureItemColumns();
@@ -564,9 +569,10 @@ export default function ComplaintRegisterForm() {
       trandate: todayISO,
       divisionid: 0,
       fromlocationid: 0,
-      deptid: 0,
+      fromdeptid: 0,
       remarks: "",
       configid: 0,
+      callgenbyuser: callGenByUser,
       frmtype: MCR_CONFIG.FRM_TYPE,
       funccode: MCR_CONFIG.RB_MASTER,
       tranmstgenid: 0,
@@ -589,7 +595,7 @@ export default function ComplaintRegisterForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+  }, [callGenByUser, clearSaveError, exitEditMode, todayISO]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -740,8 +746,6 @@ export default function ComplaintRegisterForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Add New or Select Item above."
             onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
