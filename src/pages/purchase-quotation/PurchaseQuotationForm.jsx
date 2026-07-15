@@ -42,13 +42,13 @@ import {
   buildDropdownOptionFromRow,
   editRecordGridColumnOpts,
   isLockOnEditModeCol,
+  isTruthyApiFlag,
   syncEditGridDropdownValues,
   syncHeaderFilterWithApiCol,
   buildHeaderColMap,
   resolveHeaderApiCol,
   syncMasterSummaryFields,
 } from "../../utils/gridUtils";
-import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
@@ -63,8 +63,6 @@ import {
   QTN_MASTER,
   QTN_HEADER_FILTERS,
   QTN_GRID_TABS,
-  QTN_LIST_DROPDOWN_FIELDS,
-  QTN_READONLY_FIELDS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
   QTN_FILTER_CASCADE_RESETS,
@@ -461,18 +459,14 @@ export default function PurchaseQuotationForm() {
     const buildFilterDef = (filter) => {
       const apiCol = resolveHeaderApiCol(filter, apiColMap);
       const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
-      const forceListDropdown = QTN_LIST_DROPDOWN_FIELDS.has(filter.FilterParameterID);
 
       let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
 
       if (apiCol) {
-        def.FilterColCtrlType = forceListDropdown
-          ? controlTypeMap.DROPDOWN
-          : (apiCol.colctrltype ?? filter.FilterColCtrlType);
+        def.FilterColCtrlType = apiCol.colctrltype;
       }
 
-      const isDropdownField =
-        forceListDropdown || def.FilterColCtrlType === controlTypeMap.DROPDOWN;
+      const isDropdownField = apiCol?.colctrltype === 4;
 
       // Edit route — locked dropdowns from GET_MASTER_DATA_FILL; unlocked use list APIs in edit mode
       if (isEditRoute && loadedMasterRow) {
@@ -511,7 +505,11 @@ export default function PurchaseQuotationForm() {
     };
 
     if (headerColumns.length === 0) return [];
-    return QTN_MASTER.headerFields.map(buildFilterDef);
+    return QTN_MASTER.headerFields
+      .filter((filter) =>
+        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+      )
+      .map(buildFilterDef);
   }, [
     headerColumns,
     divisionOptions,
@@ -530,12 +528,8 @@ export default function PurchaseQuotationForm() {
   const filterFieldTones = useMemo(() => {
     const tones = {};
     syncedFilters.forEach((f) => {
-      const alwaysReadOnly =
-        QTN_READONLY_FIELDS.includes(f.FilterColName) ||
-        QTN_READONLY_FIELDS.includes(f.FilterParameterID);
-
       let tone = "editable";
-      if (alwaysReadOnly || !isEditMode) tone = "view";
+      if (!isEditMode) tone = "view";
       else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
 
       tones[f.FilterColName] = tone;

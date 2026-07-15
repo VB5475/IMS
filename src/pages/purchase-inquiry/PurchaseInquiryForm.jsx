@@ -48,6 +48,7 @@ import {
   buildDropdownOptionFromRow,
   editRecordGridColumnOpts,
   isLockOnEditModeCol,
+  isTruthyApiFlag,
   syncEditGridDropdownValues,
   syncHeaderFilterWithApiCol,
   buildHeaderColMap,
@@ -694,7 +695,11 @@ export default function PurchaseInquiryForm() {
     };
 
     if (headerColumns.length === 0) return [];
-    return PI_HEADER_FILTERS.map(buildFilterDef);
+    return PI_HEADER_FILTERS
+      .filter((filter) =>
+        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+      )
+      .map(buildFilterDef);
   }, [
     headerColumns,
     divisionOptions,
