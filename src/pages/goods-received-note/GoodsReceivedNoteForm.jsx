@@ -40,12 +40,12 @@ import {
   buildGridColumns,
   editRecordGridColumnOpts,
   isLockOnEditModeCol,
+  isTruthyApiFlag,
   syncEditGridDropdownValues,
   syncHeaderFilterWithApiCol,
   buildHeaderColMap,
   resolveHeaderApiCol,
 } from "../../utils/gridUtils";
-import { controlTypeMap } from "../../data/dummyData";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
@@ -58,8 +58,6 @@ import {
   GRN_TRANSPORTER_FILTERS,
   GRN_DRIVER_FILTERS,
   GRN_GRID_TABS,
-  GRN_LIST_DROPDOWN_FIELDS,
-  GRN_READONLY_FIELDS,
   APPROVED_OPTS,
   GRN_FILTER_CASCADE_RESETS,
   GRN_FILTER_INITIAL_VALUES,
@@ -520,14 +518,11 @@ export default function GoodsReceivedNoteForm() {
     (filter, apiColMap) => {
       const apiCol = resolveHeaderApiCol(filter, apiColMap);
       const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
-      const forceListDropdown = GRN_LIST_DROPDOWN_FIELDS.has(filter.FilterParameterID);
 
       let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
 
       if (apiCol) {
-        def.FilterColCtrlType = forceListDropdown
-          ? controlTypeMap.DROPDOWN
-          : (apiCol.colctrltype ?? filter.FilterColCtrlType);
+        def.FilterColCtrlType = apiCol.colctrltype;
       }
 
       const staticOptions = DROPDOWN_OPTIONS_BY_COL[filter.FilterParameterID];
@@ -541,28 +536,39 @@ export default function GoodsReceivedNoteForm() {
   const syncedHeaderFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
     const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_HEADER_FILTERS.map((f) => buildFilterDef(f, apiColMap));
+    return GRN_HEADER_FILTERS
+      .filter((filter) =>
+        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+      )
+      .map((filter) => buildFilterDef(filter, apiColMap));
   }, [headerColumns, buildFilterDef]);
 
   const syncedTransporterFilters = useMemo(() => {
+    if (headerColumns.length === 0) return [];
     const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_TRANSPORTER_FILTERS.map((f) => buildFilterDef(f, apiColMap));
+    return GRN_TRANSPORTER_FILTERS
+      .filter((filter) =>
+        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+      )
+      .map((filter) => buildFilterDef(filter, apiColMap));
   }, [headerColumns, buildFilterDef]);
 
   const syncedDriverFilters = useMemo(() => {
+    if (headerColumns.length === 0) return [];
     const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_DRIVER_FILTERS.map((f) => buildFilterDef(f, apiColMap));
+    return GRN_DRIVER_FILTERS
+      .filter((filter) =>
+        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+      )
+      .map((filter) => buildFilterDef(filter, apiColMap));
   }, [headerColumns, buildFilterDef]);
 
   const buildFieldTones = useCallback(
     (filters) => {
       const tones = {};
       filters.forEach((f) => {
-        const alwaysReadOnly =
-          GRN_READONLY_FIELDS.includes(f.FilterColName) ||
-          GRN_READONLY_FIELDS.includes(f.FilterParameterID);
         let tone = "editable";
-        if (alwaysReadOnly || !isEditMode) tone = "view";
+        if (!isEditMode) tone = "view";
         else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
 
         tones[f.FilterColName] = tone;

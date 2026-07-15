@@ -61,7 +61,6 @@ import {
   formatPVTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
-import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseVoucherPage.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
@@ -355,21 +354,22 @@ export default function PurchaseVoucherForm() {
       }
     };
 
-    if (headerColumns.length === 0) return PV_HEADER_FILTERS.map(injectOptions);
+    if (headerColumns.length === 0) return [];
 
     const apiColMap = buildHeaderColMap(headerColumns);
 
-    return PV_HEADER_FILTERS.map((filter) => {
-      const withOpts = injectOptions(filter);
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
-      if (!apiCol) return withOpts;
-      const lockOnEditMode = isLockOnEditModeCol(apiCol);
-      const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-      def.FilterColCtrlType = withOpts.FilterColCtrlType === controlTypeMap.LABEL
-        ? controlTypeMap.LABEL
-        : (apiCol.colctrltype ?? withOpts.FilterColCtrlType);
-      return def;
-    });
+    return PV_HEADER_FILTERS
+      .filter((filter) =>
+        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+      )
+      .map((filter) => {
+        const withOpts = injectOptions(filter);
+        const apiCol = resolveHeaderApiCol(filter, apiColMap);
+        const lockOnEditMode = isLockOnEditModeCol(apiCol);
+        const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
+        def.FilterColCtrlType = apiCol.colctrltype;
+        return def;
+      });
   }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
 
   const syncedSummaryFields = useMemo(() => {

@@ -55,17 +55,6 @@ function mapDetailRowsToGridRows(rows) {
   }));
 }
 
-function buildEventColumnSet(apiColumns, fallbackKeys = []) {
-  const set = new Set();
-  apiColumns.forEach((col) => {
-    if (isTruthyApiFlag(col.iseventreq) || isTruthyApiFlag(col.iseventcol)) {
-      set.add(col.colname);
-    }
-  });
-  if (set.size === 0) fallbackKeys.forEach((k) => set.add(k));
-  return set;
-}
-
 function mapDivisionRows(rows) {
   return (rows || []).map((r) => ({
     value: String(r.divisionid ?? r.DivisionID ?? r.fromdivisionid ?? r.FromDivisionID ?? 0),
@@ -82,8 +71,8 @@ function mapLocationRows(rows) {
 
 function mapDeptRows(rows) {
   return (rows || []).map((r) => ({
-    value: String(r.deptid ?? r.DeptID ?? r.departmentid ?? 0),
-    label: String(r.dept ?? r.deptname ?? r.department ?? r.DeptName ?? ""),
+    value: String(r.fromdeptid ?? r.FromDeptID ?? r.deptid ?? r.DeptID ?? r.departmentid ?? 0),
+    label: String(r.fromdept ?? r.FromDept ?? r.dept ?? r.deptname ?? r.department ?? r.DeptName ?? ""),
   }));
 }
 
@@ -122,7 +111,6 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
-  const [eventColumns, setEventColumns] = useState(() => new Set());
   const [isFetching, setIsFetching] = useState(false);
   const [metaError, setMetaError] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -291,7 +279,7 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
       const tasks = [];
       if (hasVisibleCol(cols, "divisionid")) tasks.push(fetchDivisions());
       if (hasVisibleCol(cols, "fromlocationid")) tasks.push(fetchLocations());
-      if (hasVisibleCol(cols, "deptid")) tasks.push(fetchDepartments());
+      if (hasVisibleCol(cols, "fromdeptid")) tasks.push(fetchDepartments());
       await Promise.all(tasks);
     } catch (err) {
       console.error("[MCR] fetchHeaderMeta failed:", err);
@@ -312,9 +300,6 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
-
-      const evtSet = buildEventColumnSet(apiColumns, []);
-      setEventColumns(evtSet);
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
     } catch (err) {
@@ -368,8 +353,8 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
       setLocationOptions
     );
     seedOne(
-      master.deptid ?? master.DeptID,
-      master.dept ?? master.deptname ?? master.department,
+      master.fromdeptid ?? master.FromDeptID ?? master.deptid ?? master.DeptID,
+      master.fromdept ?? master.FromDept ?? master.dept ?? master.deptname ?? master.department,
       setDepartmentOptions
     );
     seedOne(
@@ -394,7 +379,7 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     const tasks = [];
     if (needsCol("divisionid")) tasks.push(fetchDivisions());
     if (needsCol("fromlocationid")) tasks.push(fetchLocations());
-    if (needsCol("deptid")) tasks.push(fetchDepartments());
+    if (needsCol("fromdeptid")) tasks.push(fetchDepartments());
     if (needsCol("configid")) tasks.push(fetchConfigOptions(divId));
     await Promise.all(tasks);
   }, [headerColumns, fetchDivisions, fetchLocations, fetchDepartments, fetchConfigOptions]);
@@ -439,7 +424,6 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     fetchConfigOptions,
     columns,
     allColumns,
-    eventColumns,
     isFetching,
     metaError,
     fetchDetailMeta,

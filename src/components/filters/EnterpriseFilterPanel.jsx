@@ -305,9 +305,12 @@ function FilterTable({
 
   const getFieldTone = useCallback(
     (filter) => {
-      if (fieldTones?.[filter.FilterColName]) return fieldTones[filter.FilterColName];
-      if (fieldTones?.[filter.FilterParameterID]) return fieldTones[filter.FilterParameterID];
-      return "editable";
+      const requestedTone =
+        fieldTones?.[filter.FilterColName] ??
+        fieldTones?.[filter.FilterParameterID] ??
+        "editable";
+      if (requestedTone === "editable" && filter.isEditAllow === false) return "view";
+      return requestedTone;
     },
     [fieldTones]
   );
