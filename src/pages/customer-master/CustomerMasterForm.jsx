@@ -2,7 +2,7 @@
 // Customer Master entry form — clone of SupplierMasterForm.jsx. Customer and
 // Supplier share the exact same backend RB codes/SPs/layout (see
 // customer-master/constants.js); the only functional difference is the
-// prmmode discriminator ("C" here vs "S" for Supplier) sent on save.
+// prmentrytype discriminator ("C" here vs "S" for Supplier) sent on save.
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { AlertCircle, Save, Pencil, UserCheck, Plus, Trash2 } from "lucide-react";
@@ -348,6 +348,7 @@ export default function CustomerMasterForm({
     const mstRow = buildSaveRowFromColumns(formValues, masterColumnDefs, {
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
+      prmentrytype: CM_CONFIG.ENTRY_TYPE,
     });
 
     // autogenid: 0 for a newly-added row, the real backend row id for an
@@ -368,7 +369,6 @@ export default function CustomerMasterForm({
         mst: mstRow,
         extra: {
           prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows),
-          prmmode: CM_CONFIG.CUSTOMER_SUPPLIER_MODE,
         },
       }),
       { divisionId: 0, isEdit: !isAddMode }

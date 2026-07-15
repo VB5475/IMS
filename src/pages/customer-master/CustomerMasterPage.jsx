@@ -25,7 +25,7 @@ function buildListParams() {
         prmdivisionid: CM_CONFIG.LIST_DIVISION_ID,
         prmfromdate: today,
         prmtodate: today,
-        prmmode: CM_CONFIG.CUSTOMER_SUPPLIER_MODE,
+        prmentrytype: CM_CONFIG.ENTRY_TYPE,
       },
     ]),
     p_ErrCode: -1,

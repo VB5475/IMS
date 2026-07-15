@@ -357,6 +357,7 @@ export default function SupplierMasterForm({
     const mstRow = buildSaveRowFromColumns(formValues, masterColumnDefs, {
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
+      prmentrytype: SM_CONFIG.ENTRY_TYPE,
     });
 
     // autogenid: 0 for a newly-added row (grid id is a negative nextTempId()
@@ -382,7 +383,6 @@ export default function SupplierMasterForm({
         mst: mstRow,
         extra: {
           prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows),
-          prmmode: SM_CONFIG.CUSTOMER_SUPPLIER_MODE,
         },
       }),
       { divisionId: 0, isEdit: !isAddMode }

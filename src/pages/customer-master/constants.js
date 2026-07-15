@@ -2,10 +2,11 @@
 //
 // Customer Master and Supplier Master share the exact same backend table,
 // RB codes, and save/list/fill SPs (rb_suppliermst / rb_consigneedet) — the
-// only functional difference is the "prmmode" discriminator ("C" vs "S")
-// sent on save and on the list fetch. CM_CONFIG inherits SM_CONFIG wholesale
-// rather than duplicating RB codes/SP names by hand, so the two modules
-// can't drift out of sync if the shared backend ever changes.
+// only functional difference is the "prmentrytype" discriminator ("C" vs "S")
+// sent as a field on the master row (save) and on the list fetch. CM_CONFIG
+// inherits SM_CONFIG wholesale rather than duplicating RB codes/SP names by
+// hand, so the two modules can't drift out of sync if the shared backend
+// ever changes.
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 import { SM_CONFIG } from "../supplier-master/constants";
 export {
@@ -27,7 +28,7 @@ export const CM_CONFIG = {
 
   FORM_TAG: "CM",
   TRAN_BOOK: "CM",
-  CUSTOMER_SUPPLIER_MODE: "C",
+  ENTRY_TYPE: "C",
 
   // Own storage keys — must not collide with Supplier Master's cached RB meta.
   STORAGE_HEADER_META: "cmHeaderMeta",

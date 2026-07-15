@@ -18,9 +18,10 @@ export const SM_CONFIG = {
   FORM_TAG: "SM",
   TRAN_BOOK: "SM",
 
-  // Customer Master shares this exact table/RB codes/SPs — "S" vs "C" in
-  // prmmode is the only thing that tells the two modules' records apart.
-  CUSTOMER_SUPPLIER_MODE: "S",
+  // Customer Master shares this exact table/RB codes/SPs — "S" vs "C" in the
+  // master row's "prmentrytype" field is the only thing that tells the two
+  // modules' records apart.
+  ENTRY_TYPE: "S",
 
   // ⚠️ CONFIRM with DBA — MRD flagged this as uncertain
   LIST_DIVISION_ID: 15,
