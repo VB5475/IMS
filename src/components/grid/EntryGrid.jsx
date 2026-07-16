@@ -633,6 +633,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                 value: remarkText,
                 readOnly: cellReadOnly,
                 contextLabel: getRemarkContextLabel(row),
+                contextColLabel: remarkContextCol?.name ?? null,
               })
             }
           >
@@ -1181,8 +1182,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           isOpen
           onClose={() => setRemarkEditor(null)}
           title={remarkEditor.readOnly ? remarkEditor.colName : `Edit ${remarkEditor.colName}`}
-          subtitle={remarkEditor.contextLabel || undefined}
+          subtitle={
+            remarkEditor.contextLabel
+              ? `${remarkEditor.contextColLabel ? `${remarkEditor.contextColLabel}: ` : ""}${remarkEditor.contextLabel}`
+              : undefined
+          }
+          icon={<StickyNote size={16} strokeWidth={2} />}
           size="sm"
+          variant="enterprise"
           footer={
             remarkEditor.readOnly ? null : (
               <div className="filter-actions cell-remark-modal__footer">
@@ -1212,6 +1219,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             rows={5}
             autoFocus
           />
+          {!remarkEditor.readOnly && (
+            <div className="cell-remark-modal__counter">{remarkEditor.value.length} characters</div>
+          )}
         </Modal>
       )}
     </div>

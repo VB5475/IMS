@@ -967,6 +967,13 @@
   box-shadow: 0 0 0 2px var(--primary-light);
 }
 
+.cell-remark-modal__counter {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 4px;
+}
+
 .cell-remark-modal__footer {
   display: flex;
   justify-content: flex-end;

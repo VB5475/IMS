@@ -1,39 +1,7 @@
-/* PurchaseQuotationComparisonPage — single-page module */
-
-.pqc-header {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 12px;
-}
-
-.pqc-header__selectors {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.pqc-header__field {
-  min-width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pqc-header__label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.pqc-header__label--required::after {
-  content: " *";
-  color: #dc2626;
-}
+/* PurchaseQuotationComparisonPage — single-page module.
+   Header fields are now EnterpriseFilterPanel (same component/CSS every
+   transaction form uses) — its styling lives in enterprise-filter-query.css,
+   not here. What remains below is this page's own supplementary content. */
 
 .pqc-header__field-error {
   display: inline-flex;
@@ -44,12 +12,22 @@
   margin-top: 2px;
 }
 
-.pqc-header__display-bar {
+.pqc-header__field-error--standalone {
+  margin: -6px 0 12px;
+}
+
+/* Read-only inquiry summary — derived fields shown once an inquiry is
+   picked, deliberately its own box rather than folded into the filter
+   panel's editable field grid (those are inputs, this is read-only output). */
+.pqc-inquiry-details {
   display: flex;
   gap: 24px;
   flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
 }
 
 .pqc-header__display-item {
@@ -64,6 +42,20 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
+}
+
+/* Selection progress strip — same box/label/value language as .pqc-inquiry-details
+   above, kept as its own section since it reflects live grid-selection state,
+   not the loaded inquiry's fixed fields. */
+.pqc-selection-summary {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
 }
 
 .pqc-header__display-value {
@@ -86,47 +78,3 @@
   border-radius: var(--radius);
 }
 
-.pqc-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.pqc-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: var(--radius);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.pqc-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.pqc-btn--secondary {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-secondary);
-}
-
-.pqc-btn--secondary:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.pqc-btn--primary {
-  border: 1px solid var(--primary);
-  background: var(--primary);
-  color: #fff;
-}
-
-.pqc-btn--primary:hover:not(:disabled) {
-  filter: brightness(1.05);
-}

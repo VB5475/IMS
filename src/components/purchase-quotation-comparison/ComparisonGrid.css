@@ -1,4 +1,7 @@
-/* ComparisonGrid — bespoke pivot table for Purchase Quotation Comparison */
+/* ComparisonGrid — bespoke pivot table for Purchase Quotation Comparison.
+   Styled to match .erp-table (EntryGrid) — the same grid family this screen's
+   reference (Purchase Inquiry's Item Grid tab) actually uses — not the
+   list-page EnterpriseDataGrid, which is a visually distinct component. */
 
 .pqc-grid-empty {
   padding: 32px;
@@ -9,11 +12,36 @@
   border-radius: var(--radius);
 }
 
+/* Section title strip — same color language as the EnterpriseFilterPanel
+   banner above it on this page (background: var(--primary)) and every other
+   transaction form's grid section; this grid had no title treatment at all
+   before, unlike every other grid in the app. */
+.pqc-grid-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
 .pqc-grid-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(70vh, 640px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+.pqc-grid-wrap--titled {
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .pqc-grid {
@@ -21,13 +49,17 @@
   border-spacing: 0;
   width: max-content;
   min-width: 100%;
-  font-size: 12px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 0.85rem;
 }
 
 .pqc-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   background: var(--col-base-header-bg);
   color: var(--col-base-header-text);
-  font-size: 10px;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -43,6 +75,8 @@
   padding: 10px 14px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  background: var(--col-base-bg);
+  color: var(--text);
   vertical-align: top;
 }
 
@@ -50,7 +84,7 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  background: var(--surface);
+  background: var(--col-base-bg);
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
 }
 
@@ -91,19 +125,24 @@ thead .pqc-grid__item-col--sticky {
 }
 
 /* ── Body rows ─────────────────────────────────────────────────────── */
+/* Hover token matches .erp-table's row hover (var(--col-base-hover)) instead
+   of an ad-hoc color-mix, so mouseover feels the same as every other grid. */
 
 .pqc-grid tbody tr:hover td:not(.pqc-grid__item-col) {
-  background: color-mix(in srgb, var(--text-secondary) 5%, transparent);
+  background: var(--col-base-hover);
 }
 
 .pqc-grid tbody tr:hover td.pqc-grid__item-col--sticky {
-  background: color-mix(in srgb, var(--text-secondary) 5%, var(--surface));
+  background: var(--col-base-hover);
 }
 
 .pqc-grid__cell {
   padding: 0;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  background: var(--col-base-bg);
+  color: var(--text);
+  font-size: 0.82rem;
   vertical-align: top;
 }
 
@@ -213,10 +252,24 @@ thead .pqc-grid__item-col--sticky {
   color: #166534;
 }
 
-.pqc-grid__badge--overall {
-  background: #dbeafe;
-  color: #1e40af;
+.pqc-grid__badge--best {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pqc-grid__badge-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
   cursor: help;
+  line-height: 0;
 }
 
 .pqc-grid__cell-meta {
@@ -229,30 +282,6 @@ thead .pqc-grid__item-col--sticky {
   margin-top: 2px;
   font-size: 10px;
   color: var(--text-muted);
-}
-
-/* ── Totals footer ─────────────────────────────────────────────────── */
-
-.pqc-grid tfoot td {
-  border-top: 2px solid var(--border);
-  background: var(--col-base-header-bg);
-}
-
-.pqc-grid__total-label {
-  font-weight: 700;
-  padding: 10px 14px;
-}
-
-.pqc-grid__total-sub {
-  font-weight: 400;
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: none;
-}
-
-.pqc-grid__total-cell {
-  vertical-align: middle;
-  padding: 10px 14px;
 }
 
 .pqc-grid__footnote {

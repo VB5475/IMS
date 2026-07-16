@@ -4,18 +4,18 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { FileSpreadsheet, Save, AlertCircle } from "lucide-react";
-import MasterFormField from "../../components/forms/MasterFormField";
-import { getMasterFieldLabel } from "../../utils/masterFormUtils";
+import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import ComparisonGrid from "../../components/purchase-quotation-comparison/ComparisonGrid";
+import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import Loader from "../../components/ui/Loader";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useNotification } from "../../context/NotificationContext";
 import { usePurchaseQuotationComparison } from "../../hooks/usePurchaseQuotationComparison";
-import { pivotQuotationRows, computeComparisonBadges } from "../../utils/comparisonBuilder";
+import { pivotQuotationRows, computeComparisonBadges, computeBestRateBadges } from "../../utils/comparisonBuilder";
 import { exportRowsToExcel } from "../../utils/excelExport";
 import { formatTranDate } from "../../utils/dateFormat";
-import { PAGE_TITLE, PQC_HEADER_FIELDS, PQC_DISPLAY_FIELDS } from "./constants";
+import { PAGE_TITLE, PQC_HEADER_FILTERS, PQC_FILTER_CASCADE_RESETS, PQC_DISPLAY_FIELDS } from "./constants";
 import "./PurchaseQuotationComparisonPage.css";
 
 export default function PurchaseQuotationComparisonPage() {
@@ -56,33 +56,51 @@ export default function PurchaseQuotationComparisonPage() {
     fetchDivisionOptions();
   }, [fetchDivisionOptions]);
 
-  const handleDivisionChange = useCallback(
-    async (val) => {
-      setDivisionId(val);
-      setInquiryId("");
-      setSelections({});
-      clearInquiries();
-      if (val && val !== "0") await fetchInquiryOptions(val);
-    },
-    [fetchInquiryOptions, clearInquiries]
-  );
-
-  const handleInquiryChange = useCallback(
-    async (val) => {
-      setInquiryId(val);
-      setSelections({});
-      if (val && divisionId) {
-        await Promise.all([
-          fetchInquiryDetails(divisionId, val),
-          fetchComparisonRows(divisionId, val),
-        ]);
+  // Single dispatcher for EnterpriseFilterPanel's onFilterChange(colName, val)
+  // contract — same shape every transaction form's header handler uses.
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      if (colName === "divisionid") {
+        setDivisionId(val);
+        setInquiryId("");
+        setSelections({});
+        clearInquiries();
+        if (val && val !== "0") await fetchInquiryOptions(val);
+      } else if (colName === "inqid") {
+        setInquiryId(val);
+        setSelections({});
+        if (val && divisionId) {
+          await Promise.all([
+            fetchInquiryDetails(divisionId, val),
+            fetchComparisonRows(divisionId, val),
+          ]);
+        }
       }
     },
-    [divisionId, fetchInquiryDetails, fetchComparisonRows]
+    [divisionId, fetchInquiryOptions, clearInquiries, fetchInquiryDetails, fetchComparisonRows]
   );
 
   const pivoted = useMemo(() => pivotQuotationRows(comparisonRows), [comparisonRows]);
   const badges = useMemo(() => computeComparisonBadges(pivoted), [pivoted]);
+  const bestRate = useMemo(() => computeBestRateBadges(pivoted), [pivoted]);
+
+  // Selection progress + running cost — surfaced before Save so the user isn't
+  // committing blind. Deliberately not routed through EnterpriseSummaryPanel:
+  // that component sums a flat detail-grid rows array for the master save
+  // payload, a different contract than reading this screen's pivoted map.
+  const selectionSummary = useMemo(() => {
+    let totalCost = 0;
+    let selectedCount = 0;
+    pivoted.items.forEach((item) => {
+      const supplierId = selections[item.itemid];
+      if (!supplierId) return;
+      const cell = pivoted.cells.get(`${item.itemid}::${supplierId}`);
+      if (!cell) return;
+      selectedCount += 1;
+      totalCost += cell.rate;
+    });
+    return { selectedCount, totalCount: pivoted.items.length, totalCost };
+  }, [pivoted, selections]);
 
   // Seed selections from the API's own isselected flag whenever fresh
   // comparison data loads, so a previously-saved comparison reopens with its
@@ -188,8 +206,20 @@ export default function PurchaseQuotationComparisonPage() {
     }
   }, [pivoted, selections, inquiryId, divisionId, saveComparison, notify]);
 
-  const divisionOptionsForField = useMemo(() => divisionOptions, [divisionOptions]);
-  const inquiryOptionsForField = useMemo(() => inquiryOptions, [inquiryOptions]);
+  const syncedFilters = useMemo(
+    () =>
+      PQC_HEADER_FILTERS.map((f) => {
+        if (f.FilterColName === "divisionid") return { ...f, staticOptions: divisionOptions };
+        if (f.FilterColName === "inqid") return { ...f, staticOptions: inquiryOptions };
+        return f;
+      }),
+    [divisionOptions, inquiryOptions]
+  );
+
+  const filterFieldTones = useMemo(
+    () => ({ inqid: !divisionId ? "view" : "editable" }),
+    [divisionId]
+  );
 
   const displayValues = inquiryDetails ?? {};
 
@@ -197,63 +227,47 @@ export default function PurchaseQuotationComparisonPage() {
     <div className="workspace-page workspace-page--fill pqc-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
 
-      <section className="pqc-header">
-        <div className="pqc-header__selectors">
-          <div className="pqc-header__field">
-            <span className="pqc-header__label pqc-header__label--required">
-              {getMasterFieldLabel(PQC_HEADER_FIELDS.DIVISION)}
-            </span>
-            <MasterFormField
-              field={PQC_HEADER_FIELDS.DIVISION}
-              value={divisionId}
-              onChange={handleDivisionChange}
-              options={divisionOptionsForField}
-            />
-          </div>
-          <div className="pqc-header__field">
-            <span className="pqc-header__label pqc-header__label--required">
-              {getMasterFieldLabel(PQC_HEADER_FIELDS.INQUIRY)}
-            </span>
-            <MasterFormField
-              field={PQC_HEADER_FIELDS.INQUIRY}
-              value={inquiryId}
-              onChange={handleInquiryChange}
-              options={inquiryOptionsForField}
-              locked={!divisionId || isLoadingInquiries}
-            />
-            {inquiryOptionsError && (
-              <span className="pqc-header__field-error">
-                <AlertCircle size={12} strokeWidth={2} />
-                {inquiryOptionsError}
-              </span>
-            )}
-          </div>
+      <EnterpriseFilterPanel
+        title="Purchase Quotation Comparison"
+        staticFilters={syncedFilters}
+        cascadeResets={PQC_FILTER_CASCADE_RESETS}
+        onFilterChange={handleFilterChange}
+        fieldTones={filterFieldTones}
+        isSearching={isLoadingInquiries}
+      />
+      {inquiryOptionsError && (
+        <div className="pqc-header__field-error pqc-header__field-error--standalone">
+          <AlertCircle size={12} strokeWidth={2} />
+          {inquiryOptionsError}
         </div>
+      )}
 
-        {inquiryId && (
-          <div className="pqc-header__display-bar">
-            {isLoadingDetails ? (
-              <Loader text="Loading inquiry details…" />
-            ) : detailsError ? (
-              <span className="pqc-header__field-error">
-                <AlertCircle size={12} strokeWidth={2} />
-                {detailsError}
-              </span>
-            ) : (
-              PQC_DISPLAY_FIELDS.map((f) => (
-                <div key={f.key} className="pqc-header__display-item">
-                  <span className="pqc-header__display-label">{f.label}</span>
-                  <span className="pqc-header__display-value">
-                    {f.isDate
-                      ? (displayValues[f.key] ? formatTranDate(displayValues[f.key]) : "—")
-                      : (displayValues[f.key] ?? "—")}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </section>
+      {/* Read-only inquiry summary — derived, non-interactive, so it stays
+          visually separate from the EnterpriseFilterPanel's editable field
+          grid rather than being folded in as if it were another input. */}
+      {inquiryId && (
+        <section className="pqc-inquiry-details">
+          {isLoadingDetails ? (
+            <Loader text="Loading inquiry details…" />
+          ) : detailsError ? (
+            <span className="pqc-header__field-error">
+              <AlertCircle size={12} strokeWidth={2} />
+              {detailsError}
+            </span>
+          ) : (
+            PQC_DISPLAY_FIELDS.map((f) => (
+              <div key={f.key} className="pqc-header__display-item">
+                <span className="pqc-header__display-label">{f.label}</span>
+                <span className="pqc-header__display-value">
+                  {f.isDate
+                    ? (displayValues[f.key] ? formatTranDate(displayValues[f.key]) : "—")
+                    : (displayValues[f.key] ?? "—")}
+                </span>
+              </div>
+            ))
+          )}
+        </section>
+      )}
 
       <section className="pqc-body">
         {!inquiryId ? (
@@ -275,32 +289,55 @@ export default function PurchaseQuotationComparisonPage() {
             suppliers={pivoted.suppliers}
             cells={pivoted.cells}
             badges={badges}
+            bestRate={bestRate}
             selections={selections}
             onSelect={handleSelect}
           />
         )}
       </section>
 
-      <section className="pqc-actions">
-        <button
-          type="button"
-          className="pqc-btn pqc-btn--secondary"
-          onClick={handleExport}
-          disabled={!inquiryId || isLoadingGrid}
-        >
-          <FileSpreadsheet size={14} strokeWidth={2} />
-          Export to Excel
-        </button>
-        <button
-          type="button"
-          className="pqc-btn pqc-btn--primary"
-          onClick={handleSave}
-          disabled={!inquiryId || isSaving}
-        >
-          <Save size={14} strokeWidth={2} />
-          {isSaving ? "Saving…" : "Save Selections"}
-        </button>
-      </section>
+      {inquiryId && pivoted.items.length > 0 && (
+        <section className="pqc-selection-summary">
+          <div className="pqc-header__display-item">
+            <span className="pqc-header__display-label">Items Selected</span>
+            <span className="pqc-header__display-value">
+              {selectionSummary.selectedCount} of {selectionSummary.totalCount}
+            </span>
+          </div>
+          <div className="pqc-header__display-item">
+            <span className="pqc-header__display-label">Total Cost (Selected)</span>
+            <span className="pqc-header__display-value">
+              ₹{selectionSummary.totalCost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </section>
+      )}
+
+      <ActionBar
+        showAddCancel={false}
+        alignEnd
+        extraButtons={[
+          {
+            key: "export",
+            label: "Export to Excel",
+            Icon: FileSpreadsheet,
+            variant: "secondary",
+            onClick: handleExport,
+            disabled: !inquiryId || isLoadingGrid,
+            showAlways: true,
+          },
+          {
+            key: "save",
+            label: isSaving ? "Saving…" : "Save Selections",
+            Icon: Save,
+            variant: "save",
+            onClick: handleSave,
+            disabled: !inquiryId || isSaving,
+            loading: isSaving,
+            showAlways: true,
+          },
+        ]}
+      />
     </div>
   );
 }

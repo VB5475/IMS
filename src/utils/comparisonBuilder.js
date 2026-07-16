@@ -62,6 +62,10 @@ export function pivotQuotationRows(flatRows = []) {
       // Prior save's selection status, so a re-opened comparison shows the
       // previously chosen supplier per item instead of starting blank.
       isselected: Number(firstDefined(row, ["isselected", "IsSelected"]) ?? 0) === 1,
+      // baserate/negotiationrate feed the Best Rate score below — confirmed
+      // live fields (see file header), previously fetched but unused.
+      baserate: Number(firstDefined(row, ["baserate", "BaseRate"]) ?? 0) || 0,
+      negotiationrate: Number(firstDefined(row, ["negotiationrate", "NegotiationRate"]) ?? 0) || 0,
     });
   });
 
@@ -73,25 +77,14 @@ export function pivotQuotationRows(flatRows = []) {
 }
 
 /**
- * Compute per-item "Best rate" and per-supplier "Best overall" badge assignments.
- * Total = sum of per-unit rate across quoted items (matches the mockup's own
- * numbers exactly, e.g. 340 + 68900 = 69240 — confirmed by back-calculating the
- * screenshot, not an assumption).
- * "Best overall" is only awarded among suppliers who quoted every item — a
- * supplier with a lower total but a gap in coverage cannot win it, however low
- * their number looks (the exact fairness rule is still pending final client
- * sign-off on tie-break behaviour; this implements the "quoted 100% of items,
- * lowest total wins" reading confirmed so far).
+ * Compute per-item "Lowest rate" badge assignments — the supplier quoting the
+ * minimum unit rate for each item. (The Total row / "Best overall" supplier
+ * badge that used to live here was removed per product request — comparing
+ * suppliers by summed total wasn't a like-for-like metric across partial
+ * quotes, and it's superseded by the per-item Best Rate work.)
  */
 export function computeComparisonBadges({ items, suppliers, cells }) {
-  const bestRateBySupplierByItem = {};
-  const supplierTotals = {};
-  const supplierQuotedCount = {};
-
-  suppliers.forEach((s) => {
-    supplierTotals[s.supplierid] = 0;
-    supplierQuotedCount[s.supplierid] = 0;
-  });
+  const lowestRateSupplierIdByItem = {};
 
   items.forEach((item) => {
     let bestSupplierId = null;
@@ -100,34 +93,110 @@ export function computeComparisonBadges({ items, suppliers, cells }) {
     suppliers.forEach((s) => {
       const cell = cells.get(cellKey(item.itemid, s.supplierid));
       if (!cell) return;
-      supplierTotals[s.supplierid] += cell.rate;
-      supplierQuotedCount[s.supplierid] += 1;
       if (cell.rate < bestRate) {
         bestRate = cell.rate;
         bestSupplierId = s.supplierid;
       }
     });
 
-    bestRateBySupplierByItem[item.itemid] = bestSupplierId;
-  });
-
-  const fullyQuotedSupplierIds = suppliers
-    .filter((s) => supplierQuotedCount[s.supplierid] === items.length && items.length > 0)
-    .map((s) => s.supplierid);
-
-  let bestOverallSupplierId = null;
-  let bestOverallTotal = Infinity;
-  fullyQuotedSupplierIds.forEach((id) => {
-    if (supplierTotals[id] < bestOverallTotal) {
-      bestOverallTotal = supplierTotals[id];
-      bestOverallSupplierId = id;
-    }
+    lowestRateSupplierIdByItem[item.itemid] = bestSupplierId;
   });
 
   return {
-    bestRateBySupplierByItem, // { [itemid]: supplierid | null }
-    supplierTotals, // { [supplierid]: number }
-    supplierQuotedCount, // { [supplierid]: number }
-    bestOverallSupplierId, // supplierid | null
+    lowestRateSupplierIdByItem, // { [itemid]: supplierid | null }
   };
+}
+
+// ── Best Rate — multi-criteria score, not just lowest price ────────────
+// First-pass weights, not yet client-signed-off — same "flag it clearly,
+// make it a one-place change" posture as the old Best Overall rule had.
+// Adjust here if the weighting needs to change; nothing else in the app
+// depends on these specific numbers.
+export const BEST_RATE_WEIGHTS = {
+  price: 0.5,        // lower rate wins
+  delivery: 0.2,      // earlier delivery date wins
+  validity: 0.15,     // more days left before the quote expires wins
+  negotiation: 0.15,  // bigger discount off the supplier's own base rate wins
+};
+
+// "Supplier reliability / past performance" was considered and dropped from
+// this score — there's no live field or data source backing it on this
+// screen's SP (fn_tbl_fetchquotationdet4comparision only returns per-quote
+// fields). Scoring on a metric with no real data would just be fabricating
+// a number, so it's left out until a reliability data source exists.
+
+function daysFromNow(dateVal) {
+  if (!dateVal) return null;
+  const d = new Date(dateVal);
+  if (Number.isNaN(d.getTime())) return null;
+  return (d.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+}
+
+/** 0..1, higher is better. Flat 1 when every candidate ties (nothing to differentiate on). */
+function normalize(value, min, max, { invert = false } = {}) {
+  if (value == null || min == null || max == null || max === min) return 1;
+  const n = (value - min) / (max - min);
+  return invert ? 1 - n : n;
+}
+
+/**
+ * Compute per-item "Best Rate" — a weighted score across price, delivery
+ * speed, quote validity runway, and negotiated discount off base rate (see
+ * BEST_RATE_WEIGHTS). Returns both the winning supplier and a breakdown per
+ * supplier so the UI's info icon can explain *why* a quote won.
+ */
+export function computeBestRateBadges({ items, suppliers, cells }) {
+  const bestRateSupplierIdByItem = {};
+  const bestRateExplanationByItem = {}; // { [itemid]: { [supplierid]: breakdown } }
+
+  items.forEach((item) => {
+    const quotes = suppliers
+      .map((s) => {
+        const cell = cells.get(cellKey(item.itemid, s.supplierid));
+        return cell ? { supplierid: s.supplierid, cell } : null;
+      })
+      .filter(Boolean);
+    if (quotes.length === 0) return;
+
+    const rates = quotes.map((q) => q.cell.rate);
+    const [minRate, maxRate] = [Math.min(...rates), Math.max(...rates)];
+
+    const deliveryDays = quotes.map((q) => daysFromNow(q.cell.deliverydate)).filter((d) => d != null);
+    const minDelivery = deliveryDays.length ? Math.min(...deliveryDays) : null;
+    const maxDelivery = deliveryDays.length ? Math.max(...deliveryDays) : null;
+
+    const validityDays = quotes.map((q) => daysFromNow(q.cell.expirydate)).filter((d) => d != null);
+    const minValidity = validityDays.length ? Math.min(...validityDays) : null;
+    const maxValidity = validityDays.length ? Math.max(...validityDays) : null;
+
+    const explanations = {};
+    let winner = null;
+
+    quotes.forEach(({ supplierid, cell }) => {
+      const priceScore = normalize(cell.rate, minRate, maxRate, { invert: true });
+      const deliveryScore = normalize(daysFromNow(cell.deliverydate), minDelivery, maxDelivery, { invert: true });
+      const validityScore = normalize(daysFromNow(cell.expirydate), minValidity, maxValidity);
+
+      let negotiationScore = 0.5; // neutral when no base rate to compare against
+      if (cell.baserate > 0) {
+        const discount = (cell.baserate - cell.rate) / cell.baserate; // >0 = negotiated down
+        negotiationScore = Math.max(0, Math.min(1, 0.5 + discount));
+      }
+
+      const score =
+        priceScore * BEST_RATE_WEIGHTS.price +
+        deliveryScore * BEST_RATE_WEIGHTS.delivery +
+        validityScore * BEST_RATE_WEIGHTS.validity +
+        negotiationScore * BEST_RATE_WEIGHTS.negotiation;
+
+      const breakdown = { supplierid, score, priceScore, deliveryScore, validityScore, negotiationScore };
+      explanations[supplierid] = breakdown;
+      if (!winner || score > winner.score) winner = breakdown;
+    });
+
+    bestRateExplanationByItem[item.itemid] = explanations;
+    if (winner) bestRateSupplierIdByItem[item.itemid] = winner.supplierid;
+  });
+
+  return { bestRateSupplierIdByItem, bestRateExplanationByItem };
 }

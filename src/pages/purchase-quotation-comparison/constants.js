@@ -25,22 +25,33 @@ export const PQC_CONFIG = {
   SAVE_ENDPOINT: "/API/PurQtnComparisonSave/Post_RB_QtnComparison_Save",
 };
 
-/** Fake RB-column-shaped field descriptors — lets the header reuse MasterFormField's
- * rendering/validation for visual consistency, even though there's no real RB here. */
-export const PQC_HEADER_FIELDS = {
-  DIVISION: {
-    ColName: "divisionid",
-    DisplayName: "Division",
-    ColCtrlType: controlTypeMap.DROPDOWN,
-    IsMandatory: true,
+/** Hand-authored filter defs for EnterpriseFilterPanel's static mode — same
+ * component/visual language every transaction form (PO, PV, PI, GRN) uses for
+ * its header, run without the RB-driven GetFilters/GetFilterDetail fetch
+ * since there's no RB here (per the file-level "no RB anywhere" note above).
+ * FilterColName/FilterParameterID are hand-set to the same key rather than
+ * synced from live column metadata (there is none to sync from). */
+export const PQC_HEADER_FILTERS = [
+  {
+    FilterColName: "divisionid",
+    FilterParameterID: "divisionid",
+    FilterCaption: "Division",
+    FilterColCtrlType: controlTypeMap.DROPDOWN,
+    ismandatory: 1,
+    staticOptions: [],
   },
-  INQUIRY: {
-    ColName: "inqid",
-    DisplayName: "Inquiry No.",
-    ColCtrlType: controlTypeMap.DROPDOWN,
-    IsMandatory: true,
+  {
+    FilterColName: "inqid",
+    FilterParameterID: "inqid",
+    FilterCaption: "Inquiry No.",
+    FilterColCtrlType: controlTypeMap.DROPDOWN,
+    ismandatory: 1,
+    staticOptions: [],
   },
-};
+];
+
+/** Inquiry dropdown clears (visually) whenever Division changes. */
+export const PQC_FILTER_CASCADE_RESETS = { divisionid: ["inqid"] };
 
 /** Read-only display fields populated from SP_INQUIRY_DETAILS once an Inquiry is picked.
  * Field names confirmed 2026-07-13 against the live fn_tbl_fetchinqdetails4comparision
