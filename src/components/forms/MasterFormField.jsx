@@ -11,6 +11,7 @@ import {
 import { parseNumberInput } from "../../utils/numberFormat";
 import { handleDateArrowKeys, parseFlexibleDate } from "../../utils/dateFormat";
 import { useNotification } from "../../context/NotificationContext";
+import { selectInputText } from "../../utils/focusUtils";
 import {
   getCheckboxValue,
   getMasterFieldLabel,
@@ -98,9 +99,13 @@ export default function MasterFormField({
     [validateOnBlur, field, columnMeta, onChange, notify]
   );
 
-  const handleFocus = useCallback(() => {
-    lastValidRef.current = value;
-  }, [value]);
+  const handleFocus = useCallback(
+    (e) => {
+      lastValidRef.current = value;
+      selectInputText(e.target);
+    },
+    [value]
+  );
 
   const handleTextBlur = useCallback(
     (e) => {

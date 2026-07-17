@@ -38,6 +38,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -353,11 +354,7 @@ export default function AssetsItemOpeningForm() {
             fetchItemGroups(val),
             fetchAssetsAccByDivision(val),
           ]);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-itemgroupid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "itemgroupid");
         }
       });
       return;
@@ -371,11 +368,7 @@ export default function AssetsItemOpeningForm() {
         const divId = headerValuesRef.current.divisionid;
         if (val && val !== "0" && divId && divId !== "0") {
           await fetchItems(divId, val);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-itemid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "itemid");
         }
       });
       return;

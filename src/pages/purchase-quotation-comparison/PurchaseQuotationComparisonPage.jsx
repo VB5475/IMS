@@ -2,9 +2,10 @@
 // same shape as DivisionWiseRightsPage: a cascading header selector auto-fills
 // a grid below. Division → Inquiry No. → comparison grid; one Save button.
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { FileSpreadsheet, Save, AlertCircle } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import ComparisonGrid from "../../components/purchase-quotation-comparison/ComparisonGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
@@ -24,6 +25,7 @@ export default function PurchaseQuotationComparisonPage() {
   const [divisionId, setDivisionId] = useState("");
   const [inquiryId, setInquiryId] = useState("");
   const [selections, setSelections] = useState({});
+  const filterPanelRef = useRef(null);
 
   const {
     divisionOptions,
@@ -65,7 +67,10 @@ export default function PurchaseQuotationComparisonPage() {
         setInquiryId("");
         setSelections({});
         clearInquiries();
-        if (val && val !== "0") await fetchInquiryOptions(val);
+        if (val && val !== "0") {
+          await fetchInquiryOptions(val);
+          focusFieldAfterCascade(filterPanelRef, "inqid");
+        }
       } else if (colName === "inqid") {
         setInquiryId(val);
         setSelections({});
@@ -228,6 +233,7 @@ export default function PurchaseQuotationComparisonPage() {
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
 
       <EnterpriseFilterPanel
+        panelRef={filterPanelRef}
         title="Purchase Quotation Comparison"
         staticFilters={syncedFilters}
         cascadeResets={PQC_FILTER_CASCADE_RESETS}

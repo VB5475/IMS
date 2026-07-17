@@ -10,6 +10,7 @@ import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
 import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
+import { selectInputText } from "../../utils/focusUtils";
 import { formatColumnDisplayValue, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
 import GridNumberInput from "../grid/GridNumberInput";
@@ -132,6 +133,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             className="efq-cell__input"
             value={value || ""}
             onChange={handleChange}
+            onFocus={(e) => selectInputText(e.target)}
             onBlur={(e) => handleBlurValidate(e.target.value)}
             placeholder={`Enter ${FilterCaption}…`}
             autoComplete="off"

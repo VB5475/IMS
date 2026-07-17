@@ -50,6 +50,7 @@ import {
   syncMasterSummaryFields,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
@@ -423,6 +424,7 @@ export default function PurchaseQuotationForm() {
         clearSuppliers();
         if (val && val !== "0") {
           await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return buildCurrencyPatchFromSupplier(null);
       }

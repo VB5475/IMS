@@ -14,6 +14,7 @@ import {
   Network,
   Package,
   TrendingDown,
+  Percent,
   UserRound,
   RotateCcw,
   FileX,
@@ -94,6 +95,7 @@ const NAV_SECTIONS = [
     items: [
       { to: "/cwip-to-fa", icon: Layers, label: "CWIP To FA", end: false },
       { to: "/assets-depreciation", icon: TrendingDown, label: "Company Act Depreciation", end: false },
+      { to: "/asset-depreciation-percentage", icon: Percent, label: "Depreciation Percentage", end: false },
       { to: "/assets-write-off", icon: FileX, label: "Assets Write Off", end: false },
       { to: "/assets-employee-issue", icon: UserRound, label: "Assets Employee Issue", end: false },
       { to: "/assets-employee-return", icon: RotateCcw, label: "Assets Employee Return", end: false },

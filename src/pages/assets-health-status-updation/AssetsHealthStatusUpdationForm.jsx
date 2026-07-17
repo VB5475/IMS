@@ -33,6 +33,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -400,6 +401,9 @@ export default function AssetsHealthStatusUpdationForm() {
             fetches.push(fetchConfigOptions(val));
           }
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "tolocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "tolocationid");
+          }
         }
       });
     }

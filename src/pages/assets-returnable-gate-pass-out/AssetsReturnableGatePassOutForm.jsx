@@ -31,6 +31,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -398,6 +399,9 @@ export default function AssetsReturnableGatePassOutForm() {
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (hasVisibleCol(headerColumns, "tovendorid")) fetches.push(fetchToVendors(val));
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "fromlocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+          }
         }
       });
       return;

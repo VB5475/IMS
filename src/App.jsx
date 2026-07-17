@@ -26,6 +26,7 @@ const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
+const AssetDepreciationPercentagePage = lazy(() => import("./pages/asset-depreciation-percentage/AssetDepreciationPercentagePage"));
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
 const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
@@ -133,6 +134,7 @@ function AppRoutes() {
           <Route path="assets-depreciation/new" element={<AssetsDepreciationForm />} />
           <Route path="assets-depreciation/:id" element={<AssetsDepreciationForm />} />
           <Route path="assets-depreciation/:id/edit" element={<AssetsDepreciationForm />} />
+          <Route path="asset-depreciation-percentage" element={<AssetDepreciationPercentagePage />} />
           <Route path="assets-item-opening" element={<AssetsItemOpeningPage />} />
           <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />

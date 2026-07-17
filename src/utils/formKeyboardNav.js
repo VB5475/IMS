@@ -5,6 +5,8 @@
  * Enter            → next field (Shift+Enter → previous field)
  */
 
+import { focusAndSelect } from "./focusUtils";
+
 export const FORM_FOCUSABLE_SELECTOR = [
   'input:not([disabled]):not([readonly]):not([type="hidden"])',
   "textarea:not([disabled]):not([readonly])",
@@ -54,13 +56,7 @@ export function bindFormKeyboardNav(root, { enabled = true } = {}) {
     if (nextIndex < 0 || nextIndex >= fields.length) return;
 
     e.preventDefault();
-    fields[nextIndex].focus();
-    if (
-      fields[nextIndex] instanceof HTMLInputElement &&
-      (fields[nextIndex].type === "text" || fields[nextIndex].type === "number")
-    ) {
-      fields[nextIndex].select();
-    }
+    focusAndSelect(fields[nextIndex]);
   };
 
   root.addEventListener("keydown", onKeyDown);

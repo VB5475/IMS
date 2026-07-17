@@ -55,6 +55,7 @@ import {
   resolveHeaderApiCol,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -761,6 +762,7 @@ export default function PurchaseInquiryForm() {
           await fetchInquiryTypes(val);
           fetchSupplierGridColumns(val);
           fetchTermsGridColumns(val);
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
       }
     },

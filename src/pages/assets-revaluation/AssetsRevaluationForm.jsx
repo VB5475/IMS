@@ -32,6 +32,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -382,6 +383,7 @@ export default function AssetsRevaluationForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           await fetchConfigOptions(val);
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
       });
     }

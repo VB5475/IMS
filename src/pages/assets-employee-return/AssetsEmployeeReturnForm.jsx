@@ -33,6 +33,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -399,6 +400,7 @@ export default function AssetsEmployeeReturnForm() {
           if (val && val !== "0") {
             if (hasVisibleCol(headerColumns, "configid")) {
               await fetchConfigOptions(val);
+              focusFieldAfterCascade(filterPanelRef, "configid");
             }
           }
         });

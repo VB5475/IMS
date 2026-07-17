@@ -47,6 +47,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -445,11 +446,7 @@ export default function CWIPToFAForm() {
             fetchCWIPAccByDivision(val),
             fetchCostCenters(val, headerValuesRef.current.trandate),
           ]);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-locationid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "locationid");
         }
       });
       return;

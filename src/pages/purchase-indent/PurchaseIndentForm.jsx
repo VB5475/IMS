@@ -40,6 +40,7 @@ import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilte
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -374,11 +375,7 @@ export default function PurchaseIndentForm() {
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await fetchIndentTypes(val);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-configid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return;
       }

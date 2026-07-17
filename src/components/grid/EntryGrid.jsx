@@ -59,6 +59,7 @@ import {
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
 import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKeyboardNav";
+import { selectInputText } from "../../utils/focusUtils";
 import {
   formatColumnDisplayValue,
   getDateInputConstraints,
@@ -478,9 +479,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   );
 
   const makeCellFocus = useCallback((row, col) => {
-    return () => {
+    return (e) => {
       const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
       lastValidCellValuesRef.current.set(`${row.id}:${col.key}`, currentRow[col.key]);
+      selectInputText(e.target);
     };
   }, []);
 
