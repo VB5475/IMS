@@ -521,9 +521,9 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #e11d48;
+  background: #ef4444;
   border: 1.5px solid #fff;
-  box-shadow: 0 0 0 1px rgba(225, 29, 72, 0.25);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
   pointer-events: none;
 }
 
@@ -611,9 +611,9 @@
 }
 
 .ng-card--dashboard-v2 .ng-filter-dot {
-  background: var(--ng-v2-ocean);
+  background: #ef4444;
   border-color: #f4f6f9;
-  box-shadow: 0 0 0 1px rgba(6, 96, 167, 0.3);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
 }
 
 .ng-card--dashboard-v2 .ng-table tbody td {
