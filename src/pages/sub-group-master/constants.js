@@ -7,7 +7,6 @@ export const MODAL_SUBTITLE  = "Admin › Master › Item › Sub Group Master";
 
 export const SGM_CONFIG = {
   RB_MASTER:           "rb_subgroupmst",
-  CONFIG_YEAR_ID:      2,              // ⚠️ CONFIRM with DBA
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL:      "fn_tbl_rb_subgroupmst",
   LIST_OBJ_TYPE:       2,

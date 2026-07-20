@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { BookUser, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { DEFAULT_SESSION_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useAccountMaster } from "../../hooks/useAccountMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
@@ -94,10 +91,11 @@ export default function AccountMasterPage() {
       setModalOpen(true);
       setEditLoading(true);
       try {
+        const session = getUserSession();
         const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: AM_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
+          companyId: session.companyId,
+          yearId: session.yearId,
+          loginId: session.loginId,
           sessionId: DEFAULT_SESSION_ID,
           idNumber,
         });
@@ -134,7 +132,7 @@ export default function AccountMasterPage() {
    */
   const handleRefreshDropdowns = useCallback(
     (parentColName, currentValues) => {
-      refreshDropdownOptions(parentColName, currentValues);
+      return refreshDropdownOptions(parentColName, currentValues);
     },
     [refreshDropdownOptions]
   );
@@ -206,6 +204,7 @@ export default function AccountMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No accounts found."
           hideHeader
+          searchable
           fill
         />
       </section>

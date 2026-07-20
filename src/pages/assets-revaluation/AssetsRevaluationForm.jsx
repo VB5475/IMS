@@ -32,11 +32,14 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ARV_CONFIG,
+  ARV_MULTI_PASTE_COLUMNS,
+  ARV_REMARK_COLUMNS,
   ARV_GRID_TABS,
   ARV_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -152,9 +155,9 @@ export default function AssetsRevaluationForm() {
     frmtype: ARV_CONFIG.FRM_TYPE,
     issuetypeid: ARV_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: ARV_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: ARV_CONFIG.RB_MASTER,
   }));
@@ -296,6 +299,14 @@ export default function AssetsRevaluationForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
+
   const dropdownSources = useMemo(() => ({
     fromdivisionid: divisionOptions,
     configid: configOptions,
@@ -372,6 +383,7 @@ export default function AssetsRevaluationForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           await fetchConfigOptions(val);
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
       });
     }
@@ -436,7 +448,7 @@ export default function AssetsRevaluationForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -501,12 +513,12 @@ export default function AssetsRevaluationForm() {
     });
     mstRow.frmtype = ARV_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = ARV_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -556,9 +568,9 @@ export default function AssetsRevaluationForm() {
       issuetypeid: ARV_CONFIG.ISSUE_TYPE_ID,
       funccode: ARV_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: ARV_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];
@@ -731,6 +743,9 @@ export default function AssetsRevaluationForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ARV_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ARV_REMARK_COLUMNS}
           />
         </div>
       </section>

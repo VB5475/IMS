@@ -1,4 +1,4 @@
-// AssetsDepreciationForm.jsx — Assets Depreciation entry form (Add / Edit)
+// AssetsDepreciationForm.jsx — Company Act Depreciation entry form (Add / Edit)
 //
 // Pattern mirrors CWIPToFAForm.jsx exactly:
 //   1. fetchHeaderMeta  → RB_AstDepCAMst → GET_DETAIL_COL_DATA (header column METADATA — dynamic)
@@ -26,17 +26,15 @@ import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useAstDepCA } from "../../hooks/useAstDepCA";
 import { useApi } from "../../api/useApi";
+import { getUserSession } from "../../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -46,11 +44,16 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   DPC_CONFIG,
+  DPC_MULTI_PASTE_COLUMNS,
+  DPC_REMARK_COLUMNS,
   DPC_SUMMARY_FIELDS,
   DPC_GRID_TABS,
   DPC_FILTER_CASCADE_RESETS,
@@ -99,17 +102,6 @@ function buildPickerColumnsFromData(firstRow) {
   return [PICKER_CB_COL, ...dataCols];
 }
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid  ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.yearid     ?? session.yearId    ?? DPC_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.loginid    ?? session.loginId,
-    sessionId: listRecord?.sessionid  ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.astdepid   ?? listRecord?.idnumber  ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
@@ -121,15 +113,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     remarks:        headerValues.remarks         ?? "",
     funccode:       headerValues.funccode        ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -194,9 +177,9 @@ export default function AssetsDepreciationForm() {
     remarks:        "",
     funccode:       DPC_CONFIG.RB_MASTER,
     tranmstgenid:   0,
-    companyid:      DEFAULT_COMPANY_ID,
-    yearid:         DPC_CONFIG.CONFIG_YEAR_ID,
-    loginid:        DEFAULT_LOGIN_ID,
+    companyid:      getUserSession().companyId,
+    yearid:         getUserSession().yearId,
+    loginid:        getUserSession().loginId,
     idnumber:       recordId,
   });
 
@@ -288,9 +271,11 @@ export default function AssetsDepreciationForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astdepid"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Depreciation record not found.");
+      if (!master || !headerValues) throw new Error("Company Act Depreciation record not found.");
 
       headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
       setLoadedMasterRow(master);
@@ -314,7 +299,7 @@ export default function AssetsDepreciationForm() {
       }
     } catch (err) {
       console.error("[DPC] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Depreciation record.");
+      setRecordLoadError(err?.message || "Failed to load Company Act Depreciation record.");
     } finally {
       setRecordLoading(false);
     }
@@ -340,6 +325,14 @@ export default function AssetsDepreciationForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   // ── syncedSummaryFields — labels from API headerColumns ───────────────────
   const syncedSummaryFields = useMemo(() => {
@@ -409,11 +402,7 @@ export default function AssetsDepreciationForm() {
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await fetchAssetsAccByDivision(val);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-fixedastacid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "fixedastacid");
         }
       });
       return;
@@ -458,10 +447,11 @@ export default function AssetsDepreciationForm() {
     setItemModalLoading(true);
 
     try {
+      const session = getUserSession();
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: DPC_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: DPC_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: DPC_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.[0];
@@ -470,7 +460,7 @@ export default function AssetsDepreciationForm() {
       const [colRes, rowRes] = await Promise.all([
         getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: rbRow.rbid,
-          prmLoginID:  DEFAULT_LOGIN_ID,
+          prmLoginID:  session.loginId,
         }),
         getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
@@ -478,8 +468,8 @@ export default function AssetsDepreciationForm() {
           JSon: JSON.stringify([{
             prmtrandate:    trandate ?? "",
             prmdivisionid:  Number(divisionid   ?? 0),
-            prmcompanyid:   DEFAULT_COMPANY_ID,
-            prmyearid:      DPC_CONFIG.CONFIG_YEAR_ID,
+            prmcompanyid:   session.companyId,
+            prmyearid:      session.yearId,
             prmmlnnotin:    "",
             prmgroupid:     0,
             prmaccountid:   Number(fixedastacid ?? 0),
@@ -530,14 +520,53 @@ export default function AssetsDepreciationForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
+  const buildDefaultHeaderValues = useCallback(() => {
+    const session = getUserSession();
+    return {
+      trancode: "", trandate: todayISO,
+      divisionid: 0, fixedastacid: 0,
+      totaldepamount: 0, remarks: "",
+      funccode: DPC_CONFIG.RB_MASTER, tranmstgenid: 0,
+      companyid: session.companyId, yearid: session.yearId,
+      loginid: session.loginId, idnumber: 0,
+    };
+  }, [todayISO]);
+
+  const clearDpcStorage = useCallback(() => {
+    sessionStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
+    sessionStorage.removeItem(DPC_CONFIG.STORAGE_ENTRY_META);
+  }, []);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [DPC_CONFIG.STORAGE_HEADER_META, DPC_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearAssetsAccOptions, clearDpcStorage],
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) navigate("/assets-depreciation");
-    else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
-    }
-  }, [isEditRoute, navigate, exitEditMode]);
+    else resetFormToInitialState();
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -551,17 +580,18 @@ export default function AssetsDepreciationForm() {
       return false;
     }
 
+    const loginId = getUserSession().loginId;
     const mstRow = {};
     headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -600,39 +630,8 @@ export default function AssetsDepreciationForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(DPC_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(DPC_CONFIG.STORAGE_ENTRY_META);
-
-    clearAssetsAccOptions();
-
-    headerValuesRef.current = {
-      trancode: "", trandate: todayISO,
-      divisionid: 0, fixedastacid: 0,
-      totaldepamount: 0, remarks: "",
-      funccode: DPC_CONFIG.RB_MASTER, tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID, yearid: DPC_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID, idnumber: 0,
-    };
-
-    queuedRowsRef.current        = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearAssetsAccOptions, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -710,7 +709,7 @@ export default function AssetsDepreciationForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Depreciation Detail"
+            title="Company Act Depreciation Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={DPC_FILTER_CASCADE_RESETS}
@@ -777,6 +776,9 @@ export default function AssetsDepreciationForm() {
             onRowsChange={setGridRows}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={DPC_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={DPC_REMARK_COLUMNS}
           />
         </div>
       </section>

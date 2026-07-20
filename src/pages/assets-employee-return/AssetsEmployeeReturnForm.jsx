@@ -16,8 +16,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
@@ -35,11 +33,16 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AER_CONFIG,
+  AER_MULTI_PASTE_COLUMNS,
+  AER_REMARK_COLUMNS,
   AER_GRID_TABS,
   AER_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -53,22 +56,6 @@ import "./AssetsEmployeeReturnPage.css";
 
 let _aerTempId = -1;
 const nextTempId = () => _aerTempId--;
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AER_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:
-      listRecord?.astempretid
-      ?? listRecord?.AstEmpRetID
-      ?? listRecord?.idnumber
-      ?? listRecord?.IDNumber
-      ?? recordId,
-  };
-}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -86,15 +73,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     issuetypeid: str(headerValues.issuetypeid ?? AER_CONFIG.ISSUE_TYPE_ID),
     remarks: headerValues.remarks ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -169,9 +147,9 @@ export default function AssetsEmployeeReturnForm() {
     frmtype: AER_CONFIG.FRM_TYPE,
     issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AER_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AER_CONFIG.RB_MASTER,
   }));
@@ -267,7 +245,9 @@ export default function AssetsEmployeeReturnForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astempretid", "AstEmpRetID"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Employee Return record not found.");
 
@@ -320,6 +300,14 @@ export default function AssetsEmployeeReturnForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -412,6 +400,7 @@ export default function AssetsEmployeeReturnForm() {
           if (val && val !== "0") {
             if (hasVisibleCol(headerColumns, "configid")) {
               await fetchConfigOptions(val);
+              focusFieldAfterCascade(filterPanelRef, "configid");
             }
           }
         });
@@ -503,7 +492,7 @@ export default function AssetsEmployeeReturnForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AER_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AER_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: AER_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -512,7 +501,7 @@ export default function AssetsEmployeeReturnForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -558,7 +547,53 @@ export default function AssetsEmployeeReturnForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const buildDefaultHeaderValues = useCallback(() => applyAerHardcodedHeaderValues({
+    trancode: "",
+    trandate: todayISO,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    tolocationid: 0,
+    todeptid: 0,
+    fromempuserid: 0,
+    configid: 0,
+    remarks: "",
+    frmtype: AER_CONFIG.FRM_TYPE,
+    issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
+    funccode: AER_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [AER_CONFIG.STORAGE_HEADER_META, AER_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearFromEmpOptions],
+  });
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
@@ -579,12 +614,12 @@ export default function AssetsEmployeeReturnForm() {
     });
     mstRow.frmtype = AER_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = AER_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -601,6 +636,7 @@ export default function AssetsEmployeeReturnForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[AER Save] Failed:", err);
@@ -609,56 +645,21 @@ export default function AssetsEmployeeReturnForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AER_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AER_CONFIG.STORAGE_ENTRY_META);
-    clearFromEmpOptions();
-    headerValuesRef.current = applyAerHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      tolocationid: 0,
-      todeptid: 0,
-      fromempuserid: 0,
-      configid: 0,
-      remarks: "",
-      frmtype: AER_CONFIG.FRM_TYPE,
-      issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
-      funccode: AER_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AER_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearFromEmpOptions, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -804,6 +805,9 @@ export default function AssetsEmployeeReturnForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AER_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AER_REMARK_COLUMNS}
           />
         </div>
       </section>

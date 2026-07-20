@@ -5,9 +5,6 @@ export const IM_CONFIG = {
   FORM_TAG: "rb_puritemmst",
   TRAN_BOOK: "CR",
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_puritemmst",
 

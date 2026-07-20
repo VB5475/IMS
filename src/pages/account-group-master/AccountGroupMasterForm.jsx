@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Layers, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
-import {
-  API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { API_BASE_URL_IMS, DEFAULT_SESSION_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { useNotification } from "../../context/NotificationContext";
 import {
   buildMasterCascadeDropdownRefresh,
   buildMasterCascadeResets,
   buildMasterFormEmpty,
   finalizeMasterHeaderSaveRow,
+  getMasterFieldDefaultValue,
   getMasterFieldLabel,
   getVisibleHeaderFields,
   isMasterCheckboxField,
@@ -22,19 +23,18 @@ import {
   isMasterFieldRequired,
   isMasterToggleField,
   validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
 } from "../../utils/masterFormUtils";
 import { AGM_CONFIG } from "./constants";
 import "./AccountGroupMasterPage.css";
 
 function buildSaveContext() {
+  const session = getUserSession();
   return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: AGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: AGM_CONFIG.RB_MASTER,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    funccode: AGM_CONFIG.RB_MASTER,
   };
 }
 
@@ -54,6 +54,7 @@ export default function AccountGroupMasterForm({
 }) {
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
   const [isEditMode, setIsEditMode] = useState(true);
   const [formValues, setFormValues] = useState(() =>
@@ -61,6 +62,8 @@ export default function AccountGroupMasterForm({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
   const cascadeResets = useMemo(() => buildMasterCascadeResets(fieldDefs), [fieldDefs]);
@@ -145,8 +148,12 @@ export default function AccountGroupMasterForm({
       ),
     });
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
+    if (validationErrors.length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
 
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -162,8 +169,13 @@ export default function AccountGroupMasterForm({
         { divisionId: 0, isEdit: !isAddMode }
       );
 
-      await post(AGM_CONFIG.SAVE_ENDPOINT, payload);
-      alert("Account Group saved successfully!");
+      const result = await post(AGM_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        setSaveError(message);
+        return;
+      }
+      notify.success(message || "Account Group saved successfully!");
       onSaved?.();
     } catch (err) {
       console.error("[AGM Save] Failed:", err);
@@ -171,26 +183,34 @@ export default function AccountGroupMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, fieldDefs, isAddMode, onSaved, post]);
+  }, [visibleFields, formValues, fieldDefs, isAddMode, onSaved, post, notify]);
 
-  const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (isEditMode && !window.confirm("Discard changes?")) return;
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
       onClose();
-    });
-  }, [isEditMode, onClose]);
-
-  const handleCancelEdit = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
+    } else {
       if (isAddMode) {
         onClose();
         return;
       }
       setIsEditMode(false);
       setSaveError(null);
-    });
-  }, [isAddMode, onClose]);
+    }
+  }, [discardAction, isAddMode, onClose]);
+
+  const handleClose = useCallback(() => {
+    if (!isEditMode) {
+      onClose();
+      return;
+    }
+    setDiscardAction("close");
+  }, [isEditMode, onClose]);
+
+  const handleCancelEdit = useCallback(() => {
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
@@ -241,6 +261,12 @@ export default function AccountGroupMasterForm({
       variant="enterprise"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -249,6 +275,7 @@ export default function AccountGroupMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="agm-form-scroll">
             <div className="agm-form">
               {visibleFields.map((field) => (

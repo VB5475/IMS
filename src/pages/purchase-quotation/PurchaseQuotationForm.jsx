@@ -34,7 +34,6 @@ import {
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -51,13 +50,17 @@ import {
   syncMasterSummaryFields,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   QTN_CONFIG,
+  QTN_REMARK_COLUMNS,
   QTN_MASTER,
   QTN_HEADER_FILTERS,
   QTN_GRID_TABS,
@@ -101,26 +104,6 @@ function buildCurrencyPatchFromSupplier(supplier) {
     currencyname: supplier.currencyname ?? "",
     currencyrate: supplier.currencyrate != null ? String(supplier.currencyrate) : "",
   };
-}
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? QTN_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.idnumber ?? recordId,
-  };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 // Map an item picker row → items grid row (seeded from allColumns).
@@ -212,8 +195,8 @@ export default function PurchaseQuotationForm() {
     suppquotdate: null,
     contactperson: "",
     remarks: "",
-    companyid: 1,
-    yearid: QTN_CONFIG.DIVISION_YEAR_ID,
+    companyid: session.companyId,
+    yearid: session.yearId,
     loginid: session.loginId,
     userid: session.userId,
     idnumber: recordId,
@@ -258,14 +241,9 @@ export default function PurchaseQuotationForm() {
 
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
-  const resetFormToInitialState = useCallback(() => {
-    localStorage.removeItem(QTN_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(QTN_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(QTN_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(QTN_CONFIG.STORAGE_ENTRY_META);
-
+  const buildDefaultHeaderValues = useCallback(() => {
     const resetSession = getUserSession();
-    headerValuesRef.current = {
+    return {
       trancode: "",
       trandate: todayISO,
       configid: 0,
@@ -279,46 +257,13 @@ export default function PurchaseQuotationForm() {
       suppquotdate: null,
       contactperson: "",
       remarks: "",
-      companyid: 1,
-      yearid: QTN_CONFIG.DIVISION_YEAR_ID,
+      companyid: resetSession.companyId,
+      yearid: resetSession.yearId,
       loginid: resetSession.loginId,
       userid: resetSession.userId,
       idnumber: 0,
     };
-
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-
-    clearQuotationTypes();
-    clearSuppliers();
-
-    setActiveTab("items");
-    setApprovedFilter("all");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-
-    setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
-
-    itemGridRef.current?.clearRows?.();
-    setGridRows([]);
-
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearQuotationTypes, clearSuppliers, exitEditMode, todayISO]);
-
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) {
-      navigate("/purchase-quotation");
-    } else {
-      resetFormToInitialState();
-    }
-  }, [isEditRoute, navigate, resetFormToInitialState]);
+  }, [todayISO]);
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("items");
@@ -355,7 +300,9 @@ export default function PurchaseQuotationForm() {
     setRecordLoadError(null);
 
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: [],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
@@ -477,6 +424,7 @@ export default function PurchaseQuotationForm() {
         clearSuppliers();
         if (val && val !== "0") {
           await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return buildCurrencyPatchFromSupplier(null);
       }
@@ -539,7 +487,13 @@ export default function PurchaseQuotationForm() {
 
         if (isDropdownField) {
           if (lockOnEditMode || !isEditMode) {
-            def.staticOptions = buildDropdownOptionFromRow(apiCol, loadedMasterRow);
+            // RB_PurQtnMst leaves CtrlDisplayCol blank for supplierid — fall back to
+            // the "suppliername" field GET_MASTER_DATA_FILL actually returns.
+            const effectiveApiCol =
+              filter.FilterParameterID === "supplierid" && !apiCol?.ctrldisplaycol
+                ? { ...apiCol, ctrldisplaycol: "suppliername" }
+                : apiCol;
+            def.staticOptions = buildDropdownOptionFromRow(effectiveApiCol, loadedMasterRow);
           } else {
             return injectListOptions(filter, def);
           }
@@ -606,7 +560,7 @@ export default function PurchaseQuotationForm() {
   // ── Select Item (Items tab) ────────────────────────────────────────
   // Flow:
   //   1. Pick RB code + row-fetch SP by BasedOn ('0' Direct | '2' Inquiry Based)
-  //   2. Fetch RBID via Fn_Fetch_RBDetailByRBCode
+  //   2. Fetch RBID via fn_fetch_rbdetailbyrbcode
   //   3. Fetch grid columns via GetDetailColData
   //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INQUIRY
   const handleSelectItem = useCallback(async () => {
@@ -713,6 +667,44 @@ export default function PurchaseQuotationForm() {
     [fireCellEvent]
   );
 
+  const { resetFormToInitialState } = useTransactionFormReset({
+    storageKeys: [QTN_CONFIG.STORAGE_HEADER_META, QTN_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearQuotationTypes, clearSuppliers],
+    extraReset: () => {
+      setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+      setApprovedFilter("all");
+      setLoadedMasterRow(null);
+    },
+  });
+
+  const completeSuccessfulSave = useCallback(() => {
+    if (isEditRoute) {
+      navigate("/purchase-quotation");
+    } else {
+      resetFormToInitialState();
+    }
+  }, [isEditRoute, navigate, resetFormToInitialState]);
+
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingQtn, setIsSavingQtn] = useState(false);
 
@@ -804,10 +796,6 @@ export default function PurchaseQuotationForm() {
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
-  const handleDocument = useCallback(() => {
-    console.log("[PQ] Document F6 — reserved for document generation.");
-  }, []);
-
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
   }, [activeTab, handleSelectItem]);
@@ -842,14 +830,6 @@ export default function PurchaseQuotationForm() {
   const qtnExtraButtons = useMemo(
     () => [
       {
-        key: "document",
-        label: "Document F6",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleDocument,
-      },
-      { key: "sep1", separator: true },
-      {
         key: "saveprint",
         label: "Save & Print",
         Icon: Printer,
@@ -871,7 +851,7 @@ export default function PurchaseQuotationForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingQtn, handleSave]
+    [handleSaveAndPrint, isSavingQtn, handleSave]
   );
 
   return (
@@ -984,6 +964,7 @@ export default function PurchaseQuotationForm() {
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             existingRecordEdit={isEditRoute}
+            remarkModalColumns={QTN_REMARK_COLUMNS}
           />
         </div>
 

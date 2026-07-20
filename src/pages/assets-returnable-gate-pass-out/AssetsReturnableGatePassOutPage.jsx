@@ -2,13 +2,19 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { DoorOpen, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./constants";
 import "./AssetsReturnableGatePassOutPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+
+function buildGatePassReportParams() {
+  return [buildCompanyReportParam()];
+}
 
 function buildListParams() {
   return {
@@ -81,6 +87,11 @@ export default function AssetsReturnableGatePassOutPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Returnable Gate Pass Out Report"
+              reportFileName="Rpt_ReturnableGatePass_PG.rpt"
+              buildParams={buildGatePassReportParams}
+            />
             <label htmlFor="argo-list-page-size" className="argo-list-panel__pagesize-label">
               Rows per page
             </label>

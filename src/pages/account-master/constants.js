@@ -5,10 +5,7 @@ export const AM_CONFIG = {
   FORM_TAG: "rb_accountmst",
   TRAN_BOOK: "ACM",
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   /** Edit mode fill — fn_tbl_rb_accountmst */
   SP_MASTER_FILL: "fn_tbl_rb_accountmst",
 
@@ -18,7 +15,7 @@ export const AM_CONFIG = {
   /** ColName for account group dropdown (excluded from GET_FILTER_DETAIL) */
   GROUP_COL: "group_id",
   /** A/C Classification — fn_tbl_acClassification_list, No Parameter */
-  SP_AC_CLASS_LIST: "fn_tbl_acClassification_list",
+  SP_AC_CLASS_LIST: "fn_tbl_acclassification_list",
   /** Country — fn_tbl_countrymaster_list, No Parameter */
   SP_COUNTRY_LIST: "fn_tbl_countrymaster_list",
   /** State — fn_tbl_statemaster_list, prmcountryid numeric */
@@ -27,7 +24,7 @@ export const AM_CONFIG = {
   SP_CITY_LIST: "fn_tbl_citymaster_list",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_acc_AccountMaster_list",
+  SP_LIST: "fn_tbl_acc_accountmaster_list",
   LIST_DIVISION_ID: 0,
 
   SAVE_ENDPOINT: "/API/accountmst/Post_rb_accountmst_Save",

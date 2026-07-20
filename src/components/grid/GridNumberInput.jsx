@@ -43,6 +43,10 @@ export default function GridNumberInput({
     (e) => {
       if (readOnly || disabled) return;
       setIsFocused(true);
+      // Selecting now would select the still-rendered formatted value —
+      // wait a frame so the raw-value swap (via isFocused) has painted first.
+      const target = e.target;
+      requestAnimationFrame(() => target.select());
       onFocus?.(e);
     },
     [onFocus, readOnly, disabled]

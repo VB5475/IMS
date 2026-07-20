@@ -8,7 +8,6 @@ export const MODAL_SUBTITLE  = "Admin › Company › Location Master";
 
 export const LM_CONFIG = {
   RB_MASTER:           "rb_genlocationmst",
-  CONFIG_YEAR_ID:      2,              // ⚠️ CONFIRM with DBA
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_LOCATION_TYPE:    "fn_tbl_fetch_locationtype",
   SP_PREMISES:         "fn_tbl_fetch_premises",

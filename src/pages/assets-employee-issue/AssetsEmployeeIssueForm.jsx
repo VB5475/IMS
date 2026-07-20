@@ -16,8 +16,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
@@ -36,11 +34,16 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AEI_CONFIG,
+  AEI_MULTI_PASTE_COLUMNS,
+  AEI_REMARK_COLUMNS,
   AEI_GRID_TABS,
   AEI_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -54,17 +57,6 @@ import "./AssetsEmployeeIssuePage.css";
 
 let _aeiTempId = -1;
 const nextTempId = () => _aeiTempId--;
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AEI_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.astempissid ?? listRecord?.idnumber ?? listRecord?.IDNumber ?? recordId,
-  };
-}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -93,15 +85,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     includestockitems: headerValues.includestockitems ?? 0,
     totalprocessrate: headerValues.totalprocessrate ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -191,9 +174,9 @@ export default function AssetsEmployeeIssueForm() {
     frmtype: AEI_CONFIG.FRM_TYPE,
     issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AEI_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AEI_CONFIG.RB_MASTER,
   }));
@@ -289,7 +272,9 @@ export default function AssetsEmployeeIssueForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astempissid"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("Assets Employee Issue record not found.");
 
@@ -342,6 +327,14 @@ export default function AssetsEmployeeIssueForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -491,11 +484,7 @@ export default function AssetsEmployeeIssueForm() {
             }
             if (fetches.length) await Promise.all(fetches);
             if (hasVisibleCol(headerColumns, "fromlocationid")) {
-              requestAnimationFrame(() =>
-                filterPanelRef.current
-                  ?.querySelector("#efq-fromlocationid .search-select__trigger")
-                  ?.focus()
-              );
+              focusFieldAfterCascade(filterPanelRef, "fromlocationid");
             }
           }
         });
@@ -648,7 +637,7 @@ export default function AssetsEmployeeIssueForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AEI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AEI_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: AEI_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -657,7 +646,7 @@ export default function AssetsEmployeeIssueForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -703,7 +692,64 @@ export default function AssetsEmployeeIssueForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const buildDefaultHeaderValues = useCallback(() => applyAeiHardcodedHeaderValues({
+    trancode: "",
+    trandate: todayISO,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    todivisionid: 0,
+    fromlocationid: 0,
+    tolocationid: 0,
+    fromdeptid: 0,
+    todeptid: 0,
+    fromempuserid: 0,
+    toempuserid: 0,
+    fromworkingclientid: 0,
+    toworkingclientid: 0,
+    fromvendorid: 0,
+    tovendorid: 0,
+    configid: 0,
+    expecteddays: 0,
+    expecteddate: null,
+    includestockitems: 0,
+    totalprocessrate: 0,
+    frmtype: AEI_CONFIG.FRM_TYPE,
+    issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
+    funccode: AEI_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [AEI_CONFIG.STORAGE_HEADER_META, AEI_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearFromEmpOptions, clearToEmpOptions],
+  });
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
@@ -722,10 +768,10 @@ export default function AssetsEmployeeIssueForm() {
     const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
       frmtype: AEI_CONFIG.FRM_TYPE,
       issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      loginid: getUserSession().loginId,
     });
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
     );
 
     const payload = await withSaveContextFields(
@@ -742,6 +788,7 @@ export default function AssetsEmployeeIssueForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[AEI Save] Failed:", err);
@@ -750,68 +797,21 @@ export default function AssetsEmployeeIssueForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AEI_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AEI_CONFIG.STORAGE_ENTRY_META);
-    clearFromEmpOptions();
-    clearToEmpOptions();
-    headerValuesRef.current = applyAeiHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      todivisionid: 0,
-      fromlocationid: 0,
-      tolocationid: 0,
-      fromdeptid: 0,
-      todeptid: 0,
-      fromempuserid: 0,
-      toempuserid: 0,
-      fromworkingclientid: 0,
-      toworkingclientid: 0,
-      fromvendorid: 0,
-      tovendorid: 0,
-      configid: 0,
-      expecteddays: 0,
-      expecteddate: null,
-      includestockitems: 0,
-      totalprocessrate: 0,
-      frmtype: AEI_CONFIG.FRM_TYPE,
-      issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
-      funccode: AEI_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AEI_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearFromEmpOptions, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -957,6 +957,9 @@ export default function AssetsEmployeeIssueForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AEI_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AEI_REMARK_COLUMNS}
           />
         </div>
       </section>

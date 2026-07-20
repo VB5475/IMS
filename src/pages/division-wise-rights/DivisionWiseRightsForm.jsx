@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Save, AlertCircle } from "lucide-react";
 import MasterFormField from "../../components/forms/MasterFormField";
+import AlertPanel from "../../components/ui/AlertPanel";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -18,7 +18,6 @@ import {
   isMasterCheckboxField,
   isMasterFieldLocked,
   isMasterFieldRequired,
-  alertMasterFormValidationErrors,
 } from "../../utils/masterFormUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { validateApiColumns, validateColumnValue } from "../../utils/columnValidation";
@@ -26,12 +25,13 @@ import { useNotification } from "../../context/NotificationContext";
 import { UDR_CONFIG } from "./constants";
 
 function buildSaveContext() {
+  const session = getUserSession();
   return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: UDR_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: UDR_CONFIG.RB_MASTER,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    funccode: UDR_CONFIG.RB_MASTER,
   };
 }
 
@@ -262,6 +262,7 @@ export default function DivisionWiseRightsForm({
   const [gridsError, setGridsError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
 
   const headerFields = useMemo(() => getUdrHeaderFields(fieldDefs), [fieldDefs]);
 
@@ -338,8 +339,12 @@ export default function DivisionWiseRightsForm({
       ),
     ];
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
+    if (validationErrors.length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
 
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -393,6 +398,7 @@ export default function DivisionWiseRightsForm({
           </div>
         ) : (
           <>
+            <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
             <div className="dwr-form">
               {headerFields.map((field) => {
                 const fKey = field.ColName ?? field.colname;

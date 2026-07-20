@@ -1,4 +1,4 @@
-// useAstDepCA.js — Header meta, detail grid, and filter dropdowns for Assets Depreciation (DPC)
+// useAstDepCA.js — Header meta, detail grid, and filter dropdowns for Company Act Depreciation (DPC)
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // Same 3-phase load pattern as useCWIPToFA.js:
 //
@@ -17,8 +17,6 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -31,10 +29,11 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId)  || DEFAULT_COMPANY_ID,
-    Number(yearId)     || DPC_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId)    || getUserSession().loginId,
+    Number(companyId)  || session.companyId,
+    Number(yearId)     || session.yearId,
+    Number(loginId)    || session.loginId,
     Number(sessionId)  || DEFAULT_SESSION_ID,
     Number(idNumber)   || 0,
   ].join(",");
@@ -52,7 +51,7 @@ function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
     trandate:  toDateInput(master.trandate),
-    yearid:    DPC_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  DPC_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -89,7 +88,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID:  DEFAULT_LOGIN_ID,
+    prmLoginID:  getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -120,15 +119,16 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
   const fetchAssetsAccByDivision = useCallback(async (divisionId) => {
     if (!divisionId || divisionId === "0") { setAssetsAccOptions([]); return []; }
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: DPC_CONFIG.SP_ASSETS_ACC,
         JSon: JSON.stringify([{
           prmdivisionid:    Number(divisionId),
           prmacmaingroupid: 7,           // ⚠️ DBA CONFIRM — Main Group ID for Fixed Asset accounts
-          prmloginid:       DEFAULT_LOGIN_ID,
-          prmcompanyid:     DEFAULT_COMPANY_ID,
-          prmyearid:        DPC_CONFIG.CONFIG_YEAR_ID,
+          prmloginid:       session.loginId,
+          prmcompanyid:     session.companyId,
+          prmyearid:        session.yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -152,6 +152,7 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
     setHeaderFetching(true);
     setHeaderError(null);
     try {
+      const session = getUserSession();
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: DPC_CONFIG.SP_RB_META,
@@ -166,7 +167,7 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  session.loginId,
       });
       const hdrApiColumns = colData || [];
       setHeaderColumns(hdrApiColumns);
@@ -182,9 +183,9 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: DPC_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([{
-          prmuserid:    DEFAULT_LOGIN_ID,
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmyearid:    DPC_CONFIG.DIVISION_YEAR_ID,
+          prmuserid:    session.loginId,
+          prmcompanyid: session.companyId,
+          prmyearid:    session.yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       }).catch((err) => { console.warn("[DPC] Division fetch failed:", err); return null; });
@@ -287,14 +288,15 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
 
     const tasks = [];
     if (needsDivision) {
+      const session = getUserSession();
       tasks.push(
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: DPC_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmuserid:    DEFAULT_LOGIN_ID,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid:    DPC_CONFIG.DIVISION_YEAR_ID,
+            prmuserid:    session.loginId,
+            prmcompanyid: session.companyId,
+            prmyearid:    session.yearId,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         })

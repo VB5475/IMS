@@ -7,9 +7,7 @@ import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
-  DEFAULT_LOGIN_ID,
   OBJ_TYPE,
 } from "../api/constants";
 import { SM_CONFIG } from "../pages/supplier-master/constants";
@@ -17,10 +15,11 @@ import { fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
 import { coerceRowByColumns } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || SM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -212,7 +211,7 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: meta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const cols = colData || [];
       setHeaderColumns(cols);
@@ -269,7 +268,7 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: meta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const apiColumns = colData || [];
       setDetailAllColumns(
@@ -318,14 +317,15 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
 
       const master = mstRes?.[0] ?? null;
       const consigneeRows = detRes || [];
+      const session = getUserSession();
 
       return {
         master,
         headerValues: master ? coerceRowByColumns({
           ...master,
-          companyid: Number(companyId) || DEFAULT_COMPANY_ID,
-          yearid: Number(master.yearid ?? yearId) || SM_CONFIG.CONFIG_YEAR_ID,
-          loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
+          companyid: Number(companyId) || session.companyId,
+          yearid: Number(master.yearid ?? yearId) || session.yearId,
+          loginid: Number(master.loginid ?? loginId) || session.loginId,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode: master.funccode ?? SM_CONFIG.RB_MASTER,
         }, headerColumns) : null,

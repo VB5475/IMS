@@ -29,17 +29,15 @@ import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useCWIPToFA } from "../../hooks/useCWIPToFA";
 import { useApi } from "../../api/useApi";
+import { getUserSession } from "../../session/userSession";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
-import { getUserSession } from "../../session/userSession";
 import {
   buildGridColumns,
   isLockOnEditModeCol,
@@ -49,11 +47,15 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   C2F_CONFIG,
+  C2F_MULTI_PASTE_COLUMNS,
   C2F_CONV_FACTOR_OPTIONS,
   C2F_SUMMARY_FIELDS,
   C2F_GRID_TABS,
@@ -113,17 +115,6 @@ function buildPickerColumnsFromData(firstRow) {
   return [PICKER_CB_COL, ...dataCols];
 }
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId:    listRecord?.yearid    ?? session.yearId    ?? C2F_CONFIG.CONFIG_YEAR_ID,
-    loginId:   listRecord?.loginid   ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.sessionid ?? DEFAULT_SESSION_ID,
-    idNumber:  listRecord?.C2FID     ?? listRecord?.idnumber   ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
@@ -138,15 +129,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     nettotal:         String(headerValues.nettotal         ?? "0"),
     remark:           headerValues.remark            ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -219,9 +201,9 @@ export default function CWIPToFAForm() {
     nettotal:          0,
     remark:           "",
     tranmstgenid:     0,
-    companyid:        DEFAULT_COMPANY_ID,
-    yearid:           C2F_CONFIG.CONFIG_YEAR_ID,
-    loginid:          DEFAULT_LOGIN_ID,
+    companyid:        getUserSession().companyId,
+    yearid:           getUserSession().yearId,
+    loginid:          getUserSession().loginId,
     idnumber:         recordId,
     funccode:         C2F_CONFIG.RB_MASTER,
   });
@@ -318,7 +300,9 @@ export default function CWIPToFAForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["C2FID"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) throw new Error("CWIP To FA record not found.");
 
@@ -370,6 +354,14 @@ export default function CWIPToFAForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   // ── syncedSummaryFields — labels from API headerColumns, structure from C2F_SUMMARY_FIELDS ──
   const syncedSummaryFields = useMemo(() => {
@@ -454,11 +446,7 @@ export default function CWIPToFAForm() {
             fetchCWIPAccByDivision(val),
             fetchCostCenters(val, headerValuesRef.current.trandate),
           ]);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-locationid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "locationid");
         }
       });
       return;
@@ -534,10 +522,11 @@ export default function CWIPToFAForm() {
     setItemModalLoading(true);
 
     try {
+      const session = getUserSession();
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: C2F_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: C2F_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: C2F_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const rbRow = rbRes?.[0];
@@ -547,7 +536,7 @@ export default function CWIPToFAForm() {
       const [colRes, rowRes] = await Promise.all([
         getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
           prmMasterID: rbRow.rbid,
-          prmLoginID:  DEFAULT_LOGIN_ID,
+          prmLoginID:  session.loginId,
         }),
         getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
@@ -556,8 +545,8 @@ export default function CWIPToFAForm() {
             prmdivisionid:   Number(divisionid  ?? 0),
             prmlocationid:   Number(locationid  ?? 0),
             prmcwipacid:     Number(cwipaccid   ?? 0),
-            prmyearid:       C2F_CONFIG.CONFIG_YEAR_ID,
-            prmloginid:      DEFAULT_LOGIN_ID,
+            prmyearid:       session.yearId,
+            prmloginid:      session.loginId,
             prmtrandate:     formatC2FTranDate(trandate),
             prmputtousedate: formatC2FTranDate(puttouseinstdate),
             prmconvtypeid:   C2F_CONFIG.CONV_TYPE_ID,
@@ -611,14 +600,54 @@ export default function CWIPToFAForm() {
   }, []);
 
   // ── Save ───────────────────────────────────────────────────────────────────
+  const buildDefaultHeaderValues = useCallback(() => {
+    const session = getUserSession();
+    return {
+      tranno: "", trandate: todayISO, puttouseinstdate: null,
+      divisionid: 0, locationid: 0, conversionfactor: 0,
+      cwipaccid: 0, costcenteraccid: 0,
+      convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
+      tranmstgenid: 0,
+      companyid: session.companyId, yearid: session.yearId,
+      loginid: session.loginId, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
+    };
+  }, [todayISO]);
+
+  const clearC2fStorage = useCallback(() => {
+    sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
+    sessionStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
+  }, []);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [C2F_CONFIG.STORAGE_HEADER_META, C2F_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearC2fStorage],
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) navigate("/cwip-to-fa");
-    else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
-    }
-  }, [isEditRoute, navigate, exitEditMode]);
+    else resetFormToInitialState();
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -633,17 +662,18 @@ export default function CWIPToFAForm() {
       return false;
     }
 
+    const loginId = getUserSession().loginId;
     const mstRow = {};
     headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
     Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
     Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -682,42 +712,8 @@ export default function CWIPToFAForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
-
-    clearLocations();
-    clearCWIPAccOptions();
-    clearCostCenterOptions();
-
-    headerValuesRef.current = {
-      tranno: "", trandate: todayISO, puttouseinstdate: null,
-      divisionid: 0, locationid: 0, conversionfactor: 0,
-      cwipaccid: 0, costcenteraccid: 0,
-      convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID, yearid: C2F_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
-    };
-
-    queuedRowsRef.current        = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setGridRows([]);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -864,6 +860,8 @@ export default function CWIPToFAForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={C2F_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
           />
         </div>
       </section>

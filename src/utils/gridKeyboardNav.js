@@ -7,6 +7,8 @@
  * F2 / Space       → focus cell editor when the cell wrapper is focused
  */
 
+import { focusAndSelect } from "./focusUtils";
+
 export const GRID_FOCUSABLE_SELECTOR = [
   'tbody input[type="checkbox"]',
   "tbody input.cell-input:not([disabled]):not([readonly])",
@@ -27,14 +29,7 @@ function focusCellEditorFromTarget(target) {
     "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
   );
   if (!focusable || focusable === document.activeElement) return false;
-  focusable.focus();
-  if (
-    focusable instanceof HTMLInputElement &&
-    (focusable.type === "text" || focusable.type === "number")
-  ) {
-    focusable.select();
-  }
-  return true;
+  return focusAndSelect(focusable);
 }
 
 function getDataRows(root) {
@@ -101,12 +96,7 @@ function findPosition(matrix, element) {
 }
 
 function focusTarget(target) {
-  if (!target) return false;
-  target.focus();
-  if (target instanceof HTMLInputElement && (target.type === "text" || target.type === "number")) {
-    target.select();
-  }
-  return true;
+  return focusAndSelect(target);
 }
 
 function scanForTarget(matrix, startRow, startCol, dRow, dCol) {

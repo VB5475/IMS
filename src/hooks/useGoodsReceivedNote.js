@@ -7,7 +7,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
@@ -22,8 +21,8 @@ import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || GRN_CONFIG.CONFIG_YEAR_ID,
+    Number(companyId) || getUserSession().companyId,
+    Number(yearId) || getUserSession().yearId,
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
@@ -41,8 +40,11 @@ function toDateInput(value) {
 function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
-    trandate: toDateInput(master.trandate),
-    yearid:    GRN_CONFIG.CONFIG_YEAR_ID,
+    trandate:    toDateInput(master.trandate),
+    billdate:    toDateInput(master.billdate),
+    challandate: toDateInput(master.challandate),
+    lrdate:      toDateInput(master.lrdate),
+    yearid:    getUserSession().yearId,
     funccode:  GRN_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -158,9 +160,9 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           ObjName: GRN_CONFIG.SP_GRN_TYPES,
           JSon: JSON.stringify([
             {
-              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmcompanyid: getUserSession().companyId,
               prmdivisionid: Number(divisionId),
-              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmuserid: getUserSession().loginId,
               prmformtag: GRN_CONFIG.FORM_TAG,
               prmreftype: "",
@@ -203,7 +205,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
             {
               prmdivisionid: Number(divisionId),
               prmloginid: getUserSession().loginId,
-              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmpartytype: GRN_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
@@ -247,7 +249,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           JSon: JSON.stringify([
             {
               prmdivisionid: Number(divisionId),
-              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmuserid: getUserSession().loginId,
               prmformtag: GRN_CONFIG.FORM_TAG,
             },
@@ -284,7 +286,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
           JSon: JSON.stringify([
             {
               prmdivisionid: Number(divisionId),
-              prmyearid: GRN_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmuserid: getUserSession().loginId,
               prmformtag: GRN_CONFIG.FORM_TAG,
               prmtransportermstid: Number(transporterId),
@@ -320,8 +322,8 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([
           {
             prmuserid: getUserSession().loginId,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid: GRN_CONFIG.DIVISION_YEAR_ID,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
           },
         ]),
         p_ErrCode: -1,

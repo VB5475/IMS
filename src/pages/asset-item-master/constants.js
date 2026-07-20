@@ -11,7 +11,6 @@ export const MODAL_SUBTITLE  = "Account › Master › Asset Item Master";
 // object name") — RB save proc itself was returned as pr_rb_astitemmst_save.
 export const AIM_CONFIG = {
   RB_MASTER:           "rb_astitemmst",
-  CONFIG_YEAR_ID:      2,              // ⚠️ CONFIRM with DBA
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_ITEM_GROUP:       "fn_tbl_fetch_itemgroup",
   SP_ACCOUNT:          "fn_tbl_fetch_account",

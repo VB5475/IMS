@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { BookUser, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
-import {
-  API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import { API_BASE_URL_IMS, DEFAULT_SESSION_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { pickApiField } from "../../utils/columnValidation";
+import { useNotification } from "../../context/NotificationContext";
 import {
   buildMasterCascadeDropdownRefresh,
   buildMasterCascadeResets,
@@ -26,8 +26,6 @@ import {
   isMasterFieldRequired,
   isMasterToggleField,
   validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
 } from "../../utils/masterFormUtils";
 import { AM_CONFIG } from "./constants";
 import { AM_FORM_LAYOUT, buildAccountMasterLayout } from "./formLayout";
@@ -37,12 +35,13 @@ import "./AccountMasterPage.css";
 const BANK_DETAIL_COL_FALLBACK = new Set(["bankname", "accountno", "bankaddress", "ifsccode"]);
 
 function buildSaveContext() {
+  const session = getUserSession();
   return {
-    CompanyID: DEFAULT_COMPANY_ID,
-    YearID: AM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: DEFAULT_LOGIN_ID,
-    SessionID: DEFAULT_SESSION_ID,
-    FuncCode: AM_CONFIG.RB_MASTER,
+    companyid: session.companyId,
+    yearid: session.yearId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    funccode: AM_CONFIG.RB_MASTER,
   };
 }
 
@@ -95,6 +94,7 @@ export default function AccountMasterForm({
 }) {
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
   const [isEditMode, setIsEditMode] = useState(true);
   const [formValues, setFormValues] = useState(() =>
@@ -102,6 +102,8 @@ export default function AccountMasterForm({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
+  const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
   const cascadeResets = useMemo(() => buildMasterCascadeResets(fieldDefs), [fieldDefs]);
@@ -168,10 +170,23 @@ export default function AccountMasterForm({
     const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
     if (isAddMode) {
       setFormValues(empty);
-    } else if (editPrefill?.headerValues) {
-      setFormValues({ ...empty, ...editPrefill.headerValues });
+      return;
     }
-  }, [isOpen, isAddMode, editPrefill, fieldDefs]);
+    if (editPrefill?.headerValues) {
+      setFormValues({ ...empty, ...editPrefill.headerValues });
+
+      // State/City are cascading dropdowns — they only load their real,
+      // correctly-labeled option list when their parent field changes via
+      // handleChange. On edit-load that never fires, so without this they're
+      // stuck with seedOptionsFromMaster's single ID-as-label fallback (the
+      // master-fill row has stateid/cityid but no statename/cityname).
+      if (countryCol) {
+        Promise.resolve(onRefreshDropdowns?.(countryCol, editPrefill.headerValues)).then(() => {
+          if (stateCol) onRefreshDropdowns?.(stateCol, editPrefill.headerValues);
+        });
+      }
+    }
+  }, [isOpen, isAddMode, editPrefill, fieldDefs, countryCol, stateCol, onRefreshDropdowns]);
 
   useEffect(() => {
     if (!isOpen || !fieldDefs.length) return;
@@ -271,8 +286,12 @@ export default function AccountMasterForm({
       ),
     });
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
+    if (validationErrors.length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
 
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -288,8 +307,13 @@ export default function AccountMasterForm({
         { divisionId: 0, isEdit: !isAddMode }
       );
 
-      await post(AM_CONFIG.SAVE_ENDPOINT, payload);
-      alert("Account saved successfully!");
+      const result = await post(AM_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        setSaveError(message);
+        return;
+      }
+      notify.success(message || "Account saved successfully!");
       onSaved?.();
     } catch (err) {
       console.error("[AM Save] Failed:", err);
@@ -304,29 +328,38 @@ export default function AccountMasterForm({
     isAddMode,
     onSaved,
     post,
+    notify,
     showBankSection,
     bankFlagCol,
     bankCascadeChildNames,
   ]);
 
-  const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (isEditMode && !window.confirm("Discard changes?")) return;
+  const handleDiscardConfirm = useCallback(() => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === "close") {
       onClose();
-    });
-  }, [isEditMode, onClose]);
-
-  const handleCancelEdit = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
+    } else {
       if (isAddMode) {
         onClose();
         return;
       }
       setIsEditMode(false);
       setSaveError(null);
-    });
-  }, [isAddMode, onClose]);
+    }
+  }, [discardAction, isAddMode, onClose]);
+
+  const handleClose = useCallback(() => {
+    if (!isEditMode) {
+      onClose();
+      return;
+    }
+    setDiscardAction("close");
+  }, [isEditMode, onClose]);
+
+  const handleCancelEdit = useCallback(() => {
+    setDiscardAction("cancel");
+  }, []);
 
   const footer = useMemo(() => {
     if (!isEditMode) {
@@ -525,6 +558,12 @@ export default function AccountMasterForm({
       dialogClassName="modal-dialog--account-master"
       footer={footer}
     >
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        message="Discard changes?"
+        onConfirm={handleDiscardConfirm}
+        onCancel={() => setDiscardAction(null)}
+      />
       {isLoading ? (
         <div className="master-modal-loader">Loading…</div>
       ) : combinedErr ? (
@@ -533,6 +572,7 @@ export default function AccountMasterForm({
         </div>
       ) : (
         <>
+          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="am-form-scroll">
             <div className="am-form">{renderFormSections()}</div>
           </div>

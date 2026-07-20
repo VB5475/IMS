@@ -5,9 +5,6 @@ export const DM_CONFIG = {
   FORM_TAG: "rb_departmentmst",
   TRAN_BOOK: "DEPT",
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_RB_DepartmentMst",
   /** Dept Head Name dropdown — MRD user list. */

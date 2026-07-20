@@ -1,13 +1,13 @@
 /* AssetsWriteOffPage.css */
 
-.awo-list-page {
+.awf-list-page {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.awo-list-panel {
+.awf-list-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -18,13 +18,13 @@
   min-height: 0;
 }
 
-.awo-list-panel--fill {
+.awf-list-panel--fill {
   flex: 1;
   min-height: 0;
   height: 100%;
 }
 
-.awo-list-panel__header {
+.awf-list-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -36,7 +36,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-.awo-list-panel__title {
+.awf-list-panel__title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -46,14 +46,14 @@
   color: var(--primary);
 }
 
-.awo-list-panel__toolbar {
+.awf-list-panel__toolbar {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
 }
 
-.awo-list-panel__add-btn {
+.awf-list-panel__add-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -69,24 +69,24 @@
   white-space: nowrap;
 }
 
-.awo-list-panel__add-btn:hover {
+.awf-list-panel__add-btn:hover {
   filter: brightness(1.05);
 }
 
-.awo-list-panel__pagesize-label {
+.awf-list-panel__pagesize-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.awo-list-panel__pagesize-select {
+.awf-list-panel__pagesize-select {
   height: 26px;
   min-width: 56px;
   padding: 0 24px 0 8px;
 }
 
-.awo-list-panel .ng-card {
+.awf-list-panel .ng-card {
   border: none;
   border-radius: 0;
   box-shadow: none;
@@ -94,14 +94,14 @@
   min-height: 0;
 }
 
-.awo-list-panel .ng-card-content {
+.awf-list-panel .ng-card-content {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.awo-list__edit-btn {
+.awf-list__edit-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -114,12 +114,12 @@
   cursor: pointer;
 }
 
-.awo-list__edit-btn:hover {
+.awf-list__edit-btn:hover {
   background: #eef3fa;
   border-color: var(--primary);
 }
 
-.awo-page {
+.awf-page {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -128,14 +128,14 @@
   flex-direction: column;
 }
 
-.awo-page .efq-panel {
+.awf-page .efq-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
 
-.awo-grid-section {
+.awf-grid-section {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -147,19 +147,19 @@
   overflow: hidden;
 }
 
-.awo-tab-pane {
+.awf-tab-pane {
   display: none;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-.awo-tab-pane--active {
+.awf-tab-pane--active {
   display: flex;
   flex-direction: column;
 }
 
-.awo-tab-pane .erp-grid-container {
+.awf-tab-pane .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
@@ -13,17 +13,18 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: PI_CONFIG.LIST_OBJ_TYPE,
     ObjName: PI_CONFIG.SP_INQUIRY_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid: DEFAULT_COMPANY_ID,
+        prmcompanyid: session.companyId,
         prmdivisionid: PI_CONFIG.LIST_DIVISION_ID,
         prmfrodate: `${year}-01-01`,
         prmtodate: `${year}-12-31`,
-        prmloginid: getUserSession().loginId,
-        prmyearid: PI_CONFIG.CONFIG_YEAR_ID,
+        prmloginid: session.loginId,
+        prmyearid: session.yearId,
       },
     ]),
     p_ErrCode: -1,

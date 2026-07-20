@@ -30,8 +30,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
@@ -42,11 +40,16 @@ import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilte
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   IND_CONFIG,
+  IND_MULTI_PASTE_COLUMNS,
+  IND_REMARK_COLUMNS,
   IND_GRID_TABS,
   IND_FILTER_CASCADE_RESETS,
   PAGE_TITLE,
@@ -60,41 +63,21 @@ import "./PurchaseIndentPage.css";
 let _indTempId = -1;
 const nextTempId = () => _indTempId--;
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? IND_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.indentid ?? listRecord?.idnumber ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
     trancode:         headerValues.trancode         ?? "",
     trandate:         headerValues.trandate         ?? "",
-    divisionid:       String(headerValues.divisionid       ?? ""),
-    configid:         String(headerValues.configid         ?? ""),
+    divisionid:       headerValues.divisionid ?? 0,
+    configid:         headerValues.configid ?? 0,
     expecteddate:     headerValues.expecteddate     ?? "",
-    deptid:           String(headerValues.deptid           ?? ""),
-    locationid:       String(headerValues.locationid       ?? ""),
-    costcenterid:     String(headerValues.costcenterid     ?? ""),
+    deptid:           headerValues.deptid ?? 0,
+    locationid:       headerValues.locationid ?? 0,
+    costcenterid:     headerValues.costcenterid ?? 0,
     remarks:          headerValues.remarks          ?? "",
     indentrefrenceno: headerValues.indentrefrenceno ?? "",
     enteredby:        headerValues.enteredby        ?? "",
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -183,9 +166,9 @@ export default function PurchaseIndentForm() {
     indentrefrenceno: "",
     enteredby:        "",
     tranmstgenid:     0,
-    companyid:        DEFAULT_COMPANY_ID,
-    yearid:           IND_CONFIG.DIVISION_YEAR_ID,
-    loginid:          DEFAULT_LOGIN_ID,
+    companyid:        getUserSession().companyId,
+    yearid:           getUserSession().yearId,
+    loginid:          getUserSession().loginId,
     idnumber:         recordId,
     funccode:         IND_CONFIG.RB_MASTER,
   });
@@ -278,7 +261,9 @@ export default function PurchaseIndentForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["indentid"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
@@ -332,6 +317,14 @@ export default function PurchaseIndentForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
+
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid: divisionOptions,
@@ -382,11 +375,7 @@ export default function PurchaseIndentForm() {
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await fetchIndentTypes(val);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-configid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return;
       }
@@ -451,7 +440,7 @@ export default function PurchaseIndentForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: IND_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: IND_CONFIG.RB_DETAIL_SELECT }]),
+        JSon: JSON.stringify([{ prmrbcode: IND_CONFIG.RB_DETAIL_SELECT }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -460,7 +449,7 @@ export default function PurchaseIndentForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -474,8 +463,8 @@ export default function PurchaseIndentForm() {
         JSon: JSON.stringify([
           {
             prmdivisionid: Number(divisionID),
-            prmyearid: IND_CONFIG.CONFIG_YEAR_ID,
-            prmloginid: DEFAULT_LOGIN_ID,
+            prmyearid: getUserSession().yearId,
+            prmloginid: getUserSession().loginId,
             prmtrandate: formatIndentTranDate(trandate),
             prmconfigid: Number(configid ?? 0),
             prmsupplierid: 0,
@@ -525,14 +514,55 @@ export default function PurchaseIndentForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
+  const buildDefaultHeaderValues = useCallback(() => ({
+    trancode:         "",
+    trandate:         todayISO,
+    divisionid:       0,
+    configid:         0,
+    expecteddate:     null,
+    deptid:           0,
+    locationid:       0,
+    costcenterid:     0,
+    remarks:          "",
+    indentrefrenceno: "",
+    enteredby:        "",
+    tranmstgenid:     0,
+    companyid:        getUserSession().companyId,
+    yearid:           getUserSession().yearId,
+    loginid:          getUserSession().loginId,
+    idnumber:         0,
+    funccode:         IND_CONFIG.RB_MASTER,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [IND_CONFIG.STORAGE_HEADER_META, IND_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    extraClearFns: [clearIndentTypes],
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) navigate("/purchase-indent");
-    else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
-    }
-  }, [isEditRoute, navigate, exitEditMode]);
+    else resetFormToInitialState();
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -555,10 +585,10 @@ export default function PurchaseIndentForm() {
     Object.entries(hv).forEach(([k, v]) => {
       if (k !== "id") mstRow[k] = v;
     });
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, allColumns, { loginid: DEFAULT_LOGIN_ID })
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
     );
 
     const payload = await withSaveContextFields(
@@ -593,47 +623,8 @@ export default function PurchaseIndentForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(IND_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(IND_CONFIG.STORAGE_ENTRY_META);
-
-    headerValuesRef.current = {
-      trancode:         "",
-      trandate:         todayISO,
-      divisionid:       0,
-      configid:         0,
-      expecteddate:     null,
-      deptid:           0,
-      locationid:       0,
-      remarks:          "",
-      indentrefrenceno: "",
-      tranmstgenid:     0,
-      companyid:        DEFAULT_COMPANY_ID,
-      yearid:           IND_CONFIG.DIVISION_YEAR_ID,
-      loginid:          DEFAULT_LOGIN_ID,
-      idnumber:         0,
-      funccode:         IND_CONFIG.RB_MASTER,
-    };
-
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-
-    clearIndentTypes();
-    clearSaveError();
-
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearIndentTypes, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -784,6 +775,9 @@ export default function PurchaseIndentForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={IND_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={IND_REMARK_COLUMNS}
           />
         </div>
       </section>

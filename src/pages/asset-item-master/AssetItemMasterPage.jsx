@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { LayoutList, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useAssetItemMaster } from "../../hooks/useAssetItemMaster";
 import AssetItemMasterForm from "./AssetItemMasterForm";
@@ -11,10 +12,11 @@ import "./AssetItemMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
+  const session = getUserSession();
   return {
     ObjType:   AIM_CONFIG.LIST_OBJ_TYPE,
     ObjName:   AIM_CONFIG.SP_LIST,
-    JSon:      JSON.stringify([{ PrmCompanyID: DEFAULT_COMPANY_ID }]),
+    JSon:      JSON.stringify([{ prmcompanyid: session.companyId }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
   };

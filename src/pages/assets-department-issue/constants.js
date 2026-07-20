@@ -1,9 +1,15 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
 export const PAGE_TITLE = "Assets Department Issue";
 export const PAGE_TITLE_NEW = "New Assets Department Issue";
+
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const ADI_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const ADI_REMARK_COLUMNS = new Set(["remark"]);
 
 export const ADI_CONFIG = {
   RB_MASTER: "rb_astdeptissmst",
@@ -20,11 +26,9 @@ export const ADI_CONFIG = {
   CONFIG_REF_TYPE: "DI",
   ISSUE_TYPE_ID: 4,
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
   SUPPLIER_PARTY_TYPE: "S",
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
@@ -91,18 +95,15 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildAdiItemPickerJsonPayload(
   headerValues,
-  {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = ADI_CONFIG.CONFIG_YEAR_ID,
-  } = {}
+  { companyId, loginId, yearId } = {}
 ) {
+  const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
 
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || ADI_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || session.loginId,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || session.yearId,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: fromDivisionId,
     prmtodivisionid: pickHeaderInt(headerValues, "todivisionid", "ToDivisionID") || fromDivisionId,
@@ -122,19 +123,20 @@ export function buildAdiItemPickerJsonPayload(
 }
 
 export function buildAdiListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = ADI_CONFIG.CONFIG_YEAR_ID,
+  companyId,
+  loginId,
+  yearId,
   fromDate,
   toDate,
   fromDivisionId = ADI_CONFIG.LIST_FROM_DIVISION_ID,
   fromDeptId = 0,
 } = {}) {
+  const session = getUserSession();
   const year = new Date().getFullYear();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || ADI_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId) || session.loginId,
+    prmyearid: Number(yearId) || session.yearId,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmfromdivisionid: Number(fromDivisionId) || 0,

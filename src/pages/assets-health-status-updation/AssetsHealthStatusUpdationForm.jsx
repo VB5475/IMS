@@ -33,11 +33,14 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AHS_CONFIG,
+  AHS_MULTI_PASTE_COLUMNS,
+  AHS_REMARK_COLUMNS,
   AHS_GRID_TABS,
   AHS_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -159,9 +162,9 @@ export default function AssetsHealthStatusUpdationForm() {
     frmtype: AHS_CONFIG.FRM_TYPE,
     issuetypeid: AHS_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AHS_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AHS_CONFIG.RB_MASTER,
   }));
@@ -303,6 +306,14 @@ export default function AssetsHealthStatusUpdationForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
+
   const dropdownSources = useMemo(() => ({
     fromdivisionid: divisionOptions,
     tolocationid: toLocationOptions,
@@ -390,6 +401,9 @@ export default function AssetsHealthStatusUpdationForm() {
             fetches.push(fetchConfigOptions(val));
           }
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "tolocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "tolocationid");
+          }
         }
       });
     }
@@ -447,7 +461,7 @@ export default function AssetsHealthStatusUpdationForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -512,12 +526,12 @@ export default function AssetsHealthStatusUpdationForm() {
     });
     mstRow.frmtype = AHS_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = AHS_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -569,9 +583,9 @@ export default function AssetsHealthStatusUpdationForm() {
       issuetypeid: AHS_CONFIG.ISSUE_TYPE_ID,
       funccode: AHS_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AHS_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];
@@ -733,6 +747,9 @@ export default function AssetsHealthStatusUpdationForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AHS_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AHS_REMARK_COLUMNS}
           />
         </div>
       </section>

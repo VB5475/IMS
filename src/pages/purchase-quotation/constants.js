@@ -7,6 +7,7 @@ export const PAGE_TITLE_NEW = "New Purchase Quotation";
 // Source of truth: MRD_Template4Qtn.docx (Module Requirements — Purchase Quotation).
 
 import { controlTypeMap } from "../../data/dummyData";
+import { getUserSession } from "../../session/userSession";
 import {
   APPROVED_FILTER_OPTS,
   BASED_ON,
@@ -26,6 +27,9 @@ export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
 export { TERMS_COLUMNS };
 export const QTN_READONLY_FIELDS = ["currencyname", "currencyrate"];
 export { DEFAULT_BASED_ON_FILTER_VALUES as QTN_FILTER_INITIAL_VALUES };
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const QTN_REMARK_COLUMNS = new Set(["remarks"]);
 
 export const QTN_CONFIG = {
   ...PURCHASE_API,
@@ -127,7 +131,7 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return buildPickerPayload(headerValues, loginId, {
-    configYearId: QTN_CONFIG.CONFIG_YEAR_ID,
+    configYearId: getUserSession().yearId,
     tranBook: QTN_CONFIG.TRAN_BOOK,
   });
 }

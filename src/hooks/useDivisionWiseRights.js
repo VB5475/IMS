@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { formatTranDate } from "../utils/dateFormat";
 import { mapRowToFieldValues } from "../utils/gridUtils";
 import {
@@ -62,12 +61,13 @@ function getUdrGridColumnDefs(links) {
 // Lowercase params — PG SP params are case-insensitive but payload must be consistent
 function buildUserListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
+  const session = getUserSession();
   return {
     ObjType:   UDR_CONFIG.LIST_OBJ_TYPE,
     ObjName:   UDR_CONFIG.SP_USER_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:  DEFAULT_COMPANY_ID,
+        prmcompanyid:  session.companyId,
         prmdivisionid: UDR_CONFIG.LIST_DIVISION_ID,
         prmfromdate:   today,
         prmtodate:     today,
@@ -95,10 +95,11 @@ function mapUserOptions(table) {
 }
 
 function buildGridFillParameterString(masterId, tranBook) {
+  const session = getUserSession();
   return [
-    Number(DEFAULT_COMPANY_ID) || 0,
-    UDR_CONFIG.CONFIG_YEAR_ID,
-    Number(DEFAULT_LOGIN_ID)   || 0,
+    Number(session.companyId) || 0,
+    session.yearId,
+    Number(session.loginId)   || 0,
     Number(DEFAULT_SESSION_ID) || 0,
     Number(masterId)           || 0,
     `'${tranBook}'`,
@@ -179,7 +180,7 @@ export function useDivisionWiseRights() {
       // Phase 2 — column definitions; PG returns flat array
       const colData  = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  getUserSession().loginId,
       });
       const rawLinks = Array.isArray(colData) ? colData : (colData || []);
       const links    = rawLinks.map(normalizeColumn);

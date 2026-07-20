@@ -14,8 +14,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
@@ -33,11 +31,16 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ARGO_CONFIG,
+  ARGO_MULTI_PASTE_COLUMNS,
+  ARGO_REMARK_COLUMNS,
   ARGO_GRID_TABS,
   ARGO_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -52,22 +55,6 @@ import "./AssetsReturnableGatePassOutPage.css";
 
 let _argoTempId = -1;
 const nextTempId = () => _argoTempId--;
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? ARGO_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:
-      listRecord?.astissrgoid
-      ?? listRecord?.AstIssRGOID
-      ?? listRecord?.idnumber
-      ?? listRecord?.IDNumber
-      ?? recordId,
-  };
-}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -87,15 +74,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     frmtype: str(headerValues.frmtype ?? ARGO_CONFIG.FRM_TYPE),
     issuetypeid: str(headerValues.issuetypeid ?? ARGO_CONFIG.ISSUE_TYPE_ID),
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -168,9 +146,9 @@ export default function AssetsReturnableGatePassOutForm() {
     frmtype: ARGO_CONFIG.FRM_TYPE,
     issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: ARGO_CONFIG.RB_MASTER,
   }));
@@ -263,7 +241,9 @@ export default function AssetsReturnableGatePassOutForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astissrgoid", "AstIssRGOID"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) {
         throw new Error("Assets Returnable Gate Pass Out record not found.");
@@ -314,6 +294,14 @@ export default function AssetsReturnableGatePassOutForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -411,6 +399,9 @@ export default function AssetsReturnableGatePassOutForm() {
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (hasVisibleCol(headerColumns, "tovendorid")) fetches.push(fetchToVendors(val));
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "fromlocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+          }
         }
       });
       return;
@@ -480,7 +471,7 @@ export default function AssetsReturnableGatePassOutForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: ARGO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: ARGO_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: ARGO_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -489,7 +480,7 @@ export default function AssetsReturnableGatePassOutForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -532,7 +523,53 @@ export default function AssetsReturnableGatePassOutForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const buildDefaultHeaderValues = useCallback(() => applyArgoHardcodedHeaderValues({
+    trancode: "",
+    trandate: todayISO,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    fromlocationid: 0,
+    tolocationid: 0,
+    fromdeptid: 0,
+    tovendorid: 0,
+    configid: 0,
+    includestockitems: 0,
+    remarks: "",
+    frmtype: ARGO_CONFIG.FRM_TYPE,
+    issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
+    funccode: ARGO_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [ARGO_CONFIG.STORAGE_HEADER_META, ARGO_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+  });
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateArgoBusinessRules(headerValuesRef.current);
@@ -554,12 +591,12 @@ export default function AssetsReturnableGatePassOutForm() {
     });
     mstRow.frmtype = ARGO_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = ARGO_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -576,6 +613,7 @@ export default function AssetsReturnableGatePassOutForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[ARGO Save] Failed:", err);
@@ -584,56 +622,21 @@ export default function AssetsReturnableGatePassOutForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(ARGO_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(ARGO_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyArgoHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      fromlocationid: 0,
-      tolocationid: 0,
-      fromdeptid: 0,
-      tovendorid: 0,
-      configid: 0,
-      includestockitems: 0,
-      remarks: "",
-      frmtype: ARGO_CONFIG.FRM_TYPE,
-      issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
-      funccode: ARGO_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: ARGO_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -778,6 +781,9 @@ export default function AssetsReturnableGatePassOutForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ARGO_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ARGO_REMARK_COLUMNS}
           />
         </div>
       </section>

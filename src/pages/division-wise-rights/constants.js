@@ -11,9 +11,6 @@ export const UDR_CONFIG = {
   /** MRD §5.1 — Report grid @PrmTranBook = 'R' */
   TRAN_BOOK_REPORT: "R",
 
-  CONFIG_YEAR_ID:   2,
-  DIVISION_YEAR_ID: 2,
-
   SP_RB_META:    "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_divisionwsright",
   /** Header User dropdown — admin user list (same as User Master list). */

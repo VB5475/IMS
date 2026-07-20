@@ -1,12 +1,7 @@
 import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
-import {
-  ENDPOINTS,
-  API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_SESSION_ID,
-} from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import {
   fetchDropdownOptions,
   isTruthyApiFlag,
@@ -27,13 +22,16 @@ function pickCI(obj, key) {
 }
 
 function mapMasterRowToHeaderValues(master, fieldDefs, params) {
+  const session = getUserSession();
+  // Save SP reads lowercase keys (PG column casing) — emit lowercase only,
+  // a PascalCase duplicate here leaks straight into the save payload.
   const header = {
-    IDNumber: Number(pickCI(master, "IDNumber") ?? params.idNumber) || 0,
-    CompanyID: Number(params.companyId) || DEFAULT_COMPANY_ID,
-    YearID: Number(pickCI(master, "YearID") ?? params.yearId) || AGM_CONFIG.CONFIG_YEAR_ID,
-    LoginID: Number(pickCI(master, "LoginID") ?? params.loginId) || DEFAULT_LOGIN_ID,
-    SessionID: Number(pickCI(master, "SessionID") ?? params.sessionId) || DEFAULT_SESSION_ID,
-    FuncCode: pickCI(master, "FuncCode") ?? AGM_CONFIG.RB_MASTER,
+    idnumber: Number(pickCI(master, "IDNumber") ?? params.idNumber) || 0,
+    companyid: Number(params.companyId) || session.companyId,
+    yearid: Number(pickCI(master, "YearID") ?? params.yearId) || session.yearId,
+    loginid: Number(pickCI(master, "LoginID") ?? params.loginId) || session.loginId,
+    sessionid: Number(pickCI(master, "SessionID") ?? params.sessionId) || DEFAULT_SESSION_ID,
+    funccode: pickCI(master, "FuncCode") ?? AGM_CONFIG.RB_MASTER,
   };
 
   getVisibleHeaderFields(fieldDefs).forEach((field) => {
@@ -47,10 +45,11 @@ function mapMasterRowToHeaderValues(master, fieldDefs, params) {
 }
 
 function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AGM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || DEFAULT_LOGIN_ID,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(masterId) || 0,
   ].join(",");
@@ -139,7 +138,7 @@ export function useAccountGroupMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: AGM_CONFIG.LIST_OBJ_TYPE,
         ObjName: AGM_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AGM_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: AGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -158,7 +157,7 @@ export function useAccountGroupMaster() {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const links = normalizeDetailColLinks(colData?.Links ?? resolveLinks(colData));
       setHeaderColumns(links);

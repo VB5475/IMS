@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { DM_CONFIG } from "../pages/department-master/constants";
 
 // DeptHeadID dropdown is keyed by lowercase colname in dropdownOptions
@@ -65,10 +64,11 @@ function normalizeColumn(col) {
 
 /** fn_tbl_RB_DepartmentMst — @prmCompanyID, @prmYearID, @prmLoginID, @prmSessionID, @prmMasterID */
 function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || DM_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || DEFAULT_LOGIN_ID,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(masterId) || 0,
   ].join(",");
@@ -109,7 +109,7 @@ export function useDepartmentMaster() {
       // Phase 2 — column definitions (drives visible fields, defaults, save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       // PG returns a flat array; old SQL Server returned { Links: [...] }
       const rawLinks = Array.isArray(colData) ? colData : (colData || []);
@@ -151,12 +151,13 @@ export function useDepartmentMaster() {
         prmFuncCode: DM_CONFIG.RB_MASTER,
       });
       const master = mstRes?.[0] ?? null;
+      const session = getUserSession();
       return {
         master,
         headerValues: master ? {
           ...master,
-          yearid: Number(master.yearid ?? yearId) || DM_CONFIG.CONFIG_YEAR_ID,
-          loginid: Number(master.loginid ?? loginId) || DEFAULT_LOGIN_ID,
+          yearid: Number(master.yearid ?? yearId) || session.yearId,
+          loginid: Number(master.loginid ?? loginId) || session.loginId,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode: master.funccode ?? DM_CONFIG.RB_MASTER,
         } : null,

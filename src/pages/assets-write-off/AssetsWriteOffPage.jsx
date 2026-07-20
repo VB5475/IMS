@@ -1,20 +1,36 @@
+// AssetsWriteOffPage.jsx — Assets Write Off listing page
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileX, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import {
+  ENDPOINTS,
+  API_BASE_URL,
+} from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { AWO_CONFIG, ENTRY_FORM_LABEL, buildAwoListJsonPayload } from "./constants";
+import { AWF_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsWriteOffPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
 function buildListParams() {
+  const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
-    ObjType: AWO_CONFIG.LIST_OBJ_TYPE,
-    ObjName: AWO_CONFIG.SP_LIST,
-    JSon: JSON.stringify([buildAwoListJsonPayload()]),
+    ObjType: AWF_CONFIG.LIST_OBJ_TYPE,
+    ObjName: AWF_CONFIG.SP_LIST,
+    JSon: JSON.stringify([{
+      prmcompanyid: session.companyId,
+      prmdivisionid: AWF_CONFIG.LIST_DIVISION_ID,
+      prmloginid: session.loginId,
+      prmyearid: session.yearId,
+      prmfromdate: `01-Jan-${year}`,
+      prmtodate: `31-Dec-${year}`,
+      prmaccountid: 0,
+    }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   };
@@ -23,6 +39,7 @@ function buildListParams() {
 export default function AssetsWriteOffPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,7 +47,7 @@ export default function AssetsWriteOffPage() {
 
   usePageHeader({
     title: "Assets Write Off",
-    subtitle: "Write off asset items by serial number.",
+    subtitle: "Create and manage asset write-off entries.",
     showBack: true,
     backTo: "/",
   });
@@ -40,7 +57,7 @@ export default function AssetsWriteOffPage() {
       buildListPageColumns(data, {
         navigate,
         basePath: "/assets-write-off",
-        editBtnClass: "awo-list__edit-btn",
+        editBtnClass: "awf-list__edit-btn",
       }),
     [data, navigate]
   );
@@ -52,7 +69,7 @@ export default function AssetsWriteOffPage() {
       const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
       setData(normalizeListRows(json ?? []));
     } catch (err) {
-      console.error("[AWO] list fetch failed:", err);
+      console.error("[AWF] list fetch failed:", err);
       setError("Failed to load Assets Write Off records.");
     } finally {
       setLoading(false);
@@ -63,30 +80,27 @@ export default function AssetsWriteOffPage() {
     fetchList();
   }, [fetchList]);
 
-  const handleAddNew = useCallback(
-    () => navigate("/assets-write-off/new"),
-    [navigate]
-  );
+  const handleAddNew = useCallback(() => navigate("/assets-write-off/new"), [navigate]);
 
   return (
-    <div className="workspace-page awo-list-page">
-      <section className="awo-list-panel awo-list-panel--fill">
-        <header className="awo-list-panel__header">
-          <div className="awo-list-panel__title">
+    <div className="workspace-page awf-list-page">
+      <section className="awf-list-panel awf-list-panel--fill">
+        <header className="awf-list-panel__header">
+          <div className="awf-list-panel__title">
             <FileX size={14} strokeWidth={2} />
             <span>Assets Write Off</span>
           </div>
-          <div className="awo-list-panel__toolbar">
-            <button type="button" className="awo-list-panel__add-btn" onClick={handleAddNew}>
+          <div className="awf-list-panel__toolbar">
+            <button type="button" className="awf-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
-            <label htmlFor="awo-list-page-size" className="awo-list-panel__pagesize-label">
+            <label htmlFor="awf-list-page-size" className="awf-list-panel__pagesize-label">
               Rows per page
             </label>
             <select
-              id="awo-list-page-size"
-              className="ng-select awo-list-panel__pagesize-select"
+              id="awf-list-page-size"
+              className="ng-select awf-list-panel__pagesize-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               aria-label="Rows per page"
@@ -111,7 +125,7 @@ export default function AssetsWriteOffPage() {
           emptyMessage="No Assets Write Off records found."
           hideHeader
           searchable
-          deleteProcName={AWO_CONFIG.DELETE_PROC_NAME}
+          deleteProcName={AWF_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
         />

@@ -11,10 +11,7 @@ export async function generateQrDataUrl(text, size = 280) {
 
 export async function buildAssetQrLabels(rows) {
   const validRows = (rows || [])
-    .map((row) => {
-      const { itemcode, srno } = resolveAssetQrFields(row);
-      return { itemcode, srno };
-    })
+    .map((row) => resolveAssetQrFields(row))
     .filter(({ itemcode, srno }) => itemcode && srno);
 
   if (validRows.length === 0) {
@@ -22,10 +19,10 @@ export async function buildAssetQrLabels(rows) {
   }
 
   return Promise.all(
-    validRows.map(async ({ itemcode, srno }) => {
+    validRows.map(async ({ itemcode, itemname, srno }) => {
       const payload = buildAssetQrPayload(itemcode, srno);
       const dataUrl = await generateQrDataUrl(payload, 320);
-      return { itemcode, srno, dataUrl };
+      return { itemcode, itemname, srno, dataUrl };
     })
   );
 }

@@ -21,8 +21,6 @@ import {
   API_BASE_URL,
   API_BASE_URL_IMS,
   API_TIMEOUT,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -32,10 +30,11 @@ import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || PO_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -58,7 +57,7 @@ function mapMasterRowToHeaderValues(master) {
     trandate: toDateInput(master.trandate),
     deliverydate: toDateInput(master.deliverydate) || null,
     currencyname: currencyName,
-    yearid: PO_CONFIG.CONFIG_YEAR_ID,
+    yearid: getUserSession().yearId,
     funccode: PO_CONFIG.RB_MASTER,
     loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -100,7 +99,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   const apiColumns = colData || [];
   return { meta, apiColumns };
@@ -144,7 +143,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: PO_CONFIG.SP_DEPT,
-        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
+        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: getUserSession().loginId }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -167,7 +166,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: PO_CONFIG.SP_UNIQUE_ID,
-        JSon: JSON.stringify([{ prmidnumber: 0, prmyearid: PO_CONFIG.CONFIG_YEAR_ID }]),
+        JSon: JSON.stringify([{ prmidnumber: 0, prmyearid: getUserSession().yearId }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -187,15 +186,16 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       }
       setIsLoadingPoTypes(true);
       try {
+        const session = getUserSession();
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PO_CONFIG.SP_PO_TYPES,
           JSon: JSON.stringify([
             {
-              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmcompanyid: session.companyId,
               prmdivisionid: Number(divisionId),
-              prmyearid: PO_CONFIG.CONFIG_YEAR_ID,
-              prmuserid: DEFAULT_LOGIN_ID,
+              prmyearid: session.yearId,
+              prmuserid: session.loginId,
               prmformtag: PO_CONFIG.FORM_TAG,
               prmreftype: "",
             },
@@ -257,9 +257,9 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         ObjName: PO_CONFIG.SP_EXISTING_POS,
         JSon: JSON.stringify([
           {
-            prmLoginID: DEFAULT_LOGIN_ID,
-            prmCompanyID: DEFAULT_COMPANY_ID,
-            prmYearID: PO_CONFIG.DIVISION_YEAR_ID,
+            prmLoginID: getUserSession().loginId,
+            prmCompanyID: getUserSession().companyId,
+            prmYearID: getUserSession().yearId,
           },
         ]),
         p_ErrCode: -1,
@@ -289,7 +289,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: PO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: PO_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: PO_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -303,7 +303,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
 
       setHeaderColumns(colData || []);
@@ -322,15 +322,16 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
         return;
       }
 
+      const headerSession = getUserSession();
       const [divisionData, supplierData, deptData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: PO_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([
             {
-              prmuserid: DEFAULT_LOGIN_ID,
-              prmcompanyid: DEFAULT_COMPANY_ID,
-              prmyearid: PO_CONFIG.DIVISION_YEAR_ID,
+              prmuserid: headerSession.loginId,
+              prmcompanyid: headerSession.companyId,
+              prmyearid: headerSession.yearId,
             },
           ]),
           p_ErrCode: -1,
@@ -345,8 +346,8 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           JSon: JSON.stringify([
             {
               prmdivisionid: 0,
-              prmloginid: DEFAULT_LOGIN_ID,
-              prmyearid: PO_CONFIG.CONFIG_YEAR_ID,
+              prmloginid: headerSession.loginId,
+              prmyearid: headerSession.yearId,
               prmpartytype: PO_CONFIG.SUPPLIER_PARTY_TYPE,
             },
           ]),
@@ -360,7 +361,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: PO_CONFIG.SP_DEPT,
           JSon: JSON.stringify([
-            { prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID },
+            { prmdeptid: 0, prmloginid: headerSession.loginId },
           ]),
           p_ErrCode: -1,
           p_ErrMsg: "",
@@ -644,14 +645,15 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       const tasks = [];
 
       if (needsDivision || needsSupplier) {
+        const unlockedSession = getUserSession();
         tasks.push(
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: 2,
             ObjName: PO_CONFIG.SP_DIVISIONS,
             JSon: JSON.stringify([{
-              prmuserid: DEFAULT_LOGIN_ID,
-              prmcompanyid: DEFAULT_COMPANY_ID,
-              prmyearid: PO_CONFIG.DIVISION_YEAR_ID,
+              prmuserid: unlockedSession.loginId,
+              prmcompanyid: unlockedSession.companyId,
+              prmyearid: unlockedSession.yearId,
             }]),
             p_ErrCode: -1, p_ErrMsg: "",
           }).then((res) => setDivisionOptions(
@@ -663,8 +665,8 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
             ObjName: PO_CONFIG.SUPPLIER_SP,
             JSon: JSON.stringify([{
               prmdivisionid: 0,
-              prmloginid: DEFAULT_LOGIN_ID,
-              prmyearid: PO_CONFIG.CONFIG_YEAR_ID,
+              prmloginid: unlockedSession.loginId,
+              prmyearid: unlockedSession.yearId,
               prmpartytype: PO_CONFIG.SUPPLIER_PARTY_TYPE,
             }]),
             p_ErrCode: -1, p_ErrMsg: "",

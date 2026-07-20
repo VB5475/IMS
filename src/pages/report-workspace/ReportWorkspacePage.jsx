@@ -85,6 +85,7 @@ export default function ReportWorkspacePage() {
             defaultPageSize={25}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             emptyMessage="No records match the current filters."
+            searchable
             fill
           />
         ) : (

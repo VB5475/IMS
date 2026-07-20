@@ -15,9 +15,7 @@ import { useNotification } from "../../context/NotificationContext";
 import { useApi } from "../../api/useApi";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
-  DEFAULT_LOGIN_ID,
   getColDefault,
   buildSaveRowFromColumns,
 } from "../../api/constants";
@@ -142,14 +140,14 @@ export default function SupplierMasterForm({
     });
     return {
       ...row,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: SM_CONFIG.DIVISION_YEAR_ID,
+      companyid: session.companyId,
+      yearid: session.yearId,
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
       funccode: SM_CONFIG.RB_MASTER,
       idnumber: recordId || 0,
     };
-  }, [headerColumns, recordId, session.loginId]);
+  }, [headerColumns, recordId, session.companyId, session.yearId, session.loginId]);
 
   const [formValues, setFormValues] = useState({});
   const [recordLoading, setRecordLoading] = useState(false);
@@ -177,9 +175,9 @@ export default function SupplierMasterForm({
     setRecordLoading(true);
     setRecordLoadError(null);
     fetchEditRecord({
-      companyId: DEFAULT_COMPANY_ID,
-      yearId: SM_CONFIG.DIVISION_YEAR_ID,
-      loginId: DEFAULT_LOGIN_ID,
+      companyId: session.companyId,
+      yearId: session.yearId,
+      loginId: session.loginId,
       sessionId: DEFAULT_SESSION_ID,
       idNumber: recordId,
     })
@@ -359,14 +357,22 @@ export default function SupplierMasterForm({
     const mstRow = buildSaveRowFromColumns(formValues, masterColumnDefs, {
       loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
+      prmentrytype: SM_CONFIG.ENTRY_TYPE,
     });
 
-    const consigneeSaveRows = consigneeRows.map(({ id, ...rest }) =>
-      buildSaveRowFromColumns(rest, detailAllColumns, {
+    // autogenid: 0 for a newly-added row (grid id is a negative nextTempId()
+    // placeholder), the real backend row id for an existing consignee loaded
+    // on edit (grid id was seeded from compuniquekey/idnumber — see
+    // useSupplierMaster.js fetchEditRecord). Per-row, so it can't live in the
+    // shared extraFields bag below — merged into `rest` before column-building.
+    const consigneeSaveRows = consigneeRows.map(({ id, ...rest }) => {
+      const rawId = Number(id);
+      const autogenid = Number.isFinite(rawId) && rawId > 0 ? rawId : 0;
+      return buildSaveRowFromColumns({ ...rest, autogenid }, detailAllColumns, {
         loginid: session.loginId,
         sessionid: DEFAULT_SESSION_ID,
-      })
-    );
+      });
+    });
     console.log("payload of SM");
     console.log("mstRow",mstRow);
     console.log("consigneeSaveRows",consigneeSaveRows);
@@ -375,8 +381,9 @@ export default function SupplierMasterForm({
       buildSaveJsonFields({
         label: SM_CONFIG.FORM_TAG,
         mst: mstRow,
-        extra: { prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows) },
-        // extra: { prmStrConsigneeJSON: JSON.stringify({}) },
+        extra: {
+          prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows),
+        },
       }),
       { divisionId: 0, isEdit: !isAddMode }
     );
