@@ -142,9 +142,15 @@ export function syncMasterSummaryFieldWithApiCol(field, apiCol, patch = {}) {
   };
 }
 
-/** Resolve master summary column by SummaryParameterID (ColName). */
+/** Resolve master summary column by SummaryParameterID (ColName). API colnames arrive lowercase. */
 export function resolveMasterSummaryApiCol(field, apiColMap) {
-  return apiColMap[field.SummaryParameterID] ?? apiColMap[field.mstKey] ?? null;
+  const key = field.SummaryParameterID ?? field.mstKey;
+  return (
+    apiColMap[key] ??
+    apiColMap[field.mstKey] ??
+    (key != null ? apiColMap[String(key).toLowerCase()] : null) ??
+    null
+  );
 }
 
 /**

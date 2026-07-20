@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Package, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import {
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_SESSION_ID,
-} from "../../api/constants";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { DEFAULT_SESSION_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useItemMaster } from "../../hooks/useItemMaster";
 import { formatTranDate } from "../../utils/dateFormat";
@@ -13,7 +11,17 @@ import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColum
 import ItemMasterForm from "./ItemMasterForm";
 import { IM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ItemMasterPage.css";
+
+// prmisactive is always "1" (active only) — confirmed business rule, not a
+// live filter value: this list page has no Active/Inactive toggle to read from.
+function buildItemMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+    { paramtitle: "Is Active", paramname: "@prmisactive", paramval: "1", paramtext: "Active" },
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -129,10 +137,11 @@ export default function ItemMasterPage() {
       setEditLoading(true);
 
       try {
+        const session = getUserSession();
         const result = await fetchEditRecord({
-          companyId: DEFAULT_COMPANY_ID,
-          yearId: IM_CONFIG.CONFIG_YEAR_ID,
-          loginId: DEFAULT_LOGIN_ID,
+          companyId: session.companyId,
+          yearId: session.yearId,
+          loginId: session.loginId,
           sessionId: DEFAULT_SESSION_ID,
           idNumber,
         });
@@ -216,6 +225,11 @@ export default function ItemMasterPage() {
             <button type="button" className="im-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="Item Master Report"
+              reportFileName="RptPrintItems_PG.rpt"
+              buildParams={buildItemMasterReportParams}
+            />
             <label htmlFor="im-list-page-size" className="im-list-panel__pagesize-label">
               Rows per page
             </label>

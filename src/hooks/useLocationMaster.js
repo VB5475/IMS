@@ -3,10 +3,9 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
+import { getUserSession } from "../session/userSession";
 import { LM_CONFIG } from "../pages/location-master/constants";
 
 export function useLocationMaster() {
@@ -27,7 +26,7 @@ export function useLocationMaster() {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType:   2,
         ObjName:   LM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmRBCode: LM_CONFIG.RB_MASTER }]),
+        JSon:      JSON.stringify([{ prmrbcode: LM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg:  "",
       });
@@ -39,7 +38,7 @@ export function useLocationMaster() {
       // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  getUserSession().loginId,
       });
       setHeaderColumns(colData || []);
       setAllColumns(
@@ -92,10 +91,11 @@ export function useLocationMaster() {
   // Returns master spread directly (PG returns lowercase keys matching RB colnames).
   // System context fields are overlaid so the save SP always gets consistent values.
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+    const session = getUserSession();
     const prmParameters = [
-      Number(companyId)  || DEFAULT_COMPANY_ID,
-      Number(yearId)     || LM_CONFIG.CONFIG_YEAR_ID,
-      Number(loginId)    || DEFAULT_LOGIN_ID,
+      Number(companyId)  || session.companyId,
+      Number(yearId)     || session.yearId,
+      Number(loginId)    || session.loginId,
       Number(sessionId)  || DEFAULT_SESSION_ID,
       Number(idNumber)   || 0,
     ].join(",");
@@ -113,9 +113,9 @@ export function useLocationMaster() {
         // API returns locationtypeid (numeric) + locationtype (display string).
         // The form dropdown is keyed on "locationtype" and matches by numeric ID.
         locationtype: master.locationtypeid ?? master.locationtype,
-        companyid: Number(companyId)                     || DEFAULT_COMPANY_ID,
-        yearid:    Number(master.yearid    ?? yearId)    || LM_CONFIG.CONFIG_YEAR_ID,
-        loginid:   Number(master.loginid   ?? loginId)   || DEFAULT_LOGIN_ID,
+        companyid: Number(companyId)                     || session.companyId,
+        yearid:    Number(master.yearid    ?? yearId)    || session.yearId,
+        loginid:   Number(master.loginid   ?? loginId)   || session.loginId,
         sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
         funccode:  master.funccode ?? LM_CONFIG.RB_MASTER,
       } : null,

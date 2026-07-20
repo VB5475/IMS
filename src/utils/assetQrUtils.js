@@ -13,16 +13,32 @@ export function resolveAssetQrFields(row) {
     row?.itemCode ??
     row?.ITEMCODE ??
     "";
+  const itemname =
+    row?.itemname ??
+    row?.ItemName ??
+    row?.itemName ??
+    row?.ITEMNAME ??
+    "";
   const srno =
     row?.assetsrno ??
     row?.AssetSrNo ??
     row?.assetSrNo ??
     row?.ASSETSRNO ??
     "";
-  return { itemcode: String(itemcode).trim(), srno: String(srno).trim() };
 
-  // return {
-  //   "itemcode": "ASS000595",
-  //   "srno": "S4EUNZ0R200413"
-  // }
+  return {
+    itemcode: String(itemcode).trim(),
+    itemname: String(itemname).trim(),
+    srno: String(srno).trim(),
+  };
 }
+
+/** Fields printed on every asset QR label (TSPL sticker + PDF export) — same order,
+ * same labels, on both renderers. Each renders as its own label line followed by
+ * the value, word-wrapped onto further line(s) if it doesn't fit on one — values
+ * are never shrunk or cut short. */
+export const ASSET_QR_FIELD_LABELS = [
+  { key: "itemcode", label: "ITEMCODE" },
+  { key: "itemname", label: "ITEMNAME" },
+  { key: "srno", label: "SR.NO" },
+];

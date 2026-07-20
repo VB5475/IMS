@@ -1,0 +1,80 @@
+/* PurchaseQuotationComparisonPage — single-page module.
+   Header fields are now EnterpriseFilterPanel (same component/CSS every
+   transaction form uses) — its styling lives in enterprise-filter-query.css,
+   not here. What remains below is this page's own supplementary content. */
+
+.pqc-header__field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #dc2626;
+  margin-top: 2px;
+}
+
+.pqc-header__field-error--standalone {
+  margin: -6px 0 12px;
+}
+
+/* Read-only inquiry summary — derived fields shown once an inquiry is
+   picked, deliberately its own box rather than folded into the filter
+   panel's editable field grid (those are inputs, this is read-only output). */
+.pqc-inquiry-details {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+
+.pqc-header__display-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pqc-header__display-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Selection progress strip — same box/label/value language as .pqc-inquiry-details
+   above, kept as its own section since it reflects live grid-selection state,
+   not the loaded inquiry's fixed fields. */
+.pqc-selection-summary {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+
+.pqc-header__display-value {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pqc-body {
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 12px;
+}
+
+.pqc-guidance {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+

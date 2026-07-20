@@ -14,11 +14,13 @@ import { ENDPOINTS, API_BASE_URL } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { REPORT_WORKSPACE_CONFIG } from "../pages/report-workspace/constants";
 import { formatParamValue, fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
+import { useNotification } from "../context/NotificationContext";
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
 export function useGridSearch(baseURL = API_BASE_URL) {
   const { get } = useApi(baseURL);
+  const notify = useNotification();
 
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
@@ -179,7 +181,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
         });
 
         console.log("%c[Save] Response:", "color:#22c55e;font-weight:600", result);
-        alert("Saved successfully!");
+        notify.success("Saved successfully!");
       } catch (err) {
         console.error("[Save] Failed:", err);
         setSearchError(err?.message || "Save failed. Please try again.");
@@ -187,7 +189,7 @@ export function useGridSearch(baseURL = API_BASE_URL) {
         setIsSearching(false);
       }
     },
-    [get]
+    [get, notify]
   );
 
   return {

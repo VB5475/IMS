@@ -1,9 +1,15 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
 export const PAGE_TITLE = "Assets Employee Return";
 export const PAGE_TITLE_NEW = "New Assets Employee Return";
+
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AER_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AER_REMARK_COLUMNS = new Set(["remark"]);
 
 export const AER_CONFIG = {
   RB_MASTER: "rb_astempretmst",
@@ -22,10 +28,7 @@ export const AER_CONFIG = {
   ITEM_PICKER_ISSUE_TYPE_ID: -1,
   EMP_ISSUE_TYPE_ID: -1,
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
-
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
@@ -33,8 +36,8 @@ export const AER_CONFIG = {
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_Rb_astempretselonly",
 
-  SP_MASTER_FILL: "fn_tbl_Rb_astempretmst",
-  SP_DETAIL_FILL: "fn_tbl_Rb_astempretdet",
+  SP_MASTER_FILL: "fn_tbl_rb_astempretmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astempretdet",
 
   SAVE_ENDPOINT: "/API/AstEmpRetMst/Post_RB_AstEmpRetMst_Save",
 
@@ -89,16 +92,13 @@ function pickHeaderInt(headerValues, ...keys) {
 
 export function buildAerItemPickerJsonPayload(
   headerValues,
-  {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = AER_CONFIG.CONFIG_YEAR_ID,
-  } = {}
+  { companyId, loginId, yearId } = {}
 ) {
+  const session = getUserSession();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || AER_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || session.loginId,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || session.yearId,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID"),
     prmtodivisionid: 0,
@@ -118,19 +118,20 @@ export function buildAerItemPickerJsonPayload(
 }
 
 export function buildAerListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = AER_CONFIG.CONFIG_YEAR_ID,
+  companyId,
+  loginId,
+  yearId,
   fromDate,
   toDate,
   fromDivisionId = AER_CONFIG.LIST_FROM_DIVISION_ID,
   fromEmpUserId = 0,
 } = {}) {
+  const session = getUserSession();
   const year = new Date().getFullYear();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || AER_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || session.companyId,
+    prmloginid: Number(loginId) || session.loginId,
+    prmyearid: Number(yearId) || session.yearId,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmfromdivisionid: Number(fromDivisionId) || 0,

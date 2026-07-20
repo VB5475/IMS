@@ -142,14 +142,6 @@
   min-width: 100%;
 }
 
-/* Terms tab: plain scrollable pane */
-.pi-terms-pane {
-  flex: 1;
-  overflow: auto;
-  padding: 12px 16px;
-  background: var(--surface);
-}
-
 /* ── Misc sections (CollapsibleGrid etc.) ── */
 .pi-page__section {
   flex-shrink: 0;
@@ -169,57 +161,4 @@
   font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
-}
-
-
-/* ── Terms & Conditions table ── */
-.pi-terms-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  min-width: 400px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.pi-terms-table thead tr {
-  background: var(--col-base-header-bg);
-}
-
-.pi-terms-table th {
-  padding: 6px 12px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--col-base-header-text);
-  text-align: left;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-
-.pi-terms-table th:last-child {
-  border-right: none;
-}
-
-.pi-terms-table td {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-
-.pi-terms-table td:last-child {
-  border-right: none;
-}
-
-.pi-terms-empty {
-  text-align: center;
-  padding: 24px;
-  color: var(--text-muted);
-  font-style: italic;
-  font-size: 12px;
-  border-right: none !important;
 }

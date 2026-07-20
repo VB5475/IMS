@@ -1,14 +1,13 @@
+// useAstWriteOff.js — Header meta, detail grid, and cascades for Assets Write Off (AWF)
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
-import { AWO_CONFIG } from "../pages/assets-write-off/constants";
+import { AWF_CONFIG } from "../pages/assets-write-off/constants";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -19,10 +18,11 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || AWO_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId) || getUserSession().loginId,
+    Number(companyId) || session.companyId,
+    Number(yearId) || session.yearId,
+    Number(loginId) || session.loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
   ].join(",");
@@ -40,13 +40,10 @@ function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
     trandate: toDateInput(master.trandate ?? master.TranDate),
-    issuedate: toDateInput(master.issuedate ?? master.IssueDate) || toDateInput(master.trandate),
-    yearid: AWO_CONFIG.CONFIG_YEAR_ID,
-    funccode: AWO_CONFIG.RB_MASTER,
+    yearid: getUserSession().yearId,
+    funccode: AWF_CONFIG.RB_MASTER,
     loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
-    frmtype: AWO_CONFIG.FRM_TYPE,
-    issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
   };
 }
 
@@ -68,25 +65,18 @@ function buildEventColumnSet(apiColumns, fallbackKeys = []) {
   return set;
 }
 
-function mapDivisionRows(rows) {
+function mapAccountRows(rows) {
   return (rows || []).map((r) => ({
-    value: String(r.fromdivisionid ?? r.FromDivisionID ?? r.divisionid ?? 0),
-    label: String(r.fromdivision ?? r.FromDivision ?? r.divisionname ?? ""),
-  }));
-}
-
-function mapLocationRows(rows, valueKey = "locationid", labelKey = "locationname") {
-  return (rows || []).map((r) => ({
-    value: String(r[valueKey] ?? r.LocationID ?? r.locationid ?? 0),
-    label: String(r[labelKey] ?? r.LocationName ?? r.locationname ?? ""),
+    value: String(r.accountid ?? r.acid ?? 0),
+    label: String((r.accode ?? "") + " | " + (r.acname ?? "")),
   }));
 }
 
 async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
-    ObjName: AWO_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    ObjName: AWF_CONFIG.SP_RB_META,
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
@@ -98,7 +88,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
+    prmLoginID: getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -110,9 +100,10 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
 
-  const [fromDivisionOptions, setFromDivisionOptions] = useState([]);
-  const [fromLocationOptions, setFromLocationOptions] = useState([]);
-  const [configOptions, setConfigOptions] = useState([]);
+  const [divisionOptions, setDivisionOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [assetsAccOptions, setAssetsAccOptions] = useState([]);
+  const [profitLossAccOptions, setProfitLossAccOptions] = useState([]);
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
@@ -124,104 +115,93 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  const divisionFetchJson = useCallback(
-    () => JSON.stringify([{
-      prmuserid: DEFAULT_LOGIN_ID,
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmyearid: AWO_CONFIG.DIVISION_YEAR_ID,
-    }]),
-    []
-  );
-
-  const locationFetchJson = useCallback(
-    () => JSON.stringify([{
-      prmcompanyid: DEFAULT_COMPANY_ID,
-      prmloginid: DEFAULT_LOGIN_ID,
-      prmlocationtype: "",
-    }]),
-    []
-  );
-
-  const fetchFromDivisions = useCallback(async () => {
-    try {
+  const fetchAccountsByDivision = useCallback(
+    async (divisionId, mainGroupId) => {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: AWO_CONFIG.SP_FROM_DIVISION,
-        JSon: divisionFetchJson(),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const opts = mapDivisionRows(res);
-      setFromDivisionOptions(opts);
-      return opts;
-    } catch (err) {
-      console.warn("[AWO] Division fetch failed:", err);
-      setFromDivisionOptions([]);
-      return [];
-    }
-  }, [get, divisionFetchJson]);
-
-  const fetchFromLocations = useCallback(async () => {
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: AWO_CONFIG.SP_FROM_LOCATION,
-        JSon: locationFetchJson(),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const opts = mapLocationRows(res, "fromlocationid", "fromlocation");
-      setFromLocationOptions(opts);
-      return opts;
-    } catch (err) {
-      console.warn("[AWO] From location fetch failed:", err);
-      setFromLocationOptions([]);
-      return [];
-    }
-  }, [get, locationFetchJson]);
-
-  const fetchConfigOptions = useCallback(async (divisionId = 0) => {
-    const resolvedDivisionId = Number(divisionId) || 0;
-    if (!resolvedDivisionId) {
-      setConfigOptions([]);
-      return [];
-    }
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: AWO_CONFIG.SP_CONFIG,
+        ObjName: AWF_CONFIG.SP_ASSETS_ACC,
         JSon: JSON.stringify([{
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmdivisionid: resolvedDivisionId,
-          prmyearid: AWO_CONFIG.CONFIG_YEAR_ID,
-          prmuserid: DEFAULT_LOGIN_ID,
-          prmformtag: AWO_CONFIG.CONFIG_FORM_TAG,
-          prmreftype: AWO_CONFIG.CONFIG_REF_TYPE,
-          prmref_mstid: 0,
-          prmref_detid: 0,
+          prmdivisionid: Number(divisionId) || 0,
+          prmacmaingroupid: Number(mainGroupId) || 0,
+          prmloginid: getUserSession().loginId,
+          prmcompanyid: getUserSession().companyId,
+          prmyearid: getUserSession().yearId,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      return mapAccountRows(res || []);
+    },
+    [get]
+  );
+
+  const fetchLocations = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: AWF_CONFIG.SP_LOCATION,
+        JSon: JSON.stringify([{
+          prmcompanyid: getUserSession().companyId,
+          prmloginid: getUserSession().loginId,
+          prmlocationtype: "",
         }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       const opts = (res || []).map((r) => ({
-        value: String(
-          r.configurationid ?? r.ConfigurationId ?? r.configid ?? r.idnumber ?? r.IDNumber ?? 0
-        ),
-        label:
-          r.name
-          ?? r.Name
-          ?? r.configname
-          ?? r.ConfigName
-          ?? String(r.configurationid ?? r.ConfigurationId ?? ""),
+        value: String(r.locationid ?? r.locid ?? 0),
+        label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid ?? ""),
       }));
-      setConfigOptions(opts);
+      setLocationOptions(opts);
       return opts;
     } catch (err) {
-      console.warn("[AWO] Config fetch failed:", err);
-      setConfigOptions([]);
+      console.warn("[AWF] Location fetch failed:", err);
+      setLocationOptions([]);
       return [];
     }
   }, [get]);
+
+  const fetchAssetsAccByDivision = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setAssetsAccOptions([]);
+        return [];
+      }
+      try {
+        const opts = await fetchAccountsByDivision(divisionId, AWF_CONFIG.ASSETS_AC_MAIN_GROUP_ID);
+        setAssetsAccOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[AWF] Asset account fetch failed:", err);
+        setAssetsAccOptions([]);
+        return [];
+      }
+    },
+    [fetchAccountsByDivision]
+  );
+
+  const fetchProfitLossAccByDivision = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setProfitLossAccOptions([]);
+        return [];
+      }
+      try {
+        const opts = await fetchAccountsByDivision(divisionId, AWF_CONFIG.PROFIT_LOSS_AC_MAIN_GROUP_ID);
+        setProfitLossAccOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[AWF] Profit/Loss account fetch failed:", err);
+        setProfitLossAccOptions([]);
+        return [];
+      }
+    },
+    [fetchAccountsByDivision]
+  );
+
+  const clearLocationOptions = useCallback(() => setLocationOptions([]), []);
+  const clearAssetsAccOptions = useCallback(() => setAssetsAccOptions([]), []);
+  const clearProfitLossAccOptions = useCallback(() => setProfitLossAccOptions([]), []);
 
   const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
     setHeaderFetching(true);
@@ -229,42 +209,62 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     try {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
-        ObjName: AWO_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AWO_CONFIG.RB_MASTER }]),
+        ObjName: AWF_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: AWF_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
-      if (!tableRow) throw new Error("No Assets Write Off header RB metadata returned from server.");
+      if (!tableRow) throw new Error("No AWF header RB metadata returned from server.");
 
       const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
-      localStorage.setItem(AWO_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
+      localStorage.setItem(AWF_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const cols = colData || [];
       setHeaderColumns(cols);
 
       if (skipListDropdowns) {
-        setFromDivisionOptions([]);
-        setFromLocationOptions([]);
-        setConfigOptions([]);
+        setDivisionOptions([]);
+        setLocationOptions([]);
+        setAssetsAccOptions([]);
+        setProfitLossAccOptions([]);
         return;
       }
 
-      const tasks = [];
-      if (hasVisibleCol(cols, "fromdivisionid")) tasks.push(fetchFromDivisions());
-      if (hasVisibleCol(cols, "fromlocationid")) tasks.push(fetchFromLocations());
-      await Promise.all(tasks);
+      if (hasVisibleCol(cols, "divisionid")) {
+        const divisionData = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: 2,
+          ObjName: AWF_CONFIG.SP_DIVISIONS,
+          JSon: JSON.stringify([{
+            prmuserid: getUserSession().loginId,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        }).catch((err) => {
+          console.warn("[AWF] Division fetch failed:", err);
+          return null;
+        });
+
+        setDivisionOptions(
+          (divisionData || []).map((r) => ({
+            value: String(r.divisionid),
+            label: r.divisionname,
+          }))
+        );
+      }
     } catch (err) {
-      console.error("[AWO] fetchHeaderMeta failed:", err);
+      console.error("[AWF] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Assets Write Off configuration.");
     } finally {
       setHeaderFetching(false);
     }
-  }, [get, fetchFromDivisions, fetchFromLocations]);
+  }, [get]);
 
   const fetchDetailMeta = useCallback(async () => {
     setIsFetching(true);
@@ -272,8 +272,8 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     try {
       const { meta, apiColumns } = await loadRbDetailGridMeta(
         get,
-        AWO_CONFIG.RB_DETAIL,
-        AWO_CONFIG.STORAGE_ENTRY_META
+        AWF_CONFIG.RB_DETAIL,
+        AWF_CONFIG.STORAGE_ENTRY_META
       );
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
@@ -282,9 +282,11 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
       ["qty", "rate", "Qty", "Rate"].forEach((k) => evtSet.add(k));
       setEventColumns(evtSet);
 
-      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
+      setAllColumns(
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
     } catch (err) {
-      console.error("[AWO] fetchDetailMeta failed:", err);
+      console.error("[AWF] fetchDetailMeta failed:", err);
       setMetaError(err?.message || "Failed to load item grid configuration.");
     } finally {
       setIsFetching(false);
@@ -294,18 +296,23 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
   const fetchGridColumns = useCallback(async (divisionID = 0, editOpts = false) => {
     const opts = typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
     const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+
     const apiColumns = rawDetailColumnsRef.current;
     const meta = rawDetailRbMetaRef.current;
-    if (!apiColumns.length || !meta) return [];
+    if (!apiColumns.length || !meta) {
+      console.warn("[AWF] fetchGridColumns called before fetchDetailMeta completed.");
+      return [];
+    }
 
     try {
       const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
-        funcCode: AWO_CONFIG.RB_DETAIL,
+        funcCode: AWF_CONFIG.RB_DETAIL,
         divisionID: Number(divisionID) || 0,
         existingRecordEdit,
         rowData: masterRow,
         fetchUnlockedDropdowns,
       });
+
       const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
         filterable: false,
         allEditable: true,
@@ -314,73 +321,113 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
       setColumns(gridColumns);
       return gridColumns;
     } catch (err) {
-      console.error("[AWO] fetchGridColumns failed:", err);
+      console.error("[AWF] fetchGridColumns failed:", err);
       return [];
     }
   }, [get]);
 
+  const fireCellEvent = useCallback(async () => null, []);
+
   const seedOptionsFromMaster = useCallback((master) => {
-    const seedOne = (id, label, setter) => {
-      if (id != null && id !== 0 && label) setter([{ value: String(id), label: String(label) }]);
-    };
-    seedOne(
-      master.fromdivisionid,
-      master.fromdivision ?? master.fromdivisionname ?? master.divisionname,
-      setFromDivisionOptions
-    );
-    seedOne(
-      master.fromlocationid,
-      master.fromlocation ?? master.fromlocationname ?? master.locationname,
-      setFromLocationOptions
-    );
-    seedOne(
-      master.configid ?? master.ConfigID ?? master.configurationid ?? master.ConfigurationId,
-      master.configname ?? master.ConfigName ?? master.name ?? master.Name,
-      setConfigOptions
-    );
+    if (master.divisionid != null && master.divisionname) {
+      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
+    }
+    const locLabel = master.locationname ?? master.location ?? master.fromlocation;
+    const locId = master.fromlocid ?? master.locationid;
+    if (locId != null && locId !== 0 && locLabel) {
+      setLocationOptions([{ value: String(locId), label: locLabel }]);
+    }
+    const accLabel = master.acname ?? master.accountname;
+    if (master.accountid != null && master.accountid !== 0 && accLabel) {
+      setAssetsAccOptions([{
+        value: String(master.accountid),
+        label: String((master.accode ?? "") + " | " + accLabel),
+      }]);
+    }
+    const plLabel = master.profitlossacname ?? master.profitlossactname;
+    if (master.profitlossactid != null && master.profitlossactid !== 0 && plLabel) {
+      setProfitLossAccOptions([{
+        value: String(master.profitlossactid),
+        label: String((master.profitlossaccode ?? "") + " | " + plLabel),
+      }]);
+    }
   }, []);
 
-  const fetchUnlockedHeaderDropdowns = useCallback(async (headerValues = {}) => {
-    if (!headerColumns.length) return;
-    const needsCol = (...names) =>
-      headerColumns.some((c) => {
-        const key = String(c.colname).toLowerCase();
-        return names.some((n) => key === String(n).toLowerCase())
-          && isVisibleApiCol(c)
-          && isTruthyApiFlag(c.iseditallow)
-          && !isLockOnEditModeCol(c);
-      });
+  const fetchUnlockedHeaderDropdowns = useCallback(
+    async (divisionId) => {
+      if (!headerColumns.length) return;
 
-    const fromDiv = headerValues.fromdivisionid ?? 0;
-    const tasks = [];
-    if (needsCol("fromdivisionid")) tasks.push(fetchFromDivisions());
-    if (needsCol("fromlocationid")) tasks.push(fetchFromLocations());
-    if (needsCol("configid")) tasks.push(fetchConfigOptions(fromDiv));
-    await Promise.all(tasks);
-  }, [headerColumns, fetchFromDivisions, fetchFromLocations, fetchConfigOptions]);
+      const needsCol = (colname) => {
+        const key = String(colname).toLowerCase();
+        return headerColumns.some((c) => {
+          const cKey = String(c.colname).toLowerCase();
+          return (cKey === key || (key === "locationid" && cKey === "fromlocid"))
+            && isVisibleApiCol(c)
+            && isTruthyApiFlag(c.iseditallow)
+            && !isLockOnEditModeCol(c);
+        });
+      };
 
-  const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
-    const prmParameters = buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber });
-    const [mstRes, detRes] = await Promise.all([
-      get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: AWO_CONFIG.SP_MASTER_FILL,
-        prmParameters,
-        prmFuncCode: AWO_CONFIG.RB_MASTER,
-      }),
-      get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: AWO_CONFIG.SP_DETAIL_FILL,
-        prmParameters,
-        prmFuncCode: AWO_CONFIG.RB_DETAIL,
-      }),
-    ]);
+      const tasks = [];
+      if (needsCol("divisionid")) {
+        tasks.push(
+          get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: 2,
+            ObjName: AWF_CONFIG.SP_DIVISIONS,
+            JSon: JSON.stringify([{
+              prmuserid: getUserSession().loginId,
+              prmcompanyid: getUserSession().companyId,
+              prmyearid: getUserSession().yearId,
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          })
+            .then((res) =>
+              setDivisionOptions(
+                (res || []).map((r) => ({
+                  value: String(r.divisionid),
+                  label: r.divisionname,
+                }))
+              )
+            )
+            .catch(() => {})
+        );
+      }
+      if (needsCol("fromlocid") || needsCol("locationid")) tasks.push(fetchLocations());
+      if (divisionId) {
+        if (needsCol("accountid")) tasks.push(fetchAssetsAccByDivision(divisionId));
+        if (needsCol("profitlossactid")) tasks.push(fetchProfitLossAccByDivision(divisionId));
+      }
+      await Promise.all(tasks);
+    },
+    [headerColumns, get, fetchLocations, fetchAssetsAccByDivision, fetchProfitLossAccByDivision]
+  );
 
-    const master = mstRes?.[0] ?? null;
-    return {
-      master,
-      headerValues: master ? mapMasterRowToHeaderValues(master) : null,
-      details: mapDetailRowsToGridRows(detRes || []),
-    };
-  }, [get]);
+  const fetchEditRecord = useCallback(
+    async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
+      const prmParameters = buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber });
+      const [mstRes, detRes] = await Promise.all([
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: AWF_CONFIG.SP_MASTER_FILL,
+          prmParameters,
+          prmFuncCode: AWF_CONFIG.RB_MASTER,
+        }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: AWF_CONFIG.SP_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: AWF_CONFIG.RB_DETAIL,
+        }),
+      ]);
+
+      const master = mstRes?.[0] ?? null;
+      return {
+        master,
+        headerValues: master ? mapMasterRowToHeaderValues(master) : null,
+        details: mapDetailRowsToGridRows(detRes || []),
+      };
+    },
+    [get]
+  );
 
   const clearSaveError = useCallback(() => setSaveError(null), []);
 
@@ -389,12 +436,16 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     headerFetching,
     headerError,
     fetchHeaderMeta,
-    fromDivisionOptions,
-    fromLocationOptions,
-    configOptions,
-    fetchFromDivisions,
-    fetchFromLocations,
-    fetchConfigOptions,
+    divisionOptions,
+    locationOptions,
+    assetsAccOptions,
+    profitLossAccOptions,
+    fetchLocations,
+    fetchAssetsAccByDivision,
+    fetchProfitLossAccByDivision,
+    clearLocationOptions,
+    clearAssetsAccOptions,
+    clearProfitLossAccOptions,
     columns,
     allColumns,
     eventColumns,
@@ -402,6 +453,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     metaError,
     fetchDetailMeta,
     fetchGridColumns,
+    fireCellEvent,
     fetchEditRecord,
     seedOptionsFromMaster,
     fetchUnlockedHeaderDropdowns,

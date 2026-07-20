@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { MapPin, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useLocationMaster } from "../../hooks/useLocationMaster";
 import LocationMasterForm from "./LocationMasterForm";
@@ -15,7 +16,7 @@ function buildListParams() {
     ObjType: LM_CONFIG.LIST_OBJ_TYPE,
     ObjName: LM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID: DEFAULT_COMPANY_ID,
+      prmcompanyid: getUserSession().companyId,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",

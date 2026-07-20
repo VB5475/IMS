@@ -14,9 +14,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_SESSION_ID,
   getColDefault,
   OBJ_TYPE,
 } from "../../api/constants";
@@ -33,11 +30,16 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AST_CONFIG,
+  AST_MULTI_PASTE_COLUMNS,
+  AST_REMARK_COLUMNS,
   AST_GRID_TABS,
   AST_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -52,22 +54,6 @@ import "./AssetsStockTransferPage.css";
 
 let _astTempId = -1;
 const nextTempId = () => _astTempId--;
-
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? AST_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
-    idNumber:
-      listRecord?.astissstktrid
-      ?? listRecord?.AstIssStktrID
-      ?? listRecord?.idnumber
-      ?? listRecord?.IDNumber
-      ?? recordId,
-  };
-}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -86,15 +72,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     frmtype: str(headerValues.frmtype ?? AST_CONFIG.FRM_TYPE),
     issuetypeid: str(headerValues.issuetypeid ?? AST_CONFIG.ISSUE_TYPE_ID),
   };
-}
-
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -163,9 +140,9 @@ export default function AssetsStockTransferForm() {
     frmtype: AST_CONFIG.FRM_TYPE,
     issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: AST_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: AST_CONFIG.RB_MASTER,
   }));
@@ -258,7 +235,9 @@ export default function AssetsStockTransferForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["astissstktrid", "AstIssStktrID"],
+      });
       const { master, headerValues, details } = await fetchEditRecord(params);
       if (!master || !headerValues) {
         throw new Error("Assets Stock Transfer record not found.");
@@ -309,6 +288,14 @@ export default function AssetsStockTransferForm() {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
+
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
@@ -400,6 +387,9 @@ export default function AssetsStockTransferForm() {
           if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchFromLocations());
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "fromlocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+          }
         }
       });
       return;
@@ -412,6 +402,7 @@ export default function AssetsStockTransferForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0 && hasVisibleCol(headerColumns, "tolocationid")) {
           await fetchToLocations();
+          focusFieldAfterCascade(filterPanelRef, "tolocationid");
         }
       });
       return;
@@ -480,7 +471,7 @@ export default function AssetsStockTransferForm() {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: AST_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AST_CONFIG.RB_ITEM_PICKER }]),
+        JSon: JSON.stringify([{ prmrbcode: AST_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -489,7 +480,7 @@ export default function AssetsStockTransferForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -532,7 +523,52 @@ export default function AssetsStockTransferForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const buildDefaultHeaderValues = useCallback(() => applyAstHardcodedHeaderValues({
+    trancode: "",
+    trandate: todayISO,
+    issuedate: todayISO,
+    fromdivisionid: 0,
+    todivisionid: 0,
+    fromlocationid: 0,
+    tolocationid: 0,
+    configid: 0,
+    includestockitems: 0,
+    remarks: "",
+    frmtype: AST_CONFIG.FRM_TYPE,
+    issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
+    funccode: AST_CONFIG.RB_MASTER,
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [AST_CONFIG.STORAGE_HEADER_META, AST_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+  });
+
+  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateAstBusinessRules(headerValuesRef.current);
@@ -554,12 +590,12 @@ export default function AssetsStockTransferForm() {
     });
     mstRow.frmtype = AST_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = AST_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -576,6 +612,7 @@ export default function AssetsStockTransferForm() {
         return false;
       }
       notify.success(message);
+      if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
       console.error("[AST Save] Failed:", err);
@@ -584,55 +621,21 @@ export default function AssetsStockTransferForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave();
+    const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-  }, [handleSave]);
+    resetFormToInitialState();
+  }, [handleSave, resetFormToInitialState]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(AST_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(AST_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyAstHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
-      fromdivisionid: 0,
-      todivisionid: 0,
-      fromlocationid: 0,
-      tolocationid: 0,
-      configid: 0,
-      includestockitems: 0,
-      remarks: "",
-      frmtype: AST_CONFIG.FRM_TYPE,
-      issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
-      funccode: AST_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: AST_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -777,6 +780,9 @@ export default function AssetsStockTransferForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AST_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AST_REMARK_COLUMNS}
           />
         </div>
       </section>

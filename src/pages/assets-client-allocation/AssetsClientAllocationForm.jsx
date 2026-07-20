@@ -33,11 +33,14 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ACA_CONFIG,
+  ACA_MULTI_PASTE_COLUMNS,
+  ACA_REMARK_COLUMNS,
   ACA_GRID_TABS,
   ACA_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
@@ -160,9 +163,9 @@ export default function AssetsClientAllocationForm() {
     frmtype: ACA_CONFIG.FRM_TYPE,
     issuetypeid: ACA_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: ACA_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: ACA_CONFIG.RB_MASTER,
   }));
@@ -304,6 +307,14 @@ export default function AssetsClientAllocationForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
+
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
     tolocationid: toLocationOptions,
@@ -391,6 +402,9 @@ export default function AssetsClientAllocationForm() {
           if (hasVisibleCol(headerColumns, "toworkingclientid")) fetches.push(fetchToWorkingClients(val));
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "tolocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "tolocationid");
+          }
         }
       });
       return;
@@ -469,7 +483,7 @@ export default function AssetsClientAllocationForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -534,12 +548,12 @@ export default function AssetsClientAllocationForm() {
     });
     mstRow.frmtype = ACA_CONFIG.FRM_TYPE;
     mstRow.issuetypeid = ACA_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -592,9 +606,9 @@ export default function AssetsClientAllocationForm() {
       issuetypeid: ACA_CONFIG.ISSUE_TYPE_ID,
       funccode: ACA_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: ACA_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];
@@ -767,6 +781,9 @@ export default function AssetsClientAllocationForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            multiValuePasteColumns={ACA_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={ACA_REMARK_COLUMNS}
           />
         </div>
       </section>

@@ -20,8 +20,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
@@ -38,8 +36,8 @@ import {
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
-    Number(companyId) || DEFAULT_COMPANY_ID,
-    Number(yearId) || PI_CONFIG.CONFIG_YEAR_ID,
+    Number(companyId) || getUserSession().companyId,
+    Number(yearId) || getUserSession().yearId,
     Number(loginId) || getUserSession().loginId,
     Number(sessionId) || DEFAULT_SESSION_ID,
     Number(idNumber) || 0,
@@ -59,7 +57,7 @@ function mapMasterRowToHeaderValues(master) {
     ...master,
     trandate:     toDateInput(master.trandate),
     expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
-    yearid:    PI_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  PI_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -156,6 +154,19 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
+  // ── Tab-2 Supplier Detail (rb_purinqsuppdet) + Tab-3 Terms & Conditions
+  // (rb_purinqtncdet) grid state — same RB-driven pattern as the item detail
+  // grid above (loadRbDetailGridMeta + fetchDropdownOptions + buildGridColumns).
+  const [supplierColumns, setSupplierColumns] = useState([]);
+  const [allSupplierColumns, setAllSupplierColumns] = useState([]);
+  const rawSupplierColumnsRef = useRef([]);
+  const rawSupplierRbMetaRef = useRef(null);
+
+  const [termsColumns, setTermsColumns] = useState([]);
+  const [allTermsColumns, setAllTermsColumns] = useState([]);
+  const rawTermsColumnsRef = useRef([]);
+  const rawTermsRbMetaRef = useRef(null);
+
   const fetchInquiryTypes = useCallback(
     async (divisionId) => {
       if (!divisionId || divisionId === "0") {
@@ -170,9 +181,9 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           ObjName: PI_CONFIG.SP_INQUIRY_TYPES,
           JSon: JSON.stringify([
             {
-              prmcompanyid: DEFAULT_COMPANY_ID,
+              prmcompanyid: getUserSession().companyId,
               prmdivisionid: Number(divisionId),
-              prmyearid: PI_CONFIG.CONFIG_YEAR_ID,
+              prmyearid: getUserSession().yearId,
               prmuserid: getUserSession().loginId,
               prmformtag: PI_CONFIG.FORM_TAG,
               prmreftype: "",
@@ -244,8 +255,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
             JSon: JSON.stringify([
               {
                 prmuserid: getUserSession().loginId,
-                prmcompanyid: DEFAULT_COMPANY_ID,
-                prmyearid: PI_CONFIG.DIVISION_YEAR_ID,
+                prmcompanyid: getUserSession().companyId,
+                prmyearid: getUserSession().yearId,
               },
             ]),
             p_ErrCode: -1,
@@ -257,7 +268,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: OBJ_TYPE.FUNCTION,
             ObjName: PI_CONFIG.SP_DEPARTMENTS,
-            JSon: JSON.stringify([{ prmdeptid: 0 ,prmloginid: DEFAULT_LOGIN_ID }]),
+            JSon: JSON.stringify([{ prmdeptid: 0 ,prmloginid: getUserSession().loginId }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
           }).catch((err) => {
@@ -300,8 +311,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([
           {
             prmuserid: getUserSession().loginId,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid: PI_CONFIG.DIVISION_YEAR_ID,
+            prmcompanyid: getUserSession().companyId,
+            prmyearid: getUserSession().yearId,
           },
         ]),
         p_ErrCode: -1,
@@ -324,7 +335,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       const departmentData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SP_DEPARTMENTS,
-        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: DEFAULT_LOGIN_ID }]),
+        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: getUserSession().loginId }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -450,6 +461,114 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     [get]
   );
 
+  const fetchSupplierDetailMeta = useCallback(async () => {
+    try {
+      const { meta, apiColumns } = await loadRbDetailGridMeta(
+        get,
+        PI_CONFIG.RB_SUPP_DETAIL,
+        PI_CONFIG.STORAGE_SUPP_META
+      );
+      rawSupplierRbMetaRef.current = meta;
+      rawSupplierColumnsRef.current = apiColumns;
+      setAllSupplierColumns(
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
+      console.log("%c[PI] Supplier detail columns received:", "color:#0ea5e9;font-weight:600", apiColumns.length);
+    } catch (err) {
+      console.error("[PI] fetchSupplierDetailMeta failed:", err);
+    }
+  }, [get]);
+
+  const fetchSupplierGridColumns = useCallback(
+    async (divisionID = 0, editOpts = false) => {
+      const opts =
+        typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
+      const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+
+      const apiColumns = rawSupplierColumnsRef.current;
+      const meta = rawSupplierRbMetaRef.current;
+      if (!apiColumns.length || !meta) {
+        console.warn("[PI] fetchSupplierGridColumns called before fetchSupplierDetailMeta completed.");
+        return [];
+      }
+
+      try {
+        const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
+          funcCode: PI_CONFIG.RB_SUPP_DETAIL,
+          divisionID: Number(divisionID) || 0,
+          existingRecordEdit,
+          rowData: masterRow,
+          fetchUnlockedDropdowns,
+        });
+        const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
+          filterable: false,
+          allEditable: true,
+          existingRecordEdit,
+        });
+        setSupplierColumns(gridColumns);
+        return gridColumns;
+      } catch (err) {
+        console.error("[PI] fetchSupplierGridColumns failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
+
+  const fetchTermsDetailMeta = useCallback(async () => {
+    try {
+      const { meta, apiColumns } = await loadRbDetailGridMeta(
+        get,
+        PI_CONFIG.RB_TERMS_DETAIL,
+        PI_CONFIG.STORAGE_TERMS_META
+      );
+      rawTermsRbMetaRef.current = meta;
+      rawTermsColumnsRef.current = apiColumns;
+      setAllTermsColumns(
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
+      console.log("%c[PI] Terms detail columns received:", "color:#0ea5e9;font-weight:600", apiColumns.length);
+    } catch (err) {
+      console.error("[PI] fetchTermsDetailMeta failed:", err);
+    }
+  }, [get]);
+
+  const fetchTermsGridColumns = useCallback(
+    async (divisionID = 0, editOpts = false) => {
+      const opts =
+        typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
+      const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
+
+      const apiColumns = rawTermsColumnsRef.current;
+      const meta = rawTermsRbMetaRef.current;
+      if (!apiColumns.length || !meta) {
+        console.warn("[PI] fetchTermsGridColumns called before fetchTermsDetailMeta completed.");
+        return [];
+      }
+
+      try {
+        const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
+          funcCode: PI_CONFIG.RB_TERMS_DETAIL,
+          divisionID: Number(divisionID) || 0,
+          existingRecordEdit,
+          rowData: masterRow,
+          fetchUnlockedDropdowns,
+        });
+        const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
+          filterable: false,
+          allEditable: true,
+          existingRecordEdit,
+        });
+        setTermsColumns(gridColumns);
+        return gridColumns;
+      } catch (err) {
+        console.error("[PI] fetchTermsGridColumns failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
+
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const prmParameters = buildMasterDataFillParams({
@@ -460,7 +579,7 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         idNumber,
       });
 
-      const [mstRes, detRes, indtRes] = await Promise.all([
+      const [mstRes, detRes, indtRes, suppRes, termsRes] = await Promise.all([
         get(ENDPOINTS.GET_MASTER_DATA_FILL, {
           prmProcedure: PI_CONFIG.SP_MASTER_FILL,
           prmParameters,
@@ -476,11 +595,23 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
           prmParameters,
           prmFuncCode: PI_CONFIG.RB_INDT_DETAIL,
         }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: PI_CONFIG.SP_SUPP_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: PI_CONFIG.RB_SUPP_DETAIL,
+        }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: PI_CONFIG.SP_TERMS_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: PI_CONFIG.RB_TERMS_DETAIL,
+        }),
       ]);
 
       const master = mstRes?.[0] ?? null;
       const details = mapDetailRowsToGridRows(detRes || []);
       const indentDetails = indtRes || [];
+      const supplierDetails = mapDetailRowsToGridRows(suppRes || []);
+      const termsDetails = mapDetailRowsToGridRows(termsRes || []);
 
       return {
         master,
@@ -488,6 +619,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
         details,
         indentDetails,
         childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
+        supplierDetails,
+        termsDetails,
       };
     },
     [get]
@@ -627,5 +760,13 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     isSaving,
     saveError,
     clearSaveError,
+    supplierColumns,
+    allSupplierColumns,
+    fetchSupplierDetailMeta,
+    fetchSupplierGridColumns,
+    termsColumns,
+    allTermsColumns,
+    fetchTermsDetailMeta,
+    fetchTermsGridColumns,
   };
 }

@@ -6,12 +6,11 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_COMPANY_ID,
-  DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -68,10 +67,11 @@ export default function UserMasterForm({
   const buildEmptyFromColumns = useCallback(() => {
     const row = {};
     allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+    const session = getUserSession();
     return {
       ...row,
-      yearid: UM_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      yearid: session.yearId,
+      loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
       funccode: UM_CONFIG.RB_MASTER,
       pwd: "",

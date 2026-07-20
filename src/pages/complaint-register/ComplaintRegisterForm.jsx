@@ -33,6 +33,7 @@ import {
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -160,9 +161,9 @@ export default function ComplaintRegisterForm() {
     callgenbyuser: callGenByUser,
     frmtype: MCR_CONFIG.FRM_TYPE,
     tranmstgenid: 0,
-    companyid: DEFAULT_COMPANY_ID,
-    yearid: MCR_CONFIG.CONFIG_YEAR_ID,
-    loginid: DEFAULT_LOGIN_ID,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
     idnumber: recordId,
     funccode: MCR_CONFIG.RB_MASTER,
   }));
@@ -387,6 +388,9 @@ export default function ComplaintRegisterForm() {
           if (hasVisibleCol(headerColumns, "fromdeptid")) fetches.push(fetchDepartments());
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "fromlocationid")) {
+            focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+          }
         }
       });
       return;
@@ -456,7 +460,7 @@ export default function ComplaintRegisterForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(colRes || [], {}, {
         filterable: false,
@@ -520,12 +524,12 @@ export default function ComplaintRegisterForm() {
       if (k !== "id") mstRow[k] = v;
     });
     mstRow.frmtype = MCR_CONFIG.FRM_TYPE;
-    mstRow.loginid = DEFAULT_LOGIN_ID;
+    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: DEFAULT_LOGIN_ID };
+      return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
@@ -576,9 +580,9 @@ export default function ComplaintRegisterForm() {
       frmtype: MCR_CONFIG.FRM_TYPE,
       funccode: MCR_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      companyid: DEFAULT_COMPANY_ID,
-      yearid: MCR_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];

@@ -1,9 +1,15 @@
-// constants.js — Assets Depreciation (DPC) page config
+// constants.js — Company Act Depreciation (DPC) page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE     = "Assets Depreciation";
-export const PAGE_TITLE_NEW = "New Assets Depreciation";
+export const PAGE_TITLE     = "Company Act Depreciation";
+export const PAGE_TITLE_NEW = "New Company Act Depreciation";
 
 // Values aligned to MRD_Template4Depriciation.docx (Richa, 16-Jun-2026).
+
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const DPC_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const DPC_REMARK_COLUMNS = new Set(["remark"]);
 
 export const DPC_CONFIG = {
   // RB board codes (MRD § 5.1)
@@ -15,10 +21,6 @@ export const DPC_CONFIG = {
   FORM_TAG:            "rb_astdepcamst",
   TRAN_BOOK:           "C2F",
   SUPPLIER_PARTY_TYPE: "S",
-
-  // Year IDs (MRD § 7)
-  CONFIG_YEAR_ID:   2,
-  DIVISION_YEAR_ID: 2,
 
   // SP names (MRD § 5 / § 5.1)
   SP_RB_META:     "fn_fetch_rbdetailbyrbcode",

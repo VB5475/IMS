@@ -35,6 +35,9 @@ export const PO_SUMMARY_FIELDS = [
 export const PO_FILTER_INITIAL_VALUES = { basedonid: "0" };
 export const PO_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const PO_REMARK_COLUMNS = new Set(["remarks"]);
+
 export const PO_CONFIG = {
   ...PURCHASE_API,
   SP_PO_TYPES: PURCHASE_API.SP_CONFIG_TYPES,

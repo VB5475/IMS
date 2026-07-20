@@ -1,9 +1,15 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
 export const PAGE_TITLE = "Assets Stock Transfer";
 export const PAGE_TITLE_NEW = "New Assets Stock Transfer";
+
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AST_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AST_REMARK_COLUMNS = new Set(["remark"]);
 
 export const AST_CONFIG = {
   RB_MASTER: "rb_astissstktrmst",
@@ -20,11 +26,9 @@ export const AST_CONFIG = {
   CONFIG_REF_TYPE: "ST",
   ISSUE_TYPE_ID: 7,
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
   SUPPLIER_PARTY_TYPE: "S",
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_DIVISION: "fn_tbl_fetchuserwstodivision",
   SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
@@ -92,15 +96,15 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 export function buildAstItemPickerJsonPayload(
   headerValues,
   {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = AST_CONFIG.CONFIG_YEAR_ID,
+    companyId = getUserSession().companyId,
+    loginId = getUserSession().loginId,
+    yearId = getUserSession().yearId,
   } = {}
 ) {
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || AST_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || getUserSession().companyId,
+    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || getUserSession().loginId,
+    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || getUserSession().yearId,
     prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
     prmfromdivisionid: pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID"),
     prmtodivisionid: pickHeaderInt(headerValues, "todivisionid", "ToDivisionID"),
@@ -121,9 +125,9 @@ export function buildAstItemPickerJsonPayload(
 
 /** List SP: prmfromdivisionid, prmfromlocationid, prmtodivisionid (MRD §5.1). */
 export function buildAstListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = AST_CONFIG.CONFIG_YEAR_ID,
+  companyId = getUserSession().companyId,
+  loginId = getUserSession().loginId,
+  yearId = getUserSession().yearId,
   fromDate,
   toDate,
   fromDivisionId = AST_CONFIG.LIST_FROM_DIVISION_ID,
@@ -132,9 +136,9 @@ export function buildAstListJsonPayload({
 } = {}) {
   const year = new Date().getFullYear();
   return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || AST_CONFIG.CONFIG_YEAR_ID,
+    prmcompanyid: Number(companyId) || getUserSession().companyId,
+    prmloginid: Number(loginId) || getUserSession().loginId,
+    prmyearid: Number(yearId) || getUserSession().yearId,
     prmfromdate: fromDate ?? `01-Jan-${year}`,
     prmtodate: toDate ?? `31-Dec-${year}`,
     prmfromdivisionid: Number(fromDivisionId) || 0,

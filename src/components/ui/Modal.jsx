@@ -83,21 +83,31 @@ export default function Modal({
     [onClose]
   );
 
+  // Keydown listener — kept in its own effect since handleKeyDown's identity
+  // changes whenever a caller passes an inline onClose, and that must not
+  // re-arm the auto-focus effect below (see next effect).
   useEffect(() => {
     if (!isOpen) return;
     document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [isOpen, handleKeyDown]);
+
+  // Body scroll lock + auto-focus — keyed on isOpen only. Re-running this on
+  // every parent render (e.g. while typing in a field inside the modal) would
+  // re-fire the focus timeout and steal focus from whatever the user is
+  // actively editing.
+  useEffect(() => {
+    if (!isOpen) return;
     document.body.style.overflow = "hidden";
-    // Auto-focus first focusable element when modal opens
     const t = setTimeout(() => {
       if (!dialogRef.current) return;
       dialogRef.current.querySelector(FOCUSABLE)?.focus();
     }, 80);
     return () => {
       clearTimeout(t);
-      document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = "";
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

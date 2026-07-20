@@ -105,6 +105,7 @@ function EnterpriseDataGrid({
   const { postDelete } = useApi(API_BASE_URL_IMS);
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilterCol, setActiveFilterCol] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
   const [searchQuery, setSearchQuery] = useState("");
@@ -275,12 +276,49 @@ function EnterpriseDataGrid({
     return result;
   }, [textSearchedData, columnFilters, displayColumns]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  /* ── Sort (on top of filters) ─────────────────────────────────────── */
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return filteredData;
+    const col = displayColumns.find((c) => c.key === sortConfig.key);
+    const data = [...filteredData];
+    data.sort((a, b) => {
+      const rawA = a[sortConfig.key];
+      const rawB = b[sortConfig.key];
+      const aVal = col?.dropdownOptions
+        ? (col.dropdownOptions.find((o) => String(o.value) === String(rawA))?.label ?? rawA)
+        : rawA;
+      const bVal = col?.dropdownOptions
+        ? (col.dropdownOptions.find((o) => String(o.value) === String(rawB))?.label ?? rawB)
+        : rawB;
+      const aStr = aVal ?? "";
+      const bStr = bVal ?? "";
+      const aNum = Number(aStr);
+      const bNum = Number(bStr);
+      let cmp;
+      if (!isNaN(aNum) && !isNaN(bNum) && aStr !== "" && bStr !== "") {
+        cmp = aNum - bNum;
+      } else {
+        cmp = String(aStr).localeCompare(String(bStr), undefined, { numeric: true });
+      }
+      return sortConfig.direction === "asc" ? cmp : -cmp;
+    });
+    return data;
+  }, [filteredData, sortConfig, displayColumns]);
+
+  const handleSort = useCallback((key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+    setCurrentPage(1);
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage));
 
   const currentData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return filteredData.slice(start, start + itemsPerPage);
-  }, [filteredData, currentPage, itemsPerPage]);
+    return sortedData.slice(start, start + itemsPerPage);
+  }, [sortedData, currentPage, itemsPerPage]);
 
   const selectedKeySet = useMemo(
     () => new Set((selectedRowKeys || []).map(String)),
@@ -366,6 +404,41 @@ function EnterpriseDataGrid({
         >
           <Trash2 size={13} strokeWidth={2} />
         </button>
+      );
+    }
+    if (col.actionType === "actions") {
+      const editMeta = col.getEditMeta?.(row) ?? {};
+      const deleteMeta = col.getDeleteMeta?.(row) ?? {};
+      const rowId = deleteMeta.id ?? row?.IDNUMBER ?? row?.idnumber ?? row?.IDNumber ?? 0;
+      const isDeleting = deletingRowIds.has(String(rowId));
+      return (
+        <div className="ng-action-btns">
+          <button
+            type="button"
+            className={col.editClassName}
+            title={editMeta.title ?? "Edit record"}
+            aria-label={editMeta.ariaLabel ?? "Edit record"}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (editMeta.navigateTo) navigate(editMeta.navigateTo, { state: editMeta.navigateState });
+            }}
+          >
+            <Pencil size={13} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            className={col.deleteClassName}
+            title={deleteMeta.title ?? "Delete record"}
+            aria-label={deleteMeta.ariaLabel ?? "Delete record"}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDeleteConfirm(row, deleteMeta);
+            }}
+            disabled={isDeleting || !deleteProcName}
+          >
+            <Trash2 size={13} strokeWidth={2} />
+          </button>
+        </div>
       );
     }
     if (col.render) return col.render(value, row);
@@ -459,7 +532,11 @@ function EnterpriseDataGrid({
                   {displayColumns.map((col, i) => (
                     <col
                       key={i}
-                      className={isActionColumn(col) ? "ng-col--action" : undefined}
+                      className={
+                        isActionColumn(col)
+                          ? `ng-col--action${col.actionType === "actions" ? " ng-col--actions" : ""}`
+                          : undefined
+                      }
                       style={getColStyle(col)}
                     />
                   ))}
@@ -477,7 +554,7 @@ function EnterpriseDataGrid({
                           key={i}
                           className={
                             actionCol
-                              ? `ng-col--action${col.actionType === "delete" ? " ng-col--action-delete" : ""}${selectCol ? " ng-col--action-select" : ""}`
+                              ? `ng-col--action${col.actionType === "delete" ? " ng-col--action-delete" : ""}${col.actionType === "actions" ? " ng-col--actions" : ""}${selectCol ? " ng-col--action-select" : ""}`
                               : undefined
                           }
                           style={{
@@ -497,7 +574,20 @@ function EnterpriseDataGrid({
                             />
                           ) : (
                             <div className="ng-th-inner">
-                              <span className="ng-th-label">{col.label}</span>
+                              <span
+                                className="ng-th-label"
+                                onClick={actionCol || col.sortable === false ? undefined : () => handleSort(col.key)}
+                                role={actionCol || col.sortable === false ? undefined : "button"}
+                                style={actionCol || col.sortable === false ? undefined : { cursor: "pointer" }}
+                                title={actionCol || col.sortable === false ? undefined : `Sort by ${col.label}`}
+                              >
+                                {col.label}
+                                {!actionCol && col.sortable !== false && sortConfig.key === col.key && (
+                                  <span className="ng-sort-icon">
+                                    {sortConfig.direction === "asc" ? "▲" : "▼"}
+                                  </span>
+                                )}
+                              </span>
                               {col.filterable && (
                                 <span
                                   ref={filterRef}
@@ -535,7 +625,7 @@ function EnterpriseDataGrid({
                             key={ci}
                             className={
                               isActionColumn(col)
-                                ? `ng-col--action${isSelectColumn(col) ? " ng-col--action-select" : ""}${col.actionType === "delete" ? " ng-col--action-delete" : ""}`
+                                ? `ng-col--action${isSelectColumn(col) ? " ng-col--action-select" : ""}${col.actionType === "delete" ? " ng-col--action-delete" : ""}${col.actionType === "actions" ? " ng-col--actions" : ""}`
                                 : undefined
                             }
                             style={{

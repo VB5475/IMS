@@ -6,11 +6,11 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import SearchSelect from "../../components/ui/SearchSelect";
 import {
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
 } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -76,12 +76,13 @@ export default function ItemMasterForm({
   const [discardAction, setDiscardAction] = useState(null);
 
   const buildEmptyFromColumns = useCallback(() => {
+    const session = getUserSession();
     const row = {};
     allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
     return {
       ...row,
-      yearid: IM_CONFIG.CONFIG_YEAR_ID,
-      loginid: DEFAULT_LOGIN_ID,
+      yearid: session.yearId,
+      loginid: session.loginId,
       sessionid: DEFAULT_SESSION_ID,
       funccode: IM_CONFIG.RB_MASTER,
     };

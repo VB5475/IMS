@@ -27,7 +27,7 @@ import React, {
   lazy,
   Suspense,
 } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, StickyNote } from "lucide-react";
 import GridSearch from "./GridSearch";
 const SearchSelect = lazy(() => import("../ui/SearchSelect"));
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
@@ -35,6 +35,7 @@ const CollapsibleGrid = lazy(() => import("./CollapsibleGrid"));
 const GridDatePicker = lazy(() => import("./GridDatePicker"));
 const GridNumberInput = lazy(() => import("./GridNumberInput"));
 import Loader from "../ui/Loader";
+import Modal from "../ui/Modal";
 import "./EntryGrid.css";
 
 const gridCellLazyFallback = (
@@ -58,6 +59,7 @@ import {
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
 import { focusFirstGridCell, handleGridKeyboardEvent } from "../../utils/gridKeyboardNav";
+import { selectInputText } from "../../utils/focusUtils";
 import {
   formatColumnDisplayValue,
   getDateInputConstraints,
@@ -71,6 +73,7 @@ import { isDateColumnDef } from "../../utils/dateFormat";
 import RequiredFieldMark from "../ui/RequiredFieldMark";
 import { parseSerialNumbers } from "../../utils/parseSerialNumbers";
 import { isCheckboxColCtrlType } from "../../data/dummyData";
+import { useNotification } from "../../context/NotificationContext";
 
 // ── Helper utils ───────────────────────────────────────────────────────
 function toPixels(w) {
@@ -135,10 +138,12 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     embedded = false, // true → nested in scroll host; parent owns overflow
     multiValuePasteColumns = null, // Set<string> | string[] — column keys that intercept multi-value paste
     onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
+    remarkModalColumns = null, // Set<string> | string[] — column keys that open a paste-friendly remark modal
     searchable = true, // false → hide built-in search bar
   },
   ref
 ) {
+  const notify = useNotification();
   const columnEditOpts = useMemo(
     () => ({ existingRecordEdit, viewMode: readOnly }),
     [existingRecordEdit, readOnly]
@@ -149,6 +154,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     if (multiValuePasteColumns instanceof Set) return multiValuePasteColumns;
     return new Set(multiValuePasteColumns);
   }, [multiValuePasteColumns]);
+
+  const remarkModalSet = useMemo(() => {
+    if (!remarkModalColumns) return null;
+    if (remarkModalColumns instanceof Set) return remarkModalColumns;
+    return new Set(remarkModalColumns);
+  }, [remarkModalColumns]);
+
+  const [remarkEditor, setRemarkEditor] = useState(null); // { rowId, colKey, colName, value, readOnly }
 
   const { columns, pagination } = config;
   const { pageSize: defaultPageSize = 25, pageSizeOptions = [10, 25, 50, 100] } = pagination || {};
@@ -344,6 +357,20 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return resolveDropdownLabel(col, row, rawValue);
   }, []);
 
+  // ── Remark modal context — identifies the row via its first frozen column ──
+  const remarkContextCol = useMemo(() => columns.find((c) => isColumnFixed(c)) ?? null, [columns]);
+
+  const getRemarkContextLabel = useCallback((row) => {
+    if (!remarkContextCol) return null;
+    const raw =
+      remarkContextCol.controlType === 4
+        ? resolveRowCellValue(row, remarkContextCol)
+        : row[remarkContextCol.key];
+    const label =
+      remarkContextCol.controlType === 4 ? getDropdownLabel(remarkContextCol, raw, row) : raw;
+    return label != null && label !== "" ? String(label) : null;
+  }, [remarkContextCol, getDropdownLabel]);
+
   // ── Search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -439,7 +466,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       const cellKey = `${row.id}:${col.key}`;
       const result = validateColumnValue(liveValue, col);
       if (!result.valid) {
-        alert(result.message);
+        notify.error(result.message);
         const previous = lastValidCellValuesRef.current.get(cellKey);
         handleCellChange(row.id, col.key, previous ?? row[col.key]);
         return false;
@@ -448,13 +475,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       handleCellChange(row.id, col.key, liveValue);
       return true;
     },
-    [handleCellChange]
+    [handleCellChange, notify]
   );
 
   const makeCellFocus = useCallback((row, col) => {
-    return () => {
+    return (e) => {
       const currentRow = rowsRef.current.find((r) => String(r.id) === String(row.id)) || row;
       lastValidCellValuesRef.current.set(`${row.id}:${col.key}`, currentRow[col.key]);
+      selectInputText(e.target);
     };
   }, []);
 
@@ -586,6 +614,36 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
     const columnMeta = resolveColumnMeta(col);
     const displayValue = formatColumnDisplayValue(value, col);
+
+    // ── Remark columns: truncated preview + icon that opens the paste-friendly modal ──
+    if (remarkModalSet?.has(col.key)) {
+      const remarkText = value == null ? "" : String(value);
+      return (
+        <div className="cell-remark">
+          <span className="cell-remark__text" title={remarkText}>
+            {remarkText || "—"}
+          </span>
+          <button
+            type="button"
+            className="cell-remark__icon"
+            aria-label={`${cellReadOnly ? "View" : "Edit"} ${col.name} for row ${row.id}`}
+            onClick={() =>
+              setRemarkEditor({
+                rowId: row.id,
+                colKey: col.key,
+                colName: col.name,
+                value: remarkText,
+                readOnly: cellReadOnly,
+                contextLabel: getRemarkContextLabel(row),
+                contextColLabel: remarkContextCol?.name ?? null,
+              })
+            }
+          >
+            <StickyNote size={14} strokeWidth={2} />
+          </button>
+        </div>
+      );
+    }
 
     // ── Read-only mode: always render as label ──
     if (cellReadOnly) {
@@ -1119,6 +1177,54 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             />
           )}
         </>
+      )}
+
+      {remarkEditor && (
+        <Modal
+          isOpen
+          onClose={() => setRemarkEditor(null)}
+          title={remarkEditor.readOnly ? remarkEditor.colName : `Edit ${remarkEditor.colName}`}
+          subtitle={
+            remarkEditor.contextLabel
+              ? `${remarkEditor.contextColLabel ? `${remarkEditor.contextColLabel}: ` : ""}${remarkEditor.contextLabel}`
+              : undefined
+          }
+          icon={<StickyNote size={16} strokeWidth={2} />}
+          size="sm"
+          variant="enterprise"
+          footer={
+            remarkEditor.readOnly ? null : (
+              <div className="filter-actions cell-remark-modal__footer">
+                <button type="button" onClick={() => setRemarkEditor(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    handleCellChange(remarkEditor.rowId, remarkEditor.colKey, remarkEditor.value);
+                    setRemarkEditor(null);
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            )
+          }
+        >
+          <textarea
+            className="cell-remark-modal__textarea"
+            value={remarkEditor.value}
+            readOnly={remarkEditor.readOnly}
+            onChange={(e) => setRemarkEditor((prev) => ({ ...prev, value: e.target.value }))}
+            placeholder="Type or paste a remark…"
+            rows={5}
+            autoFocus
+          />
+          {!remarkEditor.readOnly && (
+            <div className="cell-remark-modal__counter">{remarkEditor.value.length} characters</div>
+          )}
+        </Modal>
       )}
     </div>
   );

@@ -7,7 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { Layers, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
@@ -27,15 +28,16 @@ function formatListDate(value) {
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: C2F_CONFIG.LIST_OBJ_TYPE,
     ObjName: C2F_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  DEFAULT_COMPANY_ID,
+      prmcompanyid:  session.companyId,
       prmdivisionid: C2F_CONFIG.LIST_DIVISION_ID,
       prmlocationid: 0,
-      prmloginid:    DEFAULT_LOGIN_ID,
-      prmyearid:     C2F_CONFIG.CONFIG_YEAR_ID,
+      prmloginid:    session.loginId,
+      prmyearid:     session.yearId,
       prmfromdate:   `01-Jan-${year}`,
       prmtodate:     `31-Dec-${year}`,
       prmconvtypeid: 0,

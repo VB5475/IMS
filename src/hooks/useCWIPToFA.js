@@ -18,8 +18,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -33,10 +31,11 @@ import {
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId)  || DEFAULT_COMPANY_ID,
-    Number(yearId)     || C2F_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId)    || getUserSession().loginId,
+    Number(companyId)  || session.companyId,
+    Number(yearId)     || session.yearId,
+    Number(loginId)    || session.loginId,
     Number(sessionId)  || DEFAULT_SESSION_ID,
     Number(idNumber)   || 0,
   ].join(",");
@@ -57,7 +56,7 @@ function mapMasterRowToHeaderValues(master) {
     trandate:        toDateInput(master.trandate),
     puttouseinstdate: toDateInput(master.puttouseinstdate) || null,
     // Context fields: always use live values, not stale DB values
-    yearid:    C2F_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  C2F_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -84,7 +83,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
     ObjType: 2,
     ObjName: C2F_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
+    JSon: JSON.stringify([{ prmrbcode: rbCode }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   });
@@ -94,7 +93,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID:  DEFAULT_LOGIN_ID,
+    prmLoginID:  getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -133,15 +132,16 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     if (!divisionId || divisionId === "0") { setCWIPAccOptions([]); return []; }
     if (!C2F_CONFIG.SP_CWIP_ACC) return [];
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_CWIP_ACC,
         JSon: JSON.stringify([{
           prmdivisionid:    Number(divisionId),
           prmacmaingroupid: 7,           // ⚠️ CONFIRM with DBA — Main Group ID for CWIP accounts
-          prmloginid:       DEFAULT_LOGIN_ID,
-          prmcompanyid:     DEFAULT_COMPANY_ID,
-          prmyearid:        C2F_CONFIG.CONFIG_YEAR_ID,
+          prmloginid:       session.loginId,
+          prmcompanyid:     session.companyId,
+          prmyearid:        session.yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -168,7 +168,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 1,
         ObjName: C2F_CONFIG.SP_UNIQUE_ID,
-        JSon: JSON.stringify([{ prmidnumber: 0, prmyearid: C2F_CONFIG.CONFIG_YEAR_ID }]),
+        JSon: JSON.stringify([{ prmidnumber: 0, prmyearid: getUserSession().yearId }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       return res?.[0]?.uniqueid ?? 0;
@@ -182,12 +182,13 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   const fetchLocations = useCallback(async (divisionId) => {
     if (!divisionId || divisionId === "0") { setLocationOptions([]); return []; }
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_LOCATION,
         JSon: JSON.stringify([{
-          prmcompanyid:    DEFAULT_COMPANY_ID,
-          prmloginid:      DEFAULT_LOGIN_ID,
+          prmcompanyid:    session.companyId,
+          prmloginid:      session.loginId,
           prmlocationtype: "",
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
@@ -208,6 +209,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   // ── fetchCostCenters ───────────────────────────────────────────────────────
   const fetchCostCenters = useCallback(async (divisionId, tranDate) => {
     try {
+      const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_COST_CENTER,
@@ -215,11 +217,11 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
           prmdivisionid:  Number(divisionId) || 0,
           prmtrandate:    tranDate || "",
           prmaccountid:   0,
-          prmloginid:     DEFAULT_LOGIN_ID,
+          prmloginid:     session.loginId,
           prmlangcode:    1,
           prmmodulecode:  "C2F",
           prmismultidiv:  0,
-          prmyearid:      C2F_CONFIG.CONFIG_YEAR_ID,
+          prmyearid:      session.yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -241,11 +243,12 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     setHeaderFetching(true);
     setHeaderError(null);
     try {
+      const session = getUserSession();
       // Phase 1 — fetch RB metadata → RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: C2F_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: C2F_CONFIG.RB_MASTER }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
@@ -257,7 +260,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       // Phase 2 — fetch header column definitions (master field metadata — dynamic)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  session.loginId,
       });
       const hdrApiColumns = colData || [];
       setHeaderColumns(hdrApiColumns);
@@ -277,9 +280,9 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: C2F_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([{
-          prmuserid:    DEFAULT_LOGIN_ID,
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmyearid:    C2F_CONFIG.DIVISION_YEAR_ID,
+          prmuserid:    session.loginId,
+          prmcompanyid: session.companyId,
+          prmyearid:    session.yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       }).catch((err) => { console.warn("[C2F] Division fetch failed:", err); return null; });
@@ -415,14 +418,15 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
 
     const tasks = [];
     if (needsDivision) {
+      const session = getUserSession();
       tasks.push(
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: C2F_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmuserid:    DEFAULT_LOGIN_ID,
-            prmcompanyid: DEFAULT_COMPANY_ID,
-            prmyearid:    C2F_CONFIG.DIVISION_YEAR_ID,
+            prmuserid:    session.loginId,
+            prmcompanyid: session.companyId,
+            prmyearid:    session.yearId,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         })

@@ -15,8 +15,6 @@ import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
@@ -29,10 +27,11 @@ import {
 } from "../utils/gridUtils";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
+  const session = getUserSession();
   return [
-    Number(companyId)  || DEFAULT_COMPANY_ID,
-    Number(yearId)     || AOP_CONFIG.CONFIG_YEAR_ID,
-    Number(loginId)    || getUserSession().loginId,
+    Number(companyId)  || session.companyId,
+    Number(yearId)     || session.yearId,
+    Number(loginId)    || session.loginId,
     Number(sessionId)  || DEFAULT_SESSION_ID,
     Number(idNumber)   || 0,
   ].join(",");
@@ -50,7 +49,7 @@ function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
     trandate:  toDateInput(master.trandate),
-    yearid:    AOP_CONFIG.CONFIG_YEAR_ID,
+    yearid:    getUserSession().yearId,
     funccode:  AOP_CONFIG.RB_MASTER,
     loginid:   getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
@@ -78,7 +77,7 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   localStorage.setItem(storageKey, JSON.stringify(meta));
   const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
     prmMasterID: meta.RBID,
-    prmLoginID:  DEFAULT_LOGIN_ID,
+    prmLoginID:  getUserSession().loginId,
   });
   return { meta, apiColumns: colData || [] };
 }
@@ -144,7 +143,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{
           prmdivisionid:  Number(divisionId),
           prmitemgroupid: Number(itemGroupId),
-          prmloginid:     DEFAULT_LOGIN_ID,
+          prmloginid:     getUserSession().loginId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -173,9 +172,9 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{
           prmdivisionid:    Number(divisionId),
           prmacmaingroupid: 7,           // ⚠️ DBA CONFIRM
-          prmloginid:       DEFAULT_LOGIN_ID,
-          prmcompanyid:     DEFAULT_COMPANY_ID,
-          prmyearid:        AOP_CONFIG.CONFIG_YEAR_ID,
+          prmloginid:       getUserSession().loginId,
+          prmcompanyid:     getUserSession().companyId,
+          prmyearid:        getUserSession().yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -213,7 +212,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
 
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  DEFAULT_LOGIN_ID,
+        prmLoginID:  getUserSession().loginId,
       });
       setHeaderColumns(colData || []);
 
@@ -226,9 +225,9 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
         ObjType: 2,
         ObjName: AOP_CONFIG.SP_DIVISIONS,
         JSon: JSON.stringify([{
-          prmuserid:    DEFAULT_LOGIN_ID,
-          prmcompanyid: DEFAULT_COMPANY_ID,
-          prmyearid:    AOP_CONFIG.DIVISION_YEAR_ID,
+          prmuserid:    getUserSession().loginId,
+          prmcompanyid: getUserSession().companyId,
+          prmyearid:    getUserSession().yearId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       }).catch((err) => { console.warn("[AOP] Division fetch failed:", err); return null; });
@@ -303,22 +302,28 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.divisionid != null && master.divisionname) {
-      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
+    // Label fields confirmed live on GetMasterDataFill (fn_tbl_rb_astitemopemst):
+    // division, itemgroup, item, account — not the guessed *name/ac* variants.
+    const divisionLabel = master.division ?? master.divisionname;
+    if (master.divisionid != null && divisionLabel) {
+      setDivisionOptions([{ value: String(master.divisionid), label: divisionLabel }]);
     }
-    if (master.itemgroupid != null && master.itemgroupname) {
-      setItemGroupOptions([{ value: String(master.itemgroupid), label: master.itemgroupname }]);
+    const itemGroupLabel = master.itemgroup ?? master.itemgroupname;
+    if (master.itemgroupid != null && itemGroupLabel) {
+      setItemGroupOptions([{ value: String(master.itemgroupid), label: itemGroupLabel }]);
     }
-    if (master.itemid != null && master.itemname) {
+    const itemLabel = master.item ?? master.itemname;
+    if (master.itemid != null && itemLabel) {
       setItemOptions([{
         value: String(master.itemid),
-        label: String((master.itemcode ? master.itemcode + " | " : "") + (master.itemname ?? "")),
+        label: String((master.itemcode ? master.itemcode + " | " : "") + itemLabel),
       }]);
     }
-    if (master.accountid != null && (master.accountname ?? master.acname)) {
+    const accountLabel = master.account ?? master.accountname ?? master.acname;
+    if (master.accountid != null && master.accountid !== 0 && accountLabel) {
       setAssetsAccOptions([{
         value: String(master.accountid),
-        label: String((master.accode ?? "") + " | " + (master.accountname ?? master.acname ?? "")),
+        label: String((master.accode ?? "") + " | " + accountLabel),
       }]);
     }
   }, []);
@@ -339,7 +344,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
           ObjType: 2,
           ObjName: AOP_CONFIG.SP_DIVISIONS,
           JSon: JSON.stringify([{
-            prmuserid: DEFAULT_LOGIN_ID, prmcompanyid: DEFAULT_COMPANY_ID, prmyearid: AOP_CONFIG.DIVISION_YEAR_ID,
+            prmuserid: getUserSession().loginId, prmcompanyid: getUserSession().companyId, prmyearid: getUserSession().yearId,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         })

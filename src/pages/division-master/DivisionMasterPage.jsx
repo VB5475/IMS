@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Network, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import { DEFAULT_COMPANY_ID } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDivisionMaster } from "../../hooks/useDivisionMaster";
 import { formatTranDate } from "../../utils/dateFormat";
@@ -13,12 +13,13 @@ import "./DivisionMasterPage.css";
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
+  const session = getUserSession();
   return {
     ObjType: DV_CONFIG.LIST_OBJ_TYPE,
     ObjName: DV_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:  DEFAULT_COMPANY_ID,
+        prmcompanyid:  session.companyId,
         prmdivisionid: DV_CONFIG.LIST_DIVISION_ID,
         prmfromdate:   today,
         prmtodate:     today,

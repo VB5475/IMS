@@ -13,6 +13,7 @@ const PurchaseInquiryPage = lazy(() => import("./pages/purchase-inquiry/Purchase
 const PurchaseInquiryForm = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryForm"));
 const PurchaseQuotationPage = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationPage"));
 const PurchaseQuotationForm = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
+const PurchaseQuotationComparisonPage = lazy(() => import("./pages/purchase-quotation-comparison/PurchaseQuotationComparisonPage"));
 const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
 const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
 const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
@@ -25,8 +26,11 @@ const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
+const AssetDepreciationPercentagePage = lazy(() => import("./pages/asset-depreciation-percentage/AssetDepreciationPercentagePage"));
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
+const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
+const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsEmployeeIssuePage = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssuePage"));
 const AssetsEmployeeIssueForm = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssueForm"));
 const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnPage"));
@@ -37,8 +41,6 @@ const AssetsHealthStatusUpdationPage = lazy(() => import("./pages/assets-health-
 const AssetsHealthStatusUpdationForm = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm"));
 const AssetsRevaluationPage = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationPage"));
 const AssetsRevaluationForm = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationForm"));
-const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
-const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsClientAllocationPage = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationPage"));
 const AssetsClientAllocationForm = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationForm"));
 const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
@@ -66,6 +68,7 @@ const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetIt
 const AssetsItemOpeningExcelPage = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage"));
 const AssetsItemOpeningExcelForm = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm"));
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
+const CustomerMasterPage = lazy(() => import("./pages/customer-master/CustomerMasterPage"));
 const TrialBalanceDemoPage = lazy(() => import("./pages/trial-balance-demo/TrialBalanceDemoPage"));
 
 function AppLayout() {
@@ -111,6 +114,7 @@ function AppRoutes() {
           <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
           <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
           <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
+          <Route path="purchase-quotation-comparison" element={<PurchaseQuotationComparisonPage />} />
           <Route path="purchase-indent" element={<PurchaseIndentPage />} />
           <Route path="purchase-indent/new" element={<PurchaseIndentForm />} />
           <Route path="purchase-indent/:id" element={<PurchaseIndentForm />} />
@@ -130,10 +134,15 @@ function AppRoutes() {
           <Route path="assets-depreciation/new" element={<AssetsDepreciationForm />} />
           <Route path="assets-depreciation/:id" element={<AssetsDepreciationForm />} />
           <Route path="assets-depreciation/:id/edit" element={<AssetsDepreciationForm />} />
+          <Route path="asset-depreciation-percentage" element={<AssetDepreciationPercentagePage />} />
           <Route path="assets-item-opening" element={<AssetsItemOpeningPage />} />
           <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
           <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
+          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
+          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
+          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
           <Route path="assets-employee-issue" element={<AssetsEmployeeIssuePage />} />
           <Route path="assets-employee-issue/new" element={<AssetsEmployeeIssueForm />} />
           <Route path="assets-employee-issue/:id" element={<AssetsEmployeeIssueForm />} />
@@ -154,10 +163,6 @@ function AppRoutes() {
           <Route path="assets-revaluation/new" element={<AssetsRevaluationForm />} />
           <Route path="assets-revaluation/:id" element={<AssetsRevaluationForm />} />
           <Route path="assets-revaluation/:id/edit" element={<AssetsRevaluationForm />} />
-          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
-          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
           <Route path="assets-client-allocation" element={<AssetsClientAllocationPage />} />
           <Route path="assets-client-allocation/new" element={<AssetsClientAllocationForm />} />
           <Route path="assets-client-allocation/:id" element={<AssetsClientAllocationForm />} />
@@ -174,10 +179,6 @@ function AppRoutes() {
           <Route path="assets-stock-transfer/new" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id/edit" element={<AssetsStockTransferForm />} />
-          <Route path="complaint-register" element={<ComplaintRegisterPage />} />
-          <Route path="complaint-register/new" element={<ComplaintRegisterForm />} />
-          <Route path="complaint-register/:id" element={<ComplaintRegisterForm />} />
-          <Route path="complaint-register/:id/edit" element={<ComplaintRegisterForm />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
@@ -188,6 +189,7 @@ function AppRoutes() {
           <Route path="account/master/asset-item-opening-excel" element={<AssetsItemOpeningExcelPage />} />
           <Route path="account/master/asset-item-opening-excel/new" element={<AssetsItemOpeningExcelForm />} />
           <Route path="admin/master/supplier-master" element={<SupplierMasterPage />} />
+          <Route path="admin/master/customer-master" element={<CustomerMasterPage />} />
           <Route path="admin/user-master" element={<UserMasterPage />} />
           <Route path="admin/user-group" element={<UserGroupPage />} />
           <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />

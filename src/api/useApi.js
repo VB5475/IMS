@@ -120,7 +120,7 @@ export function useApi(baseURL = API_BASE_URL) {
   );
 
   const post = useCallback(
-    async (url, body = {}, params = {}) => {
+    async (url, body = {}, params = {}, config = {}) => {
       const qs = buildQueryString(params);
       const fullUrl = qs ? `${url}?${qs}` : url;
 
@@ -128,7 +128,7 @@ export function useApi(baseURL = API_BASE_URL) {
       setLoading(true);
       setError(null);
       try {
-        return await client.post(fullUrl, body);
+        return await client.post(fullUrl, body, config);
       } catch (err) {
         if (!axios.isCancel(err)) setError(err);
         throw err;

@@ -32,7 +32,6 @@ import {
   getColDefault,
   buildSaveRowFromColumns,
   OBJ_TYPE,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -47,6 +46,7 @@ import {
   resolveHeaderApiCol,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -54,6 +54,8 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   GRN_CONFIG,
+  GRN_MULTI_PASTE_COLUMNS,
+  GRN_REMARK_COLUMNS,
   GRN_HEADER_FILTERS,
   GRN_TRANSPORTER_FILTERS,
   GRN_DRIVER_FILTERS,
@@ -117,8 +119,8 @@ function buildCurrencyPatchFromSupplier(supplier) {
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? GRN_CONFIG.CONFIG_YEAR_ID,
+    companyId: listRecord?.companyid ?? session.companyId,
+    yearId: listRecord?.yearid ?? session.yearId,
     loginId: listRecord?.loginid ?? session.loginId,
     sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
     idNumber: listRecord?.idnumber ?? recordId,
@@ -239,8 +241,8 @@ export default function GoodsReceivedNoteForm() {
     drivername: "",
     drivercontactno: "",
     driverlicenceno: "",
-    companyid: 1,
-    yearid: GRN_CONFIG.DIVISION_YEAR_ID,
+    companyid: session.companyId,
+    yearid: session.yearId,
     loginid: session.loginId,
     userid: session.userId,
     idnumber: recordId,
@@ -352,8 +354,8 @@ export default function GoodsReceivedNoteForm() {
       drivername: "",
       drivercontactno: "",
       driverlicenceno: "",
-      companyid: 1,
-      yearid: GRN_CONFIG.DIVISION_YEAR_ID,
+      companyid: resetSession.companyId,
+      yearid: resetSession.yearId,
       loginid: resetSession.loginId,
       userid: resetSession.userId,
       idnumber: 0,
@@ -500,6 +502,14 @@ export default function GoodsReceivedNoteForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // ── Multi-value paste — Sr. No replication ──────────────────────
+  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
+    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
+    values.slice(1).forEach((val) => {
+      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
+    });
+  }, [addItemRow]);
+
   // Always attach the fully-fetched options list (real names) regardless of
   // lock/edit state — mirrors Purchase Order's DROPDOWN_OPTIONS_BY_COL pattern.
   // Avoids depending on live ctrlvaluecol/ctrldisplaycol RB metadata, which is
@@ -637,6 +647,7 @@ export default function GoodsReceivedNoteForm() {
             fetchSupplierOptions(val),
             fetchTransporterOptions(val),
           ]);
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return buildCurrencyPatchFromSupplier(null);
       }
@@ -944,10 +955,6 @@ export default function GoodsReceivedNoteForm() {
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
-  const handleDocument = useCallback(() => {
-    console.log("[GRN] Document F6 — reserved for document generation.");
-  }, []);
-
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
   }, [activeTab, handleSelectItem]);
@@ -986,14 +993,6 @@ export default function GoodsReceivedNoteForm() {
   const grnExtraButtons = useMemo(
     () => [
       {
-        key: "document",
-        label: "Document F6",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleDocument,
-      },
-      { key: "sep1", separator: true },
-      {
         key: "saveprint",
         label: "Save & Print",
         Icon: Printer,
@@ -1015,7 +1014,7 @@ export default function GoodsReceivedNoteForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSaving, handleSave]
+    [handleSaveAndPrint, isSaving, handleSave]
   );
 
   return (
@@ -1134,6 +1133,9 @@ export default function GoodsReceivedNoteForm() {
             childRowsMap={childRowsMap}
             childColumns={childColumns}
             existingRecordEdit={isEditRoute && isEditMode}
+            multiValuePasteColumns={GRN_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={GRN_REMARK_COLUMNS}
           />
         </div>
 

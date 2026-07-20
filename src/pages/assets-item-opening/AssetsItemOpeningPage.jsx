@@ -7,7 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { Package2, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { AOP_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsItemOpeningPage.css";
@@ -23,14 +24,15 @@ function formatListDate(value) {
 }
 
 function buildListParams() {
+  const session = getUserSession();
   return {
     ObjType: AOP_CONFIG.LIST_OBJ_TYPE,
     ObjName: AOP_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  DEFAULT_COMPANY_ID,
+      prmcompanyid:  session.companyId,
       prmdivisionid: AOP_CONFIG.LIST_DIVISION_ID,
-      prmloginid:    DEFAULT_LOGIN_ID,
-      prmyearid:     AOP_CONFIG.CONFIG_YEAR_ID,
+      prmloginid:    session.loginId,
+      prmyearid:     session.yearId,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",

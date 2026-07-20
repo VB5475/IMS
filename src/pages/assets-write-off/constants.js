@@ -1,57 +1,56 @@
-import { DEFAULT_COMPANY_ID, DEFAULT_LOGIN_ID } from "../../api/constants";
-
+// constants.js — Assets Write Off (AWF) page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-
 export const PAGE_TITLE = "Assets Write Off";
 export const PAGE_TITLE_NEW = "New Assets Write Off";
 
-export const AWO_CONFIG = {
-  RB_MASTER: "rb_astwrtoffmst",
-  DELETE_PROC_NAME: "pr_rb_astwrtoffmst_delete",
-  RB_DETAIL: "rb_astwrtoffdet",
-  RB_ITEM_PICKER: "rb_astwrtoffselonly",
+// Values aligned to MRD_Template4AssetsWriteOff.docx (Richa, 16-Jun-2026).
 
-  MODULE_CODE: "AIS",
-  FORM_TAG: "rb_astwrtoffmst",
-  TRAN_BOOK: "WRT",
-  FRM_TYPE: "WRT",
-  FRM_TYPE_LABEL: "WRT",
-  CONFIG_FORM_TAG: "ASTIS",
-  CONFIG_REF_TYPE: "WRT",
-  ISSUE_TYPE_ID: 11,
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const AWF_MULTI_PASTE_COLUMNS = new Set(["batchsrno"]);
 
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const AWF_REMARK_COLUMNS = new Set(["remark"]);
 
-  SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
-  SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
-  SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
-  SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
-  SP_ITEM_PICKER: "fn_tbl_rb_astwrtoffselonly",
+export const AWF_CONFIG = {
+  RB_MASTER: "rb_astwriteoffmst",
+  DELETE_PROC_NAME: "pr_rb_astwriteoffmst_delete",
+  RB_DETAIL: "rb_astwriteoffdet",
+  RB_ITEM_PICKER: "rb_astwritoffselonly",
 
-  SP_MASTER_FILL: "fn_tbl_rb_astwrtoffmst",
-  SP_DETAIL_FILL: "fn_tbl_rb_astwrtoffdet",
+  FORM_TAG: "rb_astwriteoffmst",
+  TRAN_BOOK: "ASTWOF",
 
-  SAVE_ENDPOINT: "/API/AstWrtOffMst/Post_RB_AstWrtOffMst_Save",
+  SP_RB_META: "fn_fetch_rbdetailbyrbcode",
+  SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
+  SP_LOCATION: "Fn_Gen_FetchLocationMaster",
+  SP_ASSETS_ACC: "Fn_tbl_Fetch_AssetsAccount",
+  SP_ITEM_PICKER: "fn_tbl_rb_astwritoffselonly",
+
+  SP_MASTER_FILL: "fn_tbl_rb_astwriteoffmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astwriteoffdet",
+
+  SAVE_ENDPOINT: "/API/AstWriteOffMst/Post_RB_AstWriteOffMst_Save",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_astwrtoffmst_list",
-  LIST_FROM_DIVISION_ID: 15,
+  SP_LIST: "fn_tbl_rb_astwriteoffmst_list",
+  LIST_DIVISION_ID: 15,
 
-  STORAGE_HEADER_META: "awoHeaderMeta",
-  STORAGE_ENTRY_META: "awoEntryMeta",
+  STORAGE_HEADER_META: "awfHeaderMeta",
+  STORAGE_ENTRY_META: "awfEntryMeta",
+
+  /** Main group for asset account dropdown — CONFIRM with DBA */
+  ASSETS_AC_MAIN_GROUP_ID: 7,
+  /** Main group for profit/loss account dropdown — CONFIRM with DBA */
+  PROFIT_LOSS_AC_MAIN_GROUP_ID: 4,
 };
 
-export const AWO_GRID_TABS = [{ id: "items", label: "Item Grid" }];
+export const AWF_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-export const AWO_FRM_TYPE_OPTIONS = [
-  { value: String(AWO_CONFIG.FRM_TYPE), label: AWO_CONFIG.FRM_TYPE_LABEL },
-];
-
-const AWO_ITEM_PICKER_REQUIRED_FIELDS = [
-  { keys: ["fromdivisionid", "FromDivisionID"], label: "Division" },
-  { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
-  { keys: ["configid", "ConfigID"], label: "Configuration" },
+const AWF_ITEM_PICKER_REQUIRED_FIELDS = [
+  { keys: ["divisionid", "DivisionID"], label: "Division" },
+  { keys: ["trandate", "TranDate"], label: "Write-off Date", isDate: true },
+  { keys: ["fromlocid", "LocationID", "locationid"], label: "From Location" },
+  { keys: ["accountid", "AccountID"], label: "Account" },
 ];
 
 function pickHeaderValue(headerValues, keys) {
@@ -70,113 +69,28 @@ function isMissingValue(field, value) {
   return Number(value) === 0 || value === "0";
 }
 
-function pickHeaderInt(headerValues, ...keys) {
-  const raw = pickHeaderValue(headerValues, keys);
-  if (raw == null || raw === "") return 0;
-  return Number(raw) || 0;
-}
-
 export function getMissingItemPickerHeaderFields(headerValues) {
-  return AWO_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
+  return AWF_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
     isMissingValue(f, pickHeaderValue(headerValues, f.keys))
   ).map((f) => f.label);
 }
 
-export function buildAwoItemPickerJsonPayload(
-  headerValues,
-  {
-    companyId = DEFAULT_COMPANY_ID,
-    loginId = DEFAULT_LOGIN_ID,
-    yearId = AWO_CONFIG.CONFIG_YEAR_ID,
-  } = {}
-) {
-  const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
-
-  return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId ?? pickHeaderValue(headerValues, ["loginid", "LoginID"])) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId ?? pickHeaderValue(headerValues, ["yearid", "YearID"])) || AWO_CONFIG.CONFIG_YEAR_ID,
-    prmtrandate: pickHeaderValue(headerValues, ["trandate", "TranDate"]) ?? "",
-    prmfromdivisionid: fromDivisionId,
-    prmtodivisionid: pickHeaderInt(headerValues, "todivisionid", "ToDivisionID") || fromDivisionId,
-    prmfromlocationid: pickHeaderInt(headerValues, "fromlocationid", "FromLocationID"),
-    prmtolocationid: pickHeaderInt(headerValues, "tolocationid", "ToLocationID"),
-    prmfromdeptid: pickHeaderInt(headerValues, "fromdeptid", "FromDeptID"),
-    prmtodeptid: pickHeaderInt(headerValues, "todeptid", "ToDeptID"),
-    prmfromempuserid: pickHeaderInt(headerValues, "fromempuserid", "FromEmpUserID"),
-    prmtoempuserid: pickHeaderInt(headerValues, "toempuserid", "ToEmpUserID"),
-    prmfromworkingclientid: pickHeaderInt(headerValues, "fromworkingclientid", "FromWorkingClientID"),
-    prmtoworkingclientid: pickHeaderInt(headerValues, "toworkingclientid", "ToWorkingClientID"),
-    prmfromvendorid: pickHeaderInt(headerValues, "fromvendorid", "FromVendorID"),
-    prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
-    prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
-    prmissuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
-  };
-}
-
-export function buildAwoListJsonPayload({
-  companyId = DEFAULT_COMPANY_ID,
-  loginId = DEFAULT_LOGIN_ID,
-  yearId = AWO_CONFIG.CONFIG_YEAR_ID,
-  fromDate,
-  toDate,
-  fromDivisionId = AWO_CONFIG.LIST_FROM_DIVISION_ID,
-  fromLocationId = 0,
-} = {}) {
-  const year = new Date().getFullYear();
-  return {
-    prmcompanyid: Number(companyId) || DEFAULT_COMPANY_ID,
-    prmloginid: Number(loginId) || DEFAULT_LOGIN_ID,
-    prmyearid: Number(yearId) || AWO_CONFIG.CONFIG_YEAR_ID,
-    prmfromdate: fromDate ?? `01-Jan-${year}`,
-    prmtodate: toDate ?? `31-Dec-${year}`,
-    prmfromdivisionid: Number(fromDivisionId) || 0,
-    prmfromlocationid: Number(fromLocationId) || 0,
-  };
-}
-
-export function applyAwoHardcodedHeaderValues(headerValues = {}) {
-  return {
-    ...headerValues,
-    frmtype: AWO_CONFIG.FRM_TYPE,
-    issuetypeid: AWO_CONFIG.ISSUE_TYPE_ID,
-  };
-}
-
-export function resolveAwoColKey(fieldDefs, ...hints) {
+export function resolveAwfColKey(fieldDefs, ...hints) {
   const lowerHints = hints.map((h) => String(h).toLowerCase());
   const found = (fieldDefs || []).find((col) => {
     const name = String(col.colname ?? col.ColName ?? "").toLowerCase();
-    return lowerHints.some((h) => name === h || name.includes(h));
+    return lowerHints.includes(name);
   });
   return found?.colname ?? found?.ColName ?? hints[0] ?? "";
 }
 
-export function buildAwoCascadeResets(fieldDefs) {
-  const fromDiv = resolveAwoColKey(fieldDefs, "fromdivisionid");
-  const fromLoc = resolveAwoColKey(fieldDefs, "fromlocationid");
-  const config = resolveAwoColKey(fieldDefs, "configid");
-
-  const resets = {};
-  if (fromDiv) resets[fromDiv] = [fromLoc, config].filter(Boolean);
-  if (fromLoc) resets[fromLoc] = [];
-  return resets;
-}
-
-export function validateAwoBusinessRules(headerValues = {}) {
-  const errors = [];
-  const tranDate = headerValues.trandate ? new Date(headerValues.trandate) : null;
-  const issueDate = headerValues.issuedate ? new Date(headerValues.issuedate) : null;
-
-  if (
-    tranDate
-    && issueDate
-    && !Number.isNaN(tranDate.getTime())
-    && !Number.isNaN(issueDate.getTime())
-    && tranDate < issueDate
-  ) {
-    errors.push("Tran Date cannot be smaller than Write-Off Date.");
-  }
-
-  return errors;
+export function buildAwfCascadeResets(fieldDefs) {
+  const divCol = resolveAwfColKey(fieldDefs, "divisionid", "DivisionID");
+  const locCol = resolveAwfColKey(fieldDefs, "fromlocid", "locationid", "LocationID");
+  const accCol = resolveAwfColKey(fieldDefs, "accountid", "AccountID");
+  const plCol = resolveAwfColKey(fieldDefs, "profitlossactid", "ProfitLossActID");
+  if (!divCol) return {};
+  return {
+    [divCol]: [locCol, accCol, plCol].filter((k) => k && k !== divCol),
+  };
 }

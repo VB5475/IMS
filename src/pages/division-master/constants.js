@@ -2,7 +2,6 @@
 //
 // ⚠️ DBA CONFIRM items (carried over from the MRD as provisional, same convention
 // used for Location Master — see src/pages/location-master/constants.js):
-//   - CONFIG_YEAR_ID / DIVISION_YEAR_ID (currently 2)
 //   - SP_LIST name + its parameter shape
 //   - LIST_DIVISION_ID (currently 15)
 
@@ -15,9 +14,6 @@ export const DV_CONFIG = {
   RB_MASTER: "rb_divisionmst",
   FORM_TAG:  "rb_divisionmst",
   TRAN_BOOK: "DivisionMst",
-
-  CONFIG_YEAR_ID:   2, // ⚠️ CONFIRM with DBA
-  DIVISION_YEAR_ID: 2, // ⚠️ CONFIRM with DBA
 
   SP_RB_META:     "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_divisionmst",

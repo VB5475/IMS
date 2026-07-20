@@ -36,6 +36,8 @@ import {
 
 } from "../../utils/purchaseItemPicker";
 
+import { getUserSession } from "../../session/userSession";
+
 
 
 export { formatTranDate };
@@ -47,6 +49,12 @@ export { DEFAULT_BASED_ON_FILTER_VALUES as GRN_FILTER_INITIAL_VALUES };
 export { CURRENCY_READONLY_FIELDS as GRN_READONLY_FIELDS };
 
 
+
+/** Item-grid column that supports multi-value paste (Serial Number replication). */
+export const GRN_MULTI_PASTE_COLUMNS = new Set(["batchnosrno"]);
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const GRN_REMARK_COLUMNS = new Set(["remarks"]);
 
 export const GRN_CONFIG = {
 
@@ -103,7 +111,8 @@ export const GRN_CONFIG = {
 
 
 
-  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE, BASED_ON.INDENT_BASE],
+  // BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE, BASED_ON.INDENT_BASE], ## No need GRN BASED ON INDENT.
+  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE],
 
 
 
@@ -339,7 +348,7 @@ export function buildItemPickerJsonPayload(headerValues, loginId) {
 
   return buildPickerPayload(headerValues, loginId, {
 
-    configYearId: GRN_CONFIG.CONFIG_YEAR_ID,
+    configYearId: getUserSession().yearId,
 
     tranBook: GRN_CONFIG.TRAN_BOOK,
 

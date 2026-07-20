@@ -42,15 +42,24 @@ export const ENDPOINTS = {
   TRAN_FORM_EVENT: "/API/TransactionFormEvent/Post_RB_TransactionFormEvent",
   TRAN_FORM_DELETE: "/API/TranFormDelete/Post_TranFormDelete",
   RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save",
+  GENERATE_REPORT: "/API/Report/GenerateReport",
 };
 
 // ── Shared request defaults (used across pages) ────────────────────────
-export const DEFAULT_LOGIN_ID = 1;
-export const DEFAULT_COMPANY_ID = 1;
-export const DEFAULT_YEAR_ID = 13;
+// CompanyID/YearID/LoginID come from the login-time session (see
+// src/session/userSession.js, getUserSession()) — do not reintroduce
+// hardcoded fallbacks for those here.
 export const DEFAULT_SESSION_ID = 88;
 export const DEFAULT_DIVISION_ID = 0;
 export const API_TIMEOUT = 30000;
+
+// TODO(tech-debt): Asset Revaluation / Health Status Updation / Item Opening Excel
+// import these instead of reading getUserSession().loginId / .companyId, breaking the
+// convention above. Values mirror DEFAULT_USER_SESSION's fallback (session/userSession.js)
+// purely to unblock the build — those pages should be migrated to getUserSession() and
+// these two exports removed.
+export const DEFAULT_LOGIN_ID = 1;
+export const DEFAULT_COMPANY_ID = 1;
 
 /** FN_Fetch_Data / API/Values — ObjType discriminator */
 export const OBJ_TYPE = {
@@ -105,23 +114,34 @@ export function getColDefault(colDataType) {
   return null;
 }
 
+/** Current timestamp in the app's stored-date format (matches dateToStoredValue's "T" shape). */
+function nowStoredValue() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 /**
  * Build a save payload row: seed every column from GET_DETAIL_COL_DATA (incl. hidden),
  * then overlay row values. Empty/null/"" uses getColDefault(ColDataType).
+ * "logdate" is a hidden audit-timestamp column present across RB tables — some save
+ * SPs stamp it server-side, others (e.g. pr_rb_accountmst_save) enforce NOT NULL and
+ * expect the caller to supply it, so it's stamped client-side here rather than left null.
  */
 export function buildSaveRowFromColumns(rest, columnDefs, extraFields = {}) {
   const row = {};
   columnDefs.forEach(({ key, colDataType }) => {
     const raw = rest[key];
     if (raw == null || raw === "") {
-      row[key] = getColDefault(colDataType);
+      row[key] = key.toLowerCase() === "logdate" ? nowStoredValue() : getColDefault(colDataType);
       return;
     }
     const lower = colDataType ? String(colDataType).toLowerCase() : "";
     row[key] = lower && isNumericTypeStr(lower) ? (Number(raw) || 0) : raw;
   });
+  const rowKeysLower = new Set(Object.keys(row).map((k) => k.toLowerCase()));
   Object.entries(rest).forEach(([k, v]) => {
-    if (k === "id" || k in row) return;
+    if (k === "id" || k in row || rowKeysLower.has(k.toLowerCase())) return;
     row[k] = v;
   });
   return { ...row, ...extraFields };

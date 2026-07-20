@@ -8,7 +8,6 @@ export const MODAL_SUBTITLE  = "Admin › Master › Item › Main Group Master"
 
 export const MGM_CONFIG = {
   RB_MASTER:           "rb_purmaingroupmst",
-  CONFIG_YEAR_ID:      2,             // ⚠️ CONFIRM with DBA
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_ITEM_TYPE:        "fn_tbl_pur_itemtypemst_fetch",
   SP_FIXED_ASSET_ACC:  "fn_tbl_fixedastacc_fetch",

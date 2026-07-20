@@ -34,8 +34,6 @@ import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
-  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
@@ -46,11 +44,15 @@ import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilte
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PO_CONFIG,
+  PO_REMARK_COLUMNS,
   PO_GRID_TABS,
   APPROVED_OPTS,
   TERMS_COLUMNS,
@@ -75,17 +77,6 @@ const PO_LABEL_OVERRIDE_COLS = new Set(["currencyname", "currencyrate"]);
 let _poTempId = -1;
 const nextTempId = () => _poTempId--;
 
-function resolveEditLoadParams(recordId, listRecord) {
-  const session = getUserSession();
-  return {
-    companyId: listRecord?.companyid ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? session.yearId ?? PO_CONFIG.CONFIG_YEAR_ID,
-    loginId: listRecord?.loginid ?? session.loginId,
-    sessionId: listRecord?.sessionid ?? DEFAULT_SESSION_ID,
-    idNumber: listRecord?.poid ?? listRecord?.idnumber ?? recordId,
-  };
-}
-
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
 
@@ -109,16 +100,6 @@ function mapHeaderValuesToFilterValues(headerValues) {
     creditdays:   String(headerValues.creditdays ?? ""),
     remarks:      headerValues.remarks ?? "",
   };
-}
-
-// Returns all focusable, visible filter field elements inside a panel node.
-function queryEditableFilterFields(panel) {
-  if (!panel) return [];
-  return [
-    ...panel.querySelectorAll(
-      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
-    ),
-  ].filter((el) => el.offsetParent !== null);
 }
 
 function mapPickerToItemRow(item, allColumns) {
@@ -215,9 +196,9 @@ export default function PurchaseOrderForm() {
     basedonid:     "0",
     remarks:       "",
     tranmstgenid:  0,
-    companyid:     1,
-    yearid:        PO_CONFIG.DIVISION_YEAR_ID,
-    loginid:       1,
+    companyid:     getUserSession().companyId,
+    yearid:        getUserSession().yearId,
+    loginid:       getUserSession().loginId,
     idnumber:      recordId,
     isamend:       0,
     amendpoid:     0,
@@ -353,7 +334,9 @@ export default function PurchaseOrderForm() {
     setRecordLoadError(null);
 
     try {
-      const params = resolveEditLoadParams(recordId, listRecord);
+      const params = resolveEditLoadParams(recordId, listRecord, {
+        idFields: ["poid"],
+      });
       const { master, headerValues, details, indentDetails } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
@@ -417,7 +400,7 @@ export default function PurchaseOrderForm() {
             if (rbRow) {
               const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
                 prmMasterID: rbRow.rbid,
-                prmLoginID: DEFAULT_LOGIN_ID,
+                prmLoginID: getUserSession().loginId,
               });
               const pickerCols = buildGridColumns(colRes || [], {}, {
                 filterable: false,
@@ -545,11 +528,7 @@ export default function PurchaseOrderForm() {
         setChildRowsMap({});
         if (val && val !== "0") {
           await fetchPoTypes(val);
-          requestAnimationFrame(() =>
-            filterPanelRef.current
-              ?.querySelector("#efq-configid .search-select__trigger")
-              ?.focus()
-          );
+          focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return;
       }
@@ -684,7 +663,7 @@ export default function PurchaseOrderForm() {
 
       const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: rbRow.rbid,
-        prmLoginID: DEFAULT_LOGIN_ID,
+        prmLoginID: getUserSession().loginId,
       });
       const gridColumns = buildGridColumns(
         colRes || [],
@@ -702,8 +681,8 @@ export default function PurchaseOrderForm() {
         JSon: JSON.stringify([
           {
             prmdivisionid: Number(divisionID),
-            prmyearid:     PO_CONFIG.CONFIG_YEAR_ID,
-            prmloginid:    DEFAULT_LOGIN_ID,
+            prmyearid:     getUserSession().yearId,
+            prmloginid:    getUserSession().loginId,
             prmtrandate:   formatTranDate(trandate),
             prmconfigid:   Number(configid ?? 0),
             prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
@@ -803,15 +782,74 @@ export default function PurchaseOrderForm() {
   // ── Save ───────────────────────────────────────────────────────────
   const [isSavingPO, setIsSavingPO] = useState(false);
 
+  const buildDefaultHeaderValues = useCallback(() => ({
+    trancode:      "",
+    trandate:      todayISO,
+    configid:      0,
+    deliverydate:  null,
+    divisionid:    0,
+    supplierid:    0,
+    deptid:        0,
+    currencyid:    0,
+    currencyname:  "",
+    currencyrate:  0,
+    creditdays:    0,
+    basedonid:     "0",
+    remarks:       "",
+    tranmstgenid:  0,
+    companyid:     getUserSession().companyId,
+    yearid:        getUserSession().yearId,
+    loginid:       getUserSession().loginId,
+    idnumber:      0,
+    isamend:       0,
+    amendpoid:     0,
+    compuniquekey: 0,
+    funccode:      PO_CONFIG.RB_MASTER,
+  }), [todayISO]);
+
+  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+    storageKeys: [PO_CONFIG.STORAGE_HEADER_META, PO_CONFIG.STORAGE_ENTRY_META],
+    buildDefaultHeaderValues,
+    headerValuesRef,
+    queuedRowsRef,
+    gridColumnsLoadedRef,
+    itemGridRef,
+    editRecordLoadedRef,
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    clearSaveError,
+    setActiveTab,
+    setIsGridLoading,
+    setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
+    setFilterResetKey,
+    setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearPoTypes],
+    extraReset: () => {
+      sessionStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
+      sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
+      setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
+      setIsAmend(false);
+      setAmendPOID("");
+      setApprovedFilter("all");
+      setChildRowsMap({});
+      setChildColumns([]);
+    },
+  });
+
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
       navigate("/purchase-order");
     } else {
-      itemGridRef.current?.clearRows?.();
-      setFilterResetKey((k) => k + 1);
-      exitEditMode();
+      resetFormToInitialState();
     }
-  }, [isEditRoute, navigate, exitEditMode]);
+  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const hv = headerValuesRef.current;
@@ -888,72 +926,10 @@ export default function PurchaseOrderForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-
-    localStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
-    sessionStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
-    sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
-
-    headerValuesRef.current = {
-      trancode:      "",
-      trandate:      todayISO,
-      configid:      0,
-      deliverydate:  null,
-      divisionid:    0,
-      supplierid:    0,
-      deptid:        0,
-      currencyid:    0,
-      currencyname:  "",
-      currencyrate:  0,
-      creditdays:    0,
-      basedonid:     "0",
-      remarks:       "",
-      tranmstgenid:  0,
-      companyid:     1,
-      yearid:        PO_CONFIG.DIVISION_YEAR_ID,
-      loginid:       1,
-      idnumber:      0,
-      isamend:       0,
-      amendpoid:     0,
-      compuniquekey: 0,
-      funccode:      PO_CONFIG.RB_MASTER,
-    };
-    setGridRows([]);
-    setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
-
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-
-    clearPoTypes();
-    clearSaveError();
-
-    setIsAmend(false);
-    setAmendPOID("");
-    setActiveTab("items");
-    setApprovedFilter("all");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-
-    setChildRowsMap({});
-    setChildColumns([]);
-
-    itemGridRef.current?.clearRows?.();
-
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-  }, [clearPoTypes, clearSaveError, exitEditMode, todayISO]);
+    discardChanges();
+  }, [discardChanges]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
-
-  const handleDocument = useCallback(() => {
-    console.log("[PO] Document F6 — reserved for document generation.");
-  }, []);
 
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const filterBusy = headerFetching || isLoadingPoTypes;
@@ -974,14 +950,6 @@ export default function PurchaseOrderForm() {
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const poExtraButtons = useMemo(
     () => [
-      {
-        key: "document",
-        label: "Document F6",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleDocument,
-      },
-      { key: "sep1", separator: true },
       {
         key: "saveprint",
         label: "Save & Print",
@@ -1004,7 +972,7 @@ export default function PurchaseOrderForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleDocument, handleSaveAndPrint, isSavingPO, handleSave]
+    [handleSaveAndPrint, isSavingPO, handleSave]
   );
 
   const itemGridConfig = {
@@ -1160,6 +1128,7 @@ export default function PurchaseOrderForm() {
             childColumns={childColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
+            remarkModalColumns={PO_REMARK_COLUMNS}
           />
         </div>
 

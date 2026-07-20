@@ -1,20 +1,67 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FileText, QrCode, Printer } from "lucide-react";
 import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_LOGIN_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
 import { useStickerPrinter } from "../../hooks/useStickerPrinter";
 import { STICKER_SIZES } from "../../utils/assetQrStickerConstants";
 import { resolveAssetQrFields } from "../../utils/assetQrUtils";
-import {
-  buildGridColumns,
-  fetchDropdownOptions,
-  toEnterpriseDataGridColumns,
-} from "../../utils/gridUtils";
-import { DASHBOARD_CONFIG } from "../../pages/dashboard/constants";
 import "./ReportBoardPanel.css";
+
+const REPORT_COLUMNS = [
+  {
+    key: "itemcode",
+    label: "Item Code",
+    width: "12%",
+    filterable: true,
+  },
+  {
+    key: "itemname",
+    label: "Item Name",
+    width: "26%",
+    minWidth: 240,
+    filterable: true,
+    align: "left",
+  },
+  {
+    key: "newmln",
+    label: "MLN",
+    width: "12%",
+    filterable: true,
+  },
+  {
+    key: "baseqty",
+    label: "Qty",
+    width: "8%",
+    align: "right",
+    filterable: true,
+    filterType: "number",
+    render: (value) => Number(value ?? 0).toFixed(2),
+  },
+  {
+    key: "baseunit",
+    label: "Unit",
+    width: "10%",
+    filterable: true,
+    align: "left",
+  },
+  {
+    key: "assetsrno",
+    label: "Asset Sr No",
+    width: "12%",
+    filterable: true,
+  },
+  {
+    key: "remark",
+    label: "Remark",
+    width: "20%",
+    minWidth: 180,
+    filterable: true,
+    align: "left",
+  },
+];
 
 const PAGE_SIZE_OPTIONS = {
   compact: [5, 8, 10, 15, 20],
@@ -98,41 +145,6 @@ function buildReportBoardParams(divisionId) {
   };
 }
 
-async function fetchReportBoardColumns(get, divisionId = 0) {
-  const rbRes = await get(ENDPOINTS.FN_FETCH_DATA, {
-    ObjType: DASHBOARD_CONFIG.REPORT_OBJ_TYPE,
-    ObjName: DASHBOARD_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: DASHBOARD_CONFIG.RB_CODE }]),
-    p_ErrCode: -1,
-    p_ErrMsg: "",
-  });
-  const rbRow = rbRes?.[0];
-  if (!rbRow?.rbid) {
-    throw new Error(`No RB metadata returned for ${DASHBOARD_CONFIG.RB_CODE}.`);
-  }
-
-  const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
-    prmMasterID: rbRow.rbid,
-    prmLoginID: DEFAULT_LOGIN_ID,
-  });
-  const apiColumns = colData || [];
-
-  const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, rbRow.rbid, {
-    funcCode: DASHBOARD_CONFIG.RB_CODE,
-    divisionID: Number(divisionId) || 0,
-  });
-
-  const gridColumns = buildGridColumns(apiColumns, colDropdownOptions, {
-    filterable: true,
-    allEditable: false,
-  });
-
-  return {
-    rbid: rbRow.rbid,
-    columns: toEnterpriseDataGridColumns(gridColumns),
-  };
-}
-
 function getReportRowKey(row, index) {
   const { itemcode, srno } = resolveAssetQrFields(row);
   if (itemcode && srno) return `${itemcode}|${srno}`;
@@ -144,10 +156,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
   const notify = useNotification();
 
   const [data, setData] = useState([]);
-  const [gridColumns, setGridColumns] = useState([]);
-  const [columnsLoading, setColumnsLoading] = useState(true);
-  const [columnsError, setColumnsError] = useState(null);
-  const rbMetaRef = useRef({ rbid: null });
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [selectedDivision, setSelectedDivision] = useState("");
   const [loading, setLoading] = useState(true);
@@ -180,22 +188,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
   useEffect(() => {
     setPageSize(compact ? 8 : 10);
   }, [compact]);
-
-  const loadGridColumns = useCallback(async (divisionId = 0) => {
-    try {
-      setColumnsLoading(true);
-      setColumnsError(null);
-      const { rbid, columns } = await fetchReportBoardColumns(get, divisionId);
-      rbMetaRef.current = { rbid };
-      setGridColumns(columns);
-    } catch (err) {
-      console.error("[ReportBoardPanel] column meta fetch failed:", err);
-      setColumnsError("Failed to load report board column configuration.");
-      setGridColumns([]);
-    } finally {
-      setColumnsLoading(false);
-    }
-  }, [get]);
 
   const fetchDivisions = useCallback(async () => {
     try {
@@ -253,10 +245,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
   useEffect(() => {
     fetchReportBoards(selectedDivision);
     setSelectedRowKeys([]);
-    if (selectedDivision) {
-      loadGridColumns(selectedDivision);
-    }
-  }, [fetchReportBoards, loadGridColumns, selectedDivision]);
+  }, [fetchReportBoards, selectedDivision]);
 
   const selectedRows = useMemo(() => {
     const keySet = new Set(selectedRowKeys.map(String));
@@ -271,14 +260,14 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     setDownloadingQr(true);
     try {
       const { downloadAssetQrCodes } = await import("../../utils/assetQrPrint");
-      const count = await downloadAssetQrCodes(selectedRows);
+      const count = await downloadAssetQrCodes(selectedRows, stickerSize);
       notify.success(`Downloaded PDF with ${count} QR code(s).`);
     } catch (err) {
       notify.error(err?.message || "Failed to generate QR codes.");
     } finally {
       setDownloadingQr(false);
     }
-  }, [notify, selectedRows]);
+  }, [notify, selectedRows, stickerSize]);
 
   const handlePrintStickers = useCallback(async () => {
     if (selectedRows.length === 0) {
@@ -325,10 +314,6 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     if (printerStatus === "connecting") return "checking";
     return "offline";
   }, [isPrinterReady, printerStatus]);
-
-  const combinedError = columnsError || error;
-  const gridLoading = loading || columnsLoading;
-  const gridReady = gridColumns.length > 0;
 
   return (
     <section
@@ -463,24 +448,18 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
 
       <EnterpriseDataGrid
         title=""
-        columns={gridColumns}
+        columns={REPORT_COLUMNS}
         data={data}
-        loading={gridLoading}
-        error={combinedError}
-        loaderText={columnsLoading ? "Loading column configuration…" : "Loading Report Boards…"}
+        loading={loading}
+        error={error}
+        loaderText="Loading Report Boards…"
         pageSize={pageSize}
         onPageSizeChange={setPageSize}
         pageSizeOptions={pageSizeOptions}
-        emptyMessage={
-          !gridReady && !gridLoading
-            ? "Report board columns could not be loaded."
-            : selectedDivision
-              ? "No report board data found."
-              : "Select a division."
-        }
+        emptyMessage={selectedDivision ? "No report board data found." : "Select a division."}
         hideHeader
         fill={fill}
-        selectable={gridReady}
+        selectable
         selectedRowKeys={selectedRowKeys}
         onSelectionChange={setSelectedRowKeys}
         getRowKey={getReportRowKey}

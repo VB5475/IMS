@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Layers, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_COMPANY_ID } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useSubMainGroupMaster } from "../../hooks/useSubMainGroupMaster";
 import SubMainGroupMasterForm from "./SubMainGroupMasterForm";
 import { SMGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubMainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildSubMainGroupReportParams() {
+  return [buildCompanyReportParam()];
+}
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function todayFormatted() {
@@ -18,14 +25,15 @@ function todayFormatted() {
 
 function buildListParams() {
   const today = todayFormatted();
+  const session = getUserSession();
   return {
     ObjType: SMGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SMGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      PrmCompanyID:  DEFAULT_COMPANY_ID,
-      prmDivisionID: SMGM_CONFIG.LIST_DIVISION_ID,
-      prmFromDate:   today,
-      prmToDate:     today,
+      prmcompanyid:  session.companyId,
+      prmdivisionid: SMGM_CONFIG.LIST_DIVISION_ID,
+      prmfromdate:   today,
+      prmtodate:     today,
     }]),
     p_ErrCode: -1,
     p_ErrMsg:  "",
@@ -144,6 +152,11 @@ export default function SubMainGroupMasterPage() {
             <button type="button" className="smgm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Sub Main Group Master Report"
+              reportFileName="RptSubMainGroupList_PG.rpt"
+              buildParams={buildSubMainGroupReportParams}
+            />
             <label htmlFor="smgm-list-page-size" className="smgm-list-panel__pagesize-label">
               Rows per page
             </label>

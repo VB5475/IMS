@@ -62,7 +62,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: TXN_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_MASTER }]),
+        JSon: JSON.stringify([{ prmrbcode: TXN_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -142,7 +142,7 @@ export function useTxnEntry(baseURL = API_BASE_URL) {
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: TXN_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: TXN_CONFIG.RB_DETAIL }]),
+        JSon: JSON.stringify([{ prmrbcode: TXN_CONFIG.RB_DETAIL }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

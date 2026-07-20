@@ -18,9 +18,12 @@ export const SM_CONFIG = {
   FORM_TAG: "SM",
   TRAN_BOOK: "SM",
 
-  // ⚠️ CONFIRM with DBA — MRD flagged these as uncertain
-  CONFIG_YEAR_ID: 2,
-  DIVISION_YEAR_ID: 2,
+  // Customer Master shares this exact table/RB codes/SPs — "S" vs "C" in the
+  // master row's "prmentrytype" field is the only thing that tells the two
+  // modules' records apart.
+  ENTRY_TYPE: "S",
+
+  // ⚠️ CONFIRM with DBA — MRD flagged this as uncertain
   LIST_DIVISION_ID: 15,
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",

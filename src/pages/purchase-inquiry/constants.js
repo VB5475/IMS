@@ -12,30 +12,40 @@ import {
   DEFAULT_BASED_ON_FILTER_VALUES,
   INDENT_DETAILS_COLUMNS,
   PURCHASE_API,
-  PURCHASE_SUPPLIER_GRID_COLUMNS,
-  PURCHASE_SUPPLIER_GRID_CONFIG,
-  TERMS_COLUMNS,
 } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import {
   getMissingItemPickerHeaderFields as getMissingPickerFields,
 } from "../../utils/purchaseItemPicker";
+import { getUserSession } from "../../session/userSession";
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
-export { TERMS_COLUMNS };
 export { INDENT_DETAILS_COLUMNS };
 export { DEFAULT_BASED_ON_FILTER_VALUES as PI_FILTER_INITIAL_VALUES };
 export const PI_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
+
+/** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
+export const PI_REMARK_COLUMNS = new Set(["remarks"]);
 
 export const PI_CONFIG = {
   ...PURCHASE_API,
   SP_INQUIRY_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
+  // Purchase Inquiry-only override: dedicated supplier-picker RB (not the shared
+  // PURCHASE_API.SUPPLIER_SP used by other purchase modules). Takes the same JSON
+  // payload shape as the item picker — see buildItemPickerJsonPayload below.
+  SUPPLIER_SP: "fn_tbl_rb_purinqselonlysupp",
+
   RB_MASTER: "rb_purinquirymst",
   DELETE_PROC_NAME: "pr_rb_purinquirymst_delete",
   RB_DETAIL: "rb_purinquirydet",
   RB_INDT_DETAIL: "rb_purinquiryindtdet",
+
+  // Tab-2 (Supplier Detail) + Tab-3 (Terms & Conditions) — MRD_Template4inquiryTab2Details
+  RB_SUPP_DETAIL: "rb_purinqsuppdet",
+  RB_TERMS_DETAIL: "rb_purinqtncdet",
+  RB_TERMS_PICKER: "rb_purinqtncselonly",
 
   FORM_TAG: "INQ",
   TRAN_BOOK: "PURINQUIRY",
@@ -46,6 +56,14 @@ export const PI_CONFIG = {
   SP_MASTER_FILL: "fn_tbl_rb_purinquirymst",
   SP_DETAIL_FILL: "fn_tbl_rb_purinquirydet",
   SP_INDT_FILL: "fn_tbl_rb_purinquiryindtdet",
+  // MRD-specified edit-mode fill SPs — verbatim "fn_tbl_" + RB code, matching the
+  // convention already used above for master/detail/indent.
+  SP_SUPP_DETAIL_FILL: "fn_tbl_rb_purinqsuppdet",
+  SP_TERMS_DETAIL_FILL: "fn_tbl_rb_purinqtncdet",
+  // Terms picker row-fetch SP — DBA-confirmed signature:
+  // fn_tbl_rb_purinqtncselonly(@prmdivisionid int, @prmtrandate date,
+  // @prmloginid int, @prmconfigid int, @prminqid int) — see buildTermsPickerJsonPayload below.
+  SP_TERMS_PICKER: "fn_tbl_rb_purinqtncselonly",
 
   SP_DEPARTMENTS: PURCHASE_API.SP_DEPT,
   SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purinqselonlyitem",
@@ -55,7 +73,6 @@ export const PI_CONFIG = {
 
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE],
 
-  SUPPLIER_GRID_COLUMNS: PURCHASE_SUPPLIER_GRID_COLUMNS,
   INDENT_FRM_OPTION: 0,
 
   SAVE_ENDPOINT: "/API/TranFormSave/Post_RB_PurInquiryMst_Save",
@@ -63,6 +80,8 @@ export const PI_CONFIG = {
   STORAGE_HEADER_META: "piHeaderMeta",
   STORAGE_ENTRY_META: "piEntryMeta",
   STORAGE_INDT_META: "piIndtMeta",
+  STORAGE_SUPP_META: "piSuppMeta",
+  STORAGE_TERMS_META: "piTermsMeta",
 
   SP_INQUIRY_LIST: "fn_tbl_pur_inquirymst_list",
   LIST_DIVISION_ID: 15,
@@ -115,7 +134,7 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return {
     prmdivisionid: Number(headerValues.divisionid) || 0,
-    prmyearid:     PI_CONFIG.CONFIG_YEAR_ID,
+    prmyearid:     getUserSession().yearId,
     prmloginid:    loginId,
     prmtrandate:   formatTranDate(headerValues.trandate),
     prmconfigid:   Number(headerValues.configid) || 0,
@@ -125,7 +144,16 @@ export function buildItemPickerJsonPayload(headerValues, loginId) {
   };
 }
 
-export const SUPPLIER_GRID_CONFIG = PURCHASE_SUPPLIER_GRID_CONFIG;
+/** fn_tbl_rb_purinqtncselonly payload — DBA-confirmed param signature (5 args only, no company/year). */
+export function buildTermsPickerJsonPayload(headerValues, loginId) {
+  return {
+    prmdivisionid: Number(headerValues.divisionid) || 0,
+    prmtrandate:   formatTranDate(headerValues.trandate),
+    prmloginid:    loginId,
+    prmconfigid:   Number(headerValues.configid) || 0,
+    prminqid:      Number(headerValues.idnumber) || 0,
+  };
+}
 
 export const PI_MASTER = {
   headerFields: PI_HEADER_FILTERS,
