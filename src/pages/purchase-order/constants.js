@@ -1,6 +1,6 @@
 // constants.js — Purchase Order page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE     = "Purchase Order";
+export const PAGE_TITLE = "Purchase Order";
 export const PAGE_TITLE_NEW = "New Purchase Order";
 
 // All RB codes, SP names, IDs, and request defaults for the PO module.
@@ -23,13 +23,13 @@ export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
 export { TERMS_COLUMNS };
 export { INDENT_DETAILS_COLUMNS };
 export const PO_SUMMARY_FIELDS = [
-  { SummaryParameterID: "mstbaseamount",    detKey: "baseamount" },
-  { SummaryParameterID: "mstexpense",       detKey: "expense" },
-  { SummaryParameterID: "msttaxablevalue",  detKey: "taxablevalue" },
-  { SummaryParameterID: "mstcgst",          detKey: "cgst" },
-  { SummaryParameterID: "mstsgst",          detKey: "sgst" },
-  { SummaryParameterID: "mstigst",          detKey: "igst" },
-  { SummaryParameterID: "mstroundoff",      detKey: "roundoff" },
+  { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
+  { SummaryParameterID: "mstexpense", detKey: "expense" },
+  { SummaryParameterID: "msttaxablevalue", detKey: "taxablevalue" },
+  { SummaryParameterID: "mstcgst", detKey: "cgst" },
+  { SummaryParameterID: "mstsgst", detKey: "sgst" },
+  { SummaryParameterID: "mstigst", detKey: "igst" },
+  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
   { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
 ];
 export const PO_FILTER_INITIAL_VALUES = { basedonid: "0" };
@@ -49,21 +49,21 @@ export const PO_CONFIG = {
 
   RB_ITEM_PICKER_DIRECT: "rb_purposelonlyitem",
   RB_ITEM_PICKER_INDENT: "rb_purposelindtitem",
-  RB_ITEM_PICKER_QUOT:   "rb_purposelquotitem",
+  RB_ITEM_PICKER_QUOT: "rb_purposelquotitem",
 
   SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purposelonlyitem",
   SP_ITEM_PICKER_INDENT: "fn_tbl_rb_purposelindtitem",
-  SP_ITEM_PICKER_QUOT:   "fn_tbl_rb_purposelquotitem",
+  SP_ITEM_PICKER_QUOT: "fn_tbl_rb_purposelquotitem",
   SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4po",
-  SP_SUPPLIER_INFO:  "fn_tbl_fetchsuppliercurrencyinfo",
-  SP_EXISTING_POS:   "fn_tbl_fetchpurorderlistforamend",
+  SP_SUPPLIER_INFO: "fn_tbl_fetchsuppliercurrencyinfo",
+  SP_EXISTING_POS: "fn_tbl_fetchpurorderlistforamend",
   SP_UNIQUE_ID: "pr_gen_fetchlevyuniqueno4web",
   SP_DEPT: PURCHASE_API.SP_DEPT,
 
-  SP_MASTER_FILL:      "fn_tbl_rb_purpomst",
-  SP_DETAIL_FILL:      "fn_tbl_rb_purpodet",
+  SP_MASTER_FILL: "fn_tbl_rb_purpomst",
+  SP_DETAIL_FILL: "fn_tbl_rb_purpodet",
   SP_INDT_DETAIL_FILL: "fn_tbl_rb_purpoindtdet",
-  SP_GRID_EVENT:       "fn_tbl_rb_purpodet_event",
+  SP_GRID_EVENT: "fn_tbl_rb_purpodet_event",
 
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE, BASED_ON.QUOTATION],
 
@@ -85,7 +85,7 @@ export const PO_MASTER = {
 
 export const PO_GRID_TABS = [
   { id: "items", label: "Item Grid" },
-  { id: "terms", label: "Term And Conditions" },
+  { id: "terms", label: "Terms And Conditions" },
 ];
 
 // export const APPROVED_OPTS = [
@@ -151,10 +151,10 @@ export const SUPPLIER_GRID_CONFIG = {
 /** Header fields required before Select Item can be opened */
 export const PO_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "divisionid", label: "Division" },
-  { headerKey: "trandate",   label: "Tran Date", isDate: true },
-  { headerKey: "configid",   label: "PO Type" },
+  { headerKey: "trandate", label: "Tran Date", isDate: true },
+  { headerKey: "configid", label: "PO Type" },
   { headerKey: "supplierid", label: "Supplier" },
-  { headerKey: "basedonid",  label: "Based On", allowZero: true },
+  { headerKey: "basedonid", label: "Based On", allowZero: true },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues) {

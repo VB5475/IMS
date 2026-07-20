@@ -1,6 +1,6 @@
 // constants.js — Purchase Inquiry page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE     = "Purchase Inquiry";
+export const PAGE_TITLE = "Purchase Inquiry";
 export const PAGE_TITLE_NEW = "New Purchase Inquiry";
 
 // All RB codes, SP names, IDs, and request defaults used by this page in one place.
@@ -69,28 +69,28 @@ export const PI_CONFIG = {
 };
 
 export const PI_HEADER_FILTERS = [
-  { FilterParameterID: "trancode",     FilterColCtrlType: controlTypeMap.TEXTBOX },
-  { FilterParameterID: "trandate",     FilterColCtrlType: controlTypeMap.DATE },
+  { FilterParameterID: "trancode", FilterColCtrlType: controlTypeMap.TEXTBOX },
+  { FilterParameterID: "trandate", FilterColCtrlType: controlTypeMap.DATE },
   {
     FilterParameterID: "divisionid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: [],
   },
-  { FilterParameterID: "configid",     FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: "configid", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
   { FilterParameterID: "expecteddate", FilterColCtrlType: controlTypeMap.DATE },
-  { FilterParameterID: "deptid",       FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+  { FilterParameterID: "deptid", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
   {
     FilterParameterID: "basedonid",
     FilterColCtrlType: controlTypeMap.DROPDOWN,
     staticOptions: PI_CONFIG.BASED_ON_OPTIONS,
   },
-  { FilterParameterID: "remarks",      FilterColCtrlType: controlTypeMap.TEXTAREA },
+  { FilterParameterID: "remarks", FilterColCtrlType: controlTypeMap.TEXTAREA },
 ];
 
 export const PI_GRID_TABS = [
   { id: "items", label: "Item Grid" },
   { id: "suppliers", label: "Suppliers" },
-  { id: "terms", label: "Term And Conditions" },
+  { id: "terms", label: "Terms And Conditions" },
 ];
 
 /** Header fields mapped to item picker FN_FETCH_DATA JSON — grids clear when any changes */
@@ -103,9 +103,9 @@ export const PI_ITEM_PICKER_CONTEXT_FIELDS = new Set([
 
 export const PI_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "divisionid", label: "Division" },
-  { headerKey: "trandate",   label: "Tran Date", isDate: true },
-  { headerKey: "configid",   label: "Inquiry Type" },
-  { headerKey: "basedonid",  label: "Based On", allowZero: true },
+  { headerKey: "trandate", label: "Tran Date", isDate: true },
+  { headerKey: "configid", label: "Inquiry Type" },
+  { headerKey: "basedonid", label: "Based On", allowZero: true },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues) {
@@ -115,13 +115,13 @@ export function getMissingItemPickerHeaderFields(headerValues) {
 export function buildItemPickerJsonPayload(headerValues, loginId) {
   return {
     prmdivisionid: Number(headerValues.divisionid) || 0,
-    prmyearid:     PI_CONFIG.CONFIG_YEAR_ID,
-    prmloginid:    loginId,
-    prmtrandate:   formatTranDate(headerValues.trandate),
-    prmconfigid:   Number(headerValues.configid) || 0,
+    prmyearid: PI_CONFIG.CONFIG_YEAR_ID,
+    prmloginid: loginId,
+    prmtrandate: formatTranDate(headerValues.trandate),
+    prmconfigid: Number(headerValues.configid) || 0,
     prmsupplierid: Number(headerValues.supplierid ?? 0),
-    prmtranbook:   PI_CONFIG.TRAN_BOOK,
-    prmfrmoption:  Number(headerValues.basedonid) || 0,
+    prmtranbook: PI_CONFIG.TRAN_BOOK,
+    prmfrmoption: Number(headerValues.basedonid) || 0,
   };
 }
 

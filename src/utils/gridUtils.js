@@ -53,18 +53,16 @@ export function deriveFilterType(ctrlType) {
 }
 
 /**
- * Derives a pixel width for a grid column based on its display-name length.
- * @param {{ DisplayName?: string }} apiCol
+ * Derives a pixel width exclusively from the API column width.
+ * @param {{ columnwidth?: number|string }} apiCol
  * @returns {number}
  */
 export function getColumnWidth(apiCol) {
-  // if (apiCol.columnwidth && apiCol.columnwidth > 0) return apiCol.columnwidth * 1.5;
-  const len = (apiCol.displayname || "").length;
-  if (len <= 4) return 80;
-  if (len <= 8) return 110;
-  if (len <= 14) return 150;
-  if (len <= 20) return 180;
-  return 220;
+  const apiWidth = Number(apiCol?.columnwidth);
+  if (Number.isFinite(apiWidth) && apiWidth > 0) {
+    return Math.max(60, Math.ceil(apiWidth / 2));
+  }
+  return 120;
 }
 
 // ── Proc-parameter helper (used only by useGridSearch) ───────────────

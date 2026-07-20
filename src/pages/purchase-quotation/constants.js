@@ -1,6 +1,6 @@
 // constants.js — Purchase Quotation page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE     = "Purchase Quotation";
+export const PAGE_TITLE = "Purchase Quotation";
 export const PAGE_TITLE_NEW = "New Purchase Quotation";
 
 // All RB codes, SP names, IDs, and request defaults used by this page in one place.
@@ -91,7 +91,7 @@ export const QTN_HEADER_FILTERS = [
 
 export const QTN_GRID_TABS = [
   { id: "items", label: "Item Grid" },
-  { id: "terms", label: "Term And Conditions" },
+  { id: "terms", label: "Terms And Conditions" },
 ];
 
 export const QTN_SUMMARY_FIELDS = PURCHASE_GST_SUMMARY_FIELDS;

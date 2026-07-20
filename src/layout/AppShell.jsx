@@ -35,9 +35,7 @@ import {
   Truck,
   PanelLeftClose,
   PanelLeft,
-  Bell,
   Search,
-  Settings,
   ArrowLeft,
   LogOut,
 } from "lucide-react";
@@ -107,6 +105,7 @@ const NAV_SECTIONS = [
   {
     label: "Maintenance",
     items: [
+      { to: "/maintenance-dashboard", icon: LayoutDashboard, label: "Maintenance Dashboard", end: false },
       { to: "/complaint-register", icon: MessageSquareWarning, label: "Complaint Register", end: false },
     ],
   },
@@ -225,13 +224,6 @@ export default function AppShell({ children }) {
                 );
               })}
             </div>
-            <button type="button" className="ent-topbar__icon-btn" aria-label="Notifications">
-              <Bell size={16} strokeWidth={1.5} />
-              <span className="ent-topbar__badge">3</span>
-            </button>
-            <button type="button" className="ent-topbar__icon-btn" aria-label="Settings">
-              <Settings size={16} strokeWidth={1.5} />
-            </button>
             <div className="ent-topbar__divider" />
             <div className="ent-topbar__profile-menu">
               <div className="ent-topbar__profile">
