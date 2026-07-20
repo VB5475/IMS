@@ -39,13 +39,14 @@ export default function OrderItemModal({
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
 
+  const normalizedItems = useMemo(() => items.map(lowercaseRowKeys), [items]);
+
   const handleInsert = useCallback(() => {
     if (!gridRef.current) return;
     const selectedRows = gridRef.current.getSelectedRows?.() ?? [];
-    if (selectedRows.length > 0) {
-      onInsert?.(selectedRows);
-      onClose?.();
-    }
+    if (selectedRows.length === 0) return;
+    onInsert?.(selectedRows);
+    onClose?.();
   }, [onInsert, onClose]);
 
   const gridConfig = useMemo(
@@ -55,8 +56,6 @@ export default function OrderItemModal({
     }),
     [columns]
   );
-
-  const normalizedItems = useMemo(() => items.map(lowercaseRowKeys), [items]);
 
   const hasColumns = columns.length > 0;
   const showGrid = !isLoading && !error && hasColumns;
@@ -81,7 +80,7 @@ export default function OrderItemModal({
       }
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [isOpen, showGrid, items.length]);
+  }, [isOpen, showGrid, normalizedItems.length]);
 
   const footer = showGrid ? (
     <div className="oim-footer">
@@ -167,7 +166,7 @@ export default function OrderItemModal({
               <div className="oim-toolbar__left">
                 <span className="oim-toolbar__label">Available Items</span>
                 <span className="oim-toolbar__count">
-                  {items.length} record{items.length !== 1 ? "s" : ""}
+                  {normalizedItems.length} record{normalizedItems.length !== 1 ? "s" : ""}
                 </span>
               </div>
               {selectedCount > 0 && (

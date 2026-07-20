@@ -1,11 +1,17 @@
 import { formatListDate } from "./dateFormat";
+import { resolveRowFieldValue } from "./gridUtils";
+
+function isIdNumberColumnKey(key) {
+  return String(key).replace(/\s+/g, "").toLowerCase() === "idnumber";
+}
+
 /** Normalize list row id fields for edit navigation. */
 export function normalizeListRow(row) {
   if (!row || typeof row !== "object") return row;
-  return {
-    ...row,
-    IDNUMBER: row.IDNUMBER ?? row.IDNumber,
-  };
+  const id = row.IDNUMBER ?? row.IDNumber ?? row.idnumber;
+  if (row.idnumber != null || row.IDNumber != null || row.IDNUMBER != null) return row;
+  if (id != null && id !== "") return { ...row, IDNUMBER: id };
+  return row;
 }
 
 export function normalizeListRows(rows) {
@@ -41,35 +47,78 @@ function extractListColumnKeys(rows) {
   if (!rows?.length) return [];
   const keys = Object.keys(rows[0]);
   const seen = new Set(keys);
+  let seenIdNumber = keys.some(isIdNumberColumnKey);
   for (let i = 1; i < rows.length; i += 1) {
     Object.keys(rows[i]).forEach((key) => {
-      if (!seen.has(key)) {
-        seen.add(key);
-        keys.push(key);
+      if (seen.has(key)) return;
+      if (isIdNumberColumnKey(key)) {
+        if (seenIdNumber) return;
+        seenIdNumber = true;
       }
+      seen.add(key);
+      keys.push(key);
     });
   }
   return keys;
 }
 
 function isDateColumnKey(key) {
-  return /date/i.test(key);
+  return /\bdate\b/i.test(String(key)) || /date$/i.test(String(key).replace(/\s+/g, ""));
+}
+
+function isNumericListKey(key) {
+  const normalized = String(key).replace(/\s+/g, "").toLowerCase();
+  return /^id(number)?$/.test(normalized) || /^(qty|quantity|amount|rate|total|price|value)$/.test(normalized);
 }
 
 function looksLikeDateValue(value) {
   if (value == null || value === "") return false;
   if (value instanceof Date) return !Number.isNaN(value.getTime());
-  if (typeof value !== "string" && typeof value !== "number") return false;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return false;
-  const s = String(value);
-  return /^\d{4}-\d{2}-\d{2}/.test(s) || /T\d{2}:\d{2}/.test(s) || /\d{2}-\w{3}-\d{4}/.test(s);
+  if (typeof value === "number") return false;
+  if (typeof value !== "string") return false;
+  const s = String(value).trim();
+  return (
+    /^\d{4}-\d{2}-\d{2}/.test(s)
+    || /T\d{2}:\d{2}/.test(s)
+    || /^\d{2}-\w{3}-\d{4}/i.test(s)
+    || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)
+  );
 }
 
 function inferFilterType(key, sampleValue) {
-  if (isDateColumnKey(key) || looksLikeDateValue(sampleValue)) return "date";
+  if (isDateColumnKey(key)) return "date";
+  if (!isNumericListKey(key) && looksLikeDateValue(sampleValue)) return "date";
   if (typeof sampleValue === "number") return "number";
   return "text";
+}
+
+/** Human-readable header from API list column key. */
+export function formatListColumnLabel(key) {
+  let label = String(key)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/([a-z])date$/i, "$1 date")
+    .replace(/\s+/g, " ")
+    .trim();
+  return label.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/** Read a list cell with case-insensitive key fallback (API casing may differ per row). */
+export function resolveListCellValue(row, key) {
+  return resolveRowFieldValue(row, key);
+}
+
+function formatListDisplayValue(value) {
+  if (value == null || value === "" || value === "-") return "—";
+  return value;
+}
+
+function findListSampleValue(rows, key) {
+  for (const row of rows) {
+    const val = resolveListCellValue(row, key);
+    if (val != null && val !== "" && val !== "-") return val;
+  }
+  return undefined;
 }
 
 /** Sensible min-width (px) for list columns derived from API field names. */
@@ -102,12 +151,12 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
   if (keys.length === 0) return [];
 
   const columns = keys.map((key) => {
-    const sampleValue = rows.find((r) => r[key] != null && r[key] !== "")?.[key];
+    const sampleValue = findListSampleValue(rows, key);
     const filterType = inferFilterType(key, sampleValue);
     const widthPx = inferListColumnWidth(key, filterType);
     const col = {
       key,
-      label: key,
+      label: formatListColumnLabel(key),
       width: `${widthPx}px`,
       minWidth: widthPx,
       filterable: true,
@@ -115,7 +164,7 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
       filterType,
     };
     if (filterType === "date") {
-      col.render = (value) => formatListDate(value);
+      col.render = (_value, row) => formatListDate(resolveListCellValue(row, key));
     }
     return col;
   });
@@ -123,7 +172,7 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
   // Ensure empty cells show em-dash
   columns.forEach((col) => {
     if (!col.render) {
-      col.render = (value) => (value == null || value === "" ? "—" : value);
+      col.render = (_value, row) => formatListDisplayValue(resolveListCellValue(row, col.key));
     }
   });
 

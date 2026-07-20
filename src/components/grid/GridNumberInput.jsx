@@ -17,6 +17,7 @@ export default function GridNumberInput({
   onFocus,
   onBlur,
   ariaLabel,
+  title,
   className = "cell-input cell-number-input",
   id,
   disabled = false,
@@ -102,6 +103,7 @@ export default function GridNumberInput({
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
       aria-label={ariaLabel}
+      title={title || ariaLabel || undefined}
       autoComplete="off"
       disabled={disabled}
       readOnly={readOnly}

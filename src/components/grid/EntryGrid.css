@@ -118,7 +118,10 @@
   cursor: pointer;
   white-space: nowrap;
   letter-spacing: 0.01em;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
 }
 .eg-tab-btn:hover:not(:disabled) {
   background: rgba(30, 74, 122, 0.12);
@@ -710,11 +713,24 @@
 
 .cell-label {
   display: block;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
   font-weight: 500;
+}
+
+.erp-table tbody td.text-col .cell-label,
+.erp-table tbody td.text-col .cell-input,
+.erp-table tbody td.text-col .cell-textarea {
+  text-align: left;
+}
+
+.erp-table tbody td.numeric-col .cell-label,
+.erp-table tbody td.numeric-col .cell-input,
+.erp-table tbody td.numeric-col .cell-textarea {
+  text-align: right;
 }
 
 .cell-input,

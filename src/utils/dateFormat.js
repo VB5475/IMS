@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { COL_DATA_TYPE } from "../api/constants";
+import { handleDateInputTabKey } from "./formKeyboardNav";
 
 dayjs.extend(customParseFormat);
 
@@ -112,6 +113,20 @@ export function parseFlexibleDate(value) {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  // dd/MM/yyyy or dd/MM/yyyy HH:mm[:ss] — common on list SPs (created/updated date)
+  const dmyTime = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (dmyTime) {
+    const date = new Date(
+      Number(dmyTime[3]),
+      Number(dmyTime[2]) - 1,
+      Number(dmyTime[1]),
+      Number(dmyTime[4] ?? 0),
+      Number(dmyTime[5] ?? 0),
+      Number(dmyTime[6] ?? 0)
+    );
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   const dmy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) {
     const date = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
@@ -148,8 +163,13 @@ export function shiftNativeDateInputValue(value, days) {
   return `${y}-${m}-${d}`;
 }
 
-/** ArrowUp / ArrowDown on date fields — returns true when handled. */
+/** ArrowUp / ArrowDown on date fields — returns true when handled.
+ *  With nativeInput, Tab / Shift+Tab leave the control (skip y/m/d segments).
+ */
 export function handleDateArrowKeys(e, currentValue, onChange, { nativeInput = false } = {}) {
+  if (nativeInput && e.key === "Tab") {
+    return handleDateInputTabKey(e);
+  }
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   e.preventDefault();
   const delta = e.key === "ArrowUp" ? -1 : 1;
@@ -200,8 +220,16 @@ export function formatTranDate(dateVal, { invalidValue = "0", fallbackToToday = 
 /** Format list/grid date values for display; empty → em dash. */
 export function formatListDate(value) {
   if (value == null || value === "") return "—";
-  const d =
-    value instanceof Date ? value : parseFlexibleDate(value) ?? new Date(value);
+  const d = value instanceof Date ? value : parseFlexibleDate(value);
   if (!d || Number.isNaN(d.getTime())) return "—";
+
+  const str = String(value).trim();
+  const hasClockTime = /\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}/.test(str)
+    || (str.includes("T") && !/T00:00:00/.test(str));
+  if (hasClockTime) {
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${formatDdMonYyyy(d)} ${hh}:${mm}`;
+  }
   return formatDdMonYyyy(d);
 }

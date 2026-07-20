@@ -25,6 +25,7 @@ import {
   Plus,
   ShoppingCart,
   FileSpreadsheet,
+  SlidersHorizontal,
 } from "lucide-react";
 import Loader from "../ui/Loader";
 import "./enterprise-filter-query.css";
@@ -71,8 +72,40 @@ function buildFilterRows(filters) {
   return rows;
 }
 
-function FilterControl({ filter, value, options, onChange, disabled = false, tone = "editable" }) {
-  const notify = useNotification();
+/** Hover tooltip: caption, plus current value when present (helps truncated fields). */
+function buildControlTooltip(caption, displayValue) {
+  const label = String(caption || "").trim();
+  const display = String(displayValue ?? "").trim();
+  if (display && display !== "—" && display !== label) {
+    return label ? `${label}: ${display}` : display;
+  }
+  return label || display || undefined;
+}
+
+function resolveDropdownDisplay(options, value) {
+  if (value == null || value === "") return "";
+  const strVal = String(value);
+  const mapped = (options || []).map((opt) => {
+    if (opt.value !== undefined) {
+      return { value: String(opt.value), label: opt.label };
+    }
+    const valKey = opt.filterctrlvaluecol || "IDNumber";
+    const labelKey = opt.filterctrldisplaycol || "Name";
+    return { value: String(opt[valKey]), label: opt[labelKey] };
+  });
+  const match = mapped.find((opt) => opt.value === strVal);
+  return match?.label ?? strVal;
+}
+
+function FilterControl({
+  filter,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  tone = "editable",
+  layout = "table",
+}) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
   const accent = getAccentClass(filter);
   const isView = tone === "view";
@@ -80,6 +113,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
   const readOnly = isView || isFrozen;
   const isLoading = disabled;
   const blockInteraction = isLoading || readOnly;
+  const isDashboard = layout === "dashboard";
 
   const handleChange = (e) => onChange(FilterColName, e.target.value);
 
@@ -91,10 +125,32 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
 
   const isRequired = isColumnMandatory(filter);
 
+  const displayForTooltip = (() => {
+    if (FilterColCtrlType === controlTypeMap.DROPDOWN) {
+      return resolveDropdownDisplay(options, value);
+    }
+    if (FilterColCtrlType === controlTypeMap.CHECKBOX || FilterColCtrlType === controlTypeMap.CHECKBOX_ALT) {
+      return getCheckboxValue(value) === 1 ? "Yes" : "No";
+    }
+    if (FilterColCtrlType === controlTypeMap.TOGGLE) {
+      return getToggleValue(value) === 1 ? "Yes" : "No";
+    }
+    return formatFilterDisplayValue(value, filter);
+  })();
+
+  const controlTooltip = buildControlTooltip(FilterCaption, displayForTooltip);
+  const labelTooltip = FilterCaption || undefined;
+
   const labelEl = (
-    <label className="efq-cell__label" htmlFor={`efq-${FilterColName}`} title={FilterCaption}>
+    <label
+      className={isDashboard ? "dfv2-slicer__label" : "efq-cell__label"}
+      htmlFor={`efq-${FilterColName}`}
+      title={labelTooltip}
+    >
       <span className="field-caption">
-        <span className="efq-cell__label-text">{FilterCaption}</span>
+        <span className={isDashboard ? "dfv2-slicer__label-text" : "efq-cell__label-text"}>
+          {FilterCaption}
+        </span>
         {isRequired && <RequiredFieldMark />}
       </span>
     </label>
@@ -104,13 +160,21 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
     switch (FilterColCtrlType) {
       case controlTypeMap.LABEL: {
         const display = formatFilterDisplayValue(value, filter);
-        return <span className="efq-cell__value">{display || "—"}</span>;
+        return (
+          <span className="efq-cell__value" title={controlTooltip}>
+            {display || "—"}
+          </span>
+        );
       }
 
       case controlTypeMap.TEXTBOX: {
         if (readOnly) {
           const display = formatFilterDisplayValue(value, filter);
-          return <span className="efq-cell__value">{display || "—"}</span>;
+          return (
+            <span className="efq-cell__value" title={controlTooltip}>
+              {display || "—"}
+            </span>
+          );
         }
         if (filter.columnMeta?.dataKind === "numeric") {
           return (
@@ -122,6 +186,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
               onChange={(next) => onChange(FilterColName, next)}
               onBlur={(e) => handleBlurValidate(parseNumberInput(e.target.value))}
               ariaLabel={FilterCaption}
+              title={controlTooltip}
               disabled={isLoading}
             />
           );
@@ -136,6 +201,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             onFocus={(e) => selectInputText(e.target)}
             onBlur={(e) => handleBlurValidate(e.target.value)}
             placeholder={`Enter ${FilterCaption}…`}
+            title={controlTooltip}
             autoComplete="off"
             disabled={isLoading}
             tabIndex={0}
@@ -151,37 +217,55 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
       case controlTypeMap.DATE:
         if (isView || isFrozen) {
           const display = formatFilterDisplayValue(value, filter);
-          return <span className="efq-cell__value">{display || "—"}</span>;
+          return (
+            <span className="efq-cell__value" title={controlTooltip}>
+              {display || "—"}
+            </span>
+          );
         }
-        return (
-          <input
-            id={`efq-${FilterColName}`}
-            type="date"
-            className="efq-cell__input efq-cell__input--date"
-            value={value || ""}
-            onChange={handleChange}
-            onKeyDown={(e) =>
-              handleDateArrowKeys(e, value || "", (next) => onChange(FilterColName, next), {
-                nativeInput: true,
-              })
-            }
-            onBlur={(e) => handleBlurValidate(e.target.value)}
-            min={filter.dateMin || undefined}
-            max={filter.dateMax || undefined}
-            readOnly={readOnly}
-            disabled={isLoading}
-            tabIndex={readOnly ? -1 : 0}
-          />
-        );
+        {
+          // Chromium allows 5–6 digit years when max is unset; always bound to 4-digit years.
+          const dateMin = filter.dateMin || "0001-01-01";
+          const dateMax = filter.dateMax || "9999-12-31";
+          return (
+            <input
+              id={`efq-${FilterColName}`}
+              type="date"
+              className="efq-cell__input efq-cell__input--date"
+              value={value || ""}
+              onChange={(e) => {
+                const yearPart = String(e.target.value || "").split("-")[0] || "";
+                if (yearPart.length > 4) return;
+                handleChange(e);
+              }}
+              onKeyDown={(e) =>
+                handleDateArrowKeys(e, value || "", (next) => onChange(FilterColName, next), {
+                  nativeInput: true,
+                })
+              }
+              onBlur={(e) => handleBlurValidate(e.target.value)}
+              min={dateMin}
+              max={dateMax}
+              title={controlTooltip}
+              readOnly={readOnly}
+              disabled={isLoading}
+              tabIndex={readOnly ? -1 : 0}
+            />
+          );
+        }
 
       case controlTypeMap.CHECKBOX:
       case controlTypeMap.CHECKBOX_ALT:
         if (readOnly) {
           const checked = getCheckboxValue(value) === 1;
-          return <span className="efq-cell__value">{checked ? "Yes" : "No"}</span>;
+          return (
+            <span className="efq-cell__value" title={controlTooltip}>
+              {checked ? "Yes" : "No"}
+            </span>
+          );
         }
         return (
-          <div className="efq-cell__checkbox-wrap">
+          <div className="efq-cell__checkbox-wrap" title={controlTooltip}>
             <input
               id={`efq-${FilterColName}`}
               type="checkbox"
@@ -191,6 +275,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
               disabled={isLoading}
               tabIndex={0}
               aria-label={FilterCaption}
+              title={controlTooltip}
             />
           </div>
         );
@@ -198,24 +283,31 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
       case controlTypeMap.TOGGLE:
         if (readOnly) {
           const on = getToggleValue(value) === 1;
-          return <span className="efq-cell__value">{on ? "Yes" : "No"}</span>;
+          return (
+            <span className="efq-cell__value" title={controlTooltip}>
+              {on ? "Yes" : "No"}
+            </span>
+          );
         }
         {
           const on = getToggleValue(value) === 1;
           return (
-            <div className="efq-cell__toggle-wrap">
+            <div className="efq-cell__toggle-wrap" title={controlTooltip}>
               <button
                 type="button"
                 role="switch"
                 id={`efq-${FilterColName}`}
                 aria-checked={on === 1}
                 aria-label={FilterCaption}
+                title={controlTooltip}
                 className={`efq-cell__toggle${on ? " efq-cell__toggle--on" : ""}`}
                 onClick={() => onChange(FilterColName, on ? 0 : 1)}
                 disabled={isLoading}
                 tabIndex={0}
               />
-              <span className="efq-cell__toggle-label">{on ? "Yes" : "No"}</span>
+              <span className="efq-cell__toggle-label" title={controlTooltip}>
+                {on ? "Yes" : "No"}
+              </span>
             </div>
           );
         }
@@ -237,6 +329,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             })}
             placeholder={`Select…`}
             ariaLabel={FilterCaption}
+            title={controlTooltip}
             disabled={blockInteraction}
           />
         );
@@ -244,7 +337,12 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
       case controlTypeMap.TEXTAREA:
         if (readOnly) {
           return (
-            <span className="efq-cell__value efq-cell__value--textarea">{value || "—"}</span>
+            <span
+              className="efq-cell__value efq-cell__value--textarea"
+              title={controlTooltip}
+            >
+              {value || "—"}
+            </span>
           );
         }
         return (
@@ -255,6 +353,7 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
             onChange={handleChange}
             onBlur={(e) => handleBlurValidate(e.target.value)}
             placeholder={`Enter ${FilterCaption}…`}
+            title={controlTooltip}
             rows={2}
             disabled={isLoading}
             tabIndex={0}
@@ -267,22 +366,51 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
         );
 
       default:
-        return <span className="efq-cell__value">{value || "—"}</span>;
+        return (
+          <span className="efq-cell__value" title={controlTooltip}>
+            {value || "—"}
+          </span>
+        );
     }
   };
 
   const isTextarea = FilterColCtrlType === controlTypeMap.TEXTAREA;
 
+  if (isDashboard) {
+    return (
+      <div
+        className={`dfv2-slicer ${accent}${isTextarea ? " dfv2-slicer--full" : ""}${tone !== "editable" ? ` dfv2-slicer--tone-${tone}` : ""
+          }`}
+        title={controlTooltip}
+      >
+        {FilterColCtrlType === controlTypeMap.LABEL ? (
+          <span className="dfv2-slicer__label" title={labelTooltip}>
+            <span className="field-caption">
+              <span className="dfv2-slicer__label-text">{FilterCaption}</span>
+              {isRequired && <RequiredFieldMark />}
+            </span>
+          </span>
+        ) : (
+          labelEl
+        )}
+        <div className="dfv2-slicer__control" title={controlTooltip}>
+          {renderInput()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <td
       className={`efq-table__cell ${accent}${isTextarea ? " efq-table__cell--full" : ""}${tone !== "editable" ? ` efq-table__cell--tone-${tone}` : ""}`}
       colSpan={isTextarea ? COLS : 1}
+      title={controlTooltip}
     >
       <div
         className={`efq-cell${isTextarea ? " efq-cell--stacked" : ""}${tone !== "editable" ? ` efq-cell--tone-${tone}` : ""}`}
       >
         {FilterColCtrlType === controlTypeMap.LABEL ? (
-          <span className="efq-cell__label">
+          <span className="efq-cell__label" title={labelTooltip}>
             <span className="field-caption">
               <span className="efq-cell__label-text">{FilterCaption}</span>
               {isRequired && <RequiredFieldMark />}
@@ -291,7 +419,9 @@ function FilterControl({ filter, value, options, onChange, disabled = false, ton
         ) : (
           labelEl
         )}
-        <div className="efq-cell__control">{renderInput()}</div>
+        <div className="efq-cell__control" title={controlTooltip}>
+          {renderInput()}
+        </div>
       </div>
     </td>
   );
@@ -304,6 +434,7 @@ function FilterTable({
   onChange,
   disabled = false,
   fieldTones = null,
+  layout = "table",
 }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
@@ -318,6 +449,29 @@ function FilterTable({
     },
     [fieldTones]
   );
+
+  if (layout === "dashboard") {
+    return (
+      <div className="dfv2-slicers">
+        {filters.map((filter) => (
+          <FilterControl
+            key={filter.FilterParameterID}
+            filter={filter}
+            value={values[filter.FilterColName]}
+            options={
+              filter.FilterColCtrlType === controlTypeMap.DROPDOWN
+                ? dropdownOptions[filter.FilterParameterID]
+                : undefined
+            }
+            onChange={onChange}
+            disabled={disabled}
+            tone={getFieldTone(filter)}
+            layout="dashboard"
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <table className="efq-table">
@@ -373,6 +527,7 @@ function FilterTable({
 
 export default function EnterpriseFilterPanel({
   title = "",
+  layout = "table",
   masterID,
   loginID = getUserSession().loginId,
   funcCode = "",
@@ -410,10 +565,15 @@ export default function EnterpriseFilterPanel({
   const initialValuesAppliedRef = useRef(false);
 
   const isEntryMode = staticFilters !== null;
+  const isDashboardLayout = layout === "dashboard";
   const ButtonIcon = ActionIcon || (isEntryMode ? Plus : Search);
   const SecondaryIcon = OrderItemIcon || ShoppingCart;
   const runLabel = actionLabel === "Search" && !isEntryMode ? "Run Search" : actionLabel;
-  const headerLabel = isEntryMode && title ? title : "Query Builder";
+  const headerLabel = isDashboardLayout && title
+    ? title
+    : isEntryMode && title
+      ? title
+      : "Query Builder";
   const HeaderIcon = isEntryMode ? FileSpreadsheet : Database;
   const showEntryMetaLoader = isEntryMode && isMetaLoading;
   const showDynamicLoader = !isEntryMode && isLoading;
@@ -667,56 +827,78 @@ export default function EnterpriseFilterPanel({
     </button>
   );
 
-  return (
-    <div className="efq-panel" ref={panelRef}>
-      <header className="efq-command">
-        <div className="efq-command__brand">
-          <span className="efq-command__icon" aria-hidden="true">
-            <HeaderIcon size={16} strokeWidth={2} />
-          </span>
-          <div className="efq-command__titles">
-            <h2 className="efq-command__label">{headerLabel}</h2>
-            {headerSubtitle && <span className="efq-command__subtitle">{headerSubtitle}</span>}
-          </div>
-        </div>
+  const showToolbarActions =
+    !showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem);
 
-        {!showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem) && (
-          <div className="efq-command__actions">
-            {!isEntryMode && filters.length > 0 && (
-              <span className="efq-badge">
-                <span className="efq-badge__dot" aria-hidden="true" />
-                {activeCriteriaCount} criteria
-              </span>
-            )}
-            {!isEntryMode && filters.length > 0 && (
-              <button
-                type="button"
-                className="efq-btn-ghost"
-                onClick={handleReset}
-                disabled={isSearching}
-                title="Reset to defaults"
-              >
-                <RotateCcw size={14} strokeWidth={2} />
-                Reset
-              </button>
-            )}
-            {onOrderItem && (
-              <button
-                type="button"
-                className="efq-btn-ghost efq-btn-order"
-                onClick={handleOrderItemClick}
-                disabled={isSearching}
-                title={orderItemLabel}
-                aria-label={orderItemLabel}
-              >
-                <SecondaryIcon size={14} strokeWidth={2.5} />
-                {orderItemLabel}
-              </button>
-            )}
-            {onSearch && ActionButton}
+  const ToolbarActions = showToolbarActions && (
+    <div className={isDashboardLayout ? "dfv2-filter-bar__actions" : "efq-command__actions"}>
+      {!isEntryMode && filters.length > 0 && !isDashboardLayout && (
+        <span className="efq-badge">
+          <span className="efq-badge__dot" aria-hidden="true" />
+          {activeCriteriaCount} criteria
+        </span>
+      )}
+      {!isEntryMode && filters.length > 0 && (
+        <button
+          type="button"
+          className={isDashboardLayout ? "dfv2-btn-reset" : "efq-btn-ghost"}
+          onClick={handleReset}
+          disabled={isSearching}
+          title="Reset to defaults"
+        >
+          <RotateCcw size={14} strokeWidth={2} />
+          Reset
+        </button>
+      )}
+      {onOrderItem && (
+        <button
+          type="button"
+          className={`${isDashboardLayout ? "dfv2-btn-reset" : "efq-btn-ghost"} efq-btn-order`}
+          onClick={handleOrderItemClick}
+          disabled={isSearching}
+          title={orderItemLabel}
+          aria-label={orderItemLabel}
+        >
+          <SecondaryIcon size={14} strokeWidth={2.5} />
+          {orderItemLabel}
+        </button>
+      )}
+      {onSearch && ActionButton}
+    </div>
+  );
+
+  return (
+    <div
+      className={`efq-panel${isDashboardLayout ? " efq-panel--dashboard" : ""}`}
+      ref={panelRef}
+    >
+      {isDashboardLayout && !showDynamicLoader && !showEntryMetaLoader && !errorMsg && filters.length > 0 && (
+        <div className="dfv2-filter-bar__header">
+          <div className="dfv2-filter-bar__title">
+            <span className="dfv2-filter-bar__icon" aria-hidden="true">
+              <SlidersHorizontal size={15} strokeWidth={2.2} />
+            </span>
+            <h2 className="dfv2-filter-bar__heading">{headerLabel}</h2>
           </div>
-        )}
-      </header>
+          {ToolbarActions}
+        </div>
+      )}
+
+      {!isDashboardLayout && (
+        <header className="efq-command">
+          <div className="efq-command__brand">
+            <span className="efq-command__icon" aria-hidden="true">
+              <HeaderIcon size={16} strokeWidth={2} />
+            </span>
+            <div className="efq-command__titles">
+              <h2 className="efq-command__label">{headerLabel}</h2>
+              {headerSubtitle && <span className="efq-command__subtitle">{headerSubtitle}</span>}
+            </div>
+          </div>
+
+          {ToolbarActions}
+        </header>
+      )}
 
       {showDynamicLoader && (
         <div className="efq-loading" role="status" aria-label="Loading filters">
@@ -765,7 +947,7 @@ export default function EnterpriseFilterPanel({
 
       {!showDynamicLoader && !showEntryMetaLoader && !errorMsg && filters.length > 0 && (
         <>
-          <div className="efq-body">
+          <div className={`efq-body${isDashboardLayout ? " efq-body--dashboard" : ""}`}>
             <FilterTable
               filters={filters}
               values={values}
@@ -773,19 +955,25 @@ export default function EnterpriseFilterPanel({
               onChange={handleChange}
               disabled={disabled}
               fieldTones={fieldTones}
+              layout={layout}
             />
           </div>
 
           {appliedChips.length > 0 && !isEntryMode && (
-            <footer className="efq-applied">
-              <span className="efq-applied__label">Applied:</span>
-              <div className="efq-applied__chips">
+            <footer className={isDashboardLayout ? "dfv2-applied" : "efq-applied"}>
+              <span className={isDashboardLayout ? "dfv2-applied__label" : "efq-applied__label"}>
+                Active filters
+              </span>
+              <div className={isDashboardLayout ? "dfv2-applied__chips" : "efq-applied__chips"}>
                 {appliedChips.map((chip) => (
-                  <span key={chip.colName} className="efq-chip">
+                  <span
+                    key={chip.colName}
+                    className={isDashboardLayout ? "dfv2-chip" : "efq-chip"}
+                  >
                     {chip.caption}: {chip.display}
                     <button
                       type="button"
-                      className="efq-chip__remove"
+                      className={isDashboardLayout ? "dfv2-chip__remove" : "efq-chip__remove"}
                       onClick={() => handleChange(chip.colName, "")}
                       aria-label={`Remove ${chip.caption} filter`}
                     >
@@ -794,7 +982,11 @@ export default function EnterpriseFilterPanel({
                   </span>
                 ))}
               </div>
-              <button type="button" className="efq-applied__clear" onClick={handleClearAll}>
+              <button
+                type="button"
+                className={isDashboardLayout ? "dfv2-applied__clear" : "efq-applied__clear"}
+                onClick={handleClearAll}
+              >
                 Clear all
               </button>
             </footer>

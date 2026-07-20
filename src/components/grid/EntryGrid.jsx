@@ -831,7 +831,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     return base;
   };
 
-  const cellClass = (col) => getColumnCellClass(col, lastFixedColId, columnEditOpts);
+  const cellClass = (col) =>
+    `${getColumnCellClass(col, lastFixedColId, columnEditOpts)} ${
+      isNumericColumnDef(col) ? "numeric-col" : "text-col"
+    }`;
 
   const getHeaderThemeClass = (col) => getColumnHeaderThemeClass(col, columnEditOpts);
 
@@ -1000,90 +1003,90 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               </thead>
 
               {!isEmpty && (
-              <tbody>
-                {displayRows.map((row) => {
-                  const rowId = String(row.id);
-                  const hasChildren =
-                    enableCollapsible && childRowsMap && childRowsMap[rowId]?.length > 0;
-                  const isExpanded = hasChildren && expandedRows.has(rowId);
-                  return (
-                    <React.Fragment key={row.id}>
-                      <tr
-                        className={selectedIds.has(rowId) ? "selected" : ""}
-                        data-eg-row-id={rowId}
-                      >
-                        {columns.map((col) => (
-                          <td
-                            key={`${row.id}-${col.id}`}
-                            className={cellClass(col)}
-                            style={cellStyle(col, "body")}
-                            onMouseDown={(e) => focusCellControl(e, col)}
-                            onClick={() => {
-                              if (col.key === "cb") handleSelectRow(row.id);
-                            }}
-                          >
-                            <div className="cell-wrapper">
-                              {col.key === "cb" ? (
-                                <div className="cell-checkbox">
-                                  {hasChildren && (
-                                    <button
-                                      type="button"
-                                      className="eg-expand-toggle"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleExpand(row.id);
-                                      }}
-                                      title={
-                                        isExpanded
-                                          ? "Collapse indent details"
-                                          : "Expand indent details"
-                                      }
-                                      aria-expanded={isExpanded}
-                                    >
-                                      {isExpanded ? (
-                                        <ChevronDown size={11} strokeWidth={2.5} />
-                                      ) : (
-                                        <ChevronRight size={11} strokeWidth={2.5} />
-                                      )}
-                                    </button>
-                                  )}
-                                  <input
-                                    type="checkbox"
-                                    className="row-checkbox"
-                                    checked={selectedIds.has(rowId)}
-                                    onChange={() => handleSelectRow(row.id)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    aria-label={`Select row ${row.id}`}
-                                  />
-                                </div>
-                              ) : (
-                                renderCell(row, col)
-                              )}
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-
-                      {isExpanded && (
-                        <tr className="eg-child-row">
-                          <td colSpan={columns.length} className="eg-child-cell">
-                            <Suspense fallback={gridChildLazyFallback}>
-                              <CollapsibleGrid
-                                variant="inline"
-                                columns={childColumns.filter((c) => c.key !== "cb")}
-                                rows={childRowsMap[rowId]}
-                                defaultExpanded
-                                recordLabel="indent record"
-                              />
-                            </Suspense>
-                          </td>
+                <tbody>
+                  {displayRows.map((row) => {
+                    const rowId = String(row.id);
+                    const hasChildren =
+                      enableCollapsible && childRowsMap && childRowsMap[rowId]?.length > 0;
+                    const isExpanded = hasChildren && expandedRows.has(rowId);
+                    return (
+                      <React.Fragment key={row.id}>
+                        <tr
+                          className={selectedIds.has(rowId) ? "selected" : ""}
+                          data-eg-row-id={rowId}
+                        >
+                          {columns.map((col) => (
+                            <td
+                              key={`${row.id}-${col.id}`}
+                              className={cellClass(col)}
+                              style={cellStyle(col, "body")}
+                              onMouseDown={(e) => focusCellControl(e, col)}
+                              onClick={() => {
+                                if (col.key === "cb") handleSelectRow(row.id);
+                              }}
+                            >
+                              <div className="cell-wrapper">
+                                {col.key === "cb" ? (
+                                  <div className="cell-checkbox">
+                                    {hasChildren && (
+                                      <button
+                                        type="button"
+                                        className="eg-expand-toggle"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleExpand(row.id);
+                                        }}
+                                        title={
+                                          isExpanded
+                                            ? "Collapse indent details"
+                                            : "Expand indent details"
+                                        }
+                                        aria-expanded={isExpanded}
+                                      >
+                                        {isExpanded ? (
+                                          <ChevronDown size={11} strokeWidth={2.5} />
+                                        ) : (
+                                          <ChevronRight size={11} strokeWidth={2.5} />
+                                        )}
+                                      </button>
+                                    )}
+                                    <input
+                                      type="checkbox"
+                                      className="row-checkbox"
+                                      checked={selectedIds.has(rowId)}
+                                      onChange={() => handleSelectRow(row.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      aria-label={`Select row ${row.id}`}
+                                    />
+                                  </div>
+                                ) : (
+                                  renderCell(row, col)
+                                )}
+                              </div>
+                            </td>
+                          ))}
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
 
-              </tbody>
+                        {isExpanded && (
+                          <tr className="eg-child-row">
+                            <td colSpan={columns.length} className="eg-child-cell">
+                              <Suspense fallback={gridChildLazyFallback}>
+                                <CollapsibleGrid
+                                  variant="inline"
+                                  columns={childColumns.filter((c) => c.key !== "cb")}
+                                  rows={childRowsMap[rowId]}
+                                  defaultExpanded
+                                  recordLabel="indent record"
+                                />
+                              </Suspense>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+
+                </tbody>
               )}
             </table>
             {isEmpty && (
