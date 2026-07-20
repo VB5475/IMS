@@ -45,6 +45,7 @@ const AssetsClientAllocationPage = lazy(() => import("./pages/assets-client-allo
 const AssetsClientAllocationForm = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationForm"));
 const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
 const ComplaintRegisterForm = lazy(() => import("./pages/complaint-register/ComplaintRegisterForm"));
+const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const AssetsReturnableGatePassOutPage = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage"));
 const AssetsReturnableGatePassOutForm = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutForm"));
 const AssetsReturnableGatePassInPage = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInPage"));
@@ -179,6 +180,7 @@ function AppRoutes() {
           <Route path="assets-stock-transfer/new" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id" element={<AssetsStockTransferForm />} />
           <Route path="assets-stock-transfer/:id/edit" element={<AssetsStockTransferForm />} />
+          <Route path="maintenance-dashboard" element={<MaintenanceDashboard />} />
           {/* Admin — Master modules */}
           <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
           <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />

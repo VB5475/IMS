@@ -17,6 +17,7 @@ export default function SearchSelect({
   className = "",
   id,
   ariaLabel,
+  title,
   disabled = false,
   compact = false,
   onBlur,
@@ -139,11 +140,17 @@ export default function SearchSelect({
       e.stopPropagation();
       e.preventDefault();
       onChange("");
-      suppressOpenRef.current = true;
-      closeDropdown();
+      // Open the list after clear so mouse and keyboard users can pick immediately.
+      // Do not set suppressOpenRef — that blocked reopen when the input was already focused.
+      skipBlurRef.current = true;
+      suppressOpenRef.current = false;
+      setQuery("");
+      setFocusedIndex(-1);
+      setDropdownStyle(computeDropdownStyle());
+      setIsOpen(true);
       requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [onChange, closeDropdown]
+    [onChange, computeDropdownStyle]
   );
 
   const handleInputFocus = useCallback(() => {
@@ -346,22 +353,32 @@ export default function SearchSelect({
           aria-autocomplete="list"
           disabled={disabled}
           autoComplete="off"
-          title={selectedLabel || placeholder}
+          title={title || selectedLabel || placeholder}
         />
         <span className="search-select__icons">
           {value && !disabled && (
-            <span
+            <button
+              type="button"
               className="search-select__clear"
               onMouseDown={(e) => {
+                // Keep focus from leaving the input before clear runs.
+                e.preventDefault();
                 skipBlurRef.current = true;
-                handleClear(e);
               }}
-              role="button"
+              onClick={handleClear}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClear(e);
+                }
+              }}
               tabIndex={-1}
               aria-label="Clear selection"
+              title="Clear selection"
             >
               ×
-            </span>
+            </button>
           )}
           <ChevronDown size={12} className="search-select__chevron" />
         </span>

@@ -17,6 +17,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
+import { handleDateArrowKeys } from "../../utils/dateFormat";
 import SearchSelect from "../ui/SearchSelect";
 import { Plus, Table2, ShoppingCart } from "lucide-react";
 import "./TxnHeaderPanel.css";
@@ -63,6 +64,11 @@ function FilterControl({ filter, value, options, onChange }) {
             type="date"
             value={value || ""}
             onChange={handleChange}
+            onKeyDown={(e) =>
+              handleDateArrowKeys(e, value || "", (next) => onChange(FilterColName, next), {
+                nativeInput: true,
+              })
+            }
           />
         </div>
       );

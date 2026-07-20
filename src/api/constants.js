@@ -65,6 +65,7 @@ export const DEFAULT_COMPANY_ID = 1;
 export const OBJ_TYPE = {
   PROCEDURE: 1,
   FUNCTION: 2,
+  VIEW: 3,
 };
 
 export const CBO_MODE = {

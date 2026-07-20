@@ -13,6 +13,7 @@ import { useApi } from "../../api/useApi";
 import { API_BASE_URL_IMS, ENDPOINTS } from "../../api/constants";
 import { useNotification } from "../../context/NotificationContext";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { resolveRowFieldValue } from "../../utils/gridUtils";
 import Loader from "../ui/Loader";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
@@ -91,6 +92,7 @@ function EnterpriseDataGrid({
   emptyMessage = "No records found.",
   hideHeader = false,
   fill = false,
+  variant = "",
   searchable = false,
   deleteProcName = "",
   onDeleteSuccess,
@@ -257,7 +259,7 @@ function EnterpriseDataGrid({
     return visibleData.filter((row) =>
       displayColumns.some((col) => {
         if (isActionColumn(col)) return false;
-        const raw = row[col.key];
+        const raw = resolveRowFieldValue(row, col.key) ?? row[col.key];
         const val = col.dropdownOptions
           ? (col.dropdownOptions.find((o) => String(o.value) === String(raw))?.label ?? raw)
           : raw;
@@ -355,7 +357,7 @@ function EnterpriseDataGrid({
 
   /* ── Cell renderer ────────────────────────────────────────────────── */
   const renderCell = (col, row, rowIndex) => {
-    const value = row[col.key];
+    const value = resolveRowFieldValue(row, col.key) ?? row[col.key];
     if (col.actionType === "select") {
       const key = String(getRowKey(row, rowIndex));
       return (
@@ -467,7 +469,10 @@ function EnterpriseDataGrid({
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className={`ng-card ${fill ? "ng-card--fill" : ""}`}>
+    <div
+      className={`ng-card ${fill ? "ng-card--fill" : ""} ${variant ? `ng-card--${variant}` : ""
+        }`.trim()}
+    >
       <ConfirmDialog
         isOpen={deleteConfirmState.open}
         type="danger"
@@ -591,20 +596,28 @@ function EnterpriseDataGrid({
                               {col.filterable && (
                                 <span
                                   ref={filterRef}
-                                  className={`ng-filter-icon ${active ? "ng-filter-icon--active" : ""}`}
+                                  className={`ng-filter-icon${active ? " ng-filter-icon--active" : ""}`}
                                   onClick={() => toggleFilter(col.key)}
                                   role="button"
-                                  aria-label={`Filter ${col.label}`}
-                                  title={`Filter ${col.label}`}
+                                  aria-label={
+                                    active
+                                      ? `Filter applied on ${col.label}`
+                                      : `Filter ${col.label}`
+                                  }
+                                  title={
+                                    active
+                                      ? `Filter applied on ${col.label}`
+                                      : `Filter ${col.label}`
+                                  }
+                                  data-filter-active={active ? "true" : "false"}
                                 >
-                                  <Filter size={11} color="#162d5c" />
+                                  <Filter size={11} strokeWidth={active ? 2.5 : 2} />
+                                  {active && (
+                                    <span className="ng-filter-dot" aria-hidden="true" />
+                                  )}
                                 </span>
                               )}
                             </div>
-                          )}
-                          {/* Active filter indicator */}
-                          {!selectCol && active && (
-                            <span className="ng-filter-dot" aria-label="Filter active" />
                           )}
                         </th>
                       );
@@ -614,32 +627,39 @@ function EnterpriseDataGrid({
 
                 <tbody>
                   {currentData.length > 0 ? (
-                    currentData.map((row, ri) => (
-                      <tr
-                        key={ri}
-                        className={rowIsClickable ? "ng-row--clickable" : ""}
-                        onClick={rowIsClickable ? () => onRowClick(row) : undefined}
-                      >
-                        {displayColumns.map((col, ci) => (
-                          <td
-                            key={ci}
-                            className={
-                              isActionColumn(col)
-                                ? `ng-col--action${isSelectColumn(col) ? " ng-col--action-select" : ""}${col.actionType === "delete" ? " ng-col--action-delete" : ""}${col.actionType === "actions" ? " ng-col--actions" : ""}`
-                                : undefined
-                            }
-                            style={{
-                              textAlign: cellAlign(col, ci),
-                              ...getColStyle(col),
-                              ...(isActionColumn(col) ? { left: `${getActionOffset(ci)}px` } : {}),
-                            }}
-                            data-col={col.key}
-                          >
-                            {renderCell(col, row, ri)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))
+                    currentData.map((row, ri) => {
+                      const rowSelected = selectedKeySet.has(String(getRowKey(row, ri)));
+                      const rowClasses = [
+                        rowIsClickable ? "ng-row--clickable" : "",
+                        rowSelected ? "ng-row--selected" : "",
+                      ].filter(Boolean).join(" ");
+                      return (
+                        <tr
+                          key={ri}
+                          className={rowClasses}
+                          onClick={rowIsClickable ? () => onRowClick(row) : undefined}
+                        >
+                          {displayColumns.map((col, ci) => (
+                            <td
+                              key={ci}
+                              className={
+                                isActionColumn(col)
+                                  ? `ng-col--action${isSelectColumn(col) ? " ng-col--action-select" : ""}${col.actionType === "delete" ? " ng-col--action-delete" : ""}`
+                                  : undefined
+                              }
+                              style={{
+                                textAlign: cellAlign(col, ci),
+                                ...getColStyle(col),
+                                ...(isActionColumn(col) ? { left: `${getActionOffset(ci)}px` } : {}),
+                              }}
+                              data-col={col.key}
+                            >
+                              {renderCell(col, row, ri)}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={displayColumns.length} className="ng-empty-cell">

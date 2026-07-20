@@ -20,9 +20,10 @@
 //   'number'  — min/max numeric range
 //   'text'    — simple contains text input
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Filter, Calendar, Hash, Type } from "lucide-react";
+import { resolveRowFieldValue } from "../../utils/gridUtils";
 import "./column-filter.css";
 
 const ICONS = {
@@ -31,6 +32,22 @@ const ICONS = {
   number: <Hash size={13} />,
   text: <Type size={13} />,
 };
+
+function computePopupStyle(anchorEl) {
+  if (!anchorEl) return null;
+  const rect = anchorEl.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const dropUp = spaceBelow < 320 && rect.top > 320;
+  return {
+    position: "fixed",
+    left: `${Math.min(rect.left, window.innerWidth - 250)}px`,
+    width: "240px",
+    zIndex: 9999,
+    ...(dropUp
+      ? { bottom: `${window.innerHeight - rect.top + 6}px` }
+      : { top: `${rect.bottom + 6}px` }),
+  };
+}
 
 export default function ColumnFilter({
   col,
@@ -48,23 +65,27 @@ export default function ColumnFilter({
 
   const popupRef = useRef(null);
   const [search, setSearch] = useState("");
-  const [style, setStyle] = useState({});
+  // Start positioned so we never paint an unpositioned popup on body.
+  const [style, setStyle] = useState(() => computePopupStyle(anchorRef?.current));
 
-  // ── Position popup below/above the anchor ──────────────────────────
+  // Position before browser paint to avoid the body-flow "splash" flash.
+  useLayoutEffect(() => {
+    const next = computePopupStyle(anchorRef?.current);
+    if (next) setStyle(next);
+  }, [anchorRef]);
+
+  // Keep popup under the anchor on scroll/resize while open.
   useEffect(() => {
-    if (!anchorRef?.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const dropUp = spaceBelow < 320 && rect.top > 320;
-    setStyle({
-      position: "fixed",
-      left: `${Math.min(rect.left, window.innerWidth - 250)}px`,
-      width: "240px",
-      zIndex: 9999,
-      ...(dropUp
-        ? { bottom: `${window.innerHeight - rect.top + 6}px` }
-        : { top: `${rect.bottom + 6}px` }),
-    });
+    function reposition() {
+      const next = computePopupStyle(anchorRef?.current);
+      if (next) setStyle(next);
+    }
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
   }, [anchorRef]);
 
   // ── Close on outside click ──────────────────────────────────────────
@@ -97,7 +118,7 @@ export default function ColumnFilter({
         return String(opt.ObjDetID ?? opt);
       });
     }
-    const vals = new Set(allRows.map((r) => String(r[colKey] ?? "")).filter(Boolean));
+    const vals = new Set(allRows.map((r) => String(readFilterCellValue(r, colKey) ?? "")).filter(Boolean));
     return Array.from(vals).sort();
   }, [filterType, col.dropdownOptions, allRows, colKey]);
 
@@ -255,6 +276,9 @@ export default function ColumnFilter({
       text: renderText,
     }[filterType] || renderList;
 
+  // Don't portal until we have a fixed position — prevents body-flow flash.
+  if (!style?.position) return null;
+
   const popup = (
     <div
       className="cf-popup"
@@ -292,19 +316,23 @@ export default function ColumnFilter({
 
 // ── Utility: apply a ColumnFilter value to a data array ──────────────────
 // Import this in both GridForm and NormalGrid to share filter evaluation logic.
+function readFilterCellValue(row, colKey) {
+  return resolveRowFieldValue(row, colKey) ?? row[colKey];
+}
+
 export function applyColumnFilterValue(data, colKey, filterValue, col) {
   if (!filterValue) return data;
 
   if (filterValue instanceof Set) {
     if (filterValue.size === 0) return data;
-    return data.filter((r) => filterValue.has(String(r[colKey] ?? "")));
+    return data.filter((r) => filterValue.has(String(readFilterCellValue(r, colKey) ?? "")));
   }
 
   if (filterValue.type === "range") {
     const { from, to } = filterValue;
     if (!from && !to) return data;
     return data.filter((r) => {
-      const val = r[colKey];
+      const val = readFilterCellValue(r, colKey);
       if (val == null || val === "") return false;
       const dateStr = typeof val === "string" && val.includes("T") ? val.split("T")[0] : val;
       const dateVal = new Date(dateStr);
@@ -323,7 +351,7 @@ export function applyColumnFilterValue(data, colKey, filterValue, col) {
     const { min, max } = filterValue;
     if (min === "" && max === "") return data;
     return data.filter((r) => {
-      const n = Number(r[colKey]);
+      const n = Number(readFilterCellValue(r, colKey));
       if (isNaN(n)) return false;
       if (min !== "" && n < Number(min)) return false;
       if (max !== "" && n > Number(max)) return false;
@@ -334,7 +362,7 @@ export function applyColumnFilterValue(data, colKey, filterValue, col) {
   if (typeof filterValue === "string") {
     const lower = filterValue.toLowerCase();
     return data.filter((r) =>
-      String(r[colKey] ?? "")
+      String(readFilterCellValue(r, colKey) ?? "")
         .toLowerCase()
         .includes(lower)
     );
