@@ -83,7 +83,7 @@ export const PI_CONFIG = {
   STORAGE_SUPP_META: "piSuppMeta",
   STORAGE_TERMS_META: "piTermsMeta",
 
-  SP_INQUIRY_LIST: "fn_tbl_pur_inquirymst_list",
+  SP_INQUIRY_LIST: "fn_tbl_rb_purinquirymst_list",
   LIST_DIVISION_ID: 15,
 };
 

@@ -1,7 +1,16 @@
 .ent-shell {
   display: flex;
+  /* 100vh on mobile is the layout viewport (includes the address bar's
+     collapsed height), which is routinely taller than what's actually
+     visible on load. Since nothing here scrolls (overflow: hidden), that
+     mismatch clips whatever sits near the bottom of the flex column — the
+     grid section and the ActionBar. 100dvh tracks the real visible
+     viewport; the 100vh line stays first as a fallback for browsers
+     without dvh support. */
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   background: var(--bg);
 }
@@ -15,6 +24,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   z-index: 100;
   box-shadow: var(--shadow-md);
   transition: width var(--transition);

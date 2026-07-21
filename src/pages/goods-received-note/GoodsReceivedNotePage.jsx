@@ -27,13 +27,11 @@ function buildListParams() {
     ObjName: GRN_CONFIG.SP_GRN_LIST,
     JSon: JSON.stringify([
       {
-        ...buildListDateRange(),
-        prmdivisionid: 0,
-        prmsupplierid: 0,
-        prmgrntypeid: 0,
-        prmloginid: session.loginId,
         prmcompanyid: session.companyId,
+        prmdivisionid: 0,
         prmyearid: session.yearId,
+        ...buildListDateRange(),
+        prmloginid: session.loginId,
       },
     ]),
     p_ErrCode: -1,

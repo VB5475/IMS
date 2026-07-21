@@ -27,13 +27,12 @@ function buildListParams() {
     ObjName: QTN_CONFIG.SP_QUOTATION_LIST,
     JSon: JSON.stringify([
       {
-        ...buildListDateRange(),
-        prmdivisionid: 0,
-        prmsupplierid: 0,
-        prmquotationtypeid: 0,
-        prmloginid: session.loginId,
+        // ...buildListDateRange(),
         prmcompanyid: session.companyId,
+        prmdivisionid: 0,
         prmyearid: session.yearId,
+        ...buildListDateRange(),
+        prmloginid: session.loginId,
       },
     ]),
     p_ErrCode: -1,

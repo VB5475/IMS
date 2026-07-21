@@ -59,7 +59,7 @@ export const QTN_CONFIG = {
   STORAGE_HEADER_META: "pqHeaderMeta",
   STORAGE_ENTRY_META: "pqEntryMeta",
 
-  SP_QUOTATION_LIST: "fn_tbl_pur_qtnmst_list",
+  SP_QUOTATION_LIST: "fn_tbl_rb_purqtnmst_list",
   LIST_DIVISION_ID: 15,
 };
 

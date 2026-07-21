@@ -34,7 +34,7 @@ export const IND_CONFIG = {
 
   SP_ITEM_PICKER: "fn_tbl_rb_purindtselitem",
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
-  SP_LOCATION: "fn_gen_fetchlocationmaster",
+  SP_LOCATION: "fn_tbl_fetch_divwslocation",
 
   SP_MASTER_FILL: "fn_tbl_rb_purindtmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purindtdet",
@@ -51,7 +51,7 @@ export const IND_CONFIG = {
 export const IND_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 export const IND_FILTER_CASCADE_RESETS = {
-  divisionid: ["configid"],
+  divisionid: ["configid", "locationid"],
 };
 
 export const IND_SHORTCUT_CONFIG = {

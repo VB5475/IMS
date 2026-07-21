@@ -57,7 +57,7 @@ export const PV_CONFIG = {
 
   // Purchase Voucher listing
   LIST_OBJ_TYPE: 2,
-  SP_PV_LIST: "fn_tbl_pur_pvmst_list",
+  SP_PV_LIST: "fn_tbl_rb_purpvmst_list",
   LIST_DIVISION_ID: 0, // ⚠️ CONFIRM with DBA — MRD says 15; using 0 (all divisions) pending confirmation
 
   // "Based On" dropdown — MRD: GRN Base | PO Base | Direct

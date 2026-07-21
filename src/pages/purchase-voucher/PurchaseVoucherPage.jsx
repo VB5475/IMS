@@ -26,10 +26,10 @@ function buildListParams() {
       {
         prmcompanyid: session.companyId,
         prmdivisionid: PV_CONFIG.LIST_DIVISION_ID,
-        prmsupplierid: 0,
+        prmyearid: session.yearId,
         prmfromdate: `01-Jan-${year}`,
         prmtodate: `31-Dec-${year}`,
-        prmdepartmentid: 0,
+        prmloginid:      session.loginId,
       },
     ]),
     p_ErrCode: -1,

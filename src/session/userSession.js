@@ -66,22 +66,37 @@ export function clearUserSession() {
   return currentSession;
 }
 
+// The live auth SP (Fn_tbl_FetchUserAuthenitcationDetail) returns lowercase
+// PG-style keys (loginid, userid, username, ...) — read those first, with a
+// PascalCase fallback only for safety against any legacy/SQL-Server caller.
+function pickAuthField(row, lowerKey, pascalKey) {
+  if (row?.[lowerKey] !== undefined && row[lowerKey] !== null && row[lowerKey] !== "") return row[lowerKey];
+  if (row?.[pascalKey] !== undefined && row[pascalKey] !== null && row[pascalKey] !== "") return row[pascalKey];
+  return undefined;
+}
+
+function isTruthyAuthFlag(value) {
+  if (value === true || value === 1 || value === "1") return true;
+  if (typeof value === "string") return value.trim().toLowerCase() === "true";
+  return false;
+}
+
 /** Map auth API row + login selections into session fields. */
 export function buildSessionFromAuthRow(row, { companyId, yearId, company, year }) {
   return {
     isAuthenticated: true,
-    loginId: Number(row.LoginID) || DEFAULT_USER_SESSION.loginId,
-    userId: row.UserID ?? DEFAULT_USER_SESSION.userId,
-    userName: row.UserName ?? DEFAULT_USER_SESSION.userName,
+    loginId: Number(pickAuthField(row, "loginid", "LoginID")) || DEFAULT_USER_SESSION.loginId,
+    userId: pickAuthField(row, "userid", "UserID") ?? DEFAULT_USER_SESSION.userId,
+    userName: pickAuthField(row, "username", "UserName") ?? DEFAULT_USER_SESSION.userName,
     companyId: Number(companyId) || DEFAULT_USER_SESSION.companyId,
     yearId: Number(yearId) || DEFAULT_USER_SESSION.yearId,
     company: company ?? null,
     year: year ?? null,
-    userGroupId: row.UserGroupID ?? null,
-    desgId: row.DesgID ?? null,
-    departmentId: row.DepartmentID ?? null,
-    isAdminUser: Boolean(row.IsAdminUser),
-    isDepartmentHead: Boolean(row.IsDepartmentHead),
-    isDivisionHead: Boolean(row.IsDivisionHead),
+    userGroupId: pickAuthField(row, "usergroupid", "UserGroupID") ?? null,
+    desgId: pickAuthField(row, "desgid", "DesgID") ?? null,
+    departmentId: pickAuthField(row, "departmentid", "DepartmentID") ?? null,
+    isAdminUser: isTruthyAuthFlag(pickAuthField(row, "isadminuser", "IsAdminUser")),
+    isDepartmentHead: isTruthyAuthFlag(pickAuthField(row, "isdepartmenthead", "IsDepartmentHead")),
+    isDivisionHead: isTruthyAuthFlag(pickAuthField(row, "isdivisionhead", "IsDivisionHead")),
   };
 }

@@ -8,7 +8,10 @@
 //
 // Indent-specific vs PO:
 //   fetchIndentTypes(divisionId)  — cascade: Division → Indent Type
-//   fetchLocations()              — Fn_Gen_FetchLocationMaster (add + edit unlock)
+//   fetchLocations(divisionId)    — cascade: Division → Location (fn_tbl_fetch_divwslocation
+//                                   is division-wise; prmdivisionid must be the selected
+//                                   division, not a static/omitted value — see handleFilterChange
+//                                   in PurchaseIndentForm.jsx and fetchUnlockedHeaderDropdowns below)
 //   No supplier, currency, amend, or 3rd detail table (simpler than PO)
 
 import { useState, useCallback, useRef } from "react";
@@ -130,14 +133,19 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  // ── fetchLocations ──────────────────────────────────────────────────
-  const fetchLocations = useCallback(async () => {
+  // ── fetchLocations — division-wise (SP_LOCATION = fn_tbl_fetch_divwslocation) ──
+  const fetchLocations = useCallback(async (divisionId) => {
     try {
       const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_LOCATION,
-        JSon: JSON.stringify([{ prmcompanyid: session.companyId, prmloginid: session.loginId, prmlocationtype: "" }]),
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmlocationtypeid: 0,
+          prmloginid: session.loginId,
+        }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -324,8 +332,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             ObjName: IND_CONFIG.SP_LOCATION,
             JSon: JSON.stringify([{
               prmcompanyid: getUserSession().companyId,
+              prmdivisionid: 0,
+              prmlocationtypeid: 0,
               prmloginid: getUserSession().loginId,
-              prmlocationtype: "",
             }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
@@ -573,7 +582,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       }
       if (needsCol("configid") && divisionId) tasks.push(fetchIndentTypes(divisionId));
       if (needsCol("deptid")) tasks.push(fetchDepartments());
-      if (needsCol("locationid")) tasks.push(fetchLocations());
+      if (needsCol("locationid")) tasks.push(fetchLocations(divisionId));
       await Promise.all(tasks);
     },
     [headerColumns, get, fetchIndentTypes, fetchDepartments, fetchLocations]

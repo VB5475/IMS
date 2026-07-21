@@ -40,6 +40,11 @@ export const DV_CONFIG = {
 /**
  * Two-column form layout — lowercase PG colnames (matches RB GetDetailColData).
  * Rows not returned by the RB are silently dropped by resolveLayoutRows.
+ *
+ * panno/gstno (colseqno 14/15, ismandatory=1) exist live in the RB but were
+ * missing from this layout — they never rendered, so their mandatory/maxlen
+ * rules were never enforced (validateApiColumns only checks resolved layout
+ * fields). Added 2026-07-21 per live RB payload.
  */
 export const DV_FORM_LAYOUT = {
   main: {
@@ -54,6 +59,7 @@ export const DV_FORM_LAYOUT = {
       ["cityid", "zipcode"],
       ["phone1", "phone2"],
       ["fax", "arnoforgst"],
+      ["panno", "gstno"],
       ["provisionalid"],
     ],
   },

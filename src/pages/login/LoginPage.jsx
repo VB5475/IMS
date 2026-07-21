@@ -168,7 +168,8 @@ function LoginForm({
               name="userId"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
-              placeholder="Admin"
+              placeholder="Enter your user ID"
+              autoComplete="username"
               required
               autoFocus
             />

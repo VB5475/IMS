@@ -124,6 +124,7 @@ export default function PurchaseIndentForm() {
     locationOptions,
     fetchIndentTypes,
     clearIndentTypes,
+    fetchLocations,
     isLoadingIndentTypes,
     columns,
     allColumns,
@@ -371,8 +372,12 @@ export default function PurchaseIndentForm() {
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
+        headerValuesRef.current.locationid = 0;
         clearIndentTypes();
         itemGridRef.current?.clearRows?.();
+        // Location is division-wise (fn_tbl_fetch_divwslocation) — always refetch,
+        // even back to the "no division selected" (0) case, so stale options don't linger.
+        await fetchLocations(val && val !== "0" ? val : 0);
         if (val && val !== "0") {
           await fetchIndentTypes(val);
           focusFieldAfterCascade(filterPanelRef, "configid");
@@ -384,7 +389,7 @@ export default function PurchaseIndentForm() {
         itemGridRef.current?.clearRows?.();
       }
     },
-    [fetchIndentTypes, clearIndentTypes]
+    [fetchIndentTypes, clearIndentTypes, fetchLocations]
   );
 
   const ensureItemColumns = useCallback(async () => {

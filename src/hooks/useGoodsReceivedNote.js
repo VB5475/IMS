@@ -130,11 +130,13 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [transporterOptions, setTransporterOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
   const supplierRowsRef = useRef(new Map());
   const [isLoadingGrnTypes, setIsLoadingGrnTypes] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [isLoadingTransporters, setIsLoadingTransporters] = useState(false);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState(false);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
@@ -271,6 +273,47 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     [get]
   );
 
+  // Division-wise Location — same SP + cascade contract as Purchase Indent's fetchLocations.
+  const fetchLocationOptions = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setLocationOptions([]);
+        return [];
+      }
+
+      setIsLoadingLocations(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SP_LOCATION,
+          JSon: JSON.stringify([
+            {
+              prmcompanyid: getUserSession().companyId,
+              prmdivisionid: Number(divisionId),
+              prmlocationtypeid: 0,
+              prmloginid: getUserSession().loginId,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const opts = (res || []).map((r) => ({
+          value: String(r.locationid ?? r.locid),
+          label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid),
+        }));
+        setLocationOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[GRN] Location fetch failed:", err);
+        setLocationOptions([]);
+        return [];
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    },
+    [get]
+  );
+
   const fetchDestinationOptions = useCallback(
     async (divisionId, transporterId) => {
       if (!divisionId || divisionId === "0" || !transporterId || transporterId === "0") {
@@ -399,11 +442,15 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       const needsSupplier = headerColumns.some(
         (c) => c.colname === "supplierid" && !isLockOnEditModeCol(c)
       );
+      const needsLocation = headerColumns.some(
+        (c) => c.colname === "locationid" && !isLockOnEditModeCol(c)
+      );
 
       const tasks = [];
       if (needsDivision) tasks.push(fetchDivisionOptions());
       if (needsConfig && divisionId) tasks.push(fetchGrnTypes(divisionId));
       if (needsSupplier && divisionId) tasks.push(fetchSupplierOptions(divisionId));
+      if (needsLocation && divisionId) tasks.push(fetchLocationOptions(divisionId));
       if (divisionId) tasks.push(fetchTransporterOptions(divisionId));
       if (divisionId && transporterId) {
         tasks.push(fetchDestinationOptions(divisionId, transporterId));
@@ -415,6 +462,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       fetchDivisionOptions,
       fetchGrnTypes,
       fetchSupplierOptions,
+      fetchLocationOptions,
       fetchTransporterOptions,
       fetchDestinationOptions,
     ]
@@ -600,6 +648,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     setDestinationOptions([]);
   }, []);
   const clearDestinations = useCallback(() => setDestinationOptions([]), []);
+  const clearLocations = useCallback(() => setLocationOptions([]), []);
 
   return {
     headerColumns,
@@ -613,19 +662,23 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     supplierOptions,
     transporterOptions,
     destinationOptions,
+    locationOptions,
     fetchGrnTypes,
     fetchSupplierOptions,
     fetchTransporterOptions,
     fetchDestinationOptions,
+    fetchLocationOptions,
     getSupplierRow,
     clearGrnTypes,
     clearSuppliers,
     clearTransporters,
     clearDestinations,
+    clearLocations,
     isLoadingGrnTypes,
     isLoadingSuppliers,
     isLoadingTransporters,
     isLoadingDestinations,
+    isLoadingLocations,
     columns,
     allColumns,
     allIndentColumns,

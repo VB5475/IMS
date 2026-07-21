@@ -78,7 +78,7 @@ export const PO_CONFIG = {
   STORAGE_HEADER_META: "poHeaderMeta",
   STORAGE_ENTRY_META: "poEntryMeta",
 
-  SP_PO_LIST: "fn_tbl_pur_pomst_list",
+  SP_PO_LIST: "fn_tbl_rb_purpomst_list",
   LIST_DIVISION_ID: 0,
 };
 

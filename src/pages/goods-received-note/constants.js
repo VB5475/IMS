@@ -107,6 +107,9 @@ export const GRN_CONFIG = {
 
   SP_DESTINATIONS: "fn_tbl_gen_fetchdestination",
 
+  /** Division-wise location — same SP as Purchase Indent's Location cascade. */
+  SP_LOCATION: "fn_tbl_fetch_divwslocation",
+
   SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4grn",
 
 
@@ -128,7 +131,7 @@ export const GRN_CONFIG = {
 
 
 
-  SP_GRN_LIST: "fn_tbl_pur_grnmst_list",
+  SP_GRN_LIST: "fn_tbl_rb_purgrnmst_list",
 
   LIST_DIVISION_ID: 15,
 
@@ -149,6 +152,8 @@ export const GRN_LIST_DROPDOWN_FIELDS = new Set([
   "destinationid",
 
   "vehicletypeid",
+
+  "locationid",
 
 ]);
 
@@ -171,6 +176,16 @@ export const GRN_HEADER_FILTERS = [
   },
 
   { FilterParameterID: "configid", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
+
+  {
+
+    FilterParameterID: "locationid",
+
+    FilterColCtrlType: controlTypeMap.DROPDOWN,
+
+    staticOptions: [],
+
+  },
 
   {
 
@@ -283,6 +298,8 @@ export const GRN_FILTER_CASCADE_RESETS = {
   divisionid: [
 
     "configid",
+
+    "locationid",
 
     "supplierid",
 

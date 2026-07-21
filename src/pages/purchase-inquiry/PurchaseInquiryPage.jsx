@@ -21,10 +21,10 @@ function buildListParams() {
       {
         prmcompanyid: session.companyId,
         prmdivisionid: PI_CONFIG.LIST_DIVISION_ID,
-        prmfrodate: `${year}-01-01`,
+        prmyearid: session.yearId,
+        prmfromdate: `${year}-01-01`,
         prmtodate: `${year}-12-31`,
         prmloginid: session.loginId,
-        prmyearid: session.yearId,
       },
     ]),
     p_ErrCode: -1,

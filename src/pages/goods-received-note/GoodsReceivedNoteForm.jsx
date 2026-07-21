@@ -177,6 +177,7 @@ export default function GoodsReceivedNoteForm() {
     supplierOptions,
     transporterOptions,
     destinationOptions,
+    locationOptions,
     fetchGrnTypes,
     clearGrnTypes,
     fetchSupplierOptions,
@@ -184,12 +185,15 @@ export default function GoodsReceivedNoteForm() {
     getSupplierRow,
     fetchTransporterOptions,
     fetchDestinationOptions,
+    fetchLocationOptions,
     clearTransporters,
     clearDestinations,
+    clearLocations,
     isLoadingGrnTypes,
     isLoadingSuppliers,
     isLoadingTransporters,
     isLoadingDestinations,
+    isLoadingLocations,
     columns,
     allColumns,
     allIndentColumns,
@@ -427,6 +431,7 @@ export default function GoodsReceivedNoteForm() {
           fetchGrnTypes(divisionId),
           fetchSupplierOptions(divisionId),
           fetchTransporterOptions(divisionId),
+          fetchLocationOptions(divisionId),
         ]);
         if (headerValues.transporterid) {
           await fetchDestinationOptions(divisionId, headerValues.transporterid);
@@ -461,6 +466,7 @@ export default function GoodsReceivedNoteForm() {
     fetchSupplierOptions,
     fetchTransporterOptions,
     fetchDestinationOptions,
+    fetchLocationOptions,
     fetchIndentDetailColumns,
   ]);
 
@@ -522,7 +528,8 @@ export default function GoodsReceivedNoteForm() {
     basedonid:     GRN_CONFIG.BASED_ON_OPTIONS,
     transporterid: transporterOptions,
     destinationid: destinationOptions,
-  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions]);
+    locationid:    locationOptions,
+  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions, locationOptions]);
 
   const buildFilterDef = useCallback(
     (filter, apiColMap) => {
@@ -631,6 +638,7 @@ export default function GoodsReceivedNoteForm() {
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
+        headerValuesRef.current.locationid = 0;
         headerValuesRef.current.supplierid = 0;
         headerValuesRef.current.currencyid = "";
         headerValuesRef.current.currencyrate = "";
@@ -638,12 +646,14 @@ export default function GoodsReceivedNoteForm() {
         headerValuesRef.current.destinationid = 0;
         setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
         clearGrnTypes();
+        clearLocations();
         clearSuppliers();
         clearTransporters();
         void refreshItemGridMeta(val);
         if (val && val !== "0") {
           await Promise.all([
             fetchGrnTypes(val),
+            fetchLocationOptions(val),
             fetchSupplierOptions(val),
             fetchTransporterOptions(val),
           ]);
@@ -671,12 +681,14 @@ export default function GoodsReceivedNoteForm() {
     [
       getSupplierRow,
       clearGrnTypes,
+      clearLocations,
       clearSuppliers,
       clearTransporters,
       clearDestinations,
       clearItemGridState,
       refreshItemGridMeta,
       fetchGrnTypes,
+      fetchLocationOptions,
       fetchSupplierOptions,
       fetchTransporterOptions,
       fetchDestinationOptions,
@@ -975,7 +987,8 @@ export default function GoodsReceivedNoteForm() {
     isLoadingGrnTypes ||
     isLoadingSuppliers ||
     isLoadingTransporters ||
-    isLoadingDestinations;
+    isLoadingDestinations ||
+    isLoadingLocations;
 
   useEntryFormKeyboard({
     blocked: itemModalOpen,

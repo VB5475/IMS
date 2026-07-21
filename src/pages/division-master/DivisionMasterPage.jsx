@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Network, Plus } from "lucide-react";
+import { Network } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDivisionMaster } from "../../hooks/useDivisionMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
-import { createListActionsColumn } from "../../utils/listGridUtils";
+import { createEditActionColumn } from "../../utils/listGridUtils";
 import DivisionMasterForm from "./DivisionMasterForm";
 import { DV_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -51,12 +51,11 @@ export default function DivisionMasterPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
     title:    "Division Master",
-    subtitle: "Browse divisions or create a new division record.",
+    subtitle: "Browse and update division records.",
     showBack: true,
     backTo:   "/",
   });
@@ -79,14 +78,7 @@ export default function DivisionMasterPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => {
-    setModalMode("add");
-    setEditRecordId(null);
-    setModalOpen(true);
-  }, []);
-
   const handleEdit = useCallback((idNumber) => {
-    setModalMode("edit");
     setEditRecordId(idNumber);
     setModalOpen(true);
   }, []);
@@ -99,13 +91,12 @@ export default function DivisionMasterPage() {
   const columns = useMemo(
     () => [
       ...buildListColumnsFromApi({ data, fieldDefs }),
-      createListActionsColumn({
+      createEditActionColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
         getEditLabel: (row) => row.divisionname ?? row.DivisionName ?? row.divisioncode ?? "",
-        getDeleteLabel: (row) => row.divisionname ?? row.DivisionName ?? row.divisioncode ?? "",
       }),
     ],
     [data, fieldDefs, handleEdit]
@@ -120,9 +111,6 @@ export default function DivisionMasterPage() {
             <span>Division Master</span>
           </div>
           <div className="dv-list-panel__toolbar">
-            <button type="button" className="dv-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
             <label htmlFor="dv-list-page-size" className="dv-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -153,15 +141,13 @@ export default function DivisionMasterPage() {
           emptyMessage="No divisions found."
           searchable
           hideHeader
-          deleteProcName={DV_CONFIG.DELETE_PROC_NAME}
-          onDeleteSuccess={fetchList}
           fill
         />
       </section>
 
       <DivisionMasterForm
         isOpen={modalOpen}
-        mode={modalMode}
+        mode="edit"
         recordId={editRecordId}
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}

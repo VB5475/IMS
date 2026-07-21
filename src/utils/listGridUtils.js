@@ -199,6 +199,42 @@ export function createDeleteActionColumn({
   };
 }
 
+/** Standalone Edit-only column for list pages where delete is intentionally disabled (e.g. Company, Division Master). */
+export function createEditActionColumn({
+  navigate,
+  basePath,
+  onEdit,
+  getEditLabel,
+  actionClassName = "list__edit-btn",
+} = {}) {
+  return {
+    key: "_action_edit",
+    label: "Edit",
+    isAction: true,
+    actionType: "edit",
+    width: "44px",
+    minWidth: 44,
+    align: "center",
+    filterable: false,
+    actionClassName,
+    getActionMeta: (row) => {
+      const id = resolveListRecordId(row);
+      const label = getEditLabel?.(row);
+      const title = label ? `Edit ${label}` : `Edit record ${id}`;
+      if (onEdit) {
+        return { id, title, ariaLabel: title, onClick: () => onEdit(row) };
+      }
+      return {
+        id,
+        title,
+        ariaLabel: title,
+        navigateTo: `${basePath}/${id}/edit`,
+        navigateState: { record: row },
+      };
+    },
+  };
+}
+
 /**
  * Single combined Action column (Edit + Delete under one "Action" header) for module list pages.
  * Edit either navigates to a route (`navigate`+`basePath`) or, for modal-based edit forms,

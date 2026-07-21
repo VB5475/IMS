@@ -29,7 +29,6 @@ function buildListParams() {
          prmyearid:    session.yearId,
         prmfromdate: `01-Jan-${year}`,
         prmtodate: `31-Dec-${year}`,
-        // prmdepartmentid: 0,
         prmloginid: session.loginId,
       },
     ]),
