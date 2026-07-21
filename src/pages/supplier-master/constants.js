@@ -58,6 +58,10 @@ export const SM_CONFIG = {
   LIST_OBJ_TYPE: 2,
   SP_LIST: "Fn_tbl_SupplierMst_List",
 
+  // Shared with Customer Master (same rb_suppliermst table — see ENTRY_TYPE note
+  // above); CM_CONFIG inherits this via its `...SM_CONFIG` spread.
+  DELETE_PROC_NAME: "pr_rb_suppliermst_delete",
+
   SAVE_ENDPOINT: "/API/SupplierMst/Post_RB_SupplierMst_Save",
 
   // Own key — MRD mistakenly listed Purchase Inquiry's "piHeaderMeta" (copy-paste

@@ -723,63 +723,49 @@ export default function PurchaseIndentForm() {
 
       {/* ── Single-tab grid section ───────────────────────────────────── */}
       <section className="ind-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {IND_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={IND_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
+                ref={selectItemBtnRef}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick items from list (Tab here after header fields)"
               >
-                {t.label}
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick items from list (Tab here after header fields)"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`ind-tab-pane${activeTab === "items" ? " ind-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={IND_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={IND_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          multiValuePasteColumns={IND_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={IND_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar

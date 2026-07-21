@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { UserCheck, Plus, Pencil } from "lucide-react";
+import { UserCheck, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { normalizeListRows } from "../../utils/listGridUtils";
+import { normalizeListRows, createListActionsColumn } from "../../utils/listGridUtils";
 import { useCustomerMaster } from "../../hooks/useCustomerMaster";
 import CustomerMasterForm from "./CustomerMasterForm";
 import { CM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
@@ -40,24 +40,11 @@ function buildColumnsFromData(data, onEdit) {
   const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
     ...keys.map((key) => ({ key, label: key, filterable: true, align: "left" })),
-    {
-      key: "_actions",
-      label: "Edit",
-      width: "80px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="sm-list__edit-btn"
-          title={`Edit ${row.suppliername ?? row.supname ?? ""}`}
-          aria-label={`Edit ${row.suppliername ?? row.supname ?? ""}`}
-          disabled={!row.idnumber}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
+    createListActionsColumn({
+      onEdit: (row) => { if (row.idnumber) onEdit(row.idnumber); },
+      getEditLabel: (row) => row.suppliername ?? row.supname ?? "",
+      getDeleteLabel: (row) => row.suppliername ?? row.supname ?? "",
+    }),
   ];
 }
 
@@ -177,6 +164,8 @@ export default function CustomerMasterPage() {
           emptyMessage="No customers found."
           hideHeader
           searchable
+          deleteProcName={CM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchCustomerList}
           fill
         />
       </section>

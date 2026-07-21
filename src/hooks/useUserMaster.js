@@ -194,6 +194,13 @@ export function useUserMaster() {
     setDropdownOptions((prev) => ({ ...prev, ...refreshed }));
   }, [fetchDropdownsForCols]);
 
+  // Manual per-field refresh — e.g. a "refresh" button next to a dropdown, or
+  // after a quick-add modal (Group/Department) saves a new record.
+  const refreshDropdownField = useCallback(async (colName) => {
+    const refreshed = await fetchDropdownsForCols([colName]);
+    setDropdownOptions((prev) => ({ ...prev, ...refreshed }));
+  }, [fetchDropdownsForCols]);
+
   // PG returns lowercase keys — spread master directly; clear password fields.
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
@@ -278,6 +285,7 @@ export function useUserMaster() {
     fetchEditRecord,
     fetchListRows,
     refreshDropdownOptions,
+    refreshDropdownField,
     seedOptionsFromMaster,
   };
 }

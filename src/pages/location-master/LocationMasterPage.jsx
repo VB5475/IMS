@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { MapPin, Plus, Pencil } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import { useLocationMaster } from "../../hooks/useLocationMaster";
 import LocationMasterForm from "./LocationMasterForm";
 import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
@@ -39,24 +40,11 @@ function buildColumnsFromData(data, onEdit) {
   const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
     ...keys.map((key) => ({ key, label: toLabel(key), filterable: true, align: "left" })),
-    {
-      key:   "_actions",
-      label: "Edit",
-      width: "80px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="lm-list__edit-btn"
-          title={`Edit ${row.Location_Code ?? row.Loc_Code ?? ""}`}
-          aria-label={`Edit ${row.Location_Code ?? row.Loc_Code ?? ""}`}
-          disabled={!row.idnumber}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
+    createListActionsColumn({
+      onEdit: (row) => { if (row.idnumber) onEdit(row.idnumber); },
+      getEditLabel: (row) => row.Location_Code ?? row.Loc_Code ?? "",
+      getDeleteLabel: (row) => row.Location_Code ?? row.Loc_Code ?? "",
+    }),
   ];
 }
 
@@ -165,6 +153,8 @@ export default function LocationMasterPage() {
           emptyMessage="No locations found."
           hideHeader
           searchable
+          deleteProcName={LM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

@@ -44,6 +44,7 @@
 /* Type — top border accent only */
 .cdlg--danger  { border-top-color: var(--n-error,   #d93025); }
 .cdlg--warning { border-top-color: var(--n-warning, #e37400); }
+.cdlg--success { border-top-color: var(--n-success, #089949); }
 
 /* ── Body — icon + question, no extra background ─────────────────────── */
 .cdlg__body {
@@ -61,6 +62,7 @@
 }
 .cdlg--danger  .cdlg__icon { color: var(--n-error,   #d93025); }
 .cdlg--warning .cdlg__icon { color: var(--n-warning, #e37400); }
+.cdlg--success .cdlg__icon { color: var(--n-success, #089949); }
 
 .cdlg__message {
   margin: 0;
@@ -115,3 +117,6 @@
 
 .cdlg__btn--warning { background: var(--n-warning, #e37400); }
 .cdlg__btn--warning:hover { background: var(--n-warning-hover, #c26400); }
+
+.cdlg__btn--success { background: var(--n-success, #089949); }
+.cdlg__btn--success:hover { background: var(--n-success-hover, #067a3a); }

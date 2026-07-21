@@ -679,75 +679,61 @@ export default function AssetsRevaluationForm() {
       </section>
 
       <section className="arv-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {ARV_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={ARV_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleAddNewItem}
+                disabled={!isEditMode}
+                title="Add a blank item row"
               >
-                {t.label}
+                <Plus size={12} strokeWidth={2.5} />
+                Add New
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleAddNewItem}
-              disabled={!isEditMode}
-              title="Add a blank item row"
-            >
-              <Plus size={12} strokeWidth={2.5} />
-              Add New
-            </button>
+              <button
+                ref={selectItemBtnRef}
+                type="button"
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick assets for revaluation"
+              >
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
+              </button>
 
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick assets for revaluation"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`arv-tab-pane${activeTab === "items" ? " arv-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Add New or Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            loading={isGridLoading || isFetching}
-            multiValuePasteColumns={ARV_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={ARV_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Add New or Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          loading={isGridLoading || isFetching}
+          multiValuePasteColumns={ARV_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={ARV_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar

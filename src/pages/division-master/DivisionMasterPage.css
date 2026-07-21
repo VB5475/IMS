@@ -182,7 +182,7 @@
 
 .dv-form-row--split .dv-form-field {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 128px minmax(0, 1fr);
 }
 
 .dv-form-row--split .dv-form-field:first-child {
@@ -191,7 +191,7 @@
 
 .dv-form-label {
   flex: 0 0 168px;
-  padding: 8px 12px 8px 14px;
+  padding: 8px 12px;
   background: var(--field-frozen-label-bg, #dbe8f5);
   color: var(--primary);
   border-right: 1.5px solid var(--field-frozen-border, #94b8d8);
@@ -199,12 +199,15 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  line-height: 1.25;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   text-align: left;
   user-select: none;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .dv-form-row--split .dv-form-label {

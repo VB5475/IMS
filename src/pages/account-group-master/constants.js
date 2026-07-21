@@ -25,6 +25,8 @@ export const AGM_CONFIG = {
   SP_LIST: "fn_tbl_acc_groupmaster_list",
   LIST_DIVISION_ID: 0,
 
+  DELETE_PROC_NAME: "pr_rb_acgroupmst_delete",
+
   MAIN_GROUP_COL: AGM_FIELDS.MAIN_GROUP,
 
   SAVE_ENDPOINT: "/API/AcountGroupMst/Post_RB_AcountGroupMst_Save",

@@ -360,21 +360,13 @@ export default function AssetsItemOpeningExcelForm() {
       )}
 
       <section className="aop-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {AIME_GRID_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid-tabbar__controls">
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={AIME_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
             <button
               type="button"
               className="eg-tab-btn eg-tab-btn--danger"
@@ -385,20 +377,12 @@ export default function AssetsItemOpeningExcelForm() {
               <Trash2 size={12} strokeWidth={2} />
               Delete
             </button>
-          </div>
-        </div>
-
-        <div className={`aop-tab-pane${activeTab === "items" ? " aop-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage={isEditMode ? "No rows yet. Click Upload Excel above." : "Click Add below to begin."}
-            onSelectionChange={setItemSelectionCount}
-            readOnly
-          />
-        </div>
+          }
+          hideBottomPanel
+          emptyMessage={isEditMode ? "No rows yet. Click Upload Excel above." : "Click Add below to begin."}
+          onSelectionChange={setItemSelectionCount}
+          readOnly
+        />
       </section>
 
       <ActionBar

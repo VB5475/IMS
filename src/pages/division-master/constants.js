@@ -31,6 +31,8 @@ export const DV_CONFIG = {
   SP_LIST:          "fn_tbl_divisionmst_list", // ⚠️ CONFIRM with DBA
   LIST_DIVISION_ID: 15,                        // ⚠️ CONFIRM with DBA
 
+  DELETE_PROC_NAME: "pr_rb_divisionmst_delete",
+
   SAVE_ENDPOINT:       "/API/PurDivisionMst/Post_pr_RB_DivisionMST_Save",
   STORAGE_HEADER_META: "piHeaderMeta",
 };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -41,6 +41,7 @@ import {
   Search,
   ArrowLeft,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -120,6 +121,7 @@ const NAV_SECTIONS = [
 
 export default function AppShell({ children }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
@@ -130,12 +132,41 @@ export default function AppShell({ children }) {
     navigate("/login", { replace: true });
   };
 
+  // Close the mobile drawer whenever the route changes (link click, back/forward, etc.)
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Escape closes the mobile drawer, same convention as Modal/ConfirmDialog.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileNavOpen]);
+
+  const handleOpenMobileNav = () => {
+    setCollapsed(false); // the drawer always shows full labeled nav, never the icon rail
+    setMobileNavOpen(true);
+  };
+
   const title = header.title ?? getDefaultRouteTitle(location.pathname);
   const subtitle = header.subtitle ?? "FY 2025-26 · 01 Jun 2026";
   const profileInitial = (userName || userId || "U").charAt(0).toUpperCase();
 
   return (
-    <div className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""}`}>
+    <div
+      className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""} ${mobileNavOpen ? "ent-shell--mobile-nav-open" : ""}`}
+    >
+      {mobileNavOpen && (
+        <div
+          className="ent-mobile-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <aside className="ent-sidebar">
         <div className="ent-sidebar__header">
           <div className="ent-sidebar__brand">
@@ -156,6 +187,14 @@ export default function AppShell({ children }) {
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
+          </button>
+          <button
+            type="button"
+            className="ent-sidebar__mobile-close"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation"
+          >
+            <PanelLeftClose size={14} />
           </button>
         </div>
 
@@ -193,6 +232,14 @@ export default function AppShell({ children }) {
       <div className="ent-main">
         <header className="ent-topbar">
           <div className="ent-topbar__left">
+            <button
+              type="button"
+              className="ent-topbar__hamburger"
+              onClick={handleOpenMobileNav}
+              aria-label="Open navigation"
+            >
+              <Menu size={18} strokeWidth={2} />
+            </button>
             {header.showBack && (
               <button
                 type="button"
@@ -200,7 +247,7 @@ export default function AppShell({ children }) {
                 onClick={() => navigate(header.backTo || "/")}
               >
                 <ArrowLeft size={14} />
-                Back
+                <span>Back</span>
               </button>
             )}
             <div className="ent-topbar__titles">

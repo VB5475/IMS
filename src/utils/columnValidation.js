@@ -134,12 +134,14 @@ export function getVarcharMaxLen(colDataType) {
 }
 
 function resolveEffectiveMaxLen(apiCol, colDataType) {
-  const fromType = getVarcharMaxLen(colDataType);
-  if (fromType != null) return fromType;
+  // RB-configured MaxLen is the intended business limit and takes precedence
+  // over the raw column's storage size (e.g. RB MaxLen=250 on a varchar(255)
+  // column must cap input at 250, not 255). 0/absent means "not configured
+  // by the RB" — fall back to the column's storage size in that case.
   const maxLenRaw = apiCol?.maxlen ?? apiCol?.MaxLen;
   const fromApi = maxLenRaw != null ? Number(maxLenRaw) : null;
-  if (fromApi != null && !Number.isNaN(fromApi)) return fromApi;
-  return null;
+  if (fromApi != null && !Number.isNaN(fromApi) && fromApi > 0) return fromApi;
+  return getVarcharMaxLen(colDataType);
 }
 
 // "0" is the placeholder/unselected sentinel for most ID-based dropdowns, but some

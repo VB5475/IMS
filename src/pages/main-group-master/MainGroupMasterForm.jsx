@@ -16,6 +16,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { MGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
+import "./MainGroupMasterPage.css";
 
 // Fields locked during edit mode (RB colnames — all lowercase)
 const LOCK_ON_EDIT = new Set(["itemtypeid", "maingroupcode", "fixedassetaccountid"]);

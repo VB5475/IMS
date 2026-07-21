@@ -1062,37 +1062,28 @@ export default function GoodsReceivedNoteForm() {
       </section>
 
       <section className="grn-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {GRN_GRID_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
-
-            {activeTab === "items" && (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={GRN_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            activeTab === "items" ? (
               <>
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+
                 <div className="grn-tab-filter">
                   <span className="grn-tab-filter__label">Approved</span>
                   <SearchSelect
@@ -1114,63 +1105,49 @@ export default function GoodsReceivedNoteForm() {
                   Delete
                 </button>
               </>
-            )}
-          </div>
-        </div>
-
-        <div className={`grn-tab-pane${activeTab === "items" ? " grn-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
-            existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={GRN_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={GRN_REMARK_COLUMNS}
-          />
-        </div>
-
-        {activeTab === "transporter" && (
-          <div className="grn-tab-pane grn-tab-pane--active grn-sub-panel">
-            <EnterpriseFilterPanel
-              key={`transporter-${filterResetKey}`}
-              title="Transporter Detail"
-              staticFilters={syncedTransporterFilters}
-              initialValues={filterInitialValues}
-              cascadeResets={{ transporterid: ["destinationid"] }}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={transporterFieldTones}
-            />
-          </div>
-        )}
-
-        {activeTab === "driver" && (
-          <div className="grn-tab-pane grn-tab-pane--active grn-sub-panel">
-            <EnterpriseFilterPanel
-              key={`driver-${filterResetKey}`}
-              title="Driver Detail"
-              staticFilters={syncedDriverFilters}
-              initialValues={filterInitialValues}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={driverFieldTones}
-            />
-          </div>
-        )}
+            ) : null
+          }
+          tabContentOverride={
+            activeTab === "transporter" ? (
+              <EnterpriseFilterPanel
+                key={`transporter-${filterResetKey}`}
+                title="Transporter Detail"
+                staticFilters={syncedTransporterFilters}
+                initialValues={filterInitialValues}
+                cascadeResets={{ transporterid: ["destinationid"] }}
+                onFilterChange={handleFilterChange}
+                isSearching={filterPanelLoading}
+                isMetaLoading={!headerMetaReady || recordLoading}
+                disabled={filterPanelLoading || !headerMetaReady}
+                fieldTones={transporterFieldTones}
+              />
+            ) : activeTab === "driver" ? (
+              <EnterpriseFilterPanel
+                key={`driver-${filterResetKey}`}
+                title="Driver Detail"
+                staticFilters={syncedDriverFilters}
+                initialValues={filterInitialValues}
+                onFilterChange={handleFilterChange}
+                isSearching={filterPanelLoading}
+                isMetaLoading={!headerMetaReady || recordLoading}
+                disabled={filterPanelLoading || !headerMetaReady}
+                fieldTones={driverFieldTones}
+              />
+            ) : null
+          }
+          readOnly={isEditRoute && !isEditMode}
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          enableCollapsible={Object.keys(childRowsMap).length > 0}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          existingRecordEdit={isEditRoute && isEditMode}
+          multiValuePasteColumns={GRN_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={GRN_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar

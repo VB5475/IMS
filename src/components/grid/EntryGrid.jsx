@@ -636,6 +636,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                 readOnly: cellReadOnly,
                 contextLabel: getRemarkContextLabel(row),
                 contextColLabel: remarkContextCol?.name ?? null,
+                maxLen: columnMeta?.dataKind === "varchar" ? columnMeta?.maxLen : null,
               })
             }
           >
@@ -1219,13 +1220,22 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             className="cell-remark-modal__textarea"
             value={remarkEditor.value}
             readOnly={remarkEditor.readOnly}
-            onChange={(e) => setRemarkEditor((prev) => ({ ...prev, value: e.target.value }))}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (remarkEditor.maxLen != null && next.length > remarkEditor.maxLen) return;
+              setRemarkEditor((prev) => ({ ...prev, value: next }));
+            }}
             placeholder="Type or paste a remark…"
             rows={5}
+            maxLength={remarkEditor.maxLen ?? undefined}
             autoFocus
           />
           {!remarkEditor.readOnly && (
-            <div className="cell-remark-modal__counter">{remarkEditor.value.length} characters</div>
+            <div className="cell-remark-modal__counter">
+              {remarkEditor.maxLen != null
+                ? `${remarkEditor.value.length}/${remarkEditor.maxLen}`
+                : `${remarkEditor.value.length} characters`}
+            </div>
           )}
         </Modal>
       )}

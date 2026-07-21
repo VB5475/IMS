@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Tag, Plus, Pencil } from "lucide-react";
+import { Tag, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
@@ -8,6 +8,7 @@ import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import MainGroupMasterForm from "./MainGroupMasterForm";
 import { MGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./MainGroupMasterPage.css";
@@ -104,29 +105,17 @@ export default function MainGroupMasterPage() {
   }, [fetchList]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="mgm-list__edit-btn"
-            title={`Edit ${row.maingroupcode ?? row.maingroupname ?? ""}`}
-            aria-label={`Edit ${row.maingroupcode ?? row.maingroupname ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.maingroupcode ?? row.maingroupname ?? "",
+        getDeleteLabel: (row) => row.maingroupcode ?? row.maingroupname ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -175,6 +164,8 @@ export default function MainGroupMasterPage() {
           emptyMessage="No main groups found."
           hideHeader
           searchable
+          deleteProcName={MGM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

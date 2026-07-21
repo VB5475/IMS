@@ -289,6 +289,61 @@
     0 24px 56px rgba(15, 45, 74, 0.14);
 }
 
+.login-env-switcher {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.login-env-switcher__group {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(15, 45, 74, 0.12);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.login-env-switcher__btn {
+  padding: 3px 9px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(15, 45, 74, 0.12);
+  cursor: pointer;
+}
+
+.login-env-switcher__btn:last-child {
+  border-right: none;
+}
+
+.login-env-switcher__btn:hover:not(.login-env-switcher__btn--active) {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+}
+
+/* IMS_LIVE active */
+.login-env-switcher__btn--active {
+  background: var(--primary-light, #e8f0fe);
+  color: var(--primary, #1a56db);
+  cursor: default;
+}
+
+/* IMS_PGLIVE active — amber, matches the topbar switcher */
+.login-env-switcher__btn--pg.login-env-switcher__btn--active {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.login-env-switcher__btn--pg:hover:not(.login-env-switcher__btn--active) {
+  background: #fffbeb;
+  color: #b45309;
+}
+
 .login-card__header {
   margin-bottom: 24px;
 }

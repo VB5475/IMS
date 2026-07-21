@@ -15,6 +15,7 @@ export const LM_CONFIG = {
   LIST_OBJ_TYPE:       2,
   SP_LIST:             "fn_tbl_gen_locationmst_list", // ⚠️ CONFIRM with DBA
   LIST_DIVISION_ID:    15,             // ⚠️ CONFIRM with DBA
+  DELETE_PROC_NAME:    "pr_rb_genlocationmst_delete",
   SAVE_ENDPOINT:       "/API/Gen_LocationMst/Post_RB_GenLocationMst_Save",
   STORAGE_HEADER_META: "piHeaderMeta",
 };

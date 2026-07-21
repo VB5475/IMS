@@ -15,6 +15,8 @@ export const DM_CONFIG = {
   SP_LIST: "fn_tbl_departmentmst_list",
   LIST_DIVISION_ID: 0,
 
+  DELETE_PROC_NAME: "pr_rb_departmentmst_delete",
+
   SAVE_ENDPOINT: "/API/PurDepartmentMst/Post_RB_DepartmentMst_Save",
   STORAGE_HEADER_META: "dmHeaderMeta",
 };

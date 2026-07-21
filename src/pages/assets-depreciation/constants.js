@@ -40,6 +40,8 @@ export const DPC_CONFIG = {
   SP_LIST:          "fn_tbl_rb_astdepcamst_list",
   LIST_DIVISION_ID: 15,
 
+  DELETE_PROC_NAME: "pr_rb_astdepcamst_delete",
+
   // localStorage key for cached header RB metadata (MRD § 7)
   STORAGE_HEADER_META: "piHeaderMeta",
 };

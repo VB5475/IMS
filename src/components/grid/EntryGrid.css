@@ -97,6 +97,7 @@
 .grid-tabbar__controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 4px 0;
 }

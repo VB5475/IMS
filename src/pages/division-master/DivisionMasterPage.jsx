@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Network, Plus, Pencil } from "lucide-react";
+import { Network, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDivisionMaster } from "../../hooks/useDivisionMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import DivisionMasterForm from "./DivisionMasterForm";
 import { DV_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -96,29 +97,17 @@ export default function DivisionMasterPage() {
   }, [fetchList]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="dv-list__edit-btn"
-            title={`Edit ${row.divisionname ?? row.DivisionName ?? row.divisioncode ?? ""}`}
-            aria-label={`Edit ${row.divisionname ?? row.DivisionName ?? row.divisioncode ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.divisionname ?? row.DivisionName ?? row.divisioncode ?? "",
+        getDeleteLabel: (row) => row.divisionname ?? row.DivisionName ?? row.divisioncode ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -164,6 +153,8 @@ export default function DivisionMasterPage() {
           emptyMessage="No divisions found."
           searchable
           hideHeader
+          deleteProcName={DV_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

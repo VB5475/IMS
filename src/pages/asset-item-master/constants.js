@@ -19,6 +19,7 @@ export const AIM_CONFIG = {
   LIST_OBJ_TYPE:       2,
   SP_LIST:             "fn_tbl_rb_astitemmst_list", // ⚠️ CONFIRM with DBA — not live yet
   LIST_DIVISION_ID:    15,             // ⚠️ CONFIRM with DBA
+  DELETE_PROC_NAME:    "pr_rb_astitemmst_delete",
   SAVE_ENDPOINT:       "/API/AstItemMst/Post_RB_AstItemMst_Save",
   STORAGE_HEADER_META: "piHeaderMeta",
 };

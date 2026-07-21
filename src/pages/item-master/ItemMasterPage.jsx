@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Package, Plus, Pencil } from "lucide-react";
+import { Package, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
@@ -8,6 +8,7 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useItemMaster } from "../../hooks/useItemMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import ItemMasterForm from "./ItemMasterForm";
 import { IM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -190,26 +191,14 @@ export default function ItemMasterPage() {
   }, [fetchList, handleCloseModal]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: handleEdit,
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="im-list__edit-btn"
-            title={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
-            aria-label={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.itemcode ?? row.itemname ?? "",
+        getDeleteLabel: (row) => row.itemcode ?? row.itemname ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -262,6 +251,8 @@ export default function ItemMasterPage() {
           emptyMessage="No items found."
           searchable
           hideHeader
+          deleteProcName={IM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

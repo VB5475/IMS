@@ -18,6 +18,8 @@ export const CO_CONFIG = {
   SP_LIST:          "fn_tbl_companymst_list",
   LIST_DIVISION_ID: 0,
 
+  DELETE_PROC_NAME: "pr_rb_companymst_delete",
+
   SAVE_ENDPOINT:       "/API/PurCompany/Post_RB_CompanyMst_Save",
   STORAGE_HEADER_META: "coHeaderMeta",
 };

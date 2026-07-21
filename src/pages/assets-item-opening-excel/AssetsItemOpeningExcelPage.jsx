@@ -9,6 +9,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { createDeleteActionColumn } from "../../utils/listGridUtils";
 import { AIME_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsItemOpeningExcelPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -38,20 +39,27 @@ function buildListParams() {
   };
 }
 
+const HIDDEN_COLS = new Set(["idnumber"]);
+
 function toLabel(key) {
   return key.replace(/([A-Z])/g, " $1").trim();
 }
 
 function buildColumnsFromData(data) {
   if (!data || data.length === 0) return [];
-  const keys = Object.keys(data[0]);
-  return keys.map((key) => ({
-    key,
-    label: toLabel(key),
-    filterable: true,
-    align: "left",
-    ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
-  }));
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
+  return [
+    ...keys.map((key) => ({
+      key,
+      label: toLabel(key),
+      filterable: true,
+      align: "left",
+      ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
+    })),
+    createDeleteActionColumn({
+      getDeleteLabel: (row) => row.trancode ?? "",
+    }),
+  ];
 }
 
 export default function AssetsItemOpeningExcelPage() {
@@ -134,6 +142,8 @@ export default function AssetsItemOpeningExcelPage() {
           emptyMessage="No records found. Upload a new Excel batch to get started."
           hideHeader
           searchable
+          deleteProcName={AIME_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

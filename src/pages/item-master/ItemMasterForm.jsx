@@ -24,6 +24,7 @@ import {
   IM_MAIN_GROUP_CASCADE_RESETS,
   IM_SUB_MAIN_GROUP_CASCADE_RESETS,
 } from "./constants";
+import "./ItemMasterPage.css";
 
 // Fields locked during edit mode (RB colnames — all lowercase)
 const LOCK_ON_EDIT = new Set(["itemcode"]);

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Shield, Plus, Pencil } from "lucide-react";
+import { Shield, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useUserGroup } from "../../hooks/useUserGroup";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import UserGroupForm from "./UserGroupForm";
 import { UG_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -83,29 +84,17 @@ export default function UserGroupPage() {
   }, [fetchList]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="ug-list__edit-btn"
-            title={`Edit ${row.groupcode ?? row.groupname ?? ""}`}
-            aria-label={`Edit ${row.groupcode ?? row.groupname ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.groupcode ?? row.groupname ?? "",
+        getDeleteLabel: (row) => row.groupcode ?? row.groupname ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -153,6 +142,8 @@ export default function UserGroupPage() {
           emptyMessage="No user groups found."
           searchable
           hideHeader
+          deleteProcName={UG_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

@@ -4,12 +4,13 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus, Pencil } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -63,29 +64,12 @@ function buildColumnsFromData(data, navigate) {
       align:      "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
-    {
-      key:   "_actions",
-      label: "Edit",
-      width: "60px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="dpc-list__edit-btn"
-          title={`Edit Depreciation ${row.trancode ?? ""}`}
-          aria-label={`Edit Depreciation ${row.trancode ?? ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(
-              `/assets-depreciation/${row.astdepid ?? row.idnumber}/edit`,
-              { state: { record: row } }
-            );
-          }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
+    createListActionsColumn({
+      navigate,
+      basePath: "/assets-depreciation",
+      getEditLabel: (row) => row.trancode ? `Depreciation ${row.trancode}` : "",
+      getDeleteLabel: (row) => row.trancode ? `Depreciation ${row.trancode}` : "",
+    }),
   ];
 }
 
@@ -166,6 +150,8 @@ export default function AssetsDepreciationPage() {
           emptyMessage="No Company Act Depreciation records found."
           hideHeader
           searchable
+          deleteProcName={DPC_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

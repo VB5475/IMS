@@ -18,12 +18,13 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: PO_CONFIG.LIST_OBJ_TYPE,
     ObjName: PO_CONFIG.SP_PO_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:    getUserSession().companyId,
+        prmcompanyid:    session.companyId,
         prmdivisionid:   PO_CONFIG.LIST_DIVISION_ID,
         prmsupplierid:   0,
         prmfromdate:     `01-Jan-${year}`,
@@ -32,6 +33,7 @@ function buildListParams() {
         prmbasedon:      0,
         prmdepartmentid: 0,
         prmstatus:       0,
+        prmloginid:      session.loginId,
       },
     ]),
     p_ErrCode: -1,

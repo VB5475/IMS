@@ -147,19 +147,7 @@
   overflow: hidden;
 }
 
-.aei-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.aei-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.aei-tab-pane .erp-grid-container {
+.aei-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

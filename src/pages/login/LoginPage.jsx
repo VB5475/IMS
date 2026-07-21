@@ -13,7 +13,14 @@ import {
   FileStack,
 } from "lucide-react";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../../api/constants";
+import {
+  ENDPOINTS,
+  API_BASE_URL,
+  OBJ_TYPE,
+  BASE_PROJECT_OPTIONS,
+  PROD_BASE_PROJECT,
+  switchBaseProject,
+} from "../../api/constants";
 import { useUser } from "../../context/UserContext";
 import { LOGIN_CONFIG } from "./constants";
 import Loader from "../../components/ui/Loader";
@@ -50,6 +57,30 @@ function findFinancialYearForDate(yearRows, date = new Date()) {
       if (!from || !to) return false;
       return today >= from && today <= to;
     }) ?? null
+  );
+}
+
+function LoginEnvSwitcher() {
+  return (
+    <div className="login-env-switcher">
+      <div className="login-env-switcher__group" role="group" aria-label="API environment">
+        {BASE_PROJECT_OPTIONS.map((opt) => {
+          const isActive = opt === PROD_BASE_PROJECT;
+          return (
+            <button
+              key={opt}
+              type="button"
+              className={`login-env-switcher__btn${isActive ? " login-env-switcher__btn--active" : ""}${opt === "IMS_PGLIVE" ? " login-env-switcher__btn--pg" : ""}`}
+              title={isActive ? `Active: ${opt}` : `Switch to ${opt}`}
+              onClick={() => { if (!isActive) switchBaseProject(opt); }}
+              aria-pressed={isActive}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -378,6 +409,7 @@ export default function LoginPage() {
         <div className="login-panel__inner">
           <div className="login-card-wrap">
             <div className="login-card">
+              <LoginEnvSwitcher />
               <div className="login-card__header">
                 {/* <div className="login-card__logo">
                   <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />

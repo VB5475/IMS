@@ -152,3 +152,31 @@
   color: var(--text-muted);
   text-align: center;
 }
+
+/* ── Responsive: list-page header/toolbar ─────────────────────────────
+   Every master/transaction list page defines its own "<prefix>-list-panel__header"
+   and "<prefix>-list-panel__toolbar" CSS (same shape, different class prefix per
+   page — see [class$="-grid-section"] above for the same convention). Targeting
+   the shared BEM suffix here fixes all of them at once instead of duplicating
+   this block into every page's stylesheet. */
+@media (max-width: 900px) {
+  .workspace-page [class$="-list-panel__header"] {
+    height: auto;
+    min-height: 44px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .workspace-page [class$="-list-panel__toolbar"] {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-page [class$="-list-panel__title"] {
+    width: 100%;
+  }
+}

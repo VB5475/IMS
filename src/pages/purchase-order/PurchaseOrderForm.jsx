@@ -1060,98 +1060,85 @@ export default function PurchaseOrderForm() {
 
       {/* ── 3-tab grid section ───────────────────────────────────────── */}
       <section className="po-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {PO_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={PO_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            <>
+              {activeTab === "items" && (
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+              )}
+
+              <div className="po-tab-filter">
+                <span className="po-tab-filter__label">Approved</span>
+                <SearchSelect
+                  value={approvedFilter}
+                  onChange={setApprovedFilter}
+                  options={APPROVED_OPTS}
+                  compact
+                  ariaLabel="Approved filter"
+                />
+              </div>
               <button
-                key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || activeSelectionCount === 0}
+                title="Delete selected rows"
               >
-                {t.label}
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
               </button>
-            ))}
-          </div>
-
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
-
-            <div className="po-tab-filter">
-              <span className="po-tab-filter__label">Approved</span>
-              <SearchSelect
-                value={approvedFilter}
-                onChange={setApprovedFilter}
-                options={APPROVED_OPTS}
-                compact
-                ariaLabel="Approved filter"
-              />
-            </div>
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || activeSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`po-tab-pane${activeTab === "items" ? " po-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Entry Form or Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            remarkModalColumns={PO_REMARK_COLUMNS}
-          />
-        </div>
-
-        {activeTab === "terms" && (
-          <div className="po-terms-pane">
-            <table className="po-terms-table">
-              <thead>
-                <tr>
-                  {TERMS_COLUMNS.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={TERMS_COLUMNS.length} className="po-terms-empty">
-                    No terms &amp; conditions added.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+            </>
+          }
+          tabContentOverride={
+            activeTab === "terms" ? (
+              <div className="po-terms-pane">
+                <table className="po-terms-table">
+                  <thead>
+                    <tr>
+                      {TERMS_COLUMNS.map((c) => (
+                        <th key={c}>{c}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={TERMS_COLUMNS.length} className="po-terms-empty">
+                        No terms &amp; conditions added.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : null
+          }
+          emptyMessage="No items yet. Click Entry Form or Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onRowsChange={setGridRows}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          enableCollapsible={Object.keys(childRowsMap).length > 0}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          remarkModalColumns={PO_REMARK_COLUMNS}
+        />
       </section>
 
       {/* ── Summary totals — live from grid rows ── */}

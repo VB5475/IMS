@@ -43,18 +43,14 @@ export function resolveListRecordId(row) {
   );
 }
 
+/** Column keys for the list grid — idnumber is a row-id reference only, never a display column. */
 function extractListColumnKeys(rows) {
   if (!rows?.length) return [];
-  const keys = Object.keys(rows[0]);
+  const keys = Object.keys(rows[0]).filter((key) => !isIdNumberColumnKey(key));
   const seen = new Set(keys);
-  let seenIdNumber = keys.some(isIdNumberColumnKey);
   for (let i = 1; i < rows.length; i += 1) {
     Object.keys(rows[i]).forEach((key) => {
-      if (seen.has(key)) return;
-      if (isIdNumberColumnKey(key)) {
-        if (seenIdNumber) return;
-        seenIdNumber = true;
-      }
+      if (seen.has(key) || isIdNumberColumnKey(key)) return;
       seen.add(key);
       keys.push(key);
     });
@@ -179,12 +175,41 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
   return columns;
 }
 
+/** Standalone Delete-only column for list pages with no per-row edit action. */
+export function createDeleteActionColumn({
+  getDeleteLabel,
+  actionClassName = "list__edit-btn list__edit-btn--delete",
+} = {}) {
+  return {
+    key: "_action_delete",
+    label: "Delete",
+    isAction: true,
+    actionType: "delete",
+    width: "44px",
+    minWidth: 44,
+    align: "center",
+    filterable: false,
+    actionClassName,
+    getActionMeta: (row) => {
+      const id = resolveListRecordId(row);
+      const label = getDeleteLabel?.(row);
+      const title = label ? `Delete ${label}` : `Delete record ${id}`;
+      return { id, title, ariaLabel: title };
+    },
+  };
+}
+
 /**
  * Single combined Action column (Edit + Delete under one "Action" header) for module list pages.
+ * Edit either navigates to a route (`navigate`+`basePath`) or, for modal-based edit forms,
+ * invokes `onEdit(row)` directly (pass `onEdit` and omit `navigate`/`basePath`).
  */
 export function createListActionsColumn({
   navigate,
   basePath,
+  onEdit,
+  getEditLabel,
+  getDeleteLabel,
   editClassName = "list__edit-btn",
   deleteClassName = "list__edit-btn list__edit-btn--delete",
 }) {
@@ -201,21 +226,24 @@ export function createListActionsColumn({
     deleteClassName,
     getEditMeta: (row) => {
       const id = resolveListRecordId(row);
+      const label = getEditLabel?.(row);
+      const title = label ? `Edit ${label}` : `Edit record ${id}`;
+      if (onEdit) {
+        return { id, title, ariaLabel: title, onClick: () => onEdit(row) };
+      }
       return {
         id,
-        title: `Edit record ${id}`,
-        ariaLabel: `Edit record ${id}`,
+        title,
+        ariaLabel: title,
         navigateTo: `${basePath}/${id}/edit`,
         navigateState: { record: row },
       };
     },
     getDeleteMeta: (row) => {
       const id = resolveListRecordId(row);
-      return {
-        id,
-        title: `Delete record ${id}`,
-        ariaLabel: `Delete record ${id}`,
-      };
+      const label = getDeleteLabel?.(row);
+      const title = label ? `Delete ${label}` : `Delete record ${id}`;
+      return { id, title, ariaLabel: title };
     },
   };
 }

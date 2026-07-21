@@ -15,6 +15,8 @@ export const UM_CONFIG = {
   SP_LIST: "fn_tbl_genusermst_list",
   LIST_DIVISION_ID: 15,
 
+  DELETE_PROC_NAME: "pr_rb_genusermst_delete",
+
   SAVE_ENDPOINT: "/API/GenUserMst/Post_RB_GenUserMst_Save",
   STORAGE_HEADER_META: "piHeaderMeta",
 };

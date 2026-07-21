@@ -899,95 +899,82 @@ export default function PurchaseQuotationForm() {
       </section>
 
       <section className="pq-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {QTN_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={QTN_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            <>
+              {activeTab === "items" && (
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+              )}
+
+              <div className="pq-tab-filter">
+                <span className="pq-tab-filter__label">Approved</span>
+                <SearchSelect
+                  value={approvedFilter}
+                  onChange={setApprovedFilter}
+                  options={APPROVED_OPTS}
+                  compact
+                  ariaLabel="Approved filter"
+                />
+              </div>
               <button
-                key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || activeSelectionCount === 0}
+                title="Delete selected rows"
               >
-                {t.label}
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
               </button>
-            ))}
-          </div>
-
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
-
-            <div className="pq-tab-filter">
-              <span className="pq-tab-filter__label">Approved</span>
-              <SearchSelect
-                value={approvedFilter}
-                onChange={setApprovedFilter}
-                options={APPROVED_OPTS}
-                compact
-                ariaLabel="Approved filter"
-              />
-            </div>
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || activeSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`pq-tab-pane${activeTab === "items" ? " pq-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            existingRecordEdit={isEditRoute}
-            remarkModalColumns={QTN_REMARK_COLUMNS}
-          />
-        </div>
-
-        {activeTab === "terms" && (
-          <div className="pq-terms-pane">
-            <table className="pq-terms-table">
-              <thead>
-                <tr>
-                  {TERMS_COLUMNS.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={TERMS_COLUMNS.length} className="pq-terms-empty">
-                    No terms &amp; conditions added.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+            </>
+          }
+          tabContentOverride={
+            activeTab === "terms" ? (
+              <div className="pq-terms-pane">
+                <table className="pq-terms-table">
+                  <thead>
+                    <tr>
+                      {TERMS_COLUMNS.map((c) => (
+                        <th key={c}>{c}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={TERMS_COLUMNS.length} className="pq-terms-empty">
+                        No terms &amp; conditions added.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : null
+          }
+          readOnly={isEditRoute && !isEditMode}
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onRowsChange={setGridRows}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          existingRecordEdit={isEditRoute}
+          remarkModalColumns={QTN_REMARK_COLUMNS}
+        />
       </section>
 
       <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />

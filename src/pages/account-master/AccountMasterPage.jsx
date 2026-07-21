@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { BookUser, Plus, Pencil } from "lucide-react";
+import { BookUser, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useAccountMaster } from "../../hooks/useAccountMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import AccountMasterForm from "./AccountMasterForm";
 import { AM_CONFIG } from "./constants";
 import "./AccountMasterPage.css";
@@ -138,26 +139,14 @@ export default function AccountMasterPage() {
   );
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: handleEdit,
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="am-list__edit-btn"
-            title={`Edit ${row.acname ?? row.AcName ?? row.accode ?? ""}`}
-            aria-label={`Edit ${row.acname ?? row.AcName ?? row.accode ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.acname ?? row.AcName ?? row.accode ?? "",
+        getDeleteLabel: (row) => row.acname ?? row.AcName ?? row.accode ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -205,6 +194,8 @@ export default function AccountMasterPage() {
           emptyMessage="No accounts found."
           hideHeader
           searchable
+          deleteProcName={AM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

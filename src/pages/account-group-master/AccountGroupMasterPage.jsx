@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Layers, Plus, Pencil } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useAccountGroupMaster } from "../../hooks/useAccountGroupMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import AccountGroupMasterForm from "./AccountGroupMasterForm";
 import { AGM_CONFIG } from "./constants";
 import "./AccountGroupMasterPage.css";
@@ -128,26 +129,14 @@ export default function AccountGroupMasterPage() {
   }, [fetchList, handleCloseModal]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: handleEdit,
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="agm-list__edit-btn"
-            title={`Edit ${row.GrpName ?? row.acname ?? row.grpcode ?? ""}`}
-            aria-label={`Edit ${row.GrpName ?? row.acname ?? row.grpcode ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.GrpName ?? row.acname ?? row.grpcode ?? "",
+        getDeleteLabel: (row) => row.GrpName ?? row.acname ?? row.grpcode ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -195,6 +184,8 @@ export default function AccountGroupMasterPage() {
           emptyMessage="No account groups found."
           hideHeader
           searchable
+          deleteProcName={AGM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

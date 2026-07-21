@@ -1407,129 +1407,112 @@ export default function PurchaseInquiryForm() {
       </section>
 
       <section className="pi-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {PI_GRID_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={PI_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            <>
+              {activeTab === "items" && (
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+              )}
 
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
+              {activeTab === "suppliers" && (
+                <button
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectSupplier}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Truck size={12} strokeWidth={2.5} />
+                  Select Supplier
+                </button>
+              )}
 
-            {activeTab === "suppliers" && (
+              {activeTab === "terms" && (
+                <button
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectTerms}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <ClipboardList size={12} strokeWidth={2.5} />
+                  Select Terms
+                </button>
+              )}
+
+              <div className="pi-tab-filter">
+                <span className="pi-tab-filter__label">Approved</span>
+                <SearchSelect
+                  value={approvedFilter}
+                  onChange={setApprovedFilter}
+                  options={APPROVED_OPTS}
+                  compact
+                  ariaLabel="Approved filter"
+                />
+              </div>
               <button
                 type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectSupplier}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || activeSelectionCount === 0}
+                title="Delete selected rows"
               >
-                <Truck size={12} strokeWidth={2.5} />
-                Select Supplier
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
               </button>
-            )}
-
-            {activeTab === "terms" && (
-              <button
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectTerms}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <ClipboardList size={12} strokeWidth={2.5} />
-                Select Terms
-              </button>
-            )}
-
-            <div className="pi-tab-filter">
-              <span className="pi-tab-filter__label">Approved</span>
-              <SearchSelect
-                value={approvedFilter}
-                onChange={setApprovedFilter}
-                options={APPROVED_OPTS}
-                compact
-                ariaLabel="Approved filter"
+            </>
+          }
+          tabContentOverride={
+            activeTab === "suppliers" ? (
+              <EntryGrid
+                ref={supplierGridRef}
+                config={supplierGridConfig}
+                title=""
+                hideBottomPanel
+                readOnly={isEditRoute && !isEditMode}
+                emptyMessage="No suppliers added. Click Select Supplier above."
+                onSelectionChange={setSupplierSelectionCount}
               />
-            </div>
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || activeSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div
-          className={`pi-tab-pane pi-tab-pane--items${activeTab === "items" ? " pi-tab-pane--active" : ""}`}
-        >
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
-            existingRecordEdit={isEditRoute}
-            containerClassName="pi-item-entry-grid"
-            remarkModalColumns={PI_REMARK_COLUMNS}
-          />
-        </div>
-
-        <div className={`pi-tab-pane${activeTab === "suppliers" ? " pi-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={supplierGridRef}
-            config={supplierGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No suppliers added. Click Select Supplier above."
-            onSelectionChange={setSupplierSelectionCount}
-          />
-        </div>
-
-        <div className={`pi-tab-pane${activeTab === "terms" ? " pi-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={termsGridRef}
-            config={termsGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No terms & conditions added. Click Select Terms above."
-            onSelectionChange={setTermsSelectionCount}
-          />
-        </div>
+            ) : activeTab === "terms" ? (
+              <EntryGrid
+                ref={termsGridRef}
+                config={termsGridConfig}
+                title=""
+                hideBottomPanel
+                readOnly={isEditRoute && !isEditMode}
+                emptyMessage="No terms & conditions added. Click Select Terms above."
+                onSelectionChange={setTermsSelectionCount}
+              />
+            ) : null
+          }
+          readOnly={isEditRoute && !isEditMode}
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          enableCollapsible={Object.keys(childRowsMap).length > 0}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          existingRecordEdit={isEditRoute}
+          containerClassName="pi-item-entry-grid"
+          remarkModalColumns={PI_REMARK_COLUMNS}
+        />
       </section>
 
       {/* <section className="pi-page__section">

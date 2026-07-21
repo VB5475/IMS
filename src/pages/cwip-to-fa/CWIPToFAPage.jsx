@@ -4,12 +4,13 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus, Pencil } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -64,26 +65,12 @@ function buildColumnsFromData(data, navigate) {
       align:      "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
-    {
-      key:   "_actions",
-      label: "Edit",
-      width: "60px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="c2f-list__edit-btn"
-          title={`Edit C2F ${row.tranno ?? ""}`}
-          aria-label={`Edit C2F ${row.tranno ?? ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/cwip-to-fa/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
-          }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
+    createListActionsColumn({
+      navigate,
+      basePath: "/cwip-to-fa",
+      getEditLabel: (row) => row.tranno ? `C2F ${row.tranno}` : "",
+      getDeleteLabel: (row) => row.tranno ? `C2F ${row.tranno}` : "",
+    }),
   ];
 }
 
@@ -164,6 +151,8 @@ export default function CWIPToFAPage() {
           emptyMessage="No CWIP To FA records found."
           hideHeader
           searchable
+          deleteProcName={C2F_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

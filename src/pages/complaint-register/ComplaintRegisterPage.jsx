@@ -111,6 +111,7 @@ export default function ComplaintRegisterPage() {
           emptyMessage="No Complaint Register records found."
           hideHeader
           searchable
+          deleteProcName={MCR_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
         />
