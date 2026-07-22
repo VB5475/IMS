@@ -55,6 +55,7 @@ import {
   PV_GRID_TABS,
   PV_FILTER_CASCADE_RESETS,
   PV_SUMMARY_FIELDS,
+  PV_SUMMARY_ROW_FILTER,
   PV_SUMMARY_FIELD_NAMES,
   PV_MULTI_PASTE_COLUMNS,
   PV_REMARK_COLUMNS,
@@ -75,6 +76,7 @@ function mapHeaderValuesToFilterValues(headerValues) {
     trancode: headerValues.trancode ?? "",
     trandate: headerValues.trandate ?? "",
     divisionid: String(headerValues.divisionid ?? ""),
+    locationid: String(headerValues.locationid ?? ""),
     configid: String(headerValues.configid ?? ""),
     basedonid: String(headerValues.basedonid ?? "2"),
     supplierid: String(headerValues.supplierid ?? ""),
@@ -125,6 +127,7 @@ export default function PurchaseVoucherForm() {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, pvTypeOptions, supplierOptions,
     costCenterOptions,
+    locationOptions, fetchLocationOptions, clearLocations,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,
@@ -277,6 +280,14 @@ export default function PurchaseVoucherForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
+      // seedOptionsFromMaster only seeds dropdowns the master-fill row embeds
+      // a display name for (divisionname, suppliername, ...) — the master
+      // fill has no locationname, so fetch location options for the loaded
+      // division directly, same as the divisionid cascade does on change.
+      if (headerValues.divisionid) {
+        fetchLocationOptions(headerValues.divisionid);
+      }
+
       if (headerValues.currencyname || headerValues.currencyrate) {
         setCurrencyExternalValues({
           currencyname: headerValues.currencyname ?? "",
@@ -300,7 +311,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, fetchLocationOptions]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -346,8 +357,9 @@ export default function PurchaseVoucherForm() {
     configid:      pvTypeOptions,
     supplierid:    supplierOptions,
     costcenterid:  costCenterOptions,
+    locationid:    locationOptions,
     basedonid:     PV_CONFIG.BASED_ON_OPTIONS,
-  }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
+  }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions, locationOptions]);
 
   // ── syncedFilters — built straight from the live RB column ──────────
   const buildFilterDefFromApiCol = useCallback(
@@ -400,11 +412,16 @@ export default function PurchaseVoucherForm() {
     if (colName === "divisionid") {
       headerValuesRef.current.configid = 0;
       headerValuesRef.current.supplierid = 0;
+      headerValuesRef.current.locationid = 0;
       clearPvTypes();
+      clearLocations();
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
-        await fetchPVTypes(val);
-        await fetchCostCenters(val, headerValuesRef.current.trandate);
+        await Promise.all([
+          fetchPVTypes(val),
+          fetchCostCenters(val, headerValuesRef.current.trandate),
+          fetchLocationOptions(val),
+        ]);
         focusFieldAfterCascade(filterPanelRef, "configid");
       }
       return;
@@ -452,7 +469,7 @@ export default function PurchaseVoucherForm() {
       setBasedOnId(String(val));
       itemGridRef.current?.clearRows?.();
     }
-  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters]);
+  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters, fetchLocationOptions, clearLocations]);
 
   // ── Multi-value paste — Sr. No replication (Direct mode only) ─────
   const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
@@ -501,7 +518,7 @@ export default function PurchaseVoucherForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { divisionid, configid, trandate, basedonid, supplierid } = headerValues;
+    const { divisionid, configid, trandate, basedonid, supplierid, locationid } = headerValues;
     const divisionID = divisionid ?? 0;
 
     setItemModalOpen(true);
@@ -548,6 +565,7 @@ export default function PurchaseVoucherForm() {
           prmtrandate: formatPVTranDate(trandate),
           prmconfigid: Number(configid ?? 0),
           prmsupplierid: Number(supplierid ?? 0),
+          prmlocationid: Number(locationid ?? 0),
           prmtranbook: PV_CONFIG.TRAN_BOOK,
           prmfrmoption: Number(basedonid) || 0,
         }]),
@@ -826,7 +844,13 @@ export default function PurchaseVoucherForm() {
         />
       </section>
 
-      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
+      <EnterpriseSummaryPanel
+        ref={summaryRef}
+        fields={syncedSummaryFields}
+        rows={gridRows}
+        masterValues={loadedMasterRow}
+        rowFilter={PV_SUMMARY_ROW_FILTER}
+      />
 
       <ActionBar
         alignEnd

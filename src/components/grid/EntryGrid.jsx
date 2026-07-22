@@ -106,6 +106,13 @@ const EVENT_COLUMNS = new Set([
   "GSTPerc",
 ]);
 
+// Remark columns (remarkModalColumns) open the paste-friendly modal
+// automatically once the inline cell input reaches this length, instead of
+// requiring an explicit click on the note icon — long remarks are cramped
+// in a grid cell, so this hands off to the bigger editing surface as soon
+// as it's clear the user is writing something substantial.
+const REMARK_AUTO_OPEN_LENGTH = 10;
+
 // ── Component ─────────────────────────────────────────────────────────
 const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   {
@@ -115,6 +122,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     onCellEvent,
     eventColumns: eventColumnsProp = null,
     readOnly = false, // true → read-only display mode (no editing)
+    // Defaults to mirroring readOnly (view-mode grids can't select rows either)
+    // — but pickers (OrderItemModal, SupplierPickerModal, TermsPickerModal) are
+    // readOnly (cells are plain labels, not editable inputs) while still needing
+    // checkbox selection to work, so they explicitly pass disableSelection={false}.
+    disableSelection = readOnly,
     hideBottomPanel = false, // true → hide the Save/Export bottom toolbar (embedded grids)
     emptyMessage = null, // custom message shown when there are no rows
     tabs = null, // [{ id, label }] → renders a tab-bar header instead of the title
@@ -134,7 +146,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     existingRecordEdit = false, // true → lock columns flagged IsLockOnEditModeAllow
     enableKeyboardNav = true, // Excel-like Tab / Enter / arrow / Space navigation
     containerClassName = "", // extra class on root container (nested / child grids)
-    hidePagination = false, // true → hide pagination bar (embedded child grids)
+    hidePagination = true, // false → opt back into a paged bar + row slicing (default: show every row, no pages)
     embedded = false, // true → nested in scroll host; parent owns overflow
     multiValuePasteColumns = null, // Set<string> | string[] — column keys that intercept multi-value paste
     onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
@@ -162,6 +174,19 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [remarkModalColumns]);
 
   const [remarkEditor, setRemarkEditor] = useState(null); // { rowId, colKey, colName, value, readOnly }
+  const remarkTextareaRef = useRef(null);
+
+  // When the modal opens (manually or auto-opened at REMARK_AUTO_OPEN_LENGTH),
+  // move the cursor to the end of any pre-filled text so continued typing
+  // picks up where the inline cell input left off, instead of inserting at
+  // the start (the default caret position autoFocus gives a filled textarea).
+  useEffect(() => {
+    if (!remarkEditor) return;
+    const el = remarkTextareaRef.current;
+    if (!el) return;
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
+  }, [remarkEditor?.rowId, remarkEditor?.colKey]);
 
   const { columns, pagination } = config;
   const { pageSize: defaultPageSize = 25, pageSizeOptions = [10, 25, 50, 100] } = pagination || {};
@@ -418,7 +443,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const totalPages = Math.max(1, Math.ceil(processedRows.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIdx = (safePage - 1) * pageSize;
-  const displayRows = processedRows.slice(startIdx, startIdx + pageSize);
+  // hidePagination doesn't just hide the bar — it must also stop slicing,
+  // or rows beyond page 1 would become unreachable with no control to page to them.
+  const displayRows = hidePagination ? processedRows : processedRows.slice(startIdx, startIdx + pageSize);
   const isEmpty = displayRows.length === 0;
   const emptyStateContent =
     emptyMessage ??
@@ -615,30 +642,53 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     const columnMeta = resolveColumnMeta(col);
     const displayValue = formatColumnDisplayValue(value, col);
 
-    // ── Remark columns: truncated preview + icon that opens the paste-friendly modal ──
+    // ── Remark columns: inline input (auto-opens the paste-friendly modal
+    // at REMARK_AUTO_OPEN_LENGTH chars) + icon that opens it manually ──
     if (remarkModalSet?.has(col.key)) {
       const remarkText = value == null ? "" : String(value);
+      const isEditorOpenForThisCell =
+        remarkEditor?.rowId === row.id && remarkEditor?.colKey === col.key;
+      const openRemarkEditor = (currentValue) =>
+        setRemarkEditor({
+          rowId: row.id,
+          colKey: col.key,
+          colName: col.name,
+          value: currentValue,
+          readOnly: cellReadOnly,
+          contextLabel: getRemarkContextLabel(row),
+          contextColLabel: remarkContextCol?.name ?? null,
+          maxLen: columnMeta?.dataKind === "varchar" ? columnMeta?.maxLen : null,
+        });
       return (
         <div className="cell-remark">
-          <span className="cell-remark__text" title={remarkText}>
-            {remarkText || "—"}
-          </span>
+          {cellReadOnly ? (
+            <span className="cell-remark__text" title={remarkText}>
+              {remarkText || "—"}
+            </span>
+          ) : (
+            <input
+              type="text"
+              className="cell-input cell-remark__input"
+              value={remarkText}
+              disabled={isEditorOpenForThisCell}
+              placeholder="Type a remark…"
+              aria-label={`${col.name} for row ${row.id}`}
+              onChange={(e) => {
+                const next = e.target.value;
+                handleCellChange(row.id, col.key, next);
+                // Hand off to the bigger modal once the remark gets long —
+                // a grid cell is too cramped for anything past a short tag.
+                if (next.length >= REMARK_AUTO_OPEN_LENGTH && !isEditorOpenForThisCell) {
+                  openRemarkEditor(next);
+                }
+              }}
+            />
+          )}
           <button
             type="button"
             className="cell-remark__icon"
             aria-label={`${cellReadOnly ? "View" : "Edit"} ${col.name} for row ${row.id}`}
-            onClick={() =>
-              setRemarkEditor({
-                rowId: row.id,
-                colKey: col.key,
-                colName: col.name,
-                value: remarkText,
-                readOnly: cellReadOnly,
-                contextLabel: getRemarkContextLabel(row),
-                contextColLabel: remarkContextCol?.name ?? null,
-                maxLen: columnMeta?.dataKind === "varchar" ? columnMeta?.maxLen : null,
-              })
-            }
+            onClick={() => openRemarkEditor(remarkText)}
           >
             <StickyNote size={14} strokeWidth={2} />
           </button>
@@ -965,8 +1015,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                           <input
                             type="checkbox"
                             className="row-checkbox"
-                            title="Select / deselect all visible rows"
+                            title={disableSelection ? "Enter Add/Edit mode to select rows" : "Select / deselect all visible rows"}
                             aria-label="Select all rows"
+                            disabled={disableSelection}
                             checked={
                               displayRows.length > 0 &&
                               displayRows.every((r) => selectedIds.has(String(r.id)))
@@ -1023,7 +1074,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                               style={cellStyle(col, "body")}
                               onMouseDown={(e) => focusCellControl(e, col)}
                               onClick={() => {
-                                if (col.key === "cb") handleSelectRow(row.id);
+                                if (col.key === "cb" && !disableSelection) handleSelectRow(row.id);
                               }}
                             >
                               <div className="cell-wrapper">
@@ -1054,6 +1105,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                                     <input
                                       type="checkbox"
                                       className="row-checkbox"
+                                      disabled={disableSelection}
+                                      title={disableSelection ? "Enter Add/Edit mode to select rows" : undefined}
                                       checked={selectedIds.has(rowId)}
                                       onChange={() => handleSelectRow(row.id)}
                                       onClick={(e) => e.stopPropagation()}
@@ -1217,6 +1270,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           }
         >
           <textarea
+            ref={remarkTextareaRef}
             className="cell-remark-modal__textarea"
             value={remarkEditor.value}
             readOnly={remarkEditor.readOnly}

@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -22,6 +22,7 @@ export default function GridDatePicker({
   const selected = parseFlexibleDate(value);
   const min = minDate ? parseFlexibleDate(minDate) : undefined;
   const max = maxDate ? parseFlexibleDate(maxDate) : undefined;
+  const datePickerRef = useRef(null);
 
   const handleChange = useCallback(
     (date) => {
@@ -32,6 +33,15 @@ export default function GridDatePicker({
 
   const handleKeyDown = useCallback(
     (e) => {
+      // The grid's own keyboard handler defers Space to the focused input
+      // (see handleGridKeyboardEvent) since normal text cells type a literal
+      // space — but this input is a date field with no such use for Space,
+      // so open the calendar here instead of leaving Space as a no-op.
+      if (e.key === " ") {
+        e.preventDefault();
+        datePickerRef.current?.setOpen(true);
+        return;
+      }
       handleDateArrowKeys(e, value, onChange);
     },
     [value, onChange]
@@ -40,6 +50,7 @@ export default function GridDatePicker({
   return (
     <div className="eg-datepicker-wrapper">
       <DatePicker
+        ref={datePickerRef}
         selected={selected}
         onChange={handleChange}
         onKeyDown={handleKeyDown}

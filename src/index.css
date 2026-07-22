@@ -1,6 +1,7 @@
 @import "./theme/enterprise.css";
 @import "./theme/workspace-base.css";
 @import "./theme/enterprise-components.css";
+@import "./theme/master-form-responsive.css";
 
 *,
 *::before,

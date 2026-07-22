@@ -7,8 +7,21 @@
 // { [mstKey]: number } for the save master payload.
 //
 // Props:
-//   fields  — synced [{ detKey, mstKey, label, SummaryParameterID? }]
-//   rows    — current detail rows (pass from onRowsChange)
+//   fields       — synced [{ detKey, mstKey, label, SummaryParameterID?, fromMaster? }]
+//   rows         — current detail rows (pass from onRowsChange)
+//   masterValues — loaded master row on edit (e.g. loadedMasterRow) — only
+//                  consulted for fields marked `fromMaster: true`, for values
+//                  with no per-line equivalent on the detail grid at all
+//                  (e.g. PV's TDS section, computed once per voucher from
+//                  the supplier's TDS settings, not per item — summing rows
+//                  for these always produced 0, even on edit of a saved
+//                  record with real persisted amounts).
+//   rowFilter    — optional (row) => boolean; excludes rows the backend
+//                  itself excludes from its stored totals (e.g. PV rows
+//                  with puttouse=0 — confirmed live against a saved record
+//                  where such a row's tax figures were absent from the
+//                  master's mstcgst/mstsgst/etc). Omit to sum every row,
+//                  unchanged default behaviour for callers that don't need it.
 //
 // Ref API:
 //   getSummary()  → { [mstKey]: number, ... }
@@ -29,20 +42,26 @@ function fmt(val) {
 }
 
 const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
-  { fields = [], rows = [] },
+  { fields = [], rows = [], masterValues = null, rowFilter = null },
   ref
 ) {
   const summary = useMemo(() => {
     const totals = {};
-    fields.forEach(({ detKey, mstKey }) => {
+    const summableRows = rowFilter ? rows.filter(rowFilter) : rows;
+    fields.forEach(({ detKey, mstKey, fromMaster }) => {
       const k = mstKey || detKey;
-      totals[k] = rows.reduce((acc, row) => {
+      if (fromMaster) {
+        const v = Number(masterValues?.[k]);
+        totals[k] = isNaN(v) ? 0 : v;
+        return;
+      }
+      totals[k] = summableRows.reduce((acc, row) => {
         const v = Number(row[detKey]);
         return acc + (isNaN(v) ? 0 : v);
       }, 0);
     });
     return totals;
-  }, [fields, rows]);
+  }, [fields, rows, masterValues, rowFilter]);
 
   useImperativeHandle(
     ref,

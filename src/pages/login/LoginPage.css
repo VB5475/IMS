@@ -4,9 +4,10 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
   isolation: isolate;
   background: #e8eef4;
 }
@@ -546,8 +547,11 @@
   color: var(--text-muted);
 }
 
-/* ── Desktop split layout ── */
-@media (min-width: 1024px) {
+/* ── Desktop split layout ──
+   Gated on landscape orientation, not just width — a portrait-oriented
+   tablet or laptop can be ≥1024px wide but should still get the clean,
+   form-only view (same as mobile), not the cramped side-by-side split. */
+@media (min-width: 1024px) and (orientation: landscape) {
   .login-page {
     flex-direction: row;
   }
@@ -570,7 +574,7 @@
   }
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1440px) and (orientation: landscape) {
   .login-hero {
     flex-basis: clamp(480px, 44%, 760px);
     padding-inline: clamp(48px, 4.5vw, 80px);
@@ -581,7 +585,7 @@
   }
 }
 
-@media (min-width: 1920px) {
+@media (min-width: 1920px) and (orientation: landscape) {
   .login-hero {
     flex-basis: 42%;
     max-width: 820px;

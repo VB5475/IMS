@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Package, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -11,6 +12,12 @@ import SubGroupMasterForm from "./SubGroupMasterForm";
 import { SGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+
+// Sub Group Master's report takes no parameters — unlike Main Group / Sub
+// Main Group, which scope by Company (buildCompanyReportParam).
+function buildSubGroupReportParams() {
+  return [];
+}
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function todayFormatted() {
@@ -142,6 +149,11 @@ export default function SubGroupMasterPage() {
             <button type="button" className="sgm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Sub Group Master Report"
+              reportFileName="RptSubGroupMaster_PG.rpt"
+              buildParams={buildSubGroupReportParams}
+            />
             <label htmlFor="sgm-list-page-size" className="sgm-list-panel__pagesize-label">
               Rows per page
             </label>

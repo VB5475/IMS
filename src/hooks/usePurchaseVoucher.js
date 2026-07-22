@@ -105,8 +105,10 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [costCenterOptions, setCostCenterOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
 
   const [isLoadingPvTypes, setIsLoadingPvTypes] = useState(false);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   // ── Detail grid state ───────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
@@ -170,6 +172,40 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       return null;
     }
   }, [get]);
+
+  // ── fetchLocationOptions — cascade from Division ───────────────────
+  // Division-wise Location — same SP + cascade contract as GRN/Purchase Indent's fetchLocations.
+  const fetchLocationOptions = useCallback(async (divisionId) => {
+    if (!divisionId || divisionId === "0") { setLocationOptions([]); return []; }
+    setIsLoadingLocations(true);
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SP_LOCATION,
+        JSon: JSON.stringify([{
+          prmcompanyid: getUserSession().companyId,
+          prmdivisionid: Number(divisionId),
+          prmlocationtypeid: 0,
+          prmloginid: getUserSession().loginId,
+        }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.locationid ?? r.locid),
+        label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid),
+      }));
+      setLocationOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Location fetch failed:", err);
+      setLocationOptions([]);
+      return [];
+    } finally {
+      setIsLoadingLocations(false);
+    }
+  }, [get]);
+
+  const clearLocations = useCallback(() => setLocationOptions([]), []);
 
   // ── fetchCostCenters ────────────────────────────────────────────────
   const fetchCostCenters = useCallback(async (divisionId, tranDate) => {
@@ -452,6 +488,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, pvTypeOptions, supplierOptions, currencyOptions,
     costCenterOptions,
+    locationOptions, isLoadingLocations,
+    fetchLocationOptions, clearLocations,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,

@@ -43,6 +43,9 @@ export const PV_CONFIG = {
   SP_COST_CENTER: "fn_tbl_fas_fetchcostcenterac",
   SP_DEPT: "pr_fetch_departmentdata_ims",
 
+  // Division-wise Location — same SP + cascade contract as GRN/Purchase Indent's fetchLocations.
+  SP_LOCATION: "fn_tbl_fetch_divwslocation",
+
   // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_rb_purpvdet_event",
 
@@ -76,28 +79,47 @@ export const PV_CONFIG = {
 export const PV_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 export const PV_FILTER_CASCADE_RESETS = {
-  divisionid: ["configid", "supplierid"],
+  divisionid: ["configid", "supplierid", "locationid"],
 };
 
 export const PV_SUMMARY_FIELDS = [
-  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows ──
+  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows, excluding
+  // rows where puttouse = 0 (see PV_SUMMARY_ROW_FILTER below — verified
+  // against a live fn_tbl_rb_purpvdet response where a puttouse=0 row's
+  // tax figures were excluded from the master's stored totals) ──
   { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
   { SummaryParameterID: "mstexpense", detKey: "expense" },
   { SummaryParameterID: "msttaxablevalue", detKey: "taxablevalue" },
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
-  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
-  // ── TDS section (ColSeqNo 17-22, 31) — detKey confirmed pending backend ──
-  { SummaryParameterID: "nopid", detKey: "nopid" },
-  { SummaryParameterID: "tdsapplicableamount", detKey: "tdsapplicableamount" },
-  { SummaryParameterID: "tdstypeid", detKey: "tdstypeid" },
-  { SummaryParameterID: "tdspercentage", detKey: "tdspercentage" },
-  { SummaryParameterID: "tdsamount", detKey: "tdsamount" },
-  { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount" },
-  { SummaryParameterID: "netpayable", detKey: "netpayable" },
+  // roundoff/netbaseamount have NO per-line equivalent at all on the detail
+  // grid (fn_tbl_rb_purpvdet has no roundoff/netbaseamount column) — same
+  // "can't be summed, must read from master" case as the TDS section below.
+  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true },
+  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount", fromMaster: true },
+  // ── TDS section (ColSeqNo 17-22, 31) — header/master-level values, no
+  // per-line equivalent exists on the detail grid at all (TDS is computed
+  // once per voucher from the supplier's TDS settings, not per item). Read
+  // directly from the loaded master row on edit instead of summing grid
+  // rows — summing always produced 0 here since no detail row ever carries
+  // these columns. See EnterpriseSummaryPanel's `fromMaster` handling.
+  { SummaryParameterID: "nopid", detKey: "nopid", fromMaster: true },
+  { SummaryParameterID: "tdsapplicableamount", detKey: "tdsapplicableamount", fromMaster: true },
+  { SummaryParameterID: "tdstypeid", detKey: "tdstypeid", fromMaster: true },
+  { SummaryParameterID: "tdspercentage", detKey: "tdspercentage", fromMaster: true },
+  { SummaryParameterID: "tdsamount", detKey: "tdsamount", fromMaster: true },
+  { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount", fromMaster: true },
+  { SummaryParameterID: "netpayable", detKey: "netpayable", fromMaster: true },
 ];
+
+// Excludes rows the backend itself excludes from the master's stored totals
+// (confirmed live: a detail row with puttouse=0 carried real tax figures
+// that were NOT reflected in mstbaseamount/msttaxablevalue/mstcgst/mstsgst
+// on the saved master). Passed as EnterpriseSummaryPanel's `rowFilter`.
+export function PV_SUMMARY_ROW_FILTER(row) {
+  return Number(row.puttouse) !== 0;
+}
 
 // RB marks these visible as header columns, but they're computed from grid
 // rows and rendered via EnterpriseSummaryPanel (see syncedSummaryFields), not

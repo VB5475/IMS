@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node _check-responsive.cjs)",
+      "Bash(node _check-efq.cjs)",
+      "Bash(curl -s 'http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetMasterDataFill?prmProcedure=fn_tbl_rb_purpvdet&prmParameters=1%2C1%2C1%2C88%2C20&prmFuncCode=rb_purpvdet' -H 'Accept: application/json' --insecure)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s 'http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/FN_Fetch_Data?ObjType=1&ObjName=fn_fetch_rbdetailbyrbcode&JSon=%5B%7B%22prmrbcode%22%3A%22rb_purpvmst%22%7D%5D&p_ErrCode=-1&p_ErrMsg=' -H 'Accept: application/json' --insecure)",
+      "Bash(curl -s 'http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/FN_Fetch_Data?ObjType=2&ObjName=fn_fetch_rbdetailbyrbcode&JSon=%5B%7B%22prmrbcode%22%3A%22rb_purpvmst%22%7D%5D&p_ErrCode=-1&p_ErrMsg=' -H 'Accept: application/json' --insecure)",
+      "Bash(curl -s 'http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10051&prmLoginID=1' -H 'Accept: application/json' --insecure)",
+      "Bash(curl -s 'http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/FN_Fetch_Data?ObjType=2&ObjName=fn_tbl_fetch_divwslocation&JSon=%5B%7B%22prmcompanyid%22%3A1%2C%22prmdivisionid%22%3A1%2C%22prmlocationtypeid%22%3A0%2C%22prmloginid%22%3A1%7D%5D&p_ErrCode=-1&p_ErrMsg=' -H 'Accept: application/json' --insecure)",
+      "Bash(node ./_check-remark-run.cjs)",
+      "Bash(powershell -Command \"Stop-Process -Id 18448 -Force\")",
+      "Bash(node _check-kbnav-run.cjs)",
+      "Bash(powershell -Command \"Stop-Process -Id 16116 -Force\")",
+      "Bash(node _check-login-orientation.cjs)",
+      "Bash(powershell -Command \"Stop-Process -Id 13576 -Force\")"
+    ]
+  }
+}

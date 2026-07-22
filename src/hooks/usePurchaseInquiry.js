@@ -27,6 +27,7 @@ import { parseApiErrMsg } from "../utils/apiResponse";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 import { PI_CONFIG } from "../pages/purchase-inquiry/constants";
+import { BASED_ON } from "../constants/purchaseCommon";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -613,12 +614,20 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       const supplierDetails = mapDetailRowsToGridRows(suppRes || []);
       const termsDetails = mapDetailRowsToGridRows(termsRes || []);
 
+      // Direct-based PIs have no indent linkage at all. The indent-detail
+      // fetch above joins purely by ItemID (see mapIndentRowsToChildRowsMap),
+      // not by any actual indent reference on this record — so it can
+      // spuriously match an unrelated indent that happens to contain the
+      // same item, even for a Direct PI. Gate on basedonid explicitly
+      // rather than trusting an empty join result.
+      const isDirectBase = String(master?.basedonid ?? "") === BASED_ON.DIRECT.value;
+
       return {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
-        childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
+        childRowsMap: isDirectBase ? {} : mapIndentRowsToChildRowsMap(details, indentDetails),
         supplierDetails,
         termsDetails,
       };

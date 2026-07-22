@@ -11,6 +11,7 @@ import {
   OBJ_TYPE,
 } from "../api/constants";
 import { GRN_CONFIG } from "../pages/goods-received-note/constants";
+import { BASED_ON } from "../constants/purchaseCommon";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -575,12 +576,20 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       const details = mapDetailRowsToGridRows(detRes || []);
       const indentDetails = indtRes || [];
 
+      // Direct-based GRNs have no indent linkage at all. The indent-detail
+      // fetch above joins purely by ItemID (see mapIndentRowsToChildRowsMap),
+      // not by any actual indent reference on this record — so it can
+      // spuriously match an unrelated indent that happens to contain the
+      // same item, even for a Direct GRN. Gate on basedonid explicitly
+      // rather than trusting an empty join result.
+      const isDirectBase = String(master?.basedonid ?? "") === BASED_ON.DIRECT.value;
+
       return {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
-        childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
+        childRowsMap: isDirectBase ? {} : mapIndentRowsToChildRowsMap(details, indentDetails),
       };
     },
     [get]

@@ -187,6 +187,7 @@ export default function OrderItemModal({
                 config={gridConfig}
                 title=""
                 readOnly
+                disableSelection={false}
                 initialRows={normalizedItems}
                 hideBottomPanel
                 emptyMessage="No items found for the selected criteria."

@@ -48,8 +48,14 @@ export { CURRENCY_READONLY_FIELDS as GRN_READONLY_FIELDS };
 
 
 
-/** Item-grid column that supports multi-value paste (Serial Number replication). */
-export const GRN_MULTI_PASTE_COLUMNS = new Set(["batchnosrno"]);
+/**
+ * Columns that support multi-value paste (Serial Number replication).
+ * Both keys are listed because the live column name differs by backend project —
+ * "batchsrno" on IMS_LIVE, "batchnosrno" on IMS_PGLIVE (verified against GetDetailColData,
+ * same as PV's PV_MULTI_PASTE_COLUMNS). GRN only listed "batchnosrno", so paste-driven
+ * row replication silently did nothing on IMS_LIVE, where the column is "batchsrno".
+ */
+export const GRN_MULTI_PASTE_COLUMNS = new Set(["batchsrno", "batchnosrno"]);
 
 /** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
 export const GRN_REMARK_COLUMNS = new Set(["remarks"]);

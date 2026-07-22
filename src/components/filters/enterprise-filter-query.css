@@ -742,3 +742,31 @@
     justify-content: flex-end;
   }
 }
+
+/* At true phone widths, the 900px breakpoint above (table→block rows) isn't
+ * enough on its own — each field's .efq-cell still lays out label (38%,
+ * max 140px) beside the control, which gets cramped and can ellipsis-
+ * truncate the caption. Reuse the same treatment .efq-cell--stacked
+ * already applies (used today for textarea fields) unconditionally below
+ * this width, instead of inventing a new pattern. */
+@media (max-width: 600px) {
+  .efq-cell {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 4px 8px;
+    gap: 4px;
+    min-height: auto;
+  }
+
+  .efq-cell__label {
+    flex: unset;
+    width: auto;
+    max-width: none;
+    border-right: none;
+    padding: 0;
+    background: transparent;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}

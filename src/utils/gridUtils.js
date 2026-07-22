@@ -564,10 +564,20 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
         ctrlValueCol: col.ctrlvaluecol || col.colname,
         ctrlDisplayCol: col.ctrldisplaycol || null,
         dropdownOptions: colDropdownOptions[col.colname] || [],
+        colSeqNo: Number(col.colseqno) || 0,
       };
     });
 
-  dataColumns.sort((a, b) => (a.isFixed === b.isFixed ? 0 : a.isFixed ? -1 : 1));
+  // Tab/Enter navigation walks columns in this array's order — it must
+  // follow the RB's own colseqno, not whatever order the API happened to
+  // return, or focus order silently drifts from the sequence configured in
+  // the RB. isFixed columns still float to the front (frozen-column UX),
+  // but colseqno is now the tiebreak within each group instead of being
+  // ignored entirely.
+  dataColumns.sort((a, b) => {
+    if (a.isFixed !== b.isFixed) return a.isFixed ? -1 : 1;
+    return a.colSeqNo - b.colSeqNo;
+  });
 
   return [
     {

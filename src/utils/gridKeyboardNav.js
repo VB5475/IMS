@@ -120,7 +120,11 @@ function scanForTarget(matrix, startRow, startCol, dRow, dCol) {
       row -= 1;
     }
 
-    if (row < 0 || row >= rowCount) return null;
+    // Wrap top/bottom instead of escaping the grid — Tab/Enter/arrows must
+    // stay inside this grid until focus is moved by mouse (a click outside
+    // never goes through this handler at all, so that stays unaffected).
+    if (row >= rowCount) row = 0;
+    else if (row < 0) row = rowCount - 1;
 
     const target = matrix[row][col];
     if (target) return target;

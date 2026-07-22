@@ -223,6 +223,7 @@ export default function SupplierPickerModal({
               config={gridConfig}
               title=""
               readOnly
+              disableSelection={false}
               initialRows={items}
               onSelectionChange={setSelectedCount}
             />
