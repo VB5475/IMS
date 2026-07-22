@@ -42,8 +42,6 @@ import {
   isTruthyApiFlag,
   syncEditGridDropdownValues,
   syncHeaderFilterWithApiCol,
-  buildHeaderColMap,
-  resolveHeaderApiCol,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -56,9 +54,8 @@ import {
   GRN_CONFIG,
   GRN_MULTI_PASTE_COLUMNS,
   GRN_REMARK_COLUMNS,
-  GRN_HEADER_FILTERS,
-  GRN_TRANSPORTER_FILTERS,
-  GRN_DRIVER_FILTERS,
+  GRN_TRANSPORTER_FIELD_NAMES,
+  GRN_DRIVER_FIELD_NAMES,
   GRN_GRID_TABS,
   APPROVED_OPTS,
   GRN_FILTER_CASCADE_RESETS,
@@ -82,6 +79,7 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     trancode: headerValues.trancode ?? "",
     trandate: headerValues.trandate ?? "",
     divisionid: String(headerValues.divisionid ?? ""),
+    locationid: String(headerValues.locationid ?? ""),
     configid: String(headerValues.configid ?? ""),
     supplierid: String(headerValues.supplierid ?? ""),
     // Edit-mode master fill (fn_tbl_rb_purgrnmst) returns the display name under
@@ -172,6 +170,7 @@ export default function GoodsReceivedNoteForm() {
     headerFetching,
     headerError,
     fetchHeaderMeta,
+    fetchDivisionOptions,
     divisionOptions,
     grnTypeOptions,
     supplierOptions,
@@ -427,7 +426,13 @@ export default function GoodsReceivedNoteForm() {
 
       const divisionId = headerValues.divisionid ?? 0;
       if (divisionId) {
+        // fetchDivisionOptions is unconditional here (and not gated behind
+        // isEditMode via fetchUnlockedHeaderDropdowns) — the Division
+        // SearchSelect needs a matching option to resolve/display its label
+        // even in read-only view, same reason location/supplier/transporter
+        // are already fetched eagerly on edit-record load.
         await Promise.all([
+          fetchDivisionOptions(),
           fetchGrnTypes(divisionId),
           fetchSupplierOptions(divisionId),
           fetchTransporterOptions(divisionId),
@@ -462,6 +467,7 @@ export default function GoodsReceivedNoteForm() {
     listRecord,
     fetchEditRecord,
     fetchGridColumns,
+    fetchDivisionOptions,
     fetchGrnTypes,
     fetchSupplierOptions,
     fetchTransporterOptions,
@@ -531,54 +537,55 @@ export default function GoodsReceivedNoteForm() {
     locationid:    locationOptions,
   }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions, locationOptions]);
 
-  const buildFilterDef = useCallback(
-    (filter, apiColMap) => {
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
-      const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
-
-      let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
-
-      if (apiCol) {
-        def.FilterColCtrlType = apiCol.colctrltype;
-      }
-
-      const staticOptions = DROPDOWN_OPTIONS_BY_COL[filter.FilterParameterID];
-      if (staticOptions) def.staticOptions = staticOptions;
-
-      return def;
+  // Filter definitions are built straight from the live RB column (caption,
+  // control type, lock state, validation constraints) — no hand-maintained
+  // field list to fall out of sync with the RB. Mirrors Purchase Indent's
+  // syncedFilters. Only `staticOptions` (division/supplier/etc. dropdown data
+  // we fetch ourselves) is layered on top, keyed by colname.
+  const buildFilterDefFromApiCol = useCallback(
+    (col) => {
+      const lockOnEditMode = isLockOnEditModeCol(col);
+      const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
+      const base = {
+        FilterParameterID: col.colname,
+        FilterColName: col.colname,
+        FilterCaption: col.displayname ?? col.colname,
+        FilterColCtrlType: col.colctrltype ?? 0,
+        ...(staticOptions ? { staticOptions } : {}),
+      };
+      return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
     },
     [DROPDOWN_OPTIONS_BY_COL]
   );
 
+  // Visible RB columns, RB-ordered, partitioned by which of GRN's three tabs
+  // they belong to. Tab membership is the one thing the RB can't tell us —
+  // see GRN_TRANSPORTER_FIELD_NAMES/GRN_DRIVER_FIELD_NAMES in constants.js.
+  const visibleHeaderColumns = useMemo(() => {
+    return headerColumns
+      .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno));
+  }, [headerColumns]);
+
   const syncedHeaderFilters = useMemo(() => {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_HEADER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+    return visibleHeaderColumns
+      .filter(
+        (col) => !GRN_TRANSPORTER_FIELD_NAMES.has(col.colname) && !GRN_DRIVER_FIELD_NAMES.has(col.colname)
       )
-      .map((filter) => buildFilterDef(filter, apiColMap));
-  }, [headerColumns, buildFilterDef]);
+      .map(buildFilterDefFromApiCol);
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const syncedTransporterFilters = useMemo(() => {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_TRANSPORTER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
-      )
-      .map((filter) => buildFilterDef(filter, apiColMap));
-  }, [headerColumns, buildFilterDef]);
+    return visibleHeaderColumns
+      .filter((col) => GRN_TRANSPORTER_FIELD_NAMES.has(col.colname))
+      .map(buildFilterDefFromApiCol);
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const syncedDriverFilters = useMemo(() => {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_DRIVER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
-      )
-      .map((filter) => buildFilterDef(filter, apiColMap));
-  }, [headerColumns, buildFilterDef]);
+    return visibleHeaderColumns
+      .filter((col) => GRN_DRIVER_FIELD_NAMES.has(col.colname))
+      .map(buildFilterDefFromApiCol);
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const buildFieldTones = useCallback(
     (filters) => {
@@ -861,13 +868,10 @@ export default function GoodsReceivedNoteForm() {
     async ({ skipPostSave = false } = {}) => {
       const hv = headerValuesRef.current;
 
-      const headerFieldNames = new Set([
-        ...GRN_HEADER_FILTERS,
-        ...GRN_TRANSPORTER_FILTERS,
-        ...GRN_DRIVER_FILTERS,
-      ].map((f) => f.FilterParameterID));
-      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+      // Validate every RB-visible header field, not a hand-maintained subset —
+      // a field missing from a static list (like locationid was) must never be
+      // silently skipped at save time just because nobody remembered to list it.
+      const headerErrors = validateApiColumns(hv, visibleHeaderColumns, {
         zeroValidFields: new Set(["basedonid"]),
       });
 
@@ -930,6 +934,7 @@ export default function GoodsReceivedNoteForm() {
     },
     [
       headerColumns,
+      visibleHeaderColumns,
       allColumns,
       allIndentColumns,
       childRowsMap,

@@ -40,7 +40,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -52,10 +52,10 @@ import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PV_CONFIG,
-  PV_HEADER_FILTERS,
   PV_GRID_TABS,
   PV_FILTER_CASCADE_RESETS,
   PV_SUMMARY_FIELDS,
+  PV_SUMMARY_FIELD_NAMES,
   PV_MULTI_PASTE_COLUMNS,
   PV_REMARK_COLUMNS,
   PAGE_TITLE,
@@ -328,35 +328,48 @@ export default function PurchaseVoucherForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── syncedFilters — inject dynamic options ─────────────────────────
-  const syncedFilters = useMemo(() => {
-    const injectOptions = (filter) => {
-      switch (filter.FilterParameterID) {
-        case "divisionid": return { ...filter, staticOptions: divisionOptions };
-        case "configid": return { ...filter, staticOptions: pvTypeOptions };
-        case "supplierid": return { ...filter, staticOptions: supplierOptions };
-        case "costcenterid": return { ...filter, staticOptions: costCenterOptions };
-        default: return filter;
-      }
-    };
+  // Visible RB header columns, RB-ordered. Source of truth for which fields
+  // exist as filters — no hand-maintained field list to fall out of sync
+  // with the RB (see PV_HEADER_FILTERS removal in constants.js / GRN fix).
+  // Summary-panel fields (mstbaseamount, tdsamount, ...) are excluded — RB
+  // marks them visible, but they're rendered in EnterpriseSummaryPanel and
+  // computed from grid rows, not real header inputs.
+  const visibleHeaderColumns = useMemo(() => {
+    return headerColumns
+      .filter((col) => isTruthyApiFlag(col.isvisible) && !PV_SUMMARY_FIELD_NAMES.has(col.colname))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno));
+  }, [headerColumns]);
 
-    if (headerColumns.length === 0) return [];
+  // Dropdown options we fetch ourselves, keyed by live RB colname.
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
+    divisionid:    divisionOptions,
+    configid:      pvTypeOptions,
+    supplierid:    supplierOptions,
+    costcenterid:  costCenterOptions,
+    basedonid:     PV_CONFIG.BASED_ON_OPTIONS,
+  }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
 
-    const apiColMap = buildHeaderColMap(headerColumns);
+  // ── syncedFilters — built straight from the live RB column ──────────
+  const buildFilterDefFromApiCol = useCallback(
+    (col) => {
+      const lockOnEditMode = isLockOnEditModeCol(col);
+      const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
+      const base = {
+        FilterParameterID: col.colname,
+        FilterColName: col.colname,
+        FilterCaption: col.displayname ?? col.colname,
+        FilterColCtrlType: col.colctrltype ?? 0,
+        ...(staticOptions ? { staticOptions } : {}),
+      };
+      return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
+    },
+    [DROPDOWN_OPTIONS_BY_COL]
+  );
 
-    return PV_HEADER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
-      )
-      .map((filter) => {
-        const withOpts = injectOptions(filter);
-        const apiCol = resolveHeaderApiCol(filter, apiColMap);
-        const lockOnEditMode = isLockOnEditModeCol(apiCol);
-        const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-        def.FilterColCtrlType = apiCol.colctrltype;
-        return def;
-      });
-  }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
+  const syncedFilters = useMemo(
+    () => visibleHeaderColumns.map(buildFilterDefFromApiCol),
+    [visibleHeaderColumns, buildFilterDefFromApiCol]
+  );
 
   const syncedSummaryFields = useMemo(() => {
     const colMap = {};
@@ -622,9 +635,10 @@ export default function PurchaseVoucherForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
-    const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
-    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible) && headerFieldNames.has(c.colname));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate, {
+    // Validate every RB-visible header field, not a hand-maintained subset —
+    // a field missing from a static list must never be silently skipped at
+    // save time just because nobody remembered to list it (see GRN fix).
+    const headerErrors = validateApiColumns(headerValuesRef.current, visibleHeaderColumns, {
       zeroValidFields: new Set(["basedonid"]),
     });
 
@@ -670,7 +684,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setIsSavingPV(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, visibleHeaderColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });

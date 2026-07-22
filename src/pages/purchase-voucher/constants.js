@@ -6,7 +6,6 @@ export const PAGE_TITLE_NEW = "New Purchase Voucher";
 // All RB codes, SP names, IDs, and request defaults for the PV module.
 // Values aligned to MRD_Template4PV.docx (Richa, 10-Jun-2026).
 
-import { controlTypeMap } from "../../data/dummyData";
 import { BASED_ON, PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
@@ -68,103 +67,11 @@ export const PV_CONFIG = {
   ],
 };
 
-// ── Header filter definitions ─────────────────────────────────────────────────
-// Field order per MRD Section 3:
-//   TranCode → TranDate → DivisionID → ConfigID → BasedOnID →
-//   SupplierID → CurrencyID → CurrencyRate →
-//   BillNo → BillDate → CostCenterID →
-//   CreditStartDate → Narration → Remarks
-export const PV_HEADER_FILTERS = [
-  {
-    FilterParameterID: "trancode",
-    FilterColName: "trancode",
-    FilterCaption: "PR No.",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "trandate",
-    FilterColName: "trandate",
-    FilterCaption: "Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "divisionid",
-    FilterColName: "divisionid",
-    FilterCaption: "Division",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "configid",
-    FilterColName: "configid",
-    FilterCaption: "PR Type",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "basedonid",
-    FilterColName: "basedonid",
-    FilterCaption: "Based On",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: PV_CONFIG.BASED_ON_OPTIONS,
-  },
-  {
-    FilterParameterID: "supplierid",
-    FilterColName: "supplierid",
-    FilterCaption: "Supplier",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "currencyname",
-    FilterColName: "currencyname",
-    FilterCaption: "Currency",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "currencyrate",
-    FilterColName: "currencyrate",
-    FilterCaption: "Currency Rate",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "billno",
-    FilterColName: "billno",
-    FilterCaption: "Bill No.",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "billdate",
-    FilterColName: "billdate",
-    FilterCaption: "Bill Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "costcenterid",
-    FilterColName: "costcenterid",
-    FilterCaption: "Cost Center",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "creditstartdate",
-    FilterColName: "creditstartdate",
-    FilterCaption: "Cr. Start Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "narration",
-    FilterColName: "narration",
-    FilterCaption: "Narration",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-  {
-    FilterParameterID: "remarks",
-    FilterColName: "remarks",
-    FilterCaption: "Remarks",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-];
+// Header field DEFINITIONS (caption, control type, lock state, validation) are no
+// longer hand-maintained here — they're built straight from the live RB metadata
+// (see syncedFilters in PurchaseVoucherForm.jsx), same fix applied to GRN. A static
+// list silently drops any RB field nobody remembers to add here, both from render
+// AND validation.
 
 export const PV_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
@@ -191,6 +98,14 @@ export const PV_SUMMARY_FIELDS = [
   { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount" },
   { SummaryParameterID: "netpayable", detKey: "netpayable" },
 ];
+
+// RB marks these visible as header columns, but they're computed from grid
+// rows and rendered via EnterpriseSummaryPanel (see syncedSummaryFields), not
+// real header inputs. Must be excluded from the RB-driven header filter/
+// validation set (visibleHeaderColumns in PurchaseVoucherForm.jsx) or they'd
+// render as blank filter fields and fail "required" validation before the
+// grid-derived totals ever get merged into headerValuesRef at save time.
+export const PV_SUMMARY_FIELD_NAMES = new Set(PV_SUMMARY_FIELDS.map((f) => f.SummaryParameterID));
 
 export const PV_SHORTCUT_CONFIG = {
   a: { label: "Add", title: "Add (Alt+A)" },

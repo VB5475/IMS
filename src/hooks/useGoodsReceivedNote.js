@@ -657,6 +657,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     headerError,
     fetchHeaderMeta,
     fetchUnlockedHeaderDropdowns,
+    fetchDivisionOptions,
     divisionOptions,
     grnTypeOptions,
     supplierOptions,
