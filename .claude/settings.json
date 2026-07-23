@@ -15,7 +15,18 @@
       "Bash(node _check-kbnav-run.cjs)",
       "Bash(powershell -Command \"Stop-Process -Id 16116 -Force\")",
       "Bash(node _check-login-orientation.cjs)",
-      "Bash(powershell -Command \"Stop-Process -Id 13576 -Force\")"
+      "Bash(powershell -Command \"Stop-Process -Id 13576 -Force\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 5 \"http://122.179.135.100:8095/ERPWS_TB/webservice/WsIMS.asmx\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/ERPWS_TB/webservice/WsIMS.asmx/FN_Fetch_Data?ObjType=2&ObjName=Fn_Fetch_RBDetailByRBCode&JSon=%5B%7B%22prmrbcode%22%3A%22rb_purpvdet%22%7D%5D&p_ErrCode=-1&p_ErrMsg=\" -H \"Accept: application/json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/FN_Fetch_Data?ObjType=2&ObjName=Fn_Fetch_RBDetailByRBCode&JSon=%5B%7B%22prmrbcode%22%3A%22rb_purpvdet%22%7D%5D&p_ErrCode=-1&p_ErrMsg=\" -H \"Accept: application/json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10053&prmLoginID=1\" -H \"Accept: application/json\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10053&prmLoginID=1\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/FN_Fetch_Data?ObjType=2&ObjName=Fn_Fetch_RBDetailByRBCode&JSon=%5B%7B%22prmrbcode%22%3A%22rb_purpomst%22%7D%5D&p_ErrCode=-1&p_ErrMsg=\" -H \"Accept: application/json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10036&prmLoginID=1\" -H \"Accept: application/json\")",
+      "Bash(cp /tmp_po_mst.json \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/po_mst.json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10036&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/po_mst.json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10051&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/pv_mst.json\")"
     ]
   }
 }

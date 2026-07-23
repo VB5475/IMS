@@ -40,7 +40,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -504,16 +504,11 @@ export default function PurchaseOrderForm() {
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
 
-  // ── syncedSummaryFields — enrich PO_SUMMARY_FIELDS with labels from header RB columns ──
-  const syncedSummaryFields = useMemo(() => {
-    const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.colname] = col; });
-    return PO_SUMMARY_FIELDS.map((f) => ({
-      ...f,
-      mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
-    }));
-  }, [headerColumns]);
+  // ── syncedSummaryFields — only fields RB marks visible, labelled from header RB columns ──
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(PO_SUMMARY_FIELDS, headerColumns),
+    [headerColumns]
+  );
 
   // ── Filter change / cascade ────────────────────────────────────────
   const handleFilterChange = useCallback(

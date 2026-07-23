@@ -40,7 +40,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -98,6 +98,15 @@ function mapPickerToItemRow(item, allColumns) {
     const lk = k.toLowerCase();
     if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
+  // "Put To Use" (RB_PurPVDet) is a per-line checkbox with no default from the
+  // picker SPs — getColDefault("int") leaves it at 0, which PV_SUMMARY_ROW_FILTER
+  // reads as "excluded from totals" (matches confirmed backend save behaviour).
+  // Left unset, every freshly-picked row is excluded and the summary panel always
+  // shows 0.00. Default new rows to put-to-use=1; user can still uncheck a row
+  // to exclude it from the totals.
+  if (Object.prototype.hasOwnProperty.call(row, "puttouse") && item?.puttouse == null) {
+    row.puttouse = 1;
+  }
   return row;
 }
 
@@ -383,15 +392,11 @@ export default function PurchaseVoucherForm() {
     [visibleHeaderColumns, buildFilterDefFromApiCol]
   );
 
-  const syncedSummaryFields = useMemo(() => {
-    const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.colname] = col; });
-    return PV_SUMMARY_FIELDS.map((f) => ({
-      ...f,
-      mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
-    }));
-  }, [headerColumns]);
+  // Only fields RB marks visible on the master render — same rule as syncedFilters.
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(PV_SUMMARY_FIELDS, headerColumns),
+    [headerColumns]
+  );
 
   const filterFieldTones = useMemo(() => {
     const tones = {};

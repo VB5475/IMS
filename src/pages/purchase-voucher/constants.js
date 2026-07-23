@@ -100,12 +100,16 @@ export const PV_SUMMARY_FIELDS = [
   // "can't be summed, must read from master" case as the TDS section below.
   { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true },
   { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount", fromMaster: true },
-  // ── TDS section (ColSeqNo 17-22, 31) — header/master-level values, no
-  // per-line equivalent exists on the detail grid at all (TDS is computed
-  // once per voucher from the supplier's TDS settings, not per item). Read
-  // directly from the loaded master row on edit instead of summing grid
-  // rows — summing always produced 0 here since no detail row ever carries
-  // these columns. See EnterpriseSummaryPanel's `fromMaster` handling.
+  // ── TDS section — header/master-level values, no per-line equivalent
+  // exists on the detail grid at all (TDS is computed once per voucher from
+  // the supplier's TDS settings, not per item). Read directly from the
+  // loaded master row on edit instead of summing grid rows — summing always
+  // produced 0 here since no detail row ever carries these columns. See
+  // EnterpriseSummaryPanel's `fromMaster` handling.
+  // NOTE: RB_PurPVMst currently marks all 7 of these isvisible=false (verified
+  // live, ColSeqNo 32-41) — syncMasterSummaryFields() drops them from the
+  // rendered panel accordingly. Stubs are kept here so they reappear
+  // automatically, already wired, if DBA flips them visible later.
   { SummaryParameterID: "nopid", detKey: "nopid", fromMaster: true },
   { SummaryParameterID: "tdsapplicableamount", detKey: "tdsapplicableamount", fromMaster: true },
   { SummaryParameterID: "tdstypeid", detKey: "tdstypeid", fromMaster: true },
