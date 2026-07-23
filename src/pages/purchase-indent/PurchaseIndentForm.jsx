@@ -227,7 +227,7 @@ export default function PurchaseIndentForm() {
           ? recordLoadError
           : `Indent #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/purchase-indent",
+    backTo: IND_CONFIG.ROUTE_PATH,
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -560,7 +560,7 @@ export default function PurchaseIndentForm() {
   });
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate("/purchase-indent");
+    if (isEditRoute) navigate(IND_CONFIG.ROUTE_PATH);
     else resetFormToInitialState();
   }, [isEditRoute, navigate, resetFormToInitialState]);
 

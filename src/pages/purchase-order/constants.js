@@ -17,6 +17,7 @@ import {
 } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
@@ -42,7 +43,8 @@ export const PO_CONFIG = {
   ...PURCHASE_API,
   SP_PO_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "rb_purpomst",
+  RB_MASTER: RB_CODES.PURCHASE_ORDER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_ORDER),
   DELETE_PROC_NAME: "pr_rb_purpomst_delete",
   RB_DETAIL: "rb_purpodet",
   RB_INDT_DETAIL: "rb_purpoindtdet",

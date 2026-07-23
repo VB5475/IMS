@@ -39,7 +39,7 @@ export default function AssetsClientAllocationPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-client-allocation",
+        basePath: ACA_CONFIG.ROUTE_PATH,
         editBtnClass: "aca-list__edit-btn",
       }),
     [data, navigate]
@@ -64,7 +64,7 @@ export default function AssetsClientAllocationPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-client-allocation/new"),
+    () => navigate(`${ACA_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

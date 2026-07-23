@@ -89,7 +89,7 @@ export default function AssetsItemOpeningExcelPage() {
   useEffect(() => { fetchList(); }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/account/master/asset-item-opening-excel/new"),
+    () => navigate(`${AIME_CONFIG.ROUTE_PATH}/new`),
     [navigate],
   );
 

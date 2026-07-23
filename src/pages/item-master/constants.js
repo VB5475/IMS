@@ -1,7 +1,10 @@
 // Item Master — admin module config (MRD_Template4ItemMst.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const IM_CONFIG = {
-  RB_MASTER: "rb_puritemmst",
+  RB_MASTER: RB_CODES.ITEM_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ITEM_MASTER),
   FORM_TAG: "rb_puritemmst",
   TRAN_BOOK: "CR",
 

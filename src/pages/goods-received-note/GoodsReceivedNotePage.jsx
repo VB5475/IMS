@@ -61,7 +61,7 @@ export default function GoodsReceivedNotePage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/goods-received-note",
+        basePath: GRN_CONFIG.ROUTE_PATH,
         editBtnClass: "grn-list__edit-btn",
       }),
     [data, navigate]
@@ -86,7 +86,7 @@ export default function GoodsReceivedNotePage() {
   }, [fetchGrnList]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/goods-received-note/new");
+    navigate(`${GRN_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
   return (

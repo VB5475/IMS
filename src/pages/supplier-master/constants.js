@@ -10,9 +10,11 @@ export const MODAL_SUBTITLE   = "Admin › Master › Supplier";
 // (RBID 10112) and rb_consigneedet (RBID 10113). Source: MRD_Template4SupplierMaster.docx
 // + live GetDetailColData checks. Live schema wins over the MRD wherever they disagree.
 import { controlTypeMap } from "../../data/dummyData";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export const SM_CONFIG = {
-  RB_MASTER: "rb_suppliermst",
+  RB_MASTER: RB_CODES.SUPPLIER_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.SUPPLIER_MASTER),
   RB_DETAIL: "rb_consigneedet",
 
   FORM_TAG: "SM",

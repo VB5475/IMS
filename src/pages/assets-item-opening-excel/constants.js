@@ -1,11 +1,15 @@
 // constants.js — Asset Item Opening Excel (AIME) module config
 // Values aligned to MRD_Template4AssetItemOpeningExcel.docx (Om, 24-Jun-2026).
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Asset Item Opening Excel";
 export const PAGE_TITLE_NEW = "New Asset Item Opening Excel";
 
 export const AIME_CONFIG = {
-  RB_DETAIL: "rb_assetitmopnexl",
+  /** Detail-only RB (no RB_MASTER for this module). */
+  RB_DETAIL: RB_CODES.ASSETS_ITEM_OPENING_EXCEL,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL),
 
   FORM_TAG: "rb_assetitmopnexl",
   TRAN_BOOK: "AI",

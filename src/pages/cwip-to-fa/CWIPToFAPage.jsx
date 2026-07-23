@@ -77,7 +77,7 @@ function buildColumnsFromData(data, navigate) {
           aria-label={`Edit C2F ${row.tranno ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/cwip-to-fa/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
+            navigate(`/rb_astcwip2famst/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -121,7 +121,7 @@ export default function CWIPToFAPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/cwip-to-fa/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${C2F_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page c2f-list-page">

@@ -1,7 +1,9 @@
 // Maintenance Call Follow Up — module config (MRD_Template4MntCallFollowUp.docx)
 
+import { RB_CODES } from "../../constants/rbCodes";
+
 export const MNT_FOLLOWUP_CONFIG = {
-  RB_MASTER: "rb_mntfollowup",
+  RB_MASTER: RB_CODES.CALL_FOLLOW_UP,
   FORM_TAG: "rb_mntfollowup",
   TRAN_BOOK: "MNTFLU",
 

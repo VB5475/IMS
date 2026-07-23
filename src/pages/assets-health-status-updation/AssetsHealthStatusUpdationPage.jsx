@@ -39,7 +39,7 @@ export default function AssetsHealthStatusUpdationPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-health-status-updation",
+        basePath: AHS_CONFIG.ROUTE_PATH,
         editBtnClass: "ahs-list__edit-btn",
       }),
     [data, navigate]
@@ -64,7 +64,7 @@ export default function AssetsHealthStatusUpdationPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-health-status-updation/new"),
+    () => navigate(`${AHS_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

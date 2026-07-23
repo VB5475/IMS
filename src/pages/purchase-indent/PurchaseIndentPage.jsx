@@ -55,7 +55,7 @@ export default function PurchaseIndentPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/purchase-indent",
+        basePath: IND_CONFIG.ROUTE_PATH,
         editBtnClass: "ind-list__edit-btn",
       }),
     [data, navigate]
@@ -80,7 +80,7 @@ export default function PurchaseIndentPage() {
   }, [fetchIndents]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/purchase-indent/new");
+    navigate(`${IND_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
   return (

@@ -215,7 +215,7 @@ export default function AssetsEmployeeReturnForm() {
           ? recordLoadError
           : `Return #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-employee-return",
+    backTo: AER_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

@@ -237,7 +237,7 @@ export default function AssetsDepreciationForm() {
           ? recordLoadError
           : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/assets-depreciation",
+    backTo:   "/rb_astdepcamst",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -564,7 +564,7 @@ export default function AssetsDepreciationForm() {
   });
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate("/assets-depreciation");
+    if (isEditRoute) navigate(DPC_CONFIG.ROUTE_PATH);
     else resetFormToInitialState();
   }, [isEditRoute, navigate, resetFormToInitialState]);
 

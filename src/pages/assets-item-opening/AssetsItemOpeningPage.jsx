@@ -70,7 +70,7 @@ function buildColumnsFromData(data, navigate) {
           onClick={(e) => {
             e.stopPropagation();
             navigate(
-              `/assets-item-opening/${row.aopid ?? row.idnumber}/edit`,
+              `/rb_astitemopemst/${row.aopid ?? row.idnumber}/edit`,
               { state: { record: row } }
             );
           }}
@@ -116,7 +116,7 @@ export default function AssetsItemOpeningPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-item-opening/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${AOP_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page aop-list-page">

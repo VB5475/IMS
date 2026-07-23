@@ -75,7 +75,7 @@ export default function AssetsItemOpeningExcelForm() {
       ? "Upload an Excel file, review rows, then save."
       : "Click Add (Alt+A) to upload an Excel file and create entries.",
     showBack: true,
-    backTo: "/account/master/asset-item-opening-excel",
+    backTo: AIME_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {
@@ -214,7 +214,7 @@ export default function AssetsItemOpeningExcelForm() {
         return false;
       }
       notify.success(message);
-      navigate("/account/master/asset-item-opening-excel");
+      navigate(AIME_CONFIG.ROUTE_PATH);
       return true;
     } catch (err) {
       console.error("[AIME Save] Failed:", err);

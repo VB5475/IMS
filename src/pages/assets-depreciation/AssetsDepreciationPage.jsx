@@ -77,7 +77,7 @@ function buildColumnsFromData(data, navigate) {
           onClick={(e) => {
             e.stopPropagation();
             navigate(
-              `/assets-depreciation/${row.astdepid ?? row.idnumber}/edit`,
+              `/rb_astdepcamst/${row.astdepid ?? row.idnumber}/edit`,
               { state: { record: row } }
             );
           }}
@@ -123,7 +123,7 @@ export default function AssetsDepreciationPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-depreciation/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${DPC_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page dpc-list-page">

@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -12,7 +13,8 @@ export const ADI_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 export const ADI_REMARK_COLUMNS = new Set(["remark"]);
 
 export const ADI_CONFIG = {
-  RB_MASTER: "rb_astdeptissmst",
+  RB_MASTER: RB_CODES.ASSETS_DEPARTMENT_ISSUE,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE),
   DELETE_PROC_NAME: "pr_rb_astdeptissmst_delete",
   RB_DETAIL: "rb_astdeptissdet",
   RB_ITEM_PICKER: "rb_astdeptissselonly",

@@ -23,8 +23,8 @@ import {
   isMasterFieldRequired,
   isMasterToggleField,
   validateMasterFormFields,
-  alertMasterFormValidationErrors,
-  runAfterFieldBlur,
+  // alertMasterFormValidationErrors,
+  // runAfterFieldBlur,
 } from "../../utils/masterFormUtils";
 import { useMntCallAllocation, resolveDashboardRowId } from "../../hooks/useMntCallAllocation";
 import { MNT_CALL_CONFIG, MODAL_TITLE, MODAL_SUBTITLE } from "./constants";
@@ -196,7 +196,7 @@ export default function CallAllocationForm({
       ),
     });
 
-    if (alertMasterFormValidationErrors(validationErrors)) return;
+    // if (alertMasterFormValidationErrors(validationErrors)) return;
 
     setSaveError(null);
     setIsSaving(true);
@@ -233,10 +233,12 @@ export default function CallAllocationForm({
   }, [visibleFields, formValues, headerColumns, filterContext, dashboardRow, notify, onSaved, post]);
 
   const handleClose = useCallback(() => {
-    runAfterFieldBlur(() => {
-      if (!window.confirm("Discard changes?")) return;
-      onClose?.();
-    });
+    // runAfterFieldBlur(() => {
+    //   if (!window.confirm("Discard changes?")) return;
+    //   onClose?.();
+    // });
+    if (!window.confirm("Discard changes?")) return;
+    onClose?.();
   }, [onClose]);
 
   const footer = useMemo(
@@ -300,9 +302,8 @@ export default function CallAllocationForm({
                     .join(" ")}
                 >
                   <span
-                    className={`mca-form-label${
-                      isMasterFieldRequired(field) ? " mca-form-label--required" : ""
-                    }`}
+                    className={`mca-form-label${isMasterFieldRequired(field) ? " mca-form-label--required" : ""
+                      }`}
                   >
                     {getMasterFieldLabel(field)}
                   </span>

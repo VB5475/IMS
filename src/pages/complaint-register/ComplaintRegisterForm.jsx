@@ -227,7 +227,7 @@ export default function ComplaintRegisterForm() {
           ? recordLoadError
           : `Complaint #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/complaint-register",
+    backTo: MCR_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

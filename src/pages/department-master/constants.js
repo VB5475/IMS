@@ -1,7 +1,10 @@
 // Department Master — admin module config (MRD_Template4DepartmentMaster.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const DM_CONFIG = {
-  RB_MASTER: "rb_departmentmst",
+  RB_MASTER: RB_CODES.DEPARTMENT_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.DEPARTMENT_MASTER),
   FORM_TAG: "rb_departmentmst",
   TRAN_BOOK: "DEPT",
 

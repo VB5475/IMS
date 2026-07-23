@@ -386,7 +386,7 @@ export default function GoodsReceivedNoteForm() {
   ]);
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate("/goods-received-note");
+    if (isEditRoute) navigate(GRN_CONFIG.ROUTE_PATH);
     else resetFormToInitialState();
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
@@ -396,7 +396,7 @@ export default function GoodsReceivedNoteForm() {
       ? "Fill in the header fields, then use the Item Grid tab."
       : `GRN #${recordId || routeId || "—"} — fill in the header fields, then use the Item Grid tab.`,
     showBack: true,
-    backTo: "/goods-received-note",
+    backTo: GRN_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

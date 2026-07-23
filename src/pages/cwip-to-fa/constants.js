@@ -1,4 +1,6 @@
 // constants.js — CWIP To FA (C2F) page config
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "CWIP To FA";
 export const PAGE_TITLE_NEW = "New CWIP To FA";
@@ -11,7 +13,8 @@ export const C2F_MULTI_PASTE_COLUMNS = new Set(["batchsrno"]);
 
 export const C2F_CONFIG = {
   // RB board codes
-  RB_MASTER:      "rb_astcwip2famst",
+  RB_MASTER:      RB_CODES.CWIP_TO_FA,
+  ROUTE_PATH: rbRoutePath(RB_CODES.CWIP_TO_FA),
   RB_DETAIL:      "rb_astcwip2fadet",
   RB_ITEM_PICKER: "rb_astcwip2fadetselo",
 

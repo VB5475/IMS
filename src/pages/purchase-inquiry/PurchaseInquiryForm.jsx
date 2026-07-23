@@ -394,7 +394,7 @@ export default function PurchaseInquiryForm() {
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
-      navigate("/purchase-inquiry");
+      navigate(PI_CONFIG.ROUTE_PATH);
     } else {
       resetFormToInitialState();
     }
@@ -448,7 +448,7 @@ export default function PurchaseInquiryForm() {
       ? "Fill in the header fields, then use Item Grid or Suppliers tabs."
       : `Inquiry #${recordId || routeId || "—"} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
     showBack: true,
-    backTo: "/purchase-inquiry",
+    backTo: PI_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

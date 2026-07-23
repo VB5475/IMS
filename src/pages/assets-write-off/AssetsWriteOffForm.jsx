@@ -198,7 +198,7 @@ export default function AssetsWriteOffForm() {
           ? recordLoadError
           : `Write Off #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-write-off",
+    backTo: AWF_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

@@ -39,7 +39,7 @@ export default function ComplaintRegisterPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/complaint-register",
+        basePath: MCR_CONFIG.ROUTE_PATH,
         editBtnClass: "mcr-list__edit-btn",
       }),
     [data, navigate]
@@ -64,7 +64,7 @@ export default function ComplaintRegisterPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/complaint-register/new"),
+    () => navigate(`${MCR_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

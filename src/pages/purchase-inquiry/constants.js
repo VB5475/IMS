@@ -18,6 +18,7 @@ import {
   getMissingItemPickerHeaderFields as getMissingPickerFields,
 } from "../../utils/purchaseItemPicker";
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
@@ -37,7 +38,8 @@ export const PI_CONFIG = {
   // payload shape as the item picker — see buildItemPickerJsonPayload below.
   SUPPLIER_SP: "fn_tbl_rb_purinqselonlysupp",
 
-  RB_MASTER: "rb_purinquirymst",
+  RB_MASTER: RB_CODES.PURCHASE_INQUIRY,
+  ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_INQUIRY),
   DELETE_PROC_NAME: "pr_rb_purinquirymst_delete",
   RB_DETAIL: "rb_purinquirydet",
   RB_INDT_DETAIL: "rb_purinquiryindtdet",

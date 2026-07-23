@@ -1,5 +1,7 @@
 // constants.js — Assets Item Opening (AOP) module config
 // Values aligned to MRD_Template4AssetsItemOpening.docx (Richa, 16-Jun-2026).
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Assets Item Opening";
 export const PAGE_TITLE_NEW = "New Assets Item Opening";
@@ -12,7 +14,8 @@ export const AOP_REMARK_COLUMNS = new Set(["remark"]);
 
 export const AOP_CONFIG = {
   // RB board codes
-  RB_MASTER: "rb_astitemopemst",
+  RB_MASTER: RB_CODES.ASSETS_ITEM_OPENING,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING),
   RB_DETAIL: "rb_astitemopedet",
 
   // Form identifiers

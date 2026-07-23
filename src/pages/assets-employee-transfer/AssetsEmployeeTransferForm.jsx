@@ -1,3 +1,5 @@
+// AssetsEmployeeTransferForm.jsx — Assets Employee Transfer entry form (Add / Edit)
+
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
@@ -8,7 +10,7 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { useAstDepIssue } from "../../hooks/useAstDepIssue";
+import { useAstEmpTrf } from "../../hooks/useAstEmpTrf";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -16,6 +18,7 @@ import {
   API_BASE_URL_IMS,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -38,23 +41,22 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  ADI_CONFIG,
-  ADI_MULTI_PASTE_COLUMNS,
-  ADI_REMARK_COLUMNS,
-  ADI_GRID_TABS,
-  ADI_FRM_TYPE_OPTIONS,
+  AET_CONFIG,
+  AET_MULTI_PASTE_COLUMNS,
+  AET_REMARK_COLUMNS,
+  AET_GRID_TABS,
+  AET_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
-  buildAdiItemPickerJsonPayload,
-  applyAdiHardcodedHeaderValues,
-  buildAdiCascadeResets,
-  validateAdiBusinessRules,
+  buildAetItemPickerJsonPayload,
+  applyAetHardcodedHeaderValues,
+  buildAetCascadeResets,
 } from "./constants";
-import "./AssetsDepartmentIssuePage.css";
+import "./AssetsEmployeeTransferPage.css";
 
-let _adiTempId = -1;
-const nextTempId = () => _adiTempId--;
+let _aetTempId = -1;
+const nextTempId = () => _aetTempId--;
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -64,23 +66,31 @@ function mapHeaderValuesToFilterValues(headerValues) {
     trandate: headerValues.trandate ?? "",
     issuedate: headerValues.issuedate ?? "",
     fromdivisionid: str(headerValues.fromdivisionid),
+    todivisionid: str(headerValues.todivisionid),
     fromlocationid: str(headerValues.fromlocationid),
     tolocationid: str(headerValues.tolocationid),
     fromdeptid: str(headerValues.fromdeptid),
     todeptid: str(headerValues.todeptid),
+    fromempuserid: str(headerValues.fromempuserid),
+    toempuserid: str(headerValues.toempuserid),
+    fromworkingclientid: str(headerValues.fromworkingclientid),
+    toworkingclientid: str(headerValues.toworkingclientid),
+    fromvendorid: str(headerValues.fromvendorid),
+    tovendorid: str(headerValues.tovendorid),
     configid: str(headerValues.configid),
+    frmtype: str(headerValues.frmtype ?? AET_CONFIG.FRM_TYPE),
+    issuetypeid: str(headerValues.issuetypeid ?? AET_CONFIG.ISSUE_TYPE_ID),
     expecteddays: headerValues.expecteddays ?? "",
     expecteddate: headerValues.expecteddate ?? "",
     includestockitems: headerValues.includestockitems ?? 0,
-    remarks: headerValues.remarks ?? "",
-    frmtype: str(headerValues.frmtype ?? ADI_CONFIG.FRM_TYPE),
-    issuetypeid: str(headerValues.issuetypeid ?? ADI_CONFIG.ISSUE_TYPE_ID),
+    totalprocessrate: headerValues.totalprocessrate ?? "",
   };
 }
 
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => {
+
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
@@ -90,7 +100,7 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
-export default function AssetsDepartmentIssueForm() {
+export default function AssetsEmployeeTransferForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
@@ -110,17 +120,24 @@ export default function AssetsDepartmentIssueForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    fromDivisionOptions, fromLocationOptions, toLocationOptions,
+    fromDivisionOptions, toDivisionOptions,
+    fromLocationOptions, toLocationOptions,
     fromDepartmentOptions, toDepartmentOptions,
+    fromEmpOptions, toEmpOptions,
+    fromVendorOptions, toVendorOptions,
+    fromClientOptions, toClientOptions,
     configOptions,
     fetchFromLocations, fetchToLocations,
     fetchFromDepartments, fetchToDepartments,
+    fetchFromVendors, fetchToVendors,
+    fetchFromWorkingClients, fetchToWorkingClients,
     fetchConfigOptions,
+    fetchFromEmployees, fetchToEmployees, clearFromEmpOptions, clearToEmpOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useAstDepIssue(API_BASE_URL);
+  } = useAstEmpTrf(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -133,28 +150,35 @@ export default function AssetsDepartmentIssueForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const headerValuesRef = useRef(applyAdiHardcodedHeaderValues({
+  const headerValuesRef = useRef(applyAetHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
     issuedate: todayISO,
     fromdivisionid: 0,
+    todivisionid: 0,
     fromlocationid: 0,
     tolocationid: 0,
     fromdeptid: 0,
     todeptid: 0,
+    fromempuserid: 0,
+    toempuserid: 0,
+    fromworkingclientid: 0,
+    toworkingclientid: 0,
+    fromvendorid: 0,
+    tovendorid: 0,
     configid: 0,
     expecteddays: 0,
     expecteddate: null,
     includestockitems: 0,
-    remarks: "",
-    frmtype: ADI_CONFIG.FRM_TYPE,
-    issuetypeid: ADI_CONFIG.ISSUE_TYPE_ID,
+    totalprocessrate: 0,
+    frmtype: AET_CONFIG.FRM_TYPE,
+    issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: recordId,
-    funccode: ADI_CONFIG.RB_MASTER,
+    funccode: AET_CONFIG.RB_MASTER,
   }));
 
   const filterInitialValues = useMemo(() => {
@@ -162,9 +186,8 @@ export default function AssetsDepartmentIssueForm() {
     return {
       trandate: todayISO,
       issuedate: todayISO,
-      frmtype: String(ADI_CONFIG.FRM_TYPE),
-      issuetypeid: String(ADI_CONFIG.ISSUE_TYPE_ID),
-      includestockitems: 0,
+      frmtype: String(AET_CONFIG.FRM_TYPE),
+      issuetypeid: String(AET_CONFIG.ISSUE_TYPE_ID),
     };
   }, [loadedFilterValues, todayISO]);
 
@@ -172,6 +195,7 @@ export default function AssetsDepartmentIssueForm() {
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
+  const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -182,7 +206,7 @@ export default function AssetsDepartmentIssueForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const cascadeResets = useMemo(() => buildAdiCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildAetCascadeResets(headerColumns), [headerColumns]);
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -216,9 +240,9 @@ export default function AssetsDepartmentIssueForm() {
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `Department Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: ADI_CONFIG.ROUTE_PATH,
+    backTo: AET_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {
@@ -235,8 +259,11 @@ export default function AssetsDepartmentIssueForm() {
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      if (itemGridRef.current.loadRows) itemGridRef.current.loadRows(queuedRowsRef.current);
-      else queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      if (itemGridRef.current.loadRows) {
+        itemGridRef.current.loadRows(queuedRowsRef.current);
+      } else {
+        queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      }
       queuedRowsRef.current = [];
     }
   }, [columns]);
@@ -246,12 +273,12 @@ export default function AssetsDepartmentIssueForm() {
     setRecordLoadError(null);
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
-        idFields: ["astdeptissid", "AstDeptIssID"],
+        idFields: ["astempissid"],
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Department Issue record not found.");
+      if (!master || !headerValues) throw new Error("Assets Employee Transfer record not found.");
 
-      headerValuesRef.current = applyAdiHardcodedHeaderValues({
+      headerValuesRef.current = applyAetHardcodedHeaderValues({
         ...headerValuesRef.current,
         ...headerValues,
       });
@@ -267,11 +294,15 @@ export default function AssetsDepartmentIssueForm() {
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
-      if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
-      else queuedRowsRef.current = syncedDetails;
+
+      if (itemGridRef.current?.loadRows) {
+        itemGridRef.current.loadRows(syncedDetails);
+      } else {
+        queuedRowsRef.current = syncedDetails;
+      }
     } catch (err) {
-      console.error("[ADI] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Department Issue record.");
+      console.error("[AET] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Assets Employee Transfer record.");
     } finally {
       setRecordLoading(false);
     }
@@ -307,18 +338,26 @@ export default function AssetsDepartmentIssueForm() {
 
   const dropdownSources = useMemo(() => ({
     fromdivisionid: fromDivisionOptions,
+    todivisionid: toDivisionOptions,
     fromlocationid: fromLocationOptions,
     tolocationid: toLocationOptions,
     fromdeptid: fromDepartmentOptions,
     todeptid: toDepartmentOptions,
+    fromempuserid: fromEmpOptions,
+    toempuserid: toEmpOptions,
+    fromvendorid: fromVendorOptions,
+    tovendorid: toVendorOptions,
+    fromworkingclientid: fromClientOptions,
+    toworkingclientid: toClientOptions,
     configid: configOptions,
-    frmtype: ADI_FRM_TYPE_OPTIONS,
+    frmtype: AET_FRM_TYPE_OPTIONS,
   }), [
-    fromDivisionOptions,
-    fromLocationOptions,
-    toLocationOptions,
-    fromDepartmentOptions,
-    toDepartmentOptions,
+    fromDivisionOptions, toDivisionOptions,
+    fromLocationOptions, toLocationOptions,
+    fromDepartmentOptions, toDepartmentOptions,
+    fromEmpOptions, toEmpOptions,
+    fromVendorOptions, toVendorOptions,
+    fromClientOptions, toClientOptions,
     configOptions,
   ]);
 
@@ -378,61 +417,182 @@ export default function AssetsDepartmentIssueForm() {
     setClearRowsOpen(true);
   }, []);
 
-  const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = applyAdiHardcodedHeaderValues({
-      ...headerValuesRef.current,
-      [colName]: val,
-    });
-    const hv = headerValuesRef.current;
-    const col = String(colName).toLowerCase();
+  const fetchToEmployeesIfVisible = useCallback(
+    (hv) => {
+      if (!hasVisibleCol(headerColumns, "toempuserid")) return Promise.resolve();
+      const divId = hv.todivisionid ?? hv.fromdivisionid ?? 0;
+      if (!divId || divId === "0" || Number(divId) === 0) return Promise.resolve();
+      return fetchToEmployees(divId, hv.tolocationid, hv.todeptid);
+    },
+    [headerColumns, fetchToEmployees]
+  );
 
-    if (col === "fromdivisionid") {
-      requestGridClear("Division", async () => {
-        hv.fromlocationid = 0;
-        hv.tolocationid = 0;
-        hv.fromdeptid = 0;
-        hv.todeptid = 0;
-        hv.configid = 0;
-        itemGridRef.current?.clearRows?.();
-        if (Number(val) > 0) {
-          const fetches = [];
-          if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            fetches.push(fetchFromLocations());
-          }
-          if (hasVisibleCol(headerColumns, "tolocationid")) {
-            fetches.push(fetchToLocations());
-          }
-          if (hasVisibleCol(headerColumns, "configid")) {
-            fetches.push(fetchConfigOptions(val));
-          }
-          if (fetches.length) await Promise.all(fetches);
-          if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            focusFieldAfterCascade(filterPanelRef, "fromlocationid");
-          }
-        }
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      headerValuesRef.current = applyAetHardcodedHeaderValues({
+        ...headerValuesRef.current,
+        [colName]: val,
       });
-      return;
-    }
+      const hv = headerValuesRef.current;
+      const col = String(colName).toLowerCase();
 
-    if (col === "fromlocationid") {
-      requestGridClear("From Location", async () => {
-        itemGridRef.current?.clearRows?.();
-      });
-      return;
-    }
+      if (col === "fromdivisionid") {
+        requestGridClear("From Division", async () => {
+          hv.fromlocationid = 0;
+          hv.fromempuserid = 0;
+          hv.fromvendorid = 0;
+          hv.fromworkingclientid = 0;
+          hv.todivisionid = val;
+          hv.toempuserid = 0;
+          clearFromEmpOptions();
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "fromlocationid")) {
+              fetches.push(fetchFromLocations());
+            }
+            if (hasVisibleCol(headerColumns, "tolocationid")) {
+              fetches.push(fetchToLocations());
+            }
+            if (hasVisibleCol(headerColumns, "fromdeptid")) {
+              fetches.push(fetchFromDepartments());
+            }
+            if (hasVisibleCol(headerColumns, "todeptid")) {
+              fetches.push(fetchToDepartments());
+            }
+            if (hasVisibleCol(headerColumns, "configid")) {
+              fetches.push(fetchConfigOptions(val));
+            }
+            if (hasVisibleCol(headerColumns, "fromempuserid")) {
+              fetches.push(fetchFromEmployees(val, hv.fromlocationid, hv.fromdeptid));
+            }
+            if (hasVisibleCol(headerColumns, "toempuserid")) {
+              fetches.push(fetchToEmployeesIfVisible(hv));
+            }
+            if (hasVisibleCol(headerColumns, "fromvendorid")) {
+              fetches.push(fetchFromVendors(val, hv.fromlocationid));
+            }
+            if (hasVisibleCol(headerColumns, "tovendorid")) {
+              fetches.push(fetchToVendors(val, hv.tolocationid));
+            }
+            if (hasVisibleCol(headerColumns, "fromworkingclientid")) {
+              fetches.push(fetchFromWorkingClients(val));
+            }
+            if (hasVisibleCol(headerColumns, "toworkingclientid")) {
+              fetches.push(fetchToWorkingClients(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            if (hasVisibleCol(headerColumns, "fromlocationid")) {
+              focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+            }
+          }
+        });
+        return;
+      }
 
-    if (col === "fromdeptid") {
-      requestGridClear("From Department", async () => {
-        itemGridRef.current?.clearRows?.();
-      });
-    }
-  }, [
-    requestGridClear,
-    headerColumns,
-    fetchConfigOptions,
-    fetchFromLocations,
-    fetchToLocations,
-  ]);
+      if (col === "fromlocationid") {
+        requestGridClear("From Location", async () => {
+          hv.fromempuserid = 0;
+          hv.tolocationid = val;
+          hv.toempuserid = 0;
+          clearFromEmpOptions();
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (hasVisibleCol(headerColumns, "fromempuserid")) {
+            await fetchFromEmployees(hv.fromdivisionid, val, hv.fromdeptid);
+          }
+          const vendorFetches = [];
+          if (hasVisibleCol(headerColumns, "fromvendorid")) {
+            vendorFetches.push(fetchFromVendors(hv.fromdivisionid, val));
+          }
+          if (hasVisibleCol(headerColumns, "tovendorid")) {
+            vendorFetches.push(fetchToVendors(hv.todivisionid, val));
+          }
+          if (vendorFetches.length) await Promise.all(vendorFetches);
+          await fetchToEmployeesIfVisible(hv);
+        });
+        return;
+      }
+
+      if (col === "fromdeptid") {
+        requestGridClear("From Department", async () => {
+          hv.fromempuserid = 0;
+          clearFromEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (hasVisibleCol(headerColumns, "fromempuserid")) {
+            await fetchFromEmployees(hv.fromdivisionid, hv.fromlocationid, val);
+          }
+        });
+        return;
+      }
+
+      if (col === "todivisionid") {
+        requestGridClear("To Division", async () => {
+          hv.tolocationid = 0;
+          hv.toempuserid = 0;
+          hv.tovendorid = 0;
+          hv.toworkingclientid = 0;
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+            if (hasVisibleCol(headerColumns, "todeptid")) fetches.push(fetchToDepartments());
+            if (hasVisibleCol(headerColumns, "tovendorid")) {
+              fetches.push(fetchToVendors(val, hv.tolocationid));
+            }
+            if (hasVisibleCol(headerColumns, "toworkingclientid")) {
+              fetches.push(fetchToWorkingClients(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            await fetchToEmployeesIfVisible(hv);
+          }
+        });
+        return;
+      }
+
+      if (col === "tolocationid") {
+        requestGridClear("To Location", async () => {
+          hv.toempuserid = 0;
+          hv.tovendorid = 0;
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (hasVisibleCol(headerColumns, "tovendorid")) {
+            await fetchToVendors(hv.todivisionid, val);
+          }
+          await fetchToEmployeesIfVisible(hv);
+        });
+        return;
+      }
+
+      if (col === "todeptid") {
+        requestGridClear("To Department", async () => {
+          hv.toempuserid = 0;
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          await fetchToEmployeesIfVisible(hv);
+        });
+      }
+    },
+    [
+      headerColumns,
+      requestGridClear,
+      clearFromEmpOptions,
+      clearToEmpOptions,
+      fetchFromLocations,
+      fetchToLocations,
+      fetchFromDepartments,
+      fetchToDepartments,
+      fetchFromVendors,
+      fetchToVendors,
+      fetchFromWorkingClients,
+      fetchToWorkingClients,
+      fetchConfigOptions,
+      fetchFromEmployees,
+      fetchToEmployeesIfVisible,
+    ]
+  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -476,8 +636,8 @@ export default function AssetsDepartmentIssueForm() {
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ADI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmrbcode: ADI_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: AET_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: AET_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -496,27 +656,30 @@ export default function AssetsDepartmentIssueForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ADI_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAdiItemPickerJsonPayload(headerValues)]),
+        ObjName: AET_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildAetItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[ADI] Item picker fetch failed:", err);
+      console.error("[AET] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab("items");
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    },
+    [ensureItemColumns, allColumns, addItemRow]
+  );
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -529,23 +692,30 @@ export default function AssetsDepartmentIssueForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const buildDefaultHeaderValues = useCallback(() => applyAdiHardcodedHeaderValues({
+  const buildDefaultHeaderValues = useCallback(() => applyAetHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
     issuedate: todayISO,
     fromdivisionid: 0,
+    todivisionid: 0,
     fromlocationid: 0,
     tolocationid: 0,
     fromdeptid: 0,
     todeptid: 0,
+    fromempuserid: 0,
+    toempuserid: 0,
+    fromworkingclientid: 0,
+    toworkingclientid: 0,
+    fromvendorid: 0,
+    tovendorid: 0,
     configid: 0,
     expecteddays: 0,
     expecteddate: null,
     includestockitems: 0,
-    remarks: "",
-    frmtype: ADI_CONFIG.FRM_TYPE,
-    issuetypeid: ADI_CONFIG.ISSUE_TYPE_ID,
-    funccode: ADI_CONFIG.RB_MASTER,
+    totalprocessrate: 0,
+    frmtype: AET_CONFIG.FRM_TYPE,
+    issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
+    funccode: AET_CONFIG.RB_MASTER,
     tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
@@ -554,7 +724,7 @@ export default function AssetsDepartmentIssueForm() {
   }), [todayISO]);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
-    storageKeys: [ADI_CONFIG.STORAGE_HEADER_META, ADI_CONFIG.STORAGE_ENTRY_META],
+    storageKeys: [AET_CONFIG.STORAGE_HEADER_META, AET_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
     queuedRowsRef,
@@ -575,46 +745,43 @@ export default function AssetsDepartmentIssueForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearFromEmpOptions, clearToEmpOptions],
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const businessErrors = validateAdiBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
-    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
+    const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
-    const hv = applyAdiHardcodedHeaderValues(headerValuesRef.current);
+    const hv = applyAetHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: AET_CONFIG.FRM_TYPE,
+      issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
+      loginid: getUserSession().loginId,
     });
-    mstRow.frmtype = ADI_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = ADI_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = getUserSession().loginId;
-
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: getUserSession().loginId };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
+    );
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: ADI_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
+      buildSaveJsonFields({ label: AET_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
       { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const result = await postSave(ADI_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await postSave(AET_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
@@ -624,13 +791,13 @@ export default function AssetsDepartmentIssueForm() {
       if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
-      console.error("[ADI Save] Failed:", err);
+      console.error("[AEI Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -692,7 +859,7 @@ export default function AssetsDepartmentIssueForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page workspace-page--fill adi-page">
+    <div className="workspace-page workspace-page--fill aei-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -721,7 +888,7 @@ export default function AssetsDepartmentIssueForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Department Issue Detail"
+            title="Assets Employee Transfer Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -735,10 +902,10 @@ export default function AssetsDepartmentIssueForm() {
         )}
       </section>
 
-      <section className="adi-grid-section">
+      <section className="aei-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {ADI_GRID_TABS.map((t) => (
+            {AET_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -757,7 +924,7 @@ export default function AssetsDepartmentIssueForm() {
               className="eg-tab-btn"
               onClick={handleSelectItem}
               disabled={!isEditMode}
-              title="Pick issue items"
+              title="Pick issue items (Tab here after header fields)"
             >
               <Package size={12} strokeWidth={2.5} />
               Select Item
@@ -776,7 +943,7 @@ export default function AssetsDepartmentIssueForm() {
           </div>
         </div>
 
-        <div className={`adi-tab-pane${activeTab === "items" ? " adi-tab-pane--active" : ""}`}>
+        <div className={`aei-tab-pane${activeTab === "items" ? " aei-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -784,14 +951,15 @@ export default function AssetsDepartmentIssueForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
-            multiValuePasteColumns={ADI_MULTI_PASTE_COLUMNS}
+            multiValuePasteColumns={AET_MULTI_PASTE_COLUMNS}
             onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={ADI_REMARK_COLUMNS}
+            remarkModalColumns={AET_REMARK_COLUMNS}
           />
         </div>
       </section>

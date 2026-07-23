@@ -56,7 +56,7 @@ export default function AssetsWriteOffPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-write-off",
+        basePath: AWF_CONFIG.ROUTE_PATH,
         editBtnClass: "awf-list__edit-btn",
       }),
     [data, navigate]
@@ -80,7 +80,7 @@ export default function AssetsWriteOffPage() {
     fetchList();
   }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-write-off/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${AWF_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page awf-list-page">

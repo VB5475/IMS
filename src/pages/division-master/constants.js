@@ -5,13 +5,16 @@
 //   - SP_LIST name + its parameter shape
 //   - LIST_DIVISION_ID (currently 15)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const MODAL_TITLE_ADD = "New Division";
 export const MODAL_TITLE_EDIT = "Edit Division";
 export const MODAL_SUBTITLE  = "Admin › Master › Company › Division Master";
 
 export const DV_CONFIG = {
-  RB_MASTER: "rb_divisionmst",
+  RB_MASTER: RB_CODES.DIVISION_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.DIVISION_MASTER),
   FORM_TAG:  "rb_divisionmst",
   TRAN_BOOK: "DivisionMst",
 

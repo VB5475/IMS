@@ -10,6 +10,7 @@ import { controlTypeMap } from "../../data/dummyData";
 import { BASED_ON, PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 
 export { formatTranDate as formatPVTranDate };
@@ -17,7 +18,8 @@ export const PV_CONFIG = {
   ...PURCHASE_API,
   SP_PV_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "rb_purpvmst",
+  RB_MASTER: RB_CODES.PURCHASE_VOUCHER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_VOUCHER),
   DELETE_PROC_NAME: "pr_rb_purpvmst_delete",
   RB_DETAIL: "rb_purpvdet",
 

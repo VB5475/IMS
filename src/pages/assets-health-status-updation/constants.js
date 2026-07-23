@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -12,7 +13,8 @@ export const AHS_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 export const AHS_REMARK_COLUMNS = new Set(["remark"]);
 
 export const AHS_CONFIG = {
-  RB_MASTER: "rb_asthealstamst",
+  RB_MASTER: RB_CODES.ASSETS_HEALTH_STATUS_UPDATION,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION),
   DELETE_PROC_NAME: "pr_rb_asthealstamst_delete",
   RB_DETAIL: "rb_asthealstadet",
   RB_ITEM_PICKER: "rb_asthealstaselonly",

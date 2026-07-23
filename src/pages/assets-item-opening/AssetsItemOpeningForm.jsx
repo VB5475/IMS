@@ -179,7 +179,7 @@ export default function AssetsItemOpeningForm() {
           ? recordLoadError
           : `Entry #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/assets-item-opening",
+    backTo:   "/rb_astitemopemst",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -439,7 +439,7 @@ export default function AssetsItemOpeningForm() {
   });
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate("/assets-item-opening");
+    if (isEditRoute) navigate(AOP_CONFIG.ROUTE_PATH);
     else resetFormToInitialState();
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
