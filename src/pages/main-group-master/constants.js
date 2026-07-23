@@ -1,5 +1,7 @@
 // Field definitions are driven dynamically from GetDetailColData via useMainGroupMaster hook.
 // No hardcoded field array needed here.
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const MODAL_TITLE_ADD = "New Main Group";
 export const MODAL_TITLE_EDIT = "Edit Main Group";
@@ -7,7 +9,8 @@ export const MODAL_SUBTITLE  = "Admin › Master › Item › Main Group Master"
 
 
 export const MGM_CONFIG = {
-  RB_MASTER:           "rb_purmaingroupmst",
+  RB_MASTER:           RB_CODES.MAIN_GROUP_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER),
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_ITEM_TYPE:        "fn_tbl_pur_itemtypemst_fetch",
   SP_FIXED_ASSET_ACC:  "fn_tbl_fixedastacc_fetch",

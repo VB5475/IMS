@@ -301,7 +301,7 @@ export default function PurchaseOrderForm() {
           ? recordLoadError
           : `PO #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/purchase-order",
+    backTo: PO_CONFIG.ROUTE_PATH,
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -845,7 +845,7 @@ export default function PurchaseOrderForm() {
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
-      navigate("/purchase-order");
+      navigate(PO_CONFIG.ROUTE_PATH);
     } else {
       resetFormToInitialState();
     }

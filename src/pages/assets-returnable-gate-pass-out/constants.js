@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -12,7 +13,8 @@ export const ARGO_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 export const ARGO_REMARK_COLUMNS = new Set(["remark"]);
 
 export const ARGO_CONFIG = {
-  RB_MASTER: "rb_astissrgomst",
+  RB_MASTER: RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT),
   DELETE_PROC_NAME: "pr_rb_astissrgomst_delete",
   RB_DETAIL: "rb_astissrgodet",
   RB_ITEM_PICKER: "rb_astissrgoselonly",

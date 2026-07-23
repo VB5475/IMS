@@ -208,7 +208,7 @@ export default function AssetsStockTransferForm() {
           ? recordLoadError
           : `Stock Transfer #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-stock-transfer",
+    backTo: AST_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

@@ -39,7 +39,7 @@ export default function AssetsRevaluationPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-revaluation",
+        basePath: ARV_CONFIG.ROUTE_PATH,
         editBtnClass: "arv-list__edit-btn",
       }),
     [data, navigate]
@@ -64,7 +64,7 @@ export default function AssetsRevaluationPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-revaluation/new"),
+    () => navigate(`${ARV_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

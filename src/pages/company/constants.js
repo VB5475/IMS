@@ -1,7 +1,10 @@
 // Company — admin module config (MRD_Template4Company.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const CO_CONFIG = {
-  RB_MASTER: "rb_companymst",
+  RB_MASTER: RB_CODES.COMPANY,
+  ROUTE_PATH: rbRoutePath(RB_CODES.COMPANY),
   FORM_TAG:  "rb_companymst",
   TRAN_BOOK: "MCOMPANY",
 

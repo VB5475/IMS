@@ -45,7 +45,7 @@ export default function AssetsReturnableGatePassOutPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-returnable-gate-pass-out",
+        basePath: ARGO_CONFIG.ROUTE_PATH,
         editBtnClass: "argo-list__edit-btn",
       }),
     [data, navigate]
@@ -70,7 +70,7 @@ export default function AssetsReturnableGatePassOutPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-returnable-gate-pass-out/new"),
+    () => navigate(`${ARGO_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

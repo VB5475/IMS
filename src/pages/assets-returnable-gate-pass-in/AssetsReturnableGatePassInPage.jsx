@@ -45,7 +45,7 @@ export default function AssetsReturnableGatePassInPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-returnable-gate-pass-in",
+        basePath: ARGI_CONFIG.ROUTE_PATH,
         editBtnClass: "argi-list__edit-btn",
       }),
     [data, navigate]
@@ -70,7 +70,7 @@ export default function AssetsReturnableGatePassInPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-returnable-gate-pass-in/new"),
+    () => navigate(`${ARGI_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

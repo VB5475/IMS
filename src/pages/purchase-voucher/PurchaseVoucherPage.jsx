@@ -57,7 +57,7 @@ export default function PurchaseVoucherPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/purchase-voucher",
+        basePath: PV_CONFIG.ROUTE_PATH,
         editBtnClass: "pv-list__edit-btn",
       }),
     [data, navigate]
@@ -81,7 +81,7 @@ export default function PurchaseVoucherPage() {
     fetchVouchers();
   }, [fetchVouchers]);
 
-  const handleAddNew = useCallback(() => navigate("/purchase-voucher/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${PV_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page pv-list-page">

@@ -4,10 +4,13 @@
 // IMS_LIVE 2026-07-16 (see /tl handoff notes): RBID 10160,
 // SaveProcName pr_rb_astdepperc_save.
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const PAGE_TITLE = "Asset Depreciation Percentage";
 
 export const ADP_CONFIG = {
-  RB_MASTER: "rb_astdepPerc",
+  RB_MASTER: RB_CODES.ASSET_DEPRECIATION_PERCENTAGE,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE),
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_astdepPerc",
 

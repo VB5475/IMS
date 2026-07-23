@@ -39,7 +39,7 @@ export default function AssetsStockTransferPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-stock-transfer",
+        basePath: AST_CONFIG.ROUTE_PATH,
         editBtnClass: "ast-list__edit-btn",
       }),
     [data, navigate]
@@ -64,7 +64,7 @@ export default function AssetsStockTransferPage() {
   }, [fetchList]);
 
   const handleAddNew = useCallback(
-    () => navigate("/assets-stock-transfer/new"),
+    () => navigate(`${AST_CONFIG.ROUTE_PATH}/new`),
     [navigate]
   );
 

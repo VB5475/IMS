@@ -229,7 +229,7 @@ export default function AssetsHealthStatusUpdationForm() {
           ? recordLoadError
           : `Health Status #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-health-status-updation",
+    backTo: AHS_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

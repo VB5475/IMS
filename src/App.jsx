@@ -1,9 +1,15 @@
 import React, { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import {
+  Navigate,
+  Outlet,
+  RouterProvider,
+  createBrowserRouter,
+} from "react-router-dom";
 import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
+import { RB_CODES as RB, rbRouteSegment as rs } from "./constants/rbCodes";
 
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
 const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
@@ -13,7 +19,9 @@ const PurchaseInquiryPage = lazy(() => import("./pages/purchase-inquiry/Purchase
 const PurchaseInquiryForm = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryForm"));
 const PurchaseQuotationPage = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationPage"));
 const PurchaseQuotationForm = lazy(() => import("./pages/purchase-quotation/PurchaseQuotationForm"));
-const PurchaseQuotationComparisonPage = lazy(() => import("./pages/purchase-quotation-comparison/PurchaseQuotationComparisonPage"));
+const PurchaseQuotationComparisonPage = lazy(
+  () => import("./pages/purchase-quotation-comparison/PurchaseQuotationComparisonPage")
+);
 const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
 const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
 const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
@@ -26,30 +34,58 @@ const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
-const AssetDepreciationPercentagePage = lazy(() => import("./pages/asset-depreciation-percentage/AssetDepreciationPercentagePage"));
+const AssetDepreciationPercentagePage = lazy(
+  () => import("./pages/asset-depreciation-percentage/AssetDepreciationPercentagePage")
+);
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
 const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
 const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsEmployeeIssuePage = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssuePage"));
 const AssetsEmployeeIssueForm = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssueForm"));
+const AssetsEmployeeTransferPage = lazy(
+  () => import("./pages/assets-employee-transfer/AssetsEmployeeTransferPage")
+);
+const AssetsEmployeeTransferForm = lazy(
+  () => import("./pages/assets-employee-transfer/AssetsEmployeeTransferForm")
+);
 const AssetsEmployeeReturnPage = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnPage"));
 const AssetsEmployeeReturnForm = lazy(() => import("./pages/assets-employee-return/AssetsEmployeeReturnForm"));
-const AssetsDepartmentIssuePage = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssuePage"));
-const AssetsDepartmentIssueForm = lazy(() => import("./pages/assets-department-issue/AssetsDepartmentIssueForm"));
-const AssetsHealthStatusUpdationPage = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationPage"));
-const AssetsHealthStatusUpdationForm = lazy(() => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm"));
+const AssetsDepartmentIssuePage = lazy(
+  () => import("./pages/assets-department-issue/AssetsDepartmentIssuePage")
+);
+const AssetsDepartmentIssueForm = lazy(
+  () => import("./pages/assets-department-issue/AssetsDepartmentIssueForm")
+);
+const AssetsHealthStatusUpdationPage = lazy(
+  () => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationPage")
+);
+const AssetsHealthStatusUpdationForm = lazy(
+  () => import("./pages/assets-health-status-updation/AssetsHealthStatusUpdationForm")
+);
 const AssetsRevaluationPage = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationPage"));
 const AssetsRevaluationForm = lazy(() => import("./pages/assets-revaluation/AssetsRevaluationForm"));
-const AssetsClientAllocationPage = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationPage"));
-const AssetsClientAllocationForm = lazy(() => import("./pages/assets-client-allocation/AssetsClientAllocationForm"));
+const AssetsClientAllocationPage = lazy(
+  () => import("./pages/assets-client-allocation/AssetsClientAllocationPage")
+);
+const AssetsClientAllocationForm = lazy(
+  () => import("./pages/assets-client-allocation/AssetsClientAllocationForm")
+);
 const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
 const ComplaintRegisterForm = lazy(() => import("./pages/complaint-register/ComplaintRegisterForm"));
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
-const AssetsReturnableGatePassOutPage = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage"));
-const AssetsReturnableGatePassOutForm = lazy(() => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutForm"));
-const AssetsReturnableGatePassInPage = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInPage"));
-const AssetsReturnableGatePassInForm = lazy(() => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInForm"));
+const AssetsReturnableGatePassOutPage = lazy(
+  () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
+);
+const AssetsReturnableGatePassOutForm = lazy(
+  () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutForm")
+);
+const AssetsReturnableGatePassInPage = lazy(
+  () => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInPage")
+);
+const AssetsReturnableGatePassInForm = lazy(
+  () => import("./pages/assets-returnable-gate-pass-in/AssetsReturnableGatePassInForm")
+);
 const AssetsStockTransferPage = lazy(() => import("./pages/assets-stock-transfer/AssetsStockTransferPage"));
 const AssetsStockTransferForm = lazy(() => import("./pages/assets-stock-transfer/AssetsStockTransferForm"));
 const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGroupMasterPage"));
@@ -66,8 +102,12 @@ const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/A
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetItemMasterPage"));
-const AssetsItemOpeningExcelPage = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage"));
-const AssetsItemOpeningExcelForm = lazy(() => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm"));
+const AssetsItemOpeningExcelPage = lazy(
+  () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage")
+);
+const AssetsItemOpeningExcelForm = lazy(
+  () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm")
+);
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
 const CustomerMasterPage = lazy(() => import("./pages/customer-master/CustomerMasterPage"));
 const TrialBalanceDemoPage = lazy(() => import("./pages/trial-balance-demo/TrialBalanceDemoPage"));
@@ -90,132 +130,203 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-function AppRoutes() {
-  return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <Suspense fallback={<Loader text="Loading page…" />}>
-            <LoginPage />
-          </Suspense>
-        }
-      />
-      <Route element={<RequireAuth />}>
-        <Route element={<AppLayout />}>
-          <Route index element={<EnterpriseDashboard />} />
-          <Route path="main/:reportBoardId" element={<ReportWorkspacePage />} />
-          <Route path="txn-entry/:id?" element={<TxnEntryPage />} />
-          <Route path="purchase-inquiry" element={<PurchaseInquiryPage />} />
-          <Route path="purchase-inquiry/:id" element={<PurchaseInquiryForm />} />
-          <Route path="purchase-inquiry/:id/edit" element={<PurchaseInquiryForm />} />
-          <Route path="purchase-order" element={<PurchaseOrderPage />} />
-          <Route path="purchase-order/:id" element={<PurchaseOrderForm />} />
-          <Route path="purchase-order/:id/edit" element={<PurchaseOrderForm />} />
-          <Route path="purchase-quotation" element={<PurchaseQuotationPage />} />
-          <Route path="purchase-quotation/new" element={<PurchaseQuotationForm />} />
-          <Route path="purchase-quotation/:id/edit" element={<PurchaseQuotationForm />} />
-          <Route path="purchase-quotation-comparison" element={<PurchaseQuotationComparisonPage />} />
-          <Route path="purchase-indent" element={<PurchaseIndentPage />} />
-          <Route path="purchase-indent/new" element={<PurchaseIndentForm />} />
-          <Route path="purchase-indent/:id" element={<PurchaseIndentForm />} />
-          <Route path="purchase-indent/:id/edit" element={<PurchaseIndentForm />} />
-          <Route path="purchase-voucher" element={<PurchaseVoucherPage />} />
-          <Route path="purchase-voucher/new" element={<PurchaseVoucherForm />} />
-          <Route path="purchase-voucher/:id" element={<PurchaseVoucherForm />} />
-          <Route path="purchase-voucher/:id/edit" element={<PurchaseVoucherForm />} />
-          <Route path="goods-received-note" element={<GoodsReceivedNotePage />} />
-          <Route path="goods-received-note/new" element={<GoodsReceivedNoteForm />} />
-          <Route path="goods-received-note/:id/edit" element={<GoodsReceivedNoteForm />} />
-          <Route path="cwip-to-fa" element={<CWIPToFAPage />} />
-          <Route path="cwip-to-fa/new" element={<CWIPToFAForm />} />
-          <Route path="cwip-to-fa/:id" element={<CWIPToFAForm />} />
-          <Route path="cwip-to-fa/:id/edit" element={<CWIPToFAForm />} />
-          <Route path="assets-depreciation" element={<AssetsDepreciationPage />} />
-          <Route path="assets-depreciation/new" element={<AssetsDepreciationForm />} />
-          <Route path="assets-depreciation/:id" element={<AssetsDepreciationForm />} />
-          <Route path="assets-depreciation/:id/edit" element={<AssetsDepreciationForm />} />
-          <Route path="asset-depreciation-percentage" element={<AssetDepreciationPercentagePage />} />
-          <Route path="assets-item-opening" element={<AssetsItemOpeningPage />} />
-          <Route path="assets-item-opening/new" element={<AssetsItemOpeningForm />} />
-          <Route path="assets-item-opening/:id" element={<AssetsItemOpeningForm />} />
-          <Route path="assets-item-opening/:id/edit" element={<AssetsItemOpeningForm />} />
-          <Route path="assets-write-off" element={<AssetsWriteOffPage />} />
-          <Route path="assets-write-off/new" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id" element={<AssetsWriteOffForm />} />
-          <Route path="assets-write-off/:id/edit" element={<AssetsWriteOffForm />} />
-          <Route path="assets-employee-issue" element={<AssetsEmployeeIssuePage />} />
-          <Route path="assets-employee-issue/new" element={<AssetsEmployeeIssueForm />} />
-          <Route path="assets-employee-issue/:id" element={<AssetsEmployeeIssueForm />} />
-          <Route path="assets-employee-issue/:id/edit" element={<AssetsEmployeeIssueForm />} />
-          <Route path="assets-employee-return" element={<AssetsEmployeeReturnPage />} />
-          <Route path="assets-employee-return/new" element={<AssetsEmployeeReturnForm />} />
-          <Route path="assets-employee-return/:id" element={<AssetsEmployeeReturnForm />} />
-          <Route path="assets-employee-return/:id/edit" element={<AssetsEmployeeReturnForm />} />
-          <Route path="assets-department-issue" element={<AssetsDepartmentIssuePage />} />
-          <Route path="assets-department-issue/new" element={<AssetsDepartmentIssueForm />} />
-          <Route path="assets-department-issue/:id" element={<AssetsDepartmentIssueForm />} />
-          <Route path="assets-department-issue/:id/edit" element={<AssetsDepartmentIssueForm />} />
-          <Route path="assets-health-status-updation" element={<AssetsHealthStatusUpdationPage />} />
-          <Route path="assets-health-status-updation/new" element={<AssetsHealthStatusUpdationForm />} />
-          <Route path="assets-health-status-updation/:id" element={<AssetsHealthStatusUpdationForm />} />
-          <Route path="assets-health-status-updation/:id/edit" element={<AssetsHealthStatusUpdationForm />} />
-          <Route path="assets-revaluation" element={<AssetsRevaluationPage />} />
-          <Route path="assets-revaluation/new" element={<AssetsRevaluationForm />} />
-          <Route path="assets-revaluation/:id" element={<AssetsRevaluationForm />} />
-          <Route path="assets-revaluation/:id/edit" element={<AssetsRevaluationForm />} />
-          <Route path="assets-client-allocation" element={<AssetsClientAllocationPage />} />
-          <Route path="assets-client-allocation/new" element={<AssetsClientAllocationForm />} />
-          <Route path="assets-client-allocation/:id" element={<AssetsClientAllocationForm />} />
-          <Route path="assets-client-allocation/:id/edit" element={<AssetsClientAllocationForm />} />
-          <Route path="assets-returnable-gate-pass-out" element={<AssetsReturnableGatePassOutPage />} />
-          <Route path="assets-returnable-gate-pass-out/new" element={<AssetsReturnableGatePassOutForm />} />
-          <Route path="assets-returnable-gate-pass-out/:id" element={<AssetsReturnableGatePassOutForm />} />
-          <Route path="assets-returnable-gate-pass-out/:id/edit" element={<AssetsReturnableGatePassOutForm />} />
-          <Route path="assets-returnable-gate-pass-in" element={<AssetsReturnableGatePassInPage />} />
-          <Route path="assets-returnable-gate-pass-in/new" element={<AssetsReturnableGatePassInForm />} />
-          <Route path="assets-returnable-gate-pass-in/:id" element={<AssetsReturnableGatePassInForm />} />
-          <Route path="assets-returnable-gate-pass-in/:id/edit" element={<AssetsReturnableGatePassInForm />} />
-          <Route path="assets-stock-transfer" element={<AssetsStockTransferPage />} />
-          <Route path="assets-stock-transfer/new" element={<AssetsStockTransferForm />} />
-          <Route path="assets-stock-transfer/:id" element={<AssetsStockTransferForm />} />
-          <Route path="assets-stock-transfer/:id/edit" element={<AssetsStockTransferForm />} />
-          <Route path="maintenance-dashboard" element={<MaintenanceDashboard />} />
-          {/* Admin — Master modules */}
-          <Route path="admin/main-group-master" element={<MainGroupMasterPage />} />
-          <Route path="admin/master/item/sub-main-group-master" element={<SubMainGroupMasterPage />} />
-          <Route path="admin/master/item/sub-group-master" element={<SubGroupMasterPage />} />
-          <Route path="admin/company/location-master" element={<LocationMasterPage />} />
-          <Route path="admin/company/division-master" element={<DivisionMasterPage />} />
-          <Route path="account/master/asset-item-master" element={<AssetItemMasterPage />} />
-          <Route path="account/master/asset-item-opening-excel" element={<AssetsItemOpeningExcelPage />} />
-          <Route path="account/master/asset-item-opening-excel/new" element={<AssetsItemOpeningExcelForm />} />
-          <Route path="admin/master/supplier-master" element={<SupplierMasterPage />} />
-          <Route path="admin/master/customer-master" element={<CustomerMasterPage />} />
-          <Route path="admin/user-master" element={<UserMasterPage />} />
-          <Route path="admin/user-group" element={<UserGroupPage />} />
-          <Route path="admin/division-wise-rights" element={<DivisionWiseRightsPage />} />
-          <Route path="admin/item-master" element={<ItemMasterPage />} />
-          <Route path="admin/department-master" element={<DepartmentMasterPage />} />
-          <Route path="admin/company" element={<CompanyPage />} />
-          <Route path="admin/account-group-master" element={<AccountGroupMasterPage />} />
-          <Route path="admin/account-master" element={<AccountMasterPage />} />
-          <Route path="demo/trial-balance" element={<TrialBalanceDemoPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Route>
-    </Routes>
-  );
+/** Module route: friendly `path`, RB code as unique route `id`. */
+function rbModule({ rb, list, form, variants = ["new", "edit", "view"] }) {
+  const children = [{ index: true, element: list }];
+  if (form) {
+    if (variants.includes("new")) children.push({ path: "new", element: form });
+    if (variants.includes("edit")) children.push({ path: ":id/edit", element: form });
+    if (variants.includes("view")) children.push({ path: ":id", element: form });
+  }
+  return {
+    id: rb,
+    path: rs(rb),
+    children,
+  };
 }
+
+function rbLeaf({ rb, element }) {
+  return {
+    id: rb,
+    path: rs(rb),
+    element,
+  };
+}
+
+const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: (
+      <Suspense fallback={<Loader text="Loading page…" />}>
+        <LoginPage />
+      </Suspense>
+    ),
+  },
+  {
+    element: <RequireAuth />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <EnterpriseDashboard /> },
+          { path: "main/:reportBoardId", element: <ReportWorkspacePage /> },
+
+          {
+            id: RB.TXN_ENTRY,
+            path: `${rs(RB.TXN_ENTRY)}/:id?`,
+            element: <TxnEntryPage />,
+          },
+
+          rbModule({
+            rb: RB.PURCHASE_INQUIRY,
+            list: <PurchaseInquiryPage />,
+            form: <PurchaseInquiryForm />,
+            variants: ["new", "edit", "view"],
+          }),
+          rbModule({
+            rb: RB.PURCHASE_ORDER,
+            list: <PurchaseOrderPage />,
+            form: <PurchaseOrderForm />,
+            variants: ["new", "edit", "view"],
+          }),
+          rbModule({
+            rb: RB.PURCHASE_QUOTATION,
+            list: <PurchaseQuotationPage />,
+            form: <PurchaseQuotationForm />,
+            variants: ["new", "edit"],
+          }),
+          { path: "purchase-quotation-comparison", element: <PurchaseQuotationComparisonPage /> },
+          rbModule({
+            rb: RB.PURCHASE_INDENT,
+            list: <PurchaseIndentPage />,
+            form: <PurchaseIndentForm />,
+          }),
+          rbModule({
+            rb: RB.PURCHASE_VOUCHER,
+            list: <PurchaseVoucherPage />,
+            form: <PurchaseVoucherForm />,
+          }),
+          rbModule({
+            rb: RB.GOODS_RECEIVED_NOTE,
+            list: <GoodsReceivedNotePage />,
+            form: <GoodsReceivedNoteForm />,
+            variants: ["new", "edit"],
+          }),
+          rbModule({
+            rb: RB.CWIP_TO_FA,
+            list: <CWIPToFAPage />,
+            form: <CWIPToFAForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_DEPRECIATION,
+            list: <AssetsDepreciationPage />,
+            form: <AssetsDepreciationForm />,
+          }),
+          rbLeaf({ rb: RB.ASSET_DEPRECIATION_PERCENTAGE, element: <AssetDepreciationPercentagePage /> }),
+          rbModule({
+            rb: RB.ASSETS_ITEM_OPENING,
+            list: <AssetsItemOpeningPage />,
+            form: <AssetsItemOpeningForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_WRITE_OFF,
+            list: <AssetsWriteOffPage />,
+            form: <AssetsWriteOffForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_EMPLOYEE_ISSUE,
+            list: <AssetsEmployeeIssuePage />,
+            form: <AssetsEmployeeIssueForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_EMPLOYEE_TRANSFER,
+            list: <AssetsEmployeeTransferPage />,
+            form: <AssetsEmployeeTransferForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_EMPLOYEE_RETURN,
+            list: <AssetsEmployeeReturnPage />,
+            form: <AssetsEmployeeReturnForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_DEPARTMENT_ISSUE,
+            list: <AssetsDepartmentIssuePage />,
+            form: <AssetsDepartmentIssueForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_HEALTH_STATUS_UPDATION,
+            list: <AssetsHealthStatusUpdationPage />,
+            form: <AssetsHealthStatusUpdationForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_REVALUATION,
+            list: <AssetsRevaluationPage />,
+            form: <AssetsRevaluationForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_CLIENT_ALLOCATION,
+            list: <AssetsClientAllocationPage />,
+            form: <AssetsClientAllocationForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_RETURNABLE_GATE_PASS_OUT,
+            list: <AssetsReturnableGatePassOutPage />,
+            form: <AssetsReturnableGatePassOutForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_RETURNABLE_GATE_PASS_IN,
+            list: <AssetsReturnableGatePassInPage />,
+            form: <AssetsReturnableGatePassInForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_STOCK_TRANSFER,
+            list: <AssetsStockTransferPage />,
+            form: <AssetsStockTransferForm />,
+          }),
+          rbModule({
+            rb: RB.COMPLAINT_REGISTER,
+            list: <ComplaintRegisterPage />,
+            form: <ComplaintRegisterForm />,
+          }),
+          rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
+
+          // Admin — Master modules
+          rbLeaf({ rb: RB.MAIN_GROUP_MASTER, element: <MainGroupMasterPage /> }),
+          rbLeaf({ rb: RB.SUB_MAIN_GROUP_MASTER, element: <SubMainGroupMasterPage /> }),
+          rbLeaf({ rb: RB.SUB_GROUP_MASTER, element: <SubGroupMasterPage /> }),
+          rbLeaf({ rb: RB.LOCATION_MASTER, element: <LocationMasterPage /> }),
+          rbLeaf({ rb: RB.DIVISION_MASTER, element: <DivisionMasterPage /> }),
+          rbLeaf({ rb: RB.ASSET_ITEM_MASTER, element: <AssetItemMasterPage /> }),
+          rbModule({
+            rb: RB.ASSETS_ITEM_OPENING_EXCEL,
+            list: <AssetsItemOpeningExcelPage />,
+            form: <AssetsItemOpeningExcelForm />,
+            variants: ["new"],
+          }),
+          rbLeaf({ rb: RB.SUPPLIER_MASTER, element: <SupplierMasterPage /> }),
+          { path: "admin/master/customer-master", element: <CustomerMasterPage /> },
+          rbLeaf({ rb: RB.USER_MASTER, element: <UserMasterPage /> }),
+          rbLeaf({ rb: RB.USER_GROUP, element: <UserGroupPage /> }),
+          rbLeaf({ rb: RB.DIVISION_WISE_RIGHTS, element: <DivisionWiseRightsPage /> }),
+          rbLeaf({ rb: RB.ITEM_MASTER, element: <ItemMasterPage /> }),
+          rbLeaf({ rb: RB.DEPARTMENT_MASTER, element: <DepartmentMasterPage /> }),
+          rbLeaf({ rb: RB.COMPANY, element: <CompanyPage /> }),
+          rbLeaf({ rb: RB.ACCOUNT_GROUP_MASTER, element: <AccountGroupMasterPage /> }),
+          rbLeaf({ rb: RB.ACCOUNT_MASTER, element: <AccountMasterPage /> }),
+          { path: "demo/trial-balance", element: <TrialBalanceDemoPage /> },
+          { path: "*", element: <Navigate to="/" replace /> },
+        ],
+      },
+    ],
+  },
+]);
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <UserProvider>
-        <PageHeaderProvider>
-          <AppRoutes />
-        </PageHeaderProvider>
-      </UserProvider>
-    </BrowserRouter>
+    <UserProvider>
+      <PageHeaderProvider>
+        <RouterProvider router={router} />
+      </PageHeaderProvider>
+    </UserProvider>
   );
 }

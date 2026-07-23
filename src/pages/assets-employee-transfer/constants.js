@@ -1,41 +1,41 @@
-// constants.js — Assets Employee Issue (AEI) page config
+// constants.js — Assets Employee Transfer (AET) page config
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE = "Assets Employee Issue";
-export const PAGE_TITLE_NEW = "New Assets Employee Issue";
+export const PAGE_TITLE = "Assets Employee Transfer";
+export const PAGE_TITLE_NEW = "New Assets Employee Transfer";
 
-// Values aligned to MRD_Template4AssetsIssue.docx (Richa, 23-Jun-2026).
+// Values aligned to MRD_Template4EmpTransfer.docx (Richa, 23-Jun-2026).
 
 /** Item-grid column that supports multi-value paste (Serial Number replication). */
-export const AEI_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
+export const AET_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 
 /** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
-export const AEI_REMARK_COLUMNS = new Set(["remark"]);
+export const AET_REMARK_COLUMNS = new Set(["remark"]);
 
-export const AEI_CONFIG = {
-  RB_MASTER: RB_CODES.ASSETS_EMPLOYEE_ISSUE,
-  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE),
-  DELETE_PROC_NAME: "pr_rb_astempissmst_delete",
-  RB_DETAIL: "rb_astempissdet",
-  RB_ITEM_PICKER: "rb_astempissselonly",
+export const AET_CONFIG = {
+  RB_MASTER: RB_CODES.ASSETS_EMPLOYEE_TRANSFER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER),
+  DELETE_PROC_NAME: "pr_rb_astemptrfmst_delete",
+  RB_DETAIL: "rb_astemptrfdet",
+  RB_ITEM_PICKER: "rb_astemptrfselonly",
 
   MODULE_CODE: "AIS",
-  FORM_TAG: "rb_astempissmst",
-  TRAN_BOOK: "EI",
-  /** MRD hardcode — FrmType value 1, label EI */
-  FRM_TYPE: 1,
-  FRM_TYPE_LABEL: "EI",
+  FORM_TAG: "rb_astemptrfmst",
+  TRAN_BOOK: "ET",
+  /** MRD hardcode — FrmType value ET, label ET */
+  FRM_TYPE: "ET",
+  FRM_TYPE_LABEL: "ET",
   CONFIG_FORM_TAG: "ASTIS",
-  CONFIG_REF_TYPE: "EI",
-  ISSUE_TYPE_ID: 1,
-  /** fn_tbl_Rb_astempissselonly — MRD hardcode */
-  ITEM_PICKER_ISSUE_TYPE_ID: -1,
-  /** fn_gen_fetchfromuser / fn_gen_fetchtouser — MRD hardcode */
-  EMP_ISSUE_TYPE_ID: 1,
-  /** fn_gen_fetchfromvendor / fn_gen_fetchtovendor */
-  VENDOR_ISSUE_TYPE_ID: 1,
+  CONFIG_REF_TYPE: "ET",
+  ISSUE_TYPE_ID: 14,
+  /** fn_tbl_rb_astemptrfselonly — MRD hardcode */
+  ITEM_PICKER_ISSUE_TYPE_ID: 14,
+  /** fn_gen_fetchfromuser — MRD hardcode */
+  EMP_ISSUE_TYPE_ID: 14,
+  /** Retained for shared hook compatibility. */
+  VENDOR_ISSUE_TYPE_ID: 14,
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
@@ -51,34 +51,36 @@ export const AEI_CONFIG = {
   SP_FROM_VENDOR: "fn_gen_fetchfromvendor",
   SP_TO_VENDOR: "fn_gen_fetchtovendor",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
-  SP_ITEM_PICKER: "fn_tbl_Rb_astempissselonly",
+  SP_ITEM_PICKER: "fn_tbl_rb_astemptrfselonly",
 
-  SP_MASTER_FILL: "fn_tbl_Rb_astempissmst",
-  SP_DETAIL_FILL: "fn_tbl_Rb_astempissdet",
+  SP_MASTER_FILL: "fn_tbl_rb_astemptrfmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_astemptrfdet",
 
-  SAVE_ENDPOINT: "/API/AstIssueMstSave/Post_RB_AstIssueMst_Save",
+  SAVE_ENDPOINT: "/API/AstEmpTrfMst/Post_RB_AstEmpTrfMst_Save",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_astempissmst_list",
+  SP_LIST: "fn_tbl_rb_astemptrfmst_list",
   /** Default prmfromdivisionid for list fetch — CONFIRM with DBA */
   LIST_FROM_DIVISION_ID: 15,
 
   PARTY_TYPE_CLIENT: "C",
 
-  STORAGE_HEADER_META: "aeiHeaderMeta",
-  STORAGE_ENTRY_META: "aeiEntryMeta",
+  STORAGE_HEADER_META: "aetHeaderMeta",
+  STORAGE_ENTRY_META: "aetEntryMeta",
 };
 
-export const AEI_GRID_TABS = [{ id: "items", label: "Item Grid" }];
+export const AET_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-export const AEI_FRM_TYPE_OPTIONS = [
-  { value: String(AEI_CONFIG.FRM_TYPE), label: AEI_CONFIG.FRM_TYPE_LABEL },
+export const AET_FRM_TYPE_OPTIONS = [
+  { value: String(AET_CONFIG.FRM_TYPE), label: AET_CONFIG.FRM_TYPE_LABEL },
 ];
 
-const AEI_ITEM_PICKER_REQUIRED_FIELDS = [
+const AET_ITEM_PICKER_REQUIRED_FIELDS = [
   { keys: ["fromdivisionid", "FromDivisionID"], label: "From Division" },
   { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
-  { keys: ["fromlocationid", "FromLocationID"], label: "From Location" },
+  { keys: ["tolocationid", "ToLocationID"], label: "To Location" },
+  { keys: ["todeptid", "ToDeptID"], label: "To Department" },
+  { keys: ["fromempuserid", "FromEmpUserID"], label: "Employee" },
   { keys: ["configid", "ConfigID"], label: "Configuration" },
 ];
 
@@ -99,7 +101,7 @@ function isMissingValue(field, value) {
 }
 
 export function getMissingItemPickerHeaderFields(headerValues) {
-  return AEI_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
+  return AET_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
     isMissingValue(f, pickHeaderValue(headerValues, f.keys))
   ).map((f) => f.label);
 }
@@ -110,8 +112,8 @@ function pickHeaderInt(headerValues, ...keys) {
   return Number(raw) || 0;
 }
 
-/** FN_FETCH_DATA JSON for fn_tbl_Rb_astempissselonly item picker rows. */
-export function buildAeiItemPickerJsonPayload(headerValues, {
+/** FN_FETCH_DATA JSON for fn_tbl_rb_astemptrfselonly item picker rows. */
+export function buildAetItemPickerJsonPayload(headerValues, {
   companyId,
   loginId,
   yearId,
@@ -135,17 +137,17 @@ export function buildAeiItemPickerJsonPayload(headerValues, {
     prmfromvendorid: pickHeaderInt(headerValues, "fromvendorid", "FromVendorID"),
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
-    prmissuetypeid: AEI_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
+    prmissuetypeid: AET_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
   };
 }
 
-export function buildAeiListJsonPayload({
+export function buildAetListJsonPayload({
   companyId,
   loginId,
   yearId,
   fromDate,
   toDate,
-  fromDivisionId = AEI_CONFIG.LIST_FROM_DIVISION_ID,
+  fromDivisionId = AET_CONFIG.LIST_FROM_DIVISION_ID,
   fromEmpUserId = 0,
 } = {}) {
   const session = getUserSession();
@@ -161,15 +163,15 @@ export function buildAeiListJsonPayload({
   };
 }
 
-export function applyAeiHardcodedHeaderValues(headerValues = {}) {
+export function applyAetHardcodedHeaderValues(headerValues = {}) {
   return {
     ...headerValues,
-    frmtype: AEI_CONFIG.FRM_TYPE,
-    issuetypeid: AEI_CONFIG.ISSUE_TYPE_ID,
+    frmtype: AET_CONFIG.FRM_TYPE,
+    issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
   };
 }
 
-export function resolveAeiColKey(fieldDefs, ...hints) {
+export function resolveAetColKey(fieldDefs, ...hints) {
   const lowerHints = hints.map((h) => String(h).toLowerCase());
   const found = (fieldDefs || []).find((col) => {
     const name = String(col.colname ?? col.ColName ?? "").toLowerCase();
@@ -178,26 +180,15 @@ export function resolveAeiColKey(fieldDefs, ...hints) {
   return found?.colname ?? found?.ColName ?? hints[0] ?? "";
 }
 
-export function buildAeiCascadeResets(fieldDefs) {
-  const fromDiv = resolveAeiColKey(fieldDefs, "fromdivisionid");
-  const fromLoc = resolveAeiColKey(fieldDefs, "fromlocationid");
-  const fromDept = resolveAeiColKey(fieldDefs, "fromdeptid");
-  const fromEmp = resolveAeiColKey(fieldDefs, "fromempuserid");
-  const fromVendor = resolveAeiColKey(fieldDefs, "fromvendorid");
-  const fromClient = resolveAeiColKey(fieldDefs, "fromworkingclientid");
-  const toDiv = resolveAeiColKey(fieldDefs, "todivisionid");
-  const toLoc = resolveAeiColKey(fieldDefs, "tolocationid");
-  const toDept = resolveAeiColKey(fieldDefs, "todeptid");
-  const toEmp = resolveAeiColKey(fieldDefs, "toempuserid");
+export function buildAetCascadeResets(fieldDefs) {
+  const fromDiv = resolveAetColKey(fieldDefs, "fromdivisionid");
+  const toLoc = resolveAetColKey(fieldDefs, "tolocationid");
+  const toDept = resolveAetColKey(fieldDefs, "todeptid");
+  const fromEmp = resolveAetColKey(fieldDefs, "fromempuserid");
+  const config = resolveAetColKey(fieldDefs, "configid");
 
   const resets = {};
-  if (fromDiv) {
-    resets[fromDiv] = [fromLoc, fromEmp, fromVendor, fromClient].filter(Boolean);
-  }
-  if (fromLoc && fromEmp) resets[fromLoc] = [fromEmp];
-  if (fromDept && fromEmp) resets[fromDept] = [fromEmp];
-  if (toDiv) resets[toDiv] = [toLoc, toEmp].filter(Boolean);
-  if (toLoc && toEmp) resets[toLoc] = [toEmp];
-  if (toDept && toEmp) resets[toDept] = [toEmp];
+  if (fromDiv) resets[fromDiv] = [toLoc, toDept, fromEmp, config].filter(Boolean);
+  if (toDept && fromEmp) resets[toDept] = [fromEmp];
   return resets;
 }

@@ -1,7 +1,9 @@
 // Maintenance Call Allocation — module config (MRD_Template4MntCallAllocation.docx)
 
+import { RB_CODES } from "../../constants/rbCodes";
+
 export const MNT_CALL_CONFIG = {
-  RB_MASTER: "rb_mntallocation",
+  RB_MASTER: RB_CODES.CALL_ALLOCATION,
   FORM_TAG: "rb_mntallocation",
   TRAN_BOOK: "MNTALN",
 

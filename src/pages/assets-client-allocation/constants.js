@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -12,7 +13,8 @@ export const ACA_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 export const ACA_REMARK_COLUMNS = new Set(["remark"]);
 
 export const ACA_CONFIG = {
-  RB_MASTER: "rb_astcliallomst",
+  RB_MASTER: RB_CODES.ASSETS_CLIENT_ALLOCATION,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_CLIENT_ALLOCATION),
   DELETE_PROC_NAME: "pr_rb_astcliallomst_delete",
   RB_DETAIL: "rb_astcliallodet",
   RB_ITEM_PICKER: "rb_astclialloselonly",

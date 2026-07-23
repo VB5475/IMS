@@ -208,7 +208,7 @@ export default function AssetsReturnableGatePassInForm() {
           ? recordLoadError
           : `Gate Pass In #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-returnable-gate-pass-in",
+    backTo: ARGI_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

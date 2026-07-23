@@ -45,16 +45,12 @@ export function resolveListRecordId(row) {
 
 function extractListColumnKeys(rows) {
   if (!rows?.length) return [];
-  const keys = Object.keys(rows[0]);
+  const keys = Object.keys(rows[0]).filter((key) => !isIdNumberColumnKey(key));
   const seen = new Set(keys);
-  let seenIdNumber = keys.some(isIdNumberColumnKey);
   for (let i = 1; i < rows.length; i += 1) {
     Object.keys(rows[i]).forEach((key) => {
+      if (isIdNumberColumnKey(key)) return;
       if (seen.has(key)) return;
-      if (isIdNumberColumnKey(key)) {
-        if (seenIdNumber) return;
-        seenIdNumber = true;
-      }
       seen.add(key);
       keys.push(key);
     });

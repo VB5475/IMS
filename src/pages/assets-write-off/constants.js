@@ -1,4 +1,6 @@
 // constants.js — Assets Write Off (AWF) page config
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Write Off";
 export const PAGE_TITLE_NEW = "New Assets Write Off";
@@ -12,7 +14,8 @@ export const AWF_MULTI_PASTE_COLUMNS = new Set(["batchsrno"]);
 export const AWF_REMARK_COLUMNS = new Set(["remark"]);
 
 export const AWF_CONFIG = {
-  RB_MASTER: "rb_astwriteoffmst",
+  RB_MASTER: RB_CODES.ASSETS_WRITE_OFF,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF),
   DELETE_PROC_NAME: "pr_rb_astwriteoffmst_delete",
   RB_DETAIL: "rb_astwriteoffdet",
   RB_ITEM_PICKER: "rb_astwritoffselonly",
