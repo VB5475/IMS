@@ -222,7 +222,7 @@ export default function AssetsRevaluationForm() {
           ? recordLoadError
           : `Revaluation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-revaluation",
+    backTo: ARV_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

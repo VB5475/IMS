@@ -53,7 +53,12 @@ export function buildListColumnsFromApi({
   renderEditCell,
   excludeKeys = [],
 }) {
-  const excludeSet = new Set(excludeKeys);
+  const excludeSet = new Set([
+    ...excludeKeys,
+    "idnumber",
+    "IDNumber",
+    "IDNUMBER",
+  ]);
   const labelMap = new Map(
     (fieldDefs || []).flatMap((field) => {
       const colName = field.ColName ?? field.colname;

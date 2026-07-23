@@ -1,3 +1,5 @@
+// AssetsEmployeeTransferForm.jsx — Assets Employee Transfer entry form (Add / Edit)
+
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
@@ -8,13 +10,15 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { useAstStktr } from "../../hooks/useAstStktr";
+import { useAstEmpTrf } from "../../hooks/useAstEmpTrf";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
+  DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -37,23 +41,22 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  AST_CONFIG,
-  AST_MULTI_PASTE_COLUMNS,
-  AST_REMARK_COLUMNS,
-  AST_GRID_TABS,
-  AST_FRM_TYPE_OPTIONS,
+  AET_CONFIG,
+  AET_MULTI_PASTE_COLUMNS,
+  AET_REMARK_COLUMNS,
+  AET_GRID_TABS,
+  AET_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
-  buildAstItemPickerJsonPayload,
-  applyAstHardcodedHeaderValues,
-  buildAstCascadeResets,
-  validateAstBusinessRules,
+  buildAetItemPickerJsonPayload,
+  applyAetHardcodedHeaderValues,
+  buildAetCascadeResets,
 } from "./constants";
-import "./AssetsStockTransferPage.css";
+import "./AssetsEmployeeTransferPage.css";
 
-let _astTempId = -1;
-const nextTempId = () => _astTempId--;
+let _aetTempId = -1;
+const nextTempId = () => _aetTempId--;
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -66,17 +69,28 @@ function mapHeaderValuesToFilterValues(headerValues) {
     todivisionid: str(headerValues.todivisionid),
     fromlocationid: str(headerValues.fromlocationid),
     tolocationid: str(headerValues.tolocationid),
+    fromdeptid: str(headerValues.fromdeptid),
+    todeptid: str(headerValues.todeptid),
+    fromempuserid: str(headerValues.fromempuserid),
+    toempuserid: str(headerValues.toempuserid),
+    fromworkingclientid: str(headerValues.fromworkingclientid),
+    toworkingclientid: str(headerValues.toworkingclientid),
+    fromvendorid: str(headerValues.fromvendorid),
+    tovendorid: str(headerValues.tovendorid),
     configid: str(headerValues.configid),
+    frmtype: str(headerValues.frmtype ?? AET_CONFIG.FRM_TYPE),
+    issuetypeid: str(headerValues.issuetypeid ?? AET_CONFIG.ISSUE_TYPE_ID),
+    expecteddays: headerValues.expecteddays ?? "",
+    expecteddate: headerValues.expecteddate ?? "",
     includestockitems: headerValues.includestockitems ?? 0,
-    remarks: headerValues.remarks ?? "",
-    frmtype: str(headerValues.frmtype ?? AST_CONFIG.FRM_TYPE),
-    issuetypeid: str(headerValues.issuetypeid ?? AST_CONFIG.ISSUE_TYPE_ID),
+    totalprocessrate: headerValues.totalprocessrate ?? "",
   };
 }
 
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => {
+
     row[key] = getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
@@ -86,7 +100,7 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
-export default function AssetsStockTransferForm() {
+export default function AssetsEmployeeTransferForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
@@ -106,14 +120,24 @@ export default function AssetsStockTransferForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    fromDivisionOptions, toDivisionOptions, fromLocationOptions, toLocationOptions,
+    fromDivisionOptions, toDivisionOptions,
+    fromLocationOptions, toLocationOptions,
+    fromDepartmentOptions, toDepartmentOptions,
+    fromEmpOptions, toEmpOptions,
+    fromVendorOptions, toVendorOptions,
+    fromClientOptions, toClientOptions,
     configOptions,
-    fetchFromLocations, fetchToLocations, fetchConfigOptions,
+    fetchFromLocations, fetchToLocations,
+    fetchFromDepartments, fetchToDepartments,
+    fetchFromVendors, fetchToVendors,
+    fetchFromWorkingClients, fetchToWorkingClients,
+    fetchConfigOptions,
+    fetchFromEmployees, fetchToEmployees, clearFromEmpOptions, clearToEmpOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useAstStktr(API_BASE_URL);
+  } = useAstEmpTrf(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -126,7 +150,7 @@ export default function AssetsStockTransferForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const headerValuesRef = useRef(applyAstHardcodedHeaderValues({
+  const headerValuesRef = useRef(applyAetHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
     issuedate: todayISO,
@@ -134,17 +158,27 @@ export default function AssetsStockTransferForm() {
     todivisionid: 0,
     fromlocationid: 0,
     tolocationid: 0,
+    fromdeptid: 0,
+    todeptid: 0,
+    fromempuserid: 0,
+    toempuserid: 0,
+    fromworkingclientid: 0,
+    toworkingclientid: 0,
+    fromvendorid: 0,
+    tovendorid: 0,
     configid: 0,
+    expecteddays: 0,
+    expecteddate: null,
     includestockitems: 0,
-    remarks: "",
-    frmtype: AST_CONFIG.FRM_TYPE,
-    issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
+    totalprocessrate: 0,
+    frmtype: AET_CONFIG.FRM_TYPE,
+    issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
     tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: recordId,
-    funccode: AST_CONFIG.RB_MASTER,
+    funccode: AET_CONFIG.RB_MASTER,
   }));
 
   const filterInitialValues = useMemo(() => {
@@ -152,9 +186,8 @@ export default function AssetsStockTransferForm() {
     return {
       trandate: todayISO,
       issuedate: todayISO,
-      frmtype: String(AST_CONFIG.FRM_TYPE),
-      issuetypeid: String(AST_CONFIG.ISSUE_TYPE_ID),
-      includestockitems: 0,
+      frmtype: String(AET_CONFIG.FRM_TYPE),
+      issuetypeid: String(AET_CONFIG.ISSUE_TYPE_ID),
     };
   }, [loadedFilterValues, todayISO]);
 
@@ -162,6 +195,7 @@ export default function AssetsStockTransferForm() {
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
+  const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -172,7 +206,7 @@ export default function AssetsStockTransferForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const cascadeResets = useMemo(() => buildAstCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildAetCascadeResets(headerColumns), [headerColumns]);
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -206,9 +240,9 @@ export default function AssetsStockTransferForm() {
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `Stock Transfer #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: AST_CONFIG.ROUTE_PATH,
+    backTo: AET_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {
@@ -225,8 +259,11 @@ export default function AssetsStockTransferForm() {
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      if (itemGridRef.current.loadRows) itemGridRef.current.loadRows(queuedRowsRef.current);
-      else queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      if (itemGridRef.current.loadRows) {
+        itemGridRef.current.loadRows(queuedRowsRef.current);
+      } else {
+        queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
+      }
       queuedRowsRef.current = [];
     }
   }, [columns]);
@@ -236,14 +273,12 @@ export default function AssetsStockTransferForm() {
     setRecordLoadError(null);
     try {
       const params = resolveEditLoadParams(recordId, listRecord, {
-        idFields: ["astissstktrid", "AstIssStktrID"],
+        idFields: ["astempissid"],
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) {
-        throw new Error("Assets Stock Transfer record not found.");
-      }
+      if (!master || !headerValues) throw new Error("Assets Employee Transfer record not found.");
 
-      headerValuesRef.current = applyAstHardcodedHeaderValues({
+      headerValuesRef.current = applyAetHardcodedHeaderValues({
         ...headerValuesRef.current,
         ...headerValues,
       });
@@ -259,11 +294,15 @@ export default function AssetsStockTransferForm() {
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
-      if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
-      else queuedRowsRef.current = syncedDetails;
+
+      if (itemGridRef.current?.loadRows) {
+        itemGridRef.current.loadRows(syncedDetails);
+      } else {
+        queuedRowsRef.current = syncedDetails;
+      }
     } catch (err) {
-      console.error("[AST] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Stock Transfer record.");
+      console.error("[AET] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Assets Employee Transfer record.");
     } finally {
       setRecordLoading(false);
     }
@@ -302,13 +341,23 @@ export default function AssetsStockTransferForm() {
     todivisionid: toDivisionOptions,
     fromlocationid: fromLocationOptions,
     tolocationid: toLocationOptions,
+    fromdeptid: fromDepartmentOptions,
+    todeptid: toDepartmentOptions,
+    fromempuserid: fromEmpOptions,
+    toempuserid: toEmpOptions,
+    fromvendorid: fromVendorOptions,
+    tovendorid: toVendorOptions,
+    fromworkingclientid: fromClientOptions,
+    toworkingclientid: toClientOptions,
     configid: configOptions,
-    frmtype: AST_FRM_TYPE_OPTIONS,
+    frmtype: AET_FRM_TYPE_OPTIONS,
   }), [
-    fromDivisionOptions,
-    toDivisionOptions,
-    fromLocationOptions,
-    toLocationOptions,
+    fromDivisionOptions, toDivisionOptions,
+    fromLocationOptions, toLocationOptions,
+    fromDepartmentOptions, toDepartmentOptions,
+    fromEmpOptions, toEmpOptions,
+    fromVendorOptions, toVendorOptions,
+    fromClientOptions, toClientOptions,
     configOptions,
   ]);
 
@@ -368,59 +417,182 @@ export default function AssetsStockTransferForm() {
     setClearRowsOpen(true);
   }, []);
 
-  const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = applyAstHardcodedHeaderValues({
-      ...headerValuesRef.current,
-      [colName]: val,
-    });
-    const hv = headerValuesRef.current;
-    const col = String(colName).toLowerCase();
+  const fetchToEmployeesIfVisible = useCallback(
+    (hv) => {
+      if (!hasVisibleCol(headerColumns, "toempuserid")) return Promise.resolve();
+      const divId = hv.todivisionid ?? hv.fromdivisionid ?? 0;
+      if (!divId || divId === "0" || Number(divId) === 0) return Promise.resolve();
+      return fetchToEmployees(divId, hv.tolocationid, hv.todeptid);
+    },
+    [headerColumns, fetchToEmployees]
+  );
 
-    // MRD: FromDivisionID → clear From Location, Grid; reload options
-    if (col === "fromdivisionid") {
-      requestGridClear("From Division", async () => {
-        hv.fromlocationid = 0;
-        hv.configid = 0;
-        itemGridRef.current?.clearRows?.();
-        if (Number(val) > 0) {
-          const fetches = [];
-          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchFromLocations());
-          if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
-          if (fetches.length) await Promise.all(fetches);
-          if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+  const handleFilterChange = useCallback(
+    async (colName, val) => {
+      headerValuesRef.current = applyAetHardcodedHeaderValues({
+        ...headerValuesRef.current,
+        [colName]: val,
+      });
+      const hv = headerValuesRef.current;
+      const col = String(colName).toLowerCase();
+
+      if (col === "fromdivisionid") {
+        requestGridClear("From Division", async () => {
+          hv.fromlocationid = 0;
+          hv.fromempuserid = 0;
+          hv.fromvendorid = 0;
+          hv.fromworkingclientid = 0;
+          hv.todivisionid = val;
+          hv.toempuserid = 0;
+          clearFromEmpOptions();
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "fromlocationid")) {
+              fetches.push(fetchFromLocations());
+            }
+            if (hasVisibleCol(headerColumns, "tolocationid")) {
+              fetches.push(fetchToLocations());
+            }
+            if (hasVisibleCol(headerColumns, "fromdeptid")) {
+              fetches.push(fetchFromDepartments());
+            }
+            if (hasVisibleCol(headerColumns, "todeptid")) {
+              fetches.push(fetchToDepartments());
+            }
+            if (hasVisibleCol(headerColumns, "configid")) {
+              fetches.push(fetchConfigOptions(val));
+            }
+            if (hasVisibleCol(headerColumns, "fromempuserid")) {
+              fetches.push(fetchFromEmployees(val, hv.fromlocationid, hv.fromdeptid));
+            }
+            if (hasVisibleCol(headerColumns, "toempuserid")) {
+              fetches.push(fetchToEmployeesIfVisible(hv));
+            }
+            if (hasVisibleCol(headerColumns, "fromvendorid")) {
+              fetches.push(fetchFromVendors(val, hv.fromlocationid));
+            }
+            if (hasVisibleCol(headerColumns, "tovendorid")) {
+              fetches.push(fetchToVendors(val, hv.tolocationid));
+            }
+            if (hasVisibleCol(headerColumns, "fromworkingclientid")) {
+              fetches.push(fetchFromWorkingClients(val));
+            }
+            if (hasVisibleCol(headerColumns, "toworkingclientid")) {
+              fetches.push(fetchToWorkingClients(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            if (hasVisibleCol(headerColumns, "fromlocationid")) {
+              focusFieldAfterCascade(filterPanelRef, "fromlocationid");
+            }
           }
-        }
-      });
-      return;
-    }
+        });
+        return;
+      }
 
-    // MRD: ToDivisionID → clear To Location, Grid; reload options
-    if (col === "todivisionid") {
-      requestGridClear("To Division", async () => {
-        hv.tolocationid = 0;
-        itemGridRef.current?.clearRows?.();
-        if (Number(val) > 0 && hasVisibleCol(headerColumns, "tolocationid")) {
-          await fetchToLocations();
-          focusFieldAfterCascade(filterPanelRef, "tolocationid");
-        }
-      });
-      return;
-    }
+      if (col === "fromlocationid") {
+        requestGridClear("From Location", async () => {
+          hv.fromempuserid = 0;
+          hv.tolocationid = val;
+          hv.toempuserid = 0;
+          clearFromEmpOptions();
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (hasVisibleCol(headerColumns, "fromempuserid")) {
+            await fetchFromEmployees(hv.fromdivisionid, val, hv.fromdeptid);
+          }
+          const vendorFetches = [];
+          if (hasVisibleCol(headerColumns, "fromvendorid")) {
+            vendorFetches.push(fetchFromVendors(hv.fromdivisionid, val));
+          }
+          if (hasVisibleCol(headerColumns, "tovendorid")) {
+            vendorFetches.push(fetchToVendors(hv.todivisionid, val));
+          }
+          if (vendorFetches.length) await Promise.all(vendorFetches);
+          await fetchToEmployeesIfVisible(hv);
+        });
+        return;
+      }
 
-    // MRD: From Location → clear Grid
-    if (col === "fromlocationid") {
-      requestGridClear("From Location", async () => {
-        itemGridRef.current?.clearRows?.();
-      });
-    }
-  }, [
-    requestGridClear,
-    headerColumns,
-    fetchConfigOptions,
-    fetchFromLocations,
-    fetchToLocations,
-  ]);
+      if (col === "fromdeptid") {
+        requestGridClear("From Department", async () => {
+          hv.fromempuserid = 0;
+          clearFromEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (hasVisibleCol(headerColumns, "fromempuserid")) {
+            await fetchFromEmployees(hv.fromdivisionid, hv.fromlocationid, val);
+          }
+        });
+        return;
+      }
+
+      if (col === "todivisionid") {
+        requestGridClear("To Division", async () => {
+          hv.tolocationid = 0;
+          hv.toempuserid = 0;
+          hv.tovendorid = 0;
+          hv.toworkingclientid = 0;
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+            if (hasVisibleCol(headerColumns, "todeptid")) fetches.push(fetchToDepartments());
+            if (hasVisibleCol(headerColumns, "tovendorid")) {
+              fetches.push(fetchToVendors(val, hv.tolocationid));
+            }
+            if (hasVisibleCol(headerColumns, "toworkingclientid")) {
+              fetches.push(fetchToWorkingClients(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            await fetchToEmployeesIfVisible(hv);
+          }
+        });
+        return;
+      }
+
+      if (col === "tolocationid") {
+        requestGridClear("To Location", async () => {
+          hv.toempuserid = 0;
+          hv.tovendorid = 0;
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          if (hasVisibleCol(headerColumns, "tovendorid")) {
+            await fetchToVendors(hv.todivisionid, val);
+          }
+          await fetchToEmployeesIfVisible(hv);
+        });
+        return;
+      }
+
+      if (col === "todeptid") {
+        requestGridClear("To Department", async () => {
+          hv.toempuserid = 0;
+          clearToEmpOptions();
+          itemGridRef.current?.clearRows?.();
+          await fetchToEmployeesIfVisible(hv);
+        });
+      }
+    },
+    [
+      headerColumns,
+      requestGridClear,
+      clearFromEmpOptions,
+      clearToEmpOptions,
+      fetchFromLocations,
+      fetchToLocations,
+      fetchFromDepartments,
+      fetchToDepartments,
+      fetchFromVendors,
+      fetchToVendors,
+      fetchFromWorkingClients,
+      fetchToWorkingClients,
+      fetchConfigOptions,
+      fetchFromEmployees,
+      fetchToEmployeesIfVisible,
+    ]
+  );
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
@@ -455,12 +627,6 @@ export default function AssetsStockTransferForm() {
       return;
     }
 
-    const businessErrors = validateAstBusinessRules(headerValues);
-    if (businessErrors.length > 0) {
-      setFormErrors(businessErrors);
-      return;
-    }
-
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
@@ -470,8 +636,8 @@ export default function AssetsStockTransferForm() {
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AST_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmrbcode: AST_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: AET_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: AET_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -490,27 +656,30 @@ export default function AssetsStockTransferForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AST_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAstItemPickerJsonPayload(headerValues)]),
+        ObjName: AET_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildAetItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[AST] Item picker fetch failed:", err);
+      console.error("[AET] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab("items");
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    },
+    [ensureItemColumns, allColumns, addItemRow]
+  );
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -523,7 +692,7 @@ export default function AssetsStockTransferForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const buildDefaultHeaderValues = useCallback(() => applyAstHardcodedHeaderValues({
+  const buildDefaultHeaderValues = useCallback(() => applyAetHardcodedHeaderValues({
     trancode: "",
     trandate: todayISO,
     issuedate: todayISO,
@@ -531,12 +700,22 @@ export default function AssetsStockTransferForm() {
     todivisionid: 0,
     fromlocationid: 0,
     tolocationid: 0,
+    fromdeptid: 0,
+    todeptid: 0,
+    fromempuserid: 0,
+    toempuserid: 0,
+    fromworkingclientid: 0,
+    toworkingclientid: 0,
+    fromvendorid: 0,
+    tovendorid: 0,
     configid: 0,
+    expecteddays: 0,
+    expecteddate: null,
     includestockitems: 0,
-    remarks: "",
-    frmtype: AST_CONFIG.FRM_TYPE,
-    issuetypeid: AST_CONFIG.ISSUE_TYPE_ID,
-    funccode: AST_CONFIG.RB_MASTER,
+    totalprocessrate: 0,
+    frmtype: AET_CONFIG.FRM_TYPE,
+    issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
+    funccode: AET_CONFIG.RB_MASTER,
     tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
@@ -545,7 +724,7 @@ export default function AssetsStockTransferForm() {
   }), [todayISO]);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
-    storageKeys: [AST_CONFIG.STORAGE_HEADER_META, AST_CONFIG.STORAGE_ENTRY_META],
+    storageKeys: [AET_CONFIG.STORAGE_HEADER_META, AET_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
     queuedRowsRef,
@@ -566,46 +745,43 @@ export default function AssetsStockTransferForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
+    setGridRows,
+    extraClearFns: [clearFromEmpOptions, clearToEmpOptions],
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const businessErrors = validateAstBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
-    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
+    const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
-    const hv = applyAstHardcodedHeaderValues(headerValuesRef.current);
+    const hv = applyAetHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: AET_CONFIG.FRM_TYPE,
+      issuetypeid: AET_CONFIG.ISSUE_TYPE_ID,
+      loginid: getUserSession().loginId,
     });
-    mstRow.frmtype = AST_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = AST_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = getUserSession().loginId;
-
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: getUserSession().loginId };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
+    );
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AST_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
+      buildSaveJsonFields({ label: AET_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
       { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const result = await postSave(AST_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await postSave(AET_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
@@ -615,13 +791,13 @@ export default function AssetsStockTransferForm() {
       if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
-      console.error("[AST Save] Failed:", err);
+      console.error("[AEI Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -683,7 +859,7 @@ export default function AssetsStockTransferForm() {
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page workspace-page--fill ast-page">
+    <div className="workspace-page workspace-page--fill aei-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -712,7 +888,7 @@ export default function AssetsStockTransferForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Stock Transfer Detail"
+            title="Assets Employee Transfer Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -726,51 +902,66 @@ export default function AssetsStockTransferForm() {
         )}
       </section>
 
-      <section className="ast-grid-section">
-        <EntryGrid
-          ref={itemGridRef}
-          config={itemGridConfig}
-          tabs={AST_GRID_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          headerControls={
-            <>
+      <section className="aei-grid-section">
+        <div className="grid-tabbar">
+          <div className="grid-tabbar__tabs">
+            {AET_GRID_TABS.map((t) => (
               <button
-                ref={selectItemBtnRef}
+                key={t.id}
                 type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title="Pick transfer items"
+                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
+                onClick={() => setActiveTab(t.id)}
               >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
+                {t.label}
               </button>
+            ))}
+          </div>
 
-              <button
-                type="button"
-                className="eg-tab-btn eg-tab-btn--danger"
-                onClick={handleDeleteSelected}
-                disabled={!isEditMode || itemSelectionCount === 0}
-                title="Delete selected rows"
-              >
-                <Trash2 size={12} strokeWidth={2} />
-                Delete
-              </button>
-            </>
-          }
-          hideBottomPanel
-          emptyMessage="No items yet. Click Select Item above."
-          onSelectionChange={setItemSelectionCount}
-          onCellEvent={handleCellEvent}
-          eventColumns={eventColumns}
-          readOnly={isEditRoute && !isEditMode}
-          existingRecordEdit={isEditRoute && isEditMode}
-          loading={isGridLoading || isFetching}
-          multiValuePasteColumns={AST_MULTI_PASTE_COLUMNS}
-          onMultiValuePaste={handleMultiValuePaste}
-          remarkModalColumns={AST_REMARK_COLUMNS}
-        />
+          <div className="grid-tabbar__controls">
+            <button
+              ref={selectItemBtnRef}
+              type="button"
+              className="eg-tab-btn"
+              onClick={handleSelectItem}
+              disabled={!isEditMode}
+              title="Pick issue items (Tab here after header fields)"
+            >
+              <Package size={12} strokeWidth={2.5} />
+              Select Item
+            </button>
+
+            <button
+              type="button"
+              className="eg-tab-btn eg-tab-btn--danger"
+              onClick={handleDeleteSelected}
+              disabled={!isEditMode || itemSelectionCount === 0}
+              title="Delete selected rows"
+            >
+              <Trash2 size={12} strokeWidth={2} />
+              Delete
+            </button>
+          </div>
+        </div>
+
+        <div className={`aei-tab-pane${activeTab === "items" ? " aei-tab-pane--active" : ""}`}>
+          <EntryGrid
+            ref={itemGridRef}
+            config={itemGridConfig}
+            title=""
+            hideBottomPanel
+            emptyMessage="No items yet. Click Select Item above."
+            onSelectionChange={setItemSelectionCount}
+            onRowsChange={setGridRows}
+            onCellEvent={handleCellEvent}
+            eventColumns={eventColumns}
+            readOnly={isEditRoute && !isEditMode}
+            existingRecordEdit={isEditRoute && isEditMode}
+            loading={isGridLoading || isFetching}
+            multiValuePasteColumns={AET_MULTI_PASTE_COLUMNS}
+            onMultiValuePaste={handleMultiValuePaste}
+            remarkModalColumns={AET_REMARK_COLUMNS}
+          />
+        </div>
       </section>
 
       <ActionBar

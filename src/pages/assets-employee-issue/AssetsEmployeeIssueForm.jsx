@@ -242,7 +242,7 @@ export default function AssetsEmployeeIssueForm() {
           ? recordLoadError
           : `Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-employee-issue",
+    backTo: AEI_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

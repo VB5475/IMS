@@ -60,7 +60,7 @@ export default function PurchaseQuotationPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/purchase-quotation",
+        basePath: QTN_CONFIG.ROUTE_PATH,
         editBtnClass: "pq-list__edit-btn",
       }),
     [data, navigate]
@@ -85,7 +85,7 @@ export default function PurchaseQuotationPage() {
   }, [fetchQuotations]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/purchase-quotation/new");
+    navigate(`${QTN_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
   return (

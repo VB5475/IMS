@@ -57,12 +57,29 @@ function buildColumnsFromData(data, navigate) {
       align:      "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
-    createListActionsColumn({
-      navigate,
-      basePath: "/assets-item-opening",
-      getEditLabel: (row) => row.trancode ?? "",
-      getDeleteLabel: (row) => row.trancode ?? "",
-    }),
+    {
+      key:   "_actions",
+      label: "Edit",
+      width: "60px",
+      align: "center",
+      render: (_value, row) => (
+        <button
+          type="button"
+          className="aop-list__edit-btn"
+          title={`Edit ${row.trancode ?? ""}`}
+          aria-label={`Edit ${row.trancode ?? ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(
+              `/rb_astitemopemst/${row.aopid ?? row.idnumber}/edit`,
+              { state: { record: row } }
+            );
+          }}
+        >
+          <Pencil size={13} strokeWidth={2} />
+        </button>
+      ),
+    },
   ];
 }
 
@@ -100,7 +117,7 @@ export default function AssetsItemOpeningPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-item-opening/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${AOP_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page aop-list-page">

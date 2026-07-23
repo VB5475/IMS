@@ -50,7 +50,8 @@ function extractListColumnKeys(rows) {
   const seen = new Set(keys);
   for (let i = 1; i < rows.length; i += 1) {
     Object.keys(rows[i]).forEach((key) => {
-      if (seen.has(key) || isIdNumberColumnKey(key)) return;
+      if (isIdNumberColumnKey(key)) return;
+      if (seen.has(key)) return;
       seen.add(key);
       keys.push(key);
     });

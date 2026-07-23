@@ -55,6 +55,6 @@ export function usePageHeader({ title, subtitle, showBack = false, backTo = "/" 
 
 export function getDefaultRouteTitle(pathname) {
   if (pathname.startsWith("/main/")) return "Report Workspace";
-  if (pathname.startsWith("/txn-entry")) return "Sample Invoice";
+  if (pathname.startsWith("/rb_sampleinvmst")) return "Sample Invoice";
   return "Dashboard";
 }

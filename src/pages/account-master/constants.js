@@ -1,7 +1,10 @@
 // Account Master — admin module config (MRD_Template4AccountMaster.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const AM_CONFIG = {
-  RB_MASTER: "rb_accountmst",
+  RB_MASTER: RB_CODES.ACCOUNT_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ACCOUNT_MASTER),
   FORM_TAG: "rb_accountmst",
   TRAN_BOOK: "ACM",
 

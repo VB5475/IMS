@@ -1,5 +1,7 @@
 // Field definitions are driven dynamically from GetDetailColData via useLocationMaster hook.
 // No hardcoded field array needed here.
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const MODAL_TITLE_ADD = "New Location";
 export const MODAL_TITLE_EDIT = "Edit Location";
@@ -7,7 +9,8 @@ export const MODAL_SUBTITLE  = "Admin › Company › Location Master";
 
 
 export const LM_CONFIG = {
-  RB_MASTER:           "rb_genlocationmst",
+  RB_MASTER:           RB_CODES.LOCATION_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.LOCATION_MASTER),
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_LOCATION_TYPE:    "fn_tbl_fetch_locationtype",
   SP_PREMISES:         "fn_tbl_fetch_premises",

@@ -1,7 +1,10 @@
 // User Group — admin module config (MRD_Template4UserGroup.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const UG_CONFIG = {
-  RB_MASTER: "rb_genusergroupmst",
+  RB_MASTER: RB_CODES.USER_GROUP,
+  ROUTE_PATH: rbRoutePath(RB_CODES.USER_GROUP),
   FORM_TAG: "rb_genusergroupmst",
   TRAN_BOOK: "GRP",
 

@@ -234,7 +234,7 @@ export default function PurchaseVoucherForm() {
           ? recordLoadError
           : `PV #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/purchase-voucher",
+    backTo: PV_CONFIG.ROUTE_PATH,
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -648,7 +648,7 @@ export default function PurchaseVoucherForm() {
   });
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate("/purchase-voucher");
+    if (isEditRoute) navigate(PV_CONFIG.ROUTE_PATH);
     else resetFormToInitialState();
   }, [isEditRoute, navigate, resetFormToInitialState]);
 

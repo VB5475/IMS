@@ -35,6 +35,7 @@ import {
 } from "../../utils/purchaseItemPicker";
 
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 
 
@@ -68,7 +69,8 @@ export const GRN_CONFIG = {
 
 
 
-  RB_MASTER: "rb_purgrnmst",
+  RB_MASTER: RB_CODES.GOODS_RECEIVED_NOTE,
+  ROUTE_PATH: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE),
   DELETE_PROC_NAME: "pr_rb_purgrnmst_delete",
 
   RB_DETAIL: "rb_purgrndet",

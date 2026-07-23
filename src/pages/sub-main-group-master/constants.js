@@ -1,4 +1,6 @@
 // Field definitions driven dynamically from GetDetailColData via useSubMainGroupMaster hook.
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const MODAL_TITLE_ADD = "New Sub Main Group";
 export const MODAL_TITLE_EDIT = "Edit Sub Main Group";
@@ -6,7 +8,8 @@ export const MODAL_SUBTITLE  = "Admin › Master › Item › Sub Main Group Mas
 
 
 export const SMGM_CONFIG = {
-  RB_MASTER:           "rb_submaingroupmst",
+  RB_MASTER:           RB_CODES.SUB_MAIN_GROUP_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER),
   SP_RB_META:          "fn_fetch_rbdetailbyrbcode",
   SP_ITEM_TYPE:        "fn_tbl_pur_itemtypemst_fetch",
   SP_MAIN_GROUP:       "fn_tbl_filter_maingroup",        // dynamic — takes @prmItemTypeID

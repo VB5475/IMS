@@ -1,11 +1,14 @@
 // constants.js — Transaction Entry (Sample Invoice) page config
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
 // All RB codes, SP names, IDs, and request defaults used by this page in one place.
 
 export const TXN_CONFIG = {
   // RB board codes
-  RB_MASTER: "rb_sampleinvmst",
+  RB_MASTER: RB_CODES.TXN_ENTRY,
+  ROUTE_PATH: rbRoutePath(RB_CODES.TXN_ENTRY),
   RB_DETAIL: "rb_sampleinvdet",
 
   // SP / function names used in API calls

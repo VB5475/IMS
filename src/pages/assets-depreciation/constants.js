@@ -1,4 +1,6 @@
 // constants.js — Company Act Depreciation (DPC) page config
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Company Act Depreciation";
 export const PAGE_TITLE_NEW = "New Company Act Depreciation";
@@ -13,7 +15,8 @@ export const DPC_REMARK_COLUMNS = new Set(["remark"]);
 
 export const DPC_CONFIG = {
   // RB board codes (MRD § 5.1)
-  RB_MASTER:      "rb_astdepcamst",
+  RB_MASTER:      RB_CODES.ASSETS_DEPRECIATION,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION),
   RB_DETAIL:      "rb_astdepcadet",
   RB_ITEM_PICKER: "rb_astdepcadetselonl",
 

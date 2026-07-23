@@ -45,7 +45,7 @@ export default function AssetsEmployeeIssuePage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-employee-issue",
+        basePath: AEI_CONFIG.ROUTE_PATH,
         editBtnClass: "aei-list__edit-btn",
       }),
     [data, navigate]
@@ -69,7 +69,7 @@ export default function AssetsEmployeeIssuePage() {
     fetchList();
   }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-employee-issue/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${AEI_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page aei-list-page">

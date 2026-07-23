@@ -57,7 +57,7 @@ export default function PurchaseOrderPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/purchase-order",
+        basePath: PO_CONFIG.ROUTE_PATH,
         editBtnClass: "po-list__edit-btn",
       }),
     [data, navigate]
@@ -82,7 +82,7 @@ export default function PurchaseOrderPage() {
   }, [fetchOrders]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/purchase-order/new");
+    navigate(`${PO_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
   return (

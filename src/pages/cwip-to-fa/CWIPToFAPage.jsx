@@ -65,12 +65,26 @@ function buildColumnsFromData(data, navigate) {
       align:      "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
-    createListActionsColumn({
-      navigate,
-      basePath: "/cwip-to-fa",
-      getEditLabel: (row) => row.tranno ? `C2F ${row.tranno}` : "",
-      getDeleteLabel: (row) => row.tranno ? `C2F ${row.tranno}` : "",
-    }),
+    {
+      key:   "_actions",
+      label: "Edit",
+      width: "60px",
+      align: "center",
+      render: (_value, row) => (
+        <button
+          type="button"
+          className="c2f-list__edit-btn"
+          title={`Edit C2F ${row.tranno ?? ""}`}
+          aria-label={`Edit C2F ${row.tranno ?? ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/rb_astcwip2famst/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
+          }}
+        >
+          <Pencil size={13} strokeWidth={2} />
+        </button>
+      ),
+    },
   ];
 }
 
@@ -108,7 +122,7 @@ export default function CWIPToFAPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/cwip-to-fa/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${C2F_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page c2f-list-page">

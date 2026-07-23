@@ -1,5 +1,8 @@
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const MAINTENANCE_DASHBOARD_CONFIG = {
-  RB_CODE: "rb_mntdashboard",
+  RB_CODE: RB_CODES.MAINTENANCE_DASHBOARD,
+  ROUTE_PATH: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD),
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_DATA: "fn_tbl_rb_mntdashboard",
   SP_DIVISION: "fn_tbl_fetchuserwsdivision",

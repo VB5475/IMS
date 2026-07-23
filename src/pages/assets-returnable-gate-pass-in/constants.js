@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -12,7 +13,8 @@ export const ARGI_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 export const ARGI_REMARK_COLUMNS = new Set(["remark"]);
 
 export const ARGI_CONFIG = {
-  RB_MASTER: "rb_astissrgimst",
+  RB_MASTER: RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN),
   DELETE_PROC_NAME: "pr_rb_astissrgimst_delete",
   RB_DETAIL: "rb_astissrgidet",
   RB_ITEM_PICKER: "rb_astissrgiselonly",

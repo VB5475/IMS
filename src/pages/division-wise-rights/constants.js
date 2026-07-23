@@ -1,7 +1,10 @@
 // Division Wise User Rights — admin module config (MRD_Template4DivisionWiseRights.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const UDR_CONFIG = {
-  RB_MASTER: "rb_divisionwsright",
+  RB_MASTER: RB_CODES.DIVISION_WISE_RIGHTS,
+  ROUTE_PATH: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS),
   RB_DETAIL: "rb_divisionwsright",
   FORM_TAG:  "rb_divisionwsright",
   TRAN_BOOK: "DivisionWsRight",

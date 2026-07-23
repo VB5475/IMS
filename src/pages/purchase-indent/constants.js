@@ -9,6 +9,7 @@ export const PAGE_TITLE_NEW = "New Purchase Indent";
 import { PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { formatTranDate as formatIndentTranDate };
 
@@ -22,7 +23,8 @@ export const IND_CONFIG = {
   ...PURCHASE_API,
   SP_INDENT_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "rb_purindtmst",
+  RB_MASTER: RB_CODES.PURCHASE_INDENT,
+  ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_INDENT),
   DELETE_PROC_NAME: "pr_rb_purindtmst_delete",
   RB_DETAIL: "rb_purindtdet",
   RB_DETAIL_SELECT: "rb_purindtselitem",

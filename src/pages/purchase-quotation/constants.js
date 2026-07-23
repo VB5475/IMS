@@ -17,6 +17,7 @@ import {
   TERMS_COLUMNS,
 } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import {
   buildItemPickerJsonPayload as buildPickerPayload,
   getMissingItemPickerHeaderFields as getMissingPickerFields,
@@ -35,7 +36,8 @@ export const QTN_CONFIG = {
   ...PURCHASE_API,
   SP_QUOTATION_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
-  RB_MASTER: "rb_purqtnmst",
+  RB_MASTER: RB_CODES.PURCHASE_QUOTATION,
+  ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_QUOTATION),
   DELETE_PROC_NAME: "pr_rb_purqtnmst_delete",
   RB_DETAIL: "rb_purqtndet",
 

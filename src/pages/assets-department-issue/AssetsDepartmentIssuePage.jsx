@@ -39,7 +39,7 @@ export default function AssetsDepartmentIssuePage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/assets-department-issue",
+        basePath: ADI_CONFIG.ROUTE_PATH,
         editBtnClass: "adi-list__edit-btn",
       }),
     [data, navigate]
@@ -63,7 +63,7 @@ export default function AssetsDepartmentIssuePage() {
     fetchList();
   }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-department-issue/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${ADI_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page adi-list-page">

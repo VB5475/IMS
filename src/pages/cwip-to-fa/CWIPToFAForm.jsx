@@ -266,7 +266,7 @@ export default function CWIPToFAForm() {
           ? recordLoadError
           : `C2F #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/cwip-to-fa",
+    backTo:   "/rb_astcwip2famst",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -645,7 +645,7 @@ export default function CWIPToFAForm() {
   });
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate("/cwip-to-fa");
+    if (isEditRoute) navigate(C2F_CONFIG.ROUTE_PATH);
     else resetFormToInitialState();
   }, [isEditRoute, navigate, resetFormToInitialState]);
 

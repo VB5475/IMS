@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -12,7 +13,8 @@ export const ARV_MULTI_PASTE_COLUMNS = new Set(["assetsrno"]);
 export const ARV_REMARK_COLUMNS = new Set(["remark"]);
 
 export const ARV_CONFIG = {
-  RB_MASTER: "rb_astrevalmst",
+  RB_MASTER: RB_CODES.ASSETS_REVALUATION,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_REVALUATION),
   DELETE_PROC_NAME: "pr_rb_astrevalmst_delete",
   RB_DETAIL: "rb_astrevaldet",
   RB_ITEM_PICKER: "rb_astrevalselonly",

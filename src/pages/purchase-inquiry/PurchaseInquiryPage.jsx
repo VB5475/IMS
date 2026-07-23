@@ -52,7 +52,7 @@ export default function PurchaseInquiryPage() {
     () =>
       buildListPageColumns(data, {
         navigate,
-        basePath: "/purchase-inquiry",
+        basePath: PI_CONFIG.ROUTE_PATH,
         editBtnClass: "pi-list__edit-btn",
       }),
     [data, navigate]
@@ -77,7 +77,7 @@ export default function PurchaseInquiryPage() {
   }, [fetchInquiries]);
 
   const handleAddNew = useCallback(() => {
-    navigate("/purchase-inquiry/new");
+    navigate(`${PI_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
   return (

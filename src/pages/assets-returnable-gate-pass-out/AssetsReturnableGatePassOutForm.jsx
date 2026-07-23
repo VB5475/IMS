@@ -214,7 +214,7 @@ export default function AssetsReturnableGatePassOutForm() {
           ? recordLoadError
           : `Gate Pass Out #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-returnable-gate-pass-out",
+    backTo: ARGO_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

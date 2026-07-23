@@ -1,4 +1,5 @@
 import { getUserSession } from "../../session/userSession";
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -6,7 +7,8 @@ export const PAGE_TITLE = "Complaint Register";
 export const PAGE_TITLE_NEW = "New Complaint Register";
 
 export const MCR_CONFIG = {
-  RB_MASTER: "rb_mntcpnmst",
+  RB_MASTER: RB_CODES.COMPLAINT_REGISTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.COMPLAINT_REGISTER),
   RB_DETAIL: "rb_mntcpndet",
   RB_ITEM_PICKER: "rb_mntcpnselonly",
 

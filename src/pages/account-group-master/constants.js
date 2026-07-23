@@ -1,5 +1,7 @@
 // Account Group Master — admin module config (MRD_Template4AccountGroupMaster.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 /** Form field ColNames from MRD Section 3 */
 export const AGM_FIELDS = {
   GROUP_CODE: "grpcode",
@@ -11,7 +13,8 @@ export const AGM_FIELDS = {
 };
 
 export const AGM_CONFIG = {
-  RB_MASTER: "rb_acountgroupmst",
+  RB_MASTER: RB_CODES.ACCOUNT_GROUP_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER),
   FORM_TAG: "rb_acountgroupmst",
   TRAN_BOOK: "ACC",
 

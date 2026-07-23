@@ -287,7 +287,7 @@ export default function PurchaseQuotationForm() {
       ? "Fill in the header fields, then use the Item Grid tab."
       : `Quotation #${recordId || routeId || "—"} — fill in the header fields, then use the Item Grid tab.`,
     showBack: true,
-    backTo: "/purchase-quotation",
+    backTo: QTN_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {
@@ -699,7 +699,7 @@ export default function PurchaseQuotationForm() {
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
-      navigate("/purchase-quotation");
+      navigate(QTN_CONFIG.ROUTE_PATH);
     } else {
       resetFormToInitialState();
     }

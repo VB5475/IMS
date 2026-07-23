@@ -1,7 +1,10 @@
 // User Master — admin module config (MRD_Template4UserMaster.docx)
 
+import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+
 export const UM_CONFIG = {
-  RB_MASTER: "rb_genusermst",
+  RB_MASTER: RB_CODES.USER_MASTER,
+  ROUTE_PATH: rbRoutePath(RB_CODES.USER_MASTER),
   FORM_TAG: "rb_genusermst",
   TRAN_BOOK: "UM",
 

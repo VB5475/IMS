@@ -218,7 +218,7 @@ export default function AssetsDepartmentIssueForm() {
           ? recordLoadError
           : `Department Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: "/assets-department-issue",
+    backTo: ADI_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {

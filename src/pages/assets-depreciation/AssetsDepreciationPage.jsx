@@ -64,12 +64,29 @@ function buildColumnsFromData(data, navigate) {
       align:      "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
-    createListActionsColumn({
-      navigate,
-      basePath: "/assets-depreciation",
-      getEditLabel: (row) => row.trancode ? `Depreciation ${row.trancode}` : "",
-      getDeleteLabel: (row) => row.trancode ? `Depreciation ${row.trancode}` : "",
-    }),
+    {
+      key:   "_actions",
+      label: "Edit",
+      width: "60px",
+      align: "center",
+      render: (_value, row) => (
+        <button
+          type="button"
+          className="dpc-list__edit-btn"
+          title={`Edit Depreciation ${row.trancode ?? ""}`}
+          aria-label={`Edit Depreciation ${row.trancode ?? ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(
+              `/rb_astdepcamst/${row.astdepid ?? row.idnumber}/edit`,
+              { state: { record: row } }
+            );
+          }}
+        >
+          <Pencil size={13} strokeWidth={2} />
+        </button>
+      ),
+    },
   ];
 }
 
@@ -107,7 +124,7 @@ export default function AssetsDepreciationPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => navigate("/assets-depreciation/new"), [navigate]);
+  const handleAddNew = useCallback(() => navigate(`${DPC_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
   return (
     <div className="workspace-page dpc-list-page">
