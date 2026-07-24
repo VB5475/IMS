@@ -106,12 +106,11 @@ const EVENT_COLUMNS = new Set([
   "GSTPerc",
 ]);
 
-// Remark columns (remarkModalColumns) open the paste-friendly modal
-// automatically once the inline cell input reaches this length, instead of
-// requiring an explicit click on the note icon — long remarks are cramped
-// in a grid cell, so this hands off to the bigger editing surface as soon
-// as it's clear the user is writing something substantial.
-const REMARK_AUTO_OPEN_LENGTH = 10;
+// Remark columns (remarkModalColumns) open the paste-friendly modal as soon
+// as the user starts typing in the inline cell input, instead of requiring
+// an explicit click on the note icon — a grid cell is too cramped for
+// anything past a couple of characters, so this hands off to the bigger
+// editing surface (with focus transferred) on the very first keystroke.
 
 // ── Component ─────────────────────────────────────────────────────────
 const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
@@ -176,7 +175,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const [remarkEditor, setRemarkEditor] = useState(null); // { rowId, colKey, colName, value, readOnly }
   const remarkTextareaRef = useRef(null);
 
-  // When the modal opens (manually or auto-opened at REMARK_AUTO_OPEN_LENGTH),
+  // When the modal opens (manually or auto-opened on the first keystroke),
   // move the cursor to the end of any pre-filled text so continued typing
   // picks up where the inline cell input left off, instead of inserting at
   // the start (the default caret position autoFocus gives a filled textarea).
@@ -676,9 +675,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               onChange={(e) => {
                 const next = e.target.value;
                 handleCellChange(row.id, col.key, next);
-                // Hand off to the bigger modal once the remark gets long —
+                // Hand off to the bigger modal on the very first keystroke —
                 // a grid cell is too cramped for anything past a short tag.
-                if (next.length >= REMARK_AUTO_OPEN_LENGTH && !isEditorOpenForThisCell) {
+                if (!isEditorOpenForThisCell) {
                   openRemarkEditor(next);
                 }
               }}
@@ -1278,6 +1277,18 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               const next = e.target.value;
               if (remarkEditor.maxLen != null && next.length > remarkEditor.maxLen) return;
               setRemarkEditor((prev) => ({ ...prev, value: next }));
+            }}
+            onKeyDown={(e) => {
+              // Alt+S saves the remark and closes the modal — takes priority
+              // over the page's own Alt+S (Save whole form) while this modal
+              // owns focus (see shouldIgnoreKeyboardEvent's ".cell-remark-modal__textarea" check).
+              if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "s") {
+                e.preventDefault();
+                if (!remarkEditor.readOnly) {
+                  handleCellChange(remarkEditor.rowId, remarkEditor.colKey, remarkEditor.value);
+                }
+                setRemarkEditor(null);
+              }
             }}
             placeholder="Type or paste a remark…"
             rows={5}

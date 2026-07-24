@@ -835,6 +835,7 @@ export default function PurchaseOrderForm() {
       setApprovedFilter("all");
       setChildRowsMap({});
       setChildColumns([]);
+      summaryRef.current?.resetOverrides?.();
     },
   });
 
@@ -921,6 +922,10 @@ export default function PurchaseOrderForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
+    // Covers discardChanges()'s edit-route branch too (re-fetches instead of
+    // going through extraReset) — a stale Round Off override must not
+    // survive a Cancel either way.
+    summaryRef.current?.resetOverrides?.();
     discardChanges();
   }, [discardChanges]);
 
@@ -1137,7 +1142,7 @@ export default function PurchaseOrderForm() {
       </section>
 
       {/* ── Summary totals — live from grid rows ── */}
-      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} masterValues={loadedMasterRow} />
 
       <ActionBar
         alignEnd

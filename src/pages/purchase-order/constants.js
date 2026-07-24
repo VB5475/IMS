@@ -30,8 +30,21 @@ export const PO_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
-  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
+  // No per-line equivalent on rb_purpodet at all (verified live — detail grid
+  // has no roundoff column) — summing rows always produced 0. Read from the
+  // loaded master row on edit instead, same as PV. Manually editable
+  // (business rule 2026-07-23): default is the auto-calculated total, user
+  // can type an override — see EnterpriseSummaryPanel's `editable` handling.
+  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true, editable: true },
+  // Net Base Amount = every other summary amount EXCEPT Taxable Value (same
+  // business rule as PV) — computed live from the other fields' own totals,
+  // not summed from detail rows (rb_purpodet has no netbaseamount column
+  // either — same "always 0" bug PV had).
+  {
+    SummaryParameterID: "mstnetbaseamount",
+    detKey: "netbaseamount",
+    deriveFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst", "mstroundoff"],
+  },
 ];
 export const PO_FILTER_INITIAL_VALUES = { basedonid: "0" };
 export const PO_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };

@@ -694,6 +694,7 @@ export default function PurchaseQuotationForm() {
       setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
       setApprovedFilter("all");
       setLoadedMasterRow(null);
+      summaryRef.current?.resetOverrides?.();
     },
   });
 
@@ -783,6 +784,10 @@ export default function PurchaseQuotationForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
+    // Covers the isEditRoute branch below too (re-fetches instead of going
+    // through resetFormToInitialState/extraReset) — a stale Round Off
+    // override must not survive a Cancel either way.
+    summaryRef.current?.resetOverrides?.();
 
     if (isEditRoute) {
       exitEditMode();
@@ -977,7 +982,7 @@ export default function PurchaseQuotationForm() {
         />
       </section>
 
-      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} masterValues={loadedMasterRow} />
 
       <ActionBar
         alignEnd

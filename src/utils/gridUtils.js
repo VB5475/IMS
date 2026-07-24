@@ -9,6 +9,7 @@ import { ENDPOINTS, CBO_MODE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { buildColumnMeta, formatColumnDisplayValue, getDateInputConstraints, isNumericColumnDef } from "./columnValidation";
 import { isDateColumnDef } from "./dateFormat";
+import { isCheckboxColCtrlType } from "../data/dummyData";
 
 // ── Column helpers ───────────────────────────────────────────────────
 
@@ -53,14 +54,20 @@ export function deriveFilterType(ctrlType) {
 }
 
 /**
- * Derives a pixel width exclusively from the API column width.
- * @param {{ columnwidth?: number|string }} apiCol
+ * Derives a pixel width exclusively from the API column width — RB's
+ * columnwidth is already a literal pixel value (verified live: e.g.
+ * itemname/remarks=250, tranqty/tranrate=100, discperc/tax fields=75,
+ * tranunit=50), so it's used as-is. Checkbox columns are always rendered
+ * compact regardless of what RB specifies — a checkbox needs no more room
+ * than the frozen row-select column (48px).
+ * @param {{ columnwidth?: number|string, colctrltype?: number|string }} apiCol
  * @returns {number}
  */
 export function getColumnWidth(apiCol) {
+  if (isCheckboxColCtrlType(apiCol?.colctrltype)) return 48;
   const apiWidth = Number(apiCol?.columnwidth);
   if (Number.isFinite(apiWidth) && apiWidth > 0) {
-    return Math.max(60, Math.ceil(apiWidth / 2));
+    return Math.max(60, apiWidth);
   }
   return 120;
 }

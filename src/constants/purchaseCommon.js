@@ -42,7 +42,17 @@ export const INDENT_DETAILS_COLUMNS = [
   { key: "Unit", label: "Unit", width: 80 },
 ];
 
-/** GST summary fields — SummaryParameterID/detKey match RB master/detail ColName (API returns lowercase). */
+/**
+ * GST summary fields — SummaryParameterID/detKey match RB master/detail ColName (API returns lowercase).
+ * roundoff/netbaseamount have no per-line equivalent on any consuming module's detail
+ * grid (verified live for rb_purpodet, rb_purqtndet, rb_purpvdet — none carry these
+ * columns), so summing rows for them always produced 0. roundoff is read from the
+ * loaded master row on edit; netbaseamount is computed as every other summary amount
+ * EXCEPT taxable value (business rule confirmed by PM 2026-07-23), live in Add mode too.
+ * roundoff is also manually editable (business rule 2026-07-23) — default is the
+ * auto-calculated total, user can type an override; a Round Off override correctly
+ * ripples into netbaseamount too (see EnterpriseSummaryPanel's `editable` handling).
+ */
 export const PURCHASE_GST_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
   { SummaryParameterID: "mstexpense", detKey: "expense" },
@@ -50,8 +60,12 @@ export const PURCHASE_GST_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
-  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
+  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true, editable: true },
+  {
+    SummaryParameterID: "mstnetbaseamount",
+    detKey: "netbaseamount",
+    deriveFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst", "mstroundoff"],
+  },
 ];
 
 export const CURRENCY_READONLY_FIELDS = ["currencyid", "currencyrate"];

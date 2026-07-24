@@ -95,11 +95,22 @@ export const PV_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  // roundoff/netbaseamount have NO per-line equivalent at all on the detail
-  // grid (fn_tbl_rb_purpvdet has no roundoff/netbaseamount column) — same
-  // "can't be summed, must read from master" case as the TDS section below.
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true },
-  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount", fromMaster: true },
+  // roundoff has NO per-line equivalent at all on the detail grid
+  // (fn_tbl_rb_purpvdet has no roundoff column) — same "can't be summed,
+  // must read from master" case as the TDS section below. Manually
+  // editable (business rule 2026-07-23): default shown/used value is the
+  // auto-calculated total, but the user can type an override — see
+  // EnterpriseSummaryPanel's `editable` handling.
+  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true, editable: true },
+  // Net Base Amount = every other summary amount EXCEPT Taxable Value
+  // (business rule confirmed by PM 2026-07-23) — computed live from the
+  // other fields' own totals, not read from master, so it's correct in
+  // Add mode too, before the record has ever been saved.
+  {
+    SummaryParameterID: "mstnetbaseamount",
+    detKey: "netbaseamount",
+    deriveFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst", "mstroundoff"],
+  },
   // ── TDS section — header/master-level values, no per-line equivalent
   // exists on the detail grid at all (TDS is computed once per voucher from
   // the supplier's TDS settings, not per item). Read directly from the

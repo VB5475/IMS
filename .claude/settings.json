@@ -26,7 +26,22 @@
       "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10036&prmLoginID=1\" -H \"Accept: application/json\")",
       "Bash(cp /tmp_po_mst.json \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/po_mst.json\")",
       "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10036&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/po_mst.json\")",
-      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10051&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/pv_mst.json\")"
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10051&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/pv_mst.json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10038&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/po_det.json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10033&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/pq_det.json\")",
+      "Bash(curl -s --max-time 10 \"http://122.179.135.100:8095/IMS_LIVE/webservice/WsIMS.asmx/GetDetailColData?prmMasterID=10032&prmLoginID=1\" -H \"Accept: application/json\" -o \"C:/Users/Administrator/.claude/projects/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/tool-results/pq_mst.json\")",
+      "Bash(which chromium-cli; echo \"---\"; ls \"/c/Users/ADMINI~1/AppData/Local/Temp/claude/bundled-skills/2.1.217/4e504a38ff13026721e288b16fd14e63/run/examples/\")",
+      "Read(//c/Users/ADMINI~1/AppData/Local/Temp/claude/bundled-skills/2.1.217/4e504a38ff13026721e288b16fd14e63/run/examples//**)",
+      "Bash(node -e \"try{require.resolve\\('playwright'\\);console.log\\('has playwright'\\)}catch\\(e\\){console.log\\('no playwright'\\)}\")",
+      "Bash(npx --version)",
+      "Bash(node \"C:/Users/ADMINI~1/AppData/Local/Temp/claude/d--Hardik-Shah-CAI-Projects-IMS/2464aa59-4f69-4378-9b0b-eb451050d557/scratchpad/pv_focus_check.mjs\")",
+      "Bash(node _tmp_focus_check.mjs)",
+      "Bash(node _tmp_focus_check2.mjs)",
+      "Bash(node _tmp_focus_check3.mjs)",
+      "Bash(powershell -Command \"Stop-Process -Id 9788 -Force\")",
+      "Bash(node _tmp_summary_check.mjs)",
+      "Bash(node _tmp_summary_reset_check.mjs)",
+      "Bash(powershell -Command \"Stop-Process -Id 3212 -Force\")"
     ]
   }
 }

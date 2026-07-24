@@ -649,7 +649,10 @@ export default function PurchaseVoucherForm() {
     setLoadedFilterValues,
     setGridRows,
     extraClearFns: [clearPvTypes],
-    extraReset: () => setCurrencyExternalValues({ currencyname: "", currencyrate: "" }),
+    extraReset: () => {
+      setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+      summaryRef.current?.resetOverrides?.();
+    },
   });
 
   const completeSuccessfulSave = useCallback(() => {
@@ -720,6 +723,11 @@ export default function PurchaseVoucherForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
+    // Covers the edit-route branch of discardChanges() (re-fetches the record
+    // instead of going through resetFormToInitialState/extraReset, which is
+    // where the New-record reset clears this) — a stale Round Off override
+    // must not survive a Cancel either way.
+    summaryRef.current?.resetOverrides?.();
     discardChanges();
   }, [discardChanges]);
 
