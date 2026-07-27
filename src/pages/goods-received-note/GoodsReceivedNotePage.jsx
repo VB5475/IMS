@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -10,6 +11,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildGoodsReceivedNoteReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListDateRange() {
   const now = new Date();
@@ -100,6 +108,11 @@ export default function GoodsReceivedNotePage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Goods Received Note Report"
+              reportFileName="TODO_GoodsReceivedNote.rpt"
+              buildParams={buildGoodsReceivedNoteReportParams}
+            />
             <label htmlFor="grn-list-page-size" className="grn-list-panel__pagesize-label">
               Rows per page
             </label>

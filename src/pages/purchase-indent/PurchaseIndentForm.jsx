@@ -42,6 +42,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -149,17 +150,12 @@ export default function PurchaseIndentForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const headerValuesRef = useRef({
     trancode:         "",
-    trandate:         todayISO,
+    trandate:         getTodayDateInputValue(),
     divisionid:       0,
     configid:         0,
-    expecteddate:     null,
+    expecteddate:     getTodayDateInputValue(),
     deptid:           0,
     locationid:       0,
     costcenterid:     0,
@@ -174,10 +170,11 @@ export default function PurchaseIndentForm() {
     funccode:         IND_CONFIG.RB_MASTER,
   });
 
+  // trandate/expecteddate default to today on a new record; existing records keep their loaded date.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { trandate: getTodayDateInputValue(), expecteddate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -338,6 +335,7 @@ export default function PurchaseIndentForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -495,9 +493,15 @@ export default function PurchaseIndentForm() {
       setActiveTab("items");
       const activeCols = await ensureItemColumns();
       if (!activeCols?.length) return;
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+      rows.forEach((row) => addItemRow(row));
+      // Fire the same qty/rate recalc a manual blur would trigger, so a
+      // picker-inserted row's calculated amounts are correct immediately
+      // instead of staying 0.00 until the user touches the cell (client-
+      // confirmed 2026-07-24, same fix as Purchase Voucher/Order/Quotation/Inquiry).
+      await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
     },
-    [ensureItemColumns, allColumns, addItemRow]
+    [ensureItemColumns, allColumns, addItemRow, handleCellEvent]
   );
 
   const handleSelectListShortcut = useCallback(() => {
@@ -521,10 +525,10 @@ export default function PurchaseIndentForm() {
 
   const buildDefaultHeaderValues = useCallback(() => ({
     trancode:         "",
-    trandate:         todayISO,
+    trandate:         getTodayDateInputValue(),
     divisionid:       0,
     configid:         0,
-    expecteddate:     null,
+    expecteddate:     getTodayDateInputValue(),
     deptid:           0,
     locationid:       0,
     costcenterid:     0,
@@ -537,7 +541,7 @@ export default function PurchaseIndentForm() {
     loginid:          getUserSession().loginId,
     idnumber:         0,
     funccode:         IND_CONFIG.RB_MASTER,
-  }), [todayISO]);
+  }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [IND_CONFIG.STORAGE_HEADER_META, IND_CONFIG.STORAGE_ENTRY_META],
@@ -570,6 +574,7 @@ export default function PurchaseIndentForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 

@@ -54,6 +54,7 @@ import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -173,24 +174,18 @@ export default function PurchaseQuotationForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  // Computed first so both the ref and the filter panel share the same initial date.
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const session = getUserSession();
 
   const headerValuesRef = useRef({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     configid: 0,
     inquiryexpirydate: null,
     divisionid: 0,
     supplierid: 0,
     currencyid: "",
     currencyrate: "",
-    basedonid: "0",
+    basedonid: "",
     suppquotno: "",
     suppquotdate: null,
     contactperson: "",
@@ -202,10 +197,13 @@ export default function PurchaseQuotationForm() {
     idnumber: recordId,
   });
 
+  // trandate defaults to today on a new record; existing records keep their
+  // loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { basedonid: "0", trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { basedonid: "", trandate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
   // initialValues, resetting all filter field values visually on Cancel.
@@ -245,14 +243,14 @@ export default function PurchaseQuotationForm() {
     const resetSession = getUserSession();
     return {
       trancode: "",
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       configid: 0,
       inquiryexpirydate: null,
       divisionid: 0,
       supplierid: 0,
       currencyid: "",
       currencyrate: "",
-      basedonid: "0",
+      basedonid: "",
       suppquotno: "",
       suppquotdate: null,
       contactperson: "",
@@ -263,7 +261,7 @@ export default function PurchaseQuotationForm() {
       userid: resetSession.userId,
       idnumber: 0,
     };
-  }, [todayISO]);
+  }, []);
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("items");
@@ -511,6 +509,10 @@ export default function PurchaseQuotationForm() {
       .filter((filter) =>
         isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
       )
+      .sort((a, b) =>
+        Number(resolveHeaderApiCol(a, apiColMap)?.colseqno) -
+        Number(resolveHeaderApiCol(b, apiColMap)?.colseqno)
+      )
       .map(buildFilterDef);
   }, [
     headerColumns,
@@ -629,27 +631,6 @@ export default function PurchaseQuotationForm() {
     }
   }, [getLive]);
 
-  const handleInsertItems = useCallback(
-    async (selectedItems) => {
-      if (!selectedItems?.length) return;
-      setActiveTab("items");
-
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) return;
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-    },
-    [ensureItemColumns, allColumns, addItemRow]
-  );
-
-  // ── Delete selected rows (items grid) ──────────────────────────────
-  const handleDeleteSelected = useCallback(() => {
-    const ref = itemGridRef;
-    if (!ref?.current) return;
-    const selected = ref.current.getSelectedRows?.() ?? [];
-    if (selected.length === 0) return;
-    ref.current.removeRows?.(selected.map((r) => r.id));
-  }, []);
-
   const handleCellEvent = useCallback(
     async ({ rowId, colKey, rowData }) => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
@@ -666,6 +647,33 @@ export default function PurchaseQuotationForm() {
     },
     [fireCellEvent]
   );
+
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
+
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+      rows.forEach((row) => addItemRow(row));
+      // Fire the same qty/rate recalc a manual blur would trigger, so a
+      // picker-inserted row's calculated amounts are correct immediately
+      // instead of staying 0.00 until the user touches the cell (client-
+      // confirmed 2026-07-24, same fix as Purchase Voucher/Order).
+      await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
+    },
+    [ensureItemColumns, allColumns, addItemRow, handleCellEvent]
+  );
+
+  // ── Delete selected rows (items grid) ──────────────────────────────
+  const handleDeleteSelected = useCallback(() => {
+    const ref = itemGridRef;
+    if (!ref?.current) return;
+    const selected = ref.current.getSelectedRows?.() ?? [];
+    if (selected.length === 0) return;
+    ref.current.removeRows?.(selected.map((r) => r.id));
+  }, []);
 
   const { resetFormToInitialState } = useTransactionFormReset({
     storageKeys: [QTN_CONFIG.STORAGE_HEADER_META, QTN_CONFIG.STORAGE_ENTRY_META],
@@ -711,6 +719,7 @@ export default function PurchaseQuotationForm() {
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      setFormErrors([]);
       const hv = headerValuesRef.current;
 
       // ── Validation (header + detail grid) ────────────────────────────

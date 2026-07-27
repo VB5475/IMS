@@ -119,6 +119,18 @@ export function bindFormKeyboardNav(root, { enabled = true } = {}) {
       return;
     }
 
+    // Ctrl+Z/Cmd+Z (undo) is not reversible for most header fields — remarks/
+    // notes fields (rendered as <textarea>) are the sole exception.
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      !e.shiftKey &&
+      e.key.toLowerCase() === "z" &&
+      !(e.target instanceof HTMLTextAreaElement)
+    ) {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key !== "Enter" || e.altKey || e.ctrlKey || e.metaKey) return;
     if (isDropdownOpen(e.target)) return;
     if (e.target instanceof HTMLTextAreaElement && !e.shiftKey) return;

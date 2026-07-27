@@ -32,6 +32,7 @@ import {
 } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -141,10 +142,6 @@ export default function ComplaintRegisterForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
   const callGenByUser = useMemo(() => {
     const session = getUserSession();
     return String(session.userName || session.userId || "");
@@ -152,7 +149,7 @@ export default function ComplaintRegisterForm() {
 
   const headerValuesRef = useRef(applyMcrHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     divisionid: 0,
     fromlocationid: 0,
     fromdeptid: 0,
@@ -168,14 +165,15 @@ export default function ComplaintRegisterForm() {
     funccode: MCR_CONFIG.RB_MASTER,
   }));
 
+  // trandate defaults to today on a new record; existing records keep their loaded date.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       callgenbyuser: callGenByUser,
       frmtype: String(MCR_CONFIG.FRM_TYPE),
     };
-  }, [loadedFilterValues, todayISO, callGenByUser]);
+  }, [loadedFilterValues, callGenByUser]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -327,6 +325,7 @@ export default function ComplaintRegisterForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions = dropdownOptionsByCol[col.colname];
@@ -504,6 +503,7 @@ export default function ComplaintRegisterForm() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateMcrBusinessRules(headerValuesRef.current);
@@ -570,7 +570,7 @@ export default function ComplaintRegisterForm() {
     localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
     headerValuesRef.current = applyMcrHardcodedHeaderValues({
       trancode: "",
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       divisionid: 0,
       fromlocationid: 0,
       fromdeptid: 0,
@@ -599,7 +599,7 @@ export default function ComplaintRegisterForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [callGenByUser, clearSaveError, exitEditMode, todayISO]);
+  }, [callGenByUser, clearSaveError, exitEditMode]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

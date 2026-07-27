@@ -180,6 +180,7 @@ export default function AssetsItemOpeningExcelForm() {
   }, [getExportHeaders]);
 
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     if (detailRows.length === 0) {
       setFormErrors(["Upload an Excel file with at least one row before saving."]);

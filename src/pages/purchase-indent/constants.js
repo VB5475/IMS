@@ -47,7 +47,7 @@ export const IND_CONFIG = {
   STORAGE_ENTRY_META: "indEntryMeta",
 
   SP_INDENT_LIST: "fn_tbl_rb_purindtmst_list",
-  LIST_DIVISION_ID: 15,
+  LIST_DIVISION_ID: 0,
 };
 
 export const IND_GRID_TABS = [{ id: "items", label: "Item Grid" }];

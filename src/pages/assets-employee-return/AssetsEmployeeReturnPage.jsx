@@ -12,6 +12,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AER_CONFIG, ENTRY_FORM_LABEL, buildAerListJsonPayload } from "./constants";
 import "./AssetsEmployeeReturnPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAerReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -82,6 +90,11 @@ export default function AssetsEmployeeReturnPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Employee Return Report"
+              reportFileName="TODO_AssetsEmployeeReturn.rpt"
+              buildParams={buildAerReportParams}
+            />
             <label htmlFor="aer-list-page-size" className="aer-list-panel__pagesize-label">
               Rows per page
             </label>

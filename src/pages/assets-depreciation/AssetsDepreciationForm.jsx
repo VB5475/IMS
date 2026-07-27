@@ -46,6 +46,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -163,14 +164,9 @@ export default function AssetsDepreciationForm() {
   const [recordLoadError,    setRecordLoadError]    = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  }, []);
-
   const headerValuesRef = useRef({
     trancode:       "",
-    trandate:       todayISO,
+    trandate:       getTodayDateInputValue(),
     divisionid:     0,
     fixedastacid:   0,
     totaldepamount: 0,
@@ -183,10 +179,11 @@ export default function AssetsDepreciationForm() {
     idnumber:       recordId,
   });
 
+  // trandate defaults to today on a new record; existing records keep their loaded date.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { trandate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   const [filterResetKey,     setFilterResetKey]     = useState(0);
   const [activeTab,          setActiveTab]          = useState("items");
@@ -357,6 +354,7 @@ export default function AssetsDepreciationForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible) && !DPC_SUMMARY_COL_NAMES.has(col.colname))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -523,14 +521,14 @@ export default function AssetsDepreciationForm() {
   const buildDefaultHeaderValues = useCallback(() => {
     const session = getUserSession();
     return {
-      trancode: "", trandate: todayISO,
+      trancode: "", trandate: getTodayDateInputValue(),
       divisionid: 0, fixedastacid: 0,
       totaldepamount: 0, remarks: "",
       funccode: DPC_CONFIG.RB_MASTER, tranmstgenid: 0,
       companyid: session.companyId, yearid: session.yearId,
       loginid: session.loginId, idnumber: 0,
     };
-  }, [todayISO]);
+  }, []);
 
   const clearDpcStorage = useCallback(() => {
     sessionStorage.removeItem(DPC_CONFIG.STORAGE_HEADER_META);
@@ -569,6 +567,7 @@ export default function AssetsDepreciationForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];

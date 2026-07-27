@@ -58,6 +58,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -252,24 +253,16 @@ export default function PurchaseInquiryForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  // Computed first so both the ref and the filter panel share the same initial date.
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
-  // TranDate seeded with todayISO so prmTranDate is correct on the first
-  // "Select Item" click even before the user touches the date field.
   const session = getUserSession();
 
   const headerValuesRef = useRef({
     trancode:     "",
-    trandate:     todayISO,
+    trandate:     getTodayDateInputValue(),
     configid:     0,
-    expecteddate: null,
+    expecteddate: getTodayDateInputValue(),
     divisionid:   0,
     deptid:       0,
-    basedonid:    "0",
+    basedonid:    "",
     remarks:      "",
     yearid:       session.yearId,
     funccode:     PI_CONFIG.RB_MASTER,
@@ -279,10 +272,14 @@ export default function PurchaseInquiryForm() {
     idnumber:     recordId,
   });
 
+  // trandate/expecteddate default to today on a new record; existing records
+  // keep their loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown; Select Item is already gated on
+  // both being filled (PI_ITEM_PICKER_JSON_FIELDS).
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { basedonid: "0", trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { basedonid: "", trandate: getTodayDateInputValue(), expecteddate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
   // initialValues, resetting all filter field values visually on Cancel.
@@ -331,12 +328,12 @@ export default function PurchaseInquiryForm() {
     const resetSession = getUserSession();
     headerValuesRef.current = {
       trancode:     "",
-      trandate:     todayISO,
+      trandate:     getTodayDateInputValue(),
       configid:     0,
-      expecteddate: null,
+      expecteddate: getTodayDateInputValue(),
       divisionid:   0,
       deptid:       0,
-      basedonid:    "0",
+      basedonid:    "",
       remarks:      "",
       yearid:       resetSession.yearId,
       funccode:     PI_CONFIG.RB_MASTER,
@@ -390,7 +387,7 @@ export default function PurchaseInquiryForm() {
 
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearInquiryTypes, clearSaveError, exitEditMode, todayISO]);
+  }, [clearInquiryTypes, clearSaveError, exitEditMode]);
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
@@ -700,6 +697,10 @@ export default function PurchaseInquiryForm() {
       .filter((filter) =>
         isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
       )
+      .sort((a, b) =>
+        Number(resolveHeaderApiCol(a, apiColMap)?.colseqno) -
+        Number(resolveHeaderApiCol(b, apiColMap)?.colseqno)
+      )
       .map(buildFilterDef);
   }, [
     headerColumns,
@@ -887,6 +888,23 @@ export default function PurchaseInquiryForm() {
     }
   }, [getLive]);
 
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.errcode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { errcode, errmsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
+
   const handleInsertItems = useCallback(
     async (selectedItems) => {
       if (!selectedItems?.length) return;
@@ -901,7 +919,13 @@ export default function PurchaseInquiryForm() {
         if (!activeCols?.length) return;
         setChildRowsMap({});
         setChildColumns([]);
-        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+        rows.forEach((row) => addItemRow(row));
+        // Fire the same qty/rate recalc a manual blur would trigger, so a
+        // picker-inserted row's calculated amounts are correct immediately
+        // instead of staying 0.00 until the user touches the cell (client-
+        // confirmed 2026-07-24, same fix as Purchase Voucher/Order/Quotation).
+        await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
         return;
       }
 
@@ -971,7 +995,7 @@ export default function PurchaseInquiryForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns, postSave]
+    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns, postSave, handleCellEvent]
   );
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────
@@ -1141,28 +1165,12 @@ export default function PurchaseInquiryForm() {
     ref.current.removeRows?.(selected.map((r) => r.id));
   }, [activeTab]);
 
-  const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
-  );
-
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingPI, setIsSavingPI] = useState(false);
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      setFormErrors([]);
       const hv = headerValuesRef.current;
 
       // ── Validation (header + detail grids) ───────────────────────────

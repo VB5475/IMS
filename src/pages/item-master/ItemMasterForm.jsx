@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Package, Save, Pencil, AlertCircle, Wand2, Calculator } from "lucide-react";
+import { Package, Save, Pencil, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
@@ -24,6 +24,7 @@ import {
   IM_MAIN_GROUP_CASCADE_RESETS,
   IM_SUB_MAIN_GROUP_CASCADE_RESETS,
 } from "./constants";
+import "../../components/forms/MasterFormField.css";
 import "./ItemMasterPage.css";
 
 // Fields locked during edit mode (RB colnames — all lowercase)
@@ -64,6 +65,14 @@ export default function ItemMasterForm({
   onItemTypeChange,
   onMainGroupChange,
   onSubMainGroupChange,
+  onRefreshItemType,
+  onRefreshMainGroup,
+  onRefreshSubMainGroup,
+  onRefreshSubGroup,
+  onRefreshStatic,
+  onQuickAddMainGroup,
+  onQuickAddSubMainGroup,
+  onQuickAddSubGroup,
 }) {
   const isAddMode = mode === "add";
   const { post } = useApi(API_BASE_URL_IMS);
@@ -152,6 +161,48 @@ export default function ItemMasterForm({
     [onItemTypeChange, onMainGroupChange, onSubMainGroupChange]
   );
 
+  // Refresh + quick-add wiring per dropdown — Main Group / Sub Main Group /
+  // Sub Group have their own master module to quick-add into; Item Type,
+  // Taxability, Tran Unit, and Base Unit don't (yet), so those get a refresh
+  // icon only.
+  function dropdownActionsFor(key) {
+    const itemTypeId = formValues.itemtypeid;
+    const mainGroupId = formValues.maingroupid;
+    const subMainGroupId = formValues.submaingroupid;
+
+    if (key === "itemtypeid") {
+      return { onRefresh: () => onRefreshItemType?.(), quickAdd: null };
+    }
+    if (key === "maingroupid") {
+      return {
+        onRefresh: () => onRefreshMainGroup?.(itemTypeId),
+        quickAdd: onQuickAddMainGroup
+          ? { label: "Main Group", onAdd: () => onQuickAddMainGroup(itemTypeId) }
+          : null,
+      };
+    }
+    if (key === "submaingroupid") {
+      return {
+        onRefresh: () => onRefreshSubMainGroup?.({ itemTypeId, mainGroupId }),
+        quickAdd: onQuickAddSubMainGroup
+          ? { label: "Sub Main Group", onAdd: () => onQuickAddSubMainGroup({ itemTypeId, mainGroupId }) }
+          : null,
+      };
+    }
+    if (IM_SUB_GROUP_FIELDS.includes(key)) {
+      return {
+        onRefresh: () => onRefreshSubGroup?.({ itemTypeId, mainGroupId, subMainGroupId }),
+        quickAdd: onQuickAddSubGroup
+          ? { label: "Sub Group", onAdd: () => onQuickAddSubGroup({ itemTypeId, mainGroupId, subMainGroupId }) }
+          : null,
+      };
+    }
+    if (key === "taxabilityid" || key === "tranunitid" || key === "baseunitid") {
+      return { onRefresh: () => onRefreshStatic?.(), quickAdd: null };
+    }
+    return { onRefresh: null, quickAdd: null };
+  }
+
   function renderControl(field) {
     const key = field.colname;
     const locked = isLocked(field);
@@ -183,7 +234,7 @@ export default function ItemMasterForm({
 
     // Dropdown (by colctrltype or known dropdown field)
     if (Number(field.colctrltype) === 4 || IM_DROPDOWN_FIELDS.has(key)) {
-      return (
+      const control = (
         <SearchSelect
           options={optionsMap[key] || []}
           value={String(formValues[key] ?? "")}
@@ -191,6 +242,40 @@ export default function ItemMasterForm({
           disabled={locked}
           placeholder={`Select ${getLabel(field)}…`}
         />
+      );
+
+      if (locked) return control;
+      const { onRefresh, quickAdd } = dropdownActionsFor(key);
+      if (!onRefresh && !quickAdd) return control;
+
+      return (
+        <div className="master-form-dropdown-row">
+          {control}
+          {onRefresh && (
+            <button
+              type="button"
+              className="master-form-icon-btn"
+              tabIndex={-1}
+              onClick={onRefresh}
+              title={`Refresh ${getLabel(field)} options`}
+              aria-label={`Refresh ${getLabel(field)} options`}
+            >
+              <RefreshCw size={12} strokeWidth={2.5} />
+            </button>
+          )}
+          {quickAdd && (
+            <button
+              type="button"
+              className="master-form-icon-btn"
+              tabIndex={-1}
+              onClick={quickAdd.onAdd}
+              title={`Add new ${quickAdd.label}`}
+              aria-label={`Add new ${quickAdd.label}`}
+            >
+              <Plus size={12} strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
       );
     }
 
@@ -208,25 +293,8 @@ export default function ItemMasterForm({
     );
   }
 
-  const handleGenerateCode = useCallback(() => {
-    notify.success("Generate Code will be available once the code-generation API is connected.");
-  }, [notify]);
-
-  const handleGenerateName = useCallback(() => {
-    notify.success("Generate Name will be available once the name-generation API is connected.");
-  }, [notify]);
-
-  const handleConversionExample = useCallback(() => {
-    const conversion = String(formValues.unitconvrate || "").trim();
-    const tranUnit =
-      tranUnitOptions.find((o) => o.value === String(formValues.tranunitid))?.label || "Tran Unit";
-    const baseUnit =
-      baseUnitOptions.find((o) => o.value === String(formValues.baseunitid))?.label || "Base Unit";
-    if (!conversion) { notify.error("Enter a conversion value first."); return; }
-    notify.success(`Example: 1 ${tranUnit} = ${conversion} ${baseUnit}`);
-  }, [formValues, tranUnitOptions, baseUnitOptions]);
-
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const fieldsToValidate = visibleFields.filter(
       (f) => f.colname !== "itemcode" && !CHECKBOX_OVERRIDES.has(f.colname)
     );
@@ -344,17 +412,6 @@ export default function ItemMasterForm({
         </div>
       ) : (
         <>
-          {isEditMode && (
-            <div className="im-form-actions">
-              <button type="button" className="im-form-action-btn" onClick={handleGenerateCode}>
-                <Wand2 size={13} strokeWidth={2} /> Generate Code
-              </button>
-              <button type="button" className="im-form-action-btn" onClick={handleGenerateName}>
-                <Wand2 size={13} strokeWidth={2} /> Generate Name
-              </button>
-            </div>
-          )}
-
           <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
 
           <div className="im-form-scroll">
@@ -384,20 +441,7 @@ export default function ItemMasterForm({
                     className={`im-form-control${CHECKBOX_OVERRIDES.has(field.colname) ? " im-form-control--checkbox" : ""
                       }`}
                   >
-                    {field.colname === "unitconvrate" && isEditMode ? (
-                      <div className="im-form-inline">
-                        {renderControl(field)}
-                        <button
-                          type="button"
-                          className="im-form-action-btn im-form-action-btn--inline"
-                          onClick={handleConversionExample}
-                        >
-                          <Calculator size={13} strokeWidth={2} /> Example
-                        </button>
-                      </div>
-                    ) : (
-                      renderControl(field)
-                    )}
+                    {renderControl(field)}
                   </div>
                 </div>
               ))}

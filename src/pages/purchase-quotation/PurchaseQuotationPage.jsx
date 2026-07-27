@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -10,6 +11,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { QTN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseQuotationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildPurchaseQuotationReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListDateRange() {
   const now = new Date();
@@ -101,6 +109,11 @@ export default function PurchaseQuotationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Purchase Quotation Report"
+              reportFileName="TODO_PurchaseQuotation.rpt"
+              buildParams={buildPurchaseQuotationReportParams}
+            />
             <label htmlFor="pq-list-page-size" className="pq-list-panel__pagesize-label">
               Rows per page
             </label>

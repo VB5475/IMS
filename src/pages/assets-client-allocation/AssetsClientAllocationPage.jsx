@@ -9,6 +9,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { ACA_CONFIG, ENTRY_FORM_LABEL, buildAcaListJsonPayload } from "./constants";
 import "./AssetsClientAllocationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAcaReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -81,6 +89,11 @@ export default function AssetsClientAllocationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Client Allocation Report"
+              reportFileName="TODO_AssetsClientAllocation.rpt"
+              buildParams={buildAcaReportParams}
+            />
             <label htmlFor="aca-list-page-size" className="aca-list-panel__pagesize-label">
               Rows per page
             </label>

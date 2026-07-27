@@ -49,6 +49,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -183,15 +184,10 @@ export default function CWIPToFAForm() {
   const [recordLoadError,     setRecordLoadError]     = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const headerValuesRef = useRef({
     tranno:            "",
-    trandate:          todayISO,
-    puttouseinstdate:  null,
+    trandate:          getTodayDateInputValue(),
+    puttouseinstdate:  getTodayDateInputValue(),
     divisionid:        0,
     locationid:        0,
     conversionfactor:  0,
@@ -208,10 +204,11 @@ export default function CWIPToFAForm() {
     funccode:         C2F_CONFIG.RB_MASTER,
   });
 
+  // trandate/puttouseinstdate default to today on a new record; existing records keep their loaded date.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { trandate: getTodayDateInputValue(), puttouseinstdate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   const [filterResetKey,      setFilterResetKey]      = useState(0);
   const [activeTab,           setActiveTab]           = useState("items");
@@ -391,6 +388,7 @@ export default function CWIPToFAForm() {
 
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible) && !C2F_SUMMARY_COL_NAMES.has(col.colname))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode  = isLockOnEditModeCol(col);
         const staticOptions   = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -603,7 +601,7 @@ export default function CWIPToFAForm() {
   const buildDefaultHeaderValues = useCallback(() => {
     const session = getUserSession();
     return {
-      tranno: "", trandate: todayISO, puttouseinstdate: null,
+      tranno: "", trandate: getTodayDateInputValue(), puttouseinstdate: getTodayDateInputValue(),
       divisionid: 0, locationid: 0, conversionfactor: 0,
       cwipaccid: 0, costcenteraccid: 0,
       convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
@@ -611,7 +609,7 @@ export default function CWIPToFAForm() {
       companyid: session.companyId, yearid: session.yearId,
       loginid: session.loginId, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
     };
-  }, [todayISO]);
+  }, []);
 
   const clearC2fStorage = useCallback(() => {
     sessionStorage.removeItem(C2F_CONFIG.STORAGE_HEADER_META);
@@ -650,6 +648,7 @@ export default function CWIPToFAForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 

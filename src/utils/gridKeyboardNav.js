@@ -181,6 +181,20 @@ export function handleGridKeyboardEvent(
 ) {
   if (!root || isDropdownOpen(e.target)) return false;
 
+  // Ctrl+Z/Cmd+Z (undo) is not reversible for most grid cells — remarks/notes
+  // fields (rendered as <textarea>, or the remark cell's own input before the
+  // paste-friendly modal takes over) are the sole exception.
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    !e.shiftKey &&
+    e.key.toLowerCase() === "z" &&
+    !(e.target instanceof HTMLTextAreaElement) &&
+    !e.target?.closest?.(".cell-remark__input")
+  ) {
+    e.preventDefault();
+    return true;
+  }
+
   const matrix = buildCellMatrix(root, readOnly, { includeHeaderRow });
   if (matrix.length === 0) return false;
 

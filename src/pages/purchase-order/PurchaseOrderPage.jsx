@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,6 +16,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildPurchaseOrderReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -98,6 +106,11 @@ export default function PurchaseOrderPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Purchase Order Report"
+              reportFileName="TODO_PurchaseOrder.rpt"
+              buildParams={buildPurchaseOrderReportParams}
+            />
             <label htmlFor="po-list-page-size" className="po-list-panel__pagesize-label">
               Rows per page
             </label>

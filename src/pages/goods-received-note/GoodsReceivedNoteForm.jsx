@@ -47,6 +47,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -214,24 +215,19 @@ export default function GoodsReceivedNoteForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const session = getUserSession();
 
   const headerValuesRef = useRef({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     configid: 0,
     divisionid: 0,
     supplierid: 0,
     currencyid: "",
     currencyrate: "",
-    basedonid: "0",
+    basedonid: "",
     billno: "",
-    billdate: null,
+    billdate: getTodayDateInputValue(),
     challanno: "",
     challandate: null,
     transporterid: 0,
@@ -251,10 +247,17 @@ export default function GoodsReceivedNoteForm() {
     idnumber: recordId,
   });
 
+  // trandate/billdate default to today on a new record; existing records keep
+  // their loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { ...GRN_FILTER_INITIAL_VALUES, trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return {
+      ...GRN_FILTER_INITIAL_VALUES,
+      trandate: getTodayDateInputValue(),
+      billdate: getTodayDateInputValue(),
+    };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
@@ -336,15 +339,15 @@ export default function GoodsReceivedNoteForm() {
     const resetSession = getUserSession();
     headerValuesRef.current = {
       trancode: "",
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       configid: 0,
       divisionid: 0,
       supplierid: 0,
       currencyid: "",
       currencyrate: "",
-      basedonid: "0",
+      basedonid: "",
       billno: "",
-      billdate: null,
+      billdate: getTodayDateInputValue(),
       challanno: "",
       challandate: null,
       transporterid: 0,
@@ -385,7 +388,6 @@ export default function GoodsReceivedNoteForm() {
     clearIndentDetailMeta,
     clearItemGridState,
     exitEditMode,
-    todayISO,
   ]);
 
   const completeSuccessfulSave = useCallback(() => {
@@ -772,6 +774,23 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [getLive]);
 
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.errcode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { errcode, errmsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
+
   const handleInsertItems = useCallback(
     async (selectedItems) => {
       if (!selectedItems?.length) return;
@@ -784,7 +803,13 @@ export default function GoodsReceivedNoteForm() {
         if (!activeCols?.length) return;
         setChildRowsMap({});
         setChildColumns([]);
-        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+        rows.forEach((row) => addItemRow(row));
+        // Fire the same qty/rate recalc a manual blur would trigger, so a
+        // picker-inserted row's calculated amounts are correct immediately
+        // instead of staying 0.00 until the user touches the cell (client-
+        // confirmed 2026-07-24, same fix as the Purchase family forms).
+        await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
         return;
       }
 
@@ -825,7 +850,7 @@ export default function GoodsReceivedNoteForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, fetchIndentDetailColumns, post]
+    [ensureItemColumns, allColumns, addItemRow, fetchIndentDetailColumns, post, handleCellEvent]
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -845,27 +870,11 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [childRowsMap]);
 
-  const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
-  );
-
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      setFormErrors([]);
       const hv = headerValuesRef.current;
 
       // Validate every RB-visible header field, not a hand-maintained subset —

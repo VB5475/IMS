@@ -330,6 +330,7 @@ export default function CustomerMasterForm({
 
   // ── Save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const headerErrors = validateApiColumns(formValues, visibleFields);
 
     const consigneeRows = consigneeGridRef.current?.getRows?.() ?? [];

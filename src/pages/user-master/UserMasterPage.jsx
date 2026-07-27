@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Users, Plus, RefreshCw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -15,7 +16,14 @@ import UserGroupForm from "../user-group/UserGroupForm";
 import DepartmentMasterForm from "../department-master/DepartmentMasterForm";
 import { UM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserMasterPage.css";
+
+function buildUserMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -212,6 +220,11 @@ export default function UserMasterPage() {
             <button type="button" className="um-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="User Master Report"
+              reportFileName="TODO_UserMaster.rpt"
+              buildParams={buildUserMasterReportParams}
+            />
             <label htmlFor="um-list-page-size" className="um-list-panel__pagesize-label">
               Rows per page
             </label>

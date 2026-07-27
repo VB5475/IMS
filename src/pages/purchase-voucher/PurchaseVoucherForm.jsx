@@ -46,6 +46,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -69,6 +70,15 @@ import "./PurchaseVoucherPage.css";
 // ── Temp-ID generator (negative → never clash with real IDs) ──────────
 let _pvTempId = -1;
 const nextTempId = () => _pvTempId--;
+
+// Same inline ISO→yyyy-MM-dd normalization used by usePurchaseVoucher.js's
+// mapMasterRowToHeaderValues, for the date-input-bound header fields.
+function toDateInputValue(value) {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().split("T")[0];
+}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
@@ -154,26 +164,21 @@ export default function PurchaseVoucherForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const session = getUserSession();
 
   const headerValuesRef = useRef({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     divisionid: 0,
     configid: 0,
-    basedonid: "2",
+    basedonid: "",
     supplierid: 0,
     currencyid: 0,
     currencyrate: 0,
     billno: "",
-    billdate: null,
+    billdate: getTodayDateInputValue(),
     costcenterid: 0,
-    creditstartdate: todayISO,
+    creditstartdate: getTodayDateInputValue(),
     narration: "",
     remarks: "",
     tranmstgenid: 0,
@@ -184,14 +189,23 @@ export default function PurchaseVoucherForm() {
     funccode: PV_CONFIG.RB_MASTER,
   });
 
+  // trandate, billdate, and creditstartdate default to today on a new record;
+  // existing records keep their loaded dates. basedonid still has no default —
+  // client requirement 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO, basedonid: "2", creditstartdate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return {
+      trandate: getTodayDateInputValue(),
+      basedonid: "",
+      billdate: getTodayDateInputValue(),
+      creditstartdate: getTodayDateInputValue(),
+    };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
+  const [billExternalValues, setBillExternalValues] = useState(null);
   const [basedOnId, setBasedOnId] = useState("2");
   const [pasteNotice, setPasteNotice] = useState(null);
   const pasteNoticeTimerRef = useRef(null);
@@ -387,10 +401,42 @@ export default function PurchaseVoucherForm() {
     [DROPDOWN_OPTIONS_BY_COL]
   );
 
-  const syncedFilters = useMemo(
-    () => visibleHeaderColumns.map(buildFilterDefFromApiCol),
-    [visibleHeaderColumns, buildFilterDefFromApiCol]
-  );
+  // "Select All (Put To Use)" (RB colname selectallputtouse) mirrors the grid's
+  // own puttouse column: all rows on → checked, none on → unchecked, a mix →
+  // indeterminate. Derived from gridRows, never independently user-set.
+  const puttouseHeaderState = useMemo(() => {
+    if (gridRows.length === 0) return { checked: 0, indeterminate: false };
+    const onCount = gridRows.filter((r) => Number(r.puttouse) !== 0).length;
+    return {
+      checked: onCount === gridRows.length ? 1 : 0,
+      indeterminate: onCount > 0 && onCount < gridRows.length,
+    };
+  }, [gridRows]);
+
+  // Keep the ref in sync too, so a save that reads headerValuesRef directly
+  // (buildSaveRowFromColumns) reflects the live grid aggregate, not whatever
+  // was last independently clicked.
+  useEffect(() => {
+    headerValuesRef.current.selectallputtouse = puttouseHeaderState.checked;
+  }, [puttouseHeaderState.checked]);
+
+  const syncedFilters = useMemo(() => {
+    const base = visibleHeaderColumns.map(buildFilterDefFromApiCol);
+    return base.map((f) =>
+      f.FilterColName === "selectallputtouse"
+        ? { ...f, indeterminate: puttouseHeaderState.indeterminate }
+        : f
+    );
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol, puttouseHeaderState.indeterminate]);
+
+  // EnterpriseFilterPanel only accepts a single externalValues prop — merge the
+  // currency-cascade values, the GRN-selection BillNo/BillDate values, and the
+  // grid-derived Select-All-Put-To-Use checked state into one.
+  const combinedExternalValues = useMemo(() => ({
+    ...currencyExternalValues,
+    ...billExternalValues,
+    selectallputtouse: puttouseHeaderState.checked,
+  }), [currencyExternalValues, billExternalValues, puttouseHeaderState.checked]);
 
   // Only fields RB marks visible on the master render — same rule as syncedFilters.
   const syncedSummaryFields = useMemo(
@@ -473,6 +519,20 @@ export default function PurchaseVoucherForm() {
     if (colName === "basedonid") {
       setBasedOnId(String(val));
       itemGridRef.current?.clearRows?.();
+      return;
+    }
+
+    // Header "Select All (Put To Use)" click — toggles every grid row's
+    // puttouse in one shot via local grid state only (updateAllRows never
+    // routes through fireCellEvent, matching the "don't recalc on puttouse"
+    // rule). The checkbox's own displayed value is otherwise fully derived
+    // from gridRows (see puttouseHeaderState) — this click is the one place
+    // it acts as an input rather than a pure read-out.
+    if (colName === "selectallputtouse") {
+      const next = Number(val) ? 1 : 0;
+      headerValuesRef.current.selectallputtouse = next;
+      itemGridRef.current?.updateAllRows?.({ puttouse: next });
+      return;
     }
   }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters, fetchLocationOptions, clearLocations]);
 
@@ -590,8 +650,41 @@ export default function PurchaseVoucherForm() {
     setActiveTab("items");
     const activeCols = await ensureItemColumns();
     if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+
+    const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+    rows.forEach((row) => addItemRow(row));
+
+    // A picker-inserted row's Qty/Rate already carry real values (from the
+    // GRN/PO/Item Master source), but the grid's calculated columns
+    // (baseamount/expense/taxablevalue/cgst/sgst/igst) only ever populate via
+    // the server recalc SP a manual Qty/Rate blur triggers — never
+    // automatically on insert (confirmed live 2026-07-24: picker SPs return
+    // short-form fields like baseamt/tranamt, not the grid's own baseamount/
+    // tranamount columns, so those start zeroed until touched). Fire the same
+    // recalc for every newly-inserted row right away, via the same
+    // handleCellEvent path a real blur uses (errcode check + updateRow),
+    // so the summary panel is correct immediately without the user needing
+    // to click into and back out of a cell. "tranqty" is always a real
+    // event-column here regardless of RB flags (see usePurchaseVoucher.js's
+    // fallback list) — colKey only identifies the field to the SP, so any
+    // row content is fine to send under it.
+    await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
+
+    // GRN Base (BasedOnID 0) picker rows carry the source GRN's BillNo/BillDate
+    // (fn_tbl_rb_purpvselgrndet) — PM: copy them onto the PV's own BillNo/BillDate
+    // master fields. Multiple items may span more than one GRN, so use the first
+    // selected item's bill details, per PM's clarified rule.
+    if (Number(basedOnId) === 0) {
+      const first = selectedItems[0];
+      const billno = first?.billno ?? "";
+      const billdate = toDateInputValue(first?.billdate);
+      if (billno || billdate) {
+        headerValuesRef.current.billno = billno;
+        headerValuesRef.current.billdate = billdate;
+        setBillExternalValues({ billno, billdate: billdate ?? "" });
+      }
+    }
+  }, [ensureItemColumns, allColumns, addItemRow, basedOnId, handleCellEvent]);
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -615,15 +708,15 @@ export default function PurchaseVoucherForm() {
   const buildDefaultHeaderValues = useCallback(() => {
     const resetSession = getUserSession();
     return {
-      trancode: "", trandate: todayISO, divisionid: 0, configid: 0,
-      basedonid: "2", supplierid: 0, currencyid: 0, currencyrate: 0,
-      billno: "", billdate: null,
-      costcenterid: 0, creditstartdate: todayISO,
+      trancode: "", trandate: getTodayDateInputValue(), divisionid: 0, configid: 0,
+      basedonid: "", supplierid: 0, currencyid: 0, currencyrate: 0,
+      billno: "", billdate: getTodayDateInputValue(),
+      costcenterid: 0, creditstartdate: getTodayDateInputValue(),
       narration: "", remarks: "", tranmstgenid: 0,
       companyid: resetSession.companyId, yearid: resetSession.yearId,
       loginid: resetSession.loginId, idnumber: 0, funccode: PV_CONFIG.RB_MASTER,
     };
-  }, [todayISO]);
+  }, []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [PV_CONFIG.STORAGE_HEADER_META, PV_CONFIG.STORAGE_ENTRY_META],
@@ -651,6 +744,11 @@ export default function PurchaseVoucherForm() {
     extraClearFns: [clearPvTypes],
     extraReset: () => {
       setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+      // null (not blank strings) — billno/billdate are ordinary RB header
+      // fields already blank in the New-record initialValues; a blank merge
+      // isn't needed and, unlike currency, must never later stomp a freshly
+      // reloaded edit record's real BillNo/BillDate (see handleDiscardConfirm).
+      setBillExternalValues(null);
       summaryRef.current?.resetOverrides?.();
     },
   });
@@ -661,6 +759,7 @@ export default function PurchaseVoucherForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     // Validate every RB-visible header field, not a hand-maintained subset —
     // a field missing from a static list must never be silently skipped at
     // save time just because nobody remembered to list it (see GRN fix).
@@ -725,9 +824,13 @@ export default function PurchaseVoucherForm() {
     setDiscardOpen(false);
     // Covers the edit-route branch of discardChanges() (re-fetches the record
     // instead of going through resetFormToInitialState/extraReset, which is
-    // where the New-record reset clears this) — a stale Round Off override
-    // must not survive a Cancel either way.
+    // where the New-record reset clears this) — a stale Round Off override or
+    // GRN-picked BillNo/BillDate must not survive a Cancel either way. Cleared
+    // to null (not blank strings) so the merge is a no-op once discardChanges()
+    // reloads the record and remounts the filter panel with its real BillNo/
+    // BillDate — a blank-string merge would otherwise stomp the reloaded values.
     summaryRef.current?.resetOverrides?.();
+    setBillExternalValues(null);
     discardChanges();
   }, [discardChanges]);
 
@@ -793,7 +896,7 @@ export default function PurchaseVoucherForm() {
             initialValues={filterInitialValues}
             cascadeResets={PV_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
-            externalValues={currencyExternalValues}
+            externalValues={combinedExternalValues}
             isSearching={filterBusy || recordLoading}
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}

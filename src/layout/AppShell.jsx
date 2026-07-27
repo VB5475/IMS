@@ -5,6 +5,8 @@ import {
   FileSpreadsheet,
   ClipboardList,
   FileText,
+  FileStack,
+  Archive,
   ShoppingCart,
   Receipt,
   PackageCheck,
@@ -33,6 +35,7 @@ import {
   Building,
   FolderTree,
   Landmark,
+  ShieldCheck,
   Truck,
   UserCheck,
   Scale,
@@ -75,6 +78,17 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSET_ITEM_MASTER), icon: LayoutList, label: "Asset Item Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
+      
+    ],
+  },
+  {
+    label: "DMS",
+    items: [
+      // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
+      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false },
+      { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
     ],
   },
   {

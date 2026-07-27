@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { LayoutList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -9,8 +10,15 @@ import { createListActionsColumn } from "../../utils/listGridUtils";
 import { useAssetItemMaster } from "../../hooks/useAssetItemMaster";
 import AssetItemMasterForm from "./AssetItemMasterForm";
 import { AIM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./AssetItemMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+
+function buildAssetItemMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const session = getUserSession();
@@ -118,6 +126,11 @@ export default function AssetItemMasterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Asset Item Master Report"
+              reportFileName="TODO_AssetItemMaster.rpt"
+              buildParams={buildAssetItemMasterReportParams}
+            />
             <label htmlFor="aim-list-page-size" className="aim-list-panel__pagesize-label">
               Rows per page
             </label>

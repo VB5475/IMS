@@ -153,6 +153,7 @@ export default function UserGroupForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const fieldsToValidate = visibleFields.filter((f) => !CHECKBOX_OVERRIDES.has(f.colname));
     const errors = validateApiColumns(formValues, fieldsToValidate);
     if (errors.length > 0) { setFormErrors(errors); return; }

@@ -31,11 +31,13 @@ export const PO_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
   // No per-line equivalent on rb_purpodet at all (verified live — detail grid
-  // has no roundoff column) — summing rows always produced 0. Read from the
-  // loaded master row on edit instead, same as PV. Manually editable
-  // (business rule 2026-07-23): default is the auto-calculated total, user
-  // can type an override — see EnterpriseSummaryPanel's `editable` handling.
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true, editable: true },
+  // has no roundoff column). Auto-calculated (business rule confirmed by PM
+  // 2026-07-24, same as PV): the adjustment that rounds the base+expense+tax
+  // total to the nearest whole number — still manually editable on top.
+  {
+    SummaryParameterID: "mstroundoff", detKey: "roundoff", editable: true,
+    roundToNearestFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst"],
+  },
   // Net Base Amount = every other summary amount EXCEPT Taxable Value (same
   // business rule as PV) — computed live from the other fields' own totals,
   // not summed from detail rows (rb_purpodet has no netbaseamount column
@@ -46,7 +48,7 @@ export const PO_SUMMARY_FIELDS = [
     deriveFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst", "mstroundoff"],
   },
 ];
-export const PO_FILTER_INITIAL_VALUES = { basedonid: "0" };
+export const PO_FILTER_INITIAL_VALUES = { basedonid: "" };
 export const PO_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 
 /** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */

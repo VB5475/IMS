@@ -86,7 +86,7 @@ export const PI_CONFIG = {
   STORAGE_TERMS_META: "piTermsMeta",
 
   SP_INQUIRY_LIST: "fn_tbl_rb_purinquirymst_list",
-  LIST_DIVISION_ID: 15,
+  LIST_DIVISION_ID: 0,
 };
 
 export const PI_HEADER_FILTERS = [

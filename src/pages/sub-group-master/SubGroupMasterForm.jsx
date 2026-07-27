@@ -151,6 +151,7 @@ export default function SubGroupMasterForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const errors = validateApiColumns(formValues, visibleFields);
     if (errors.length > 0) { setFormErrors(errors); return; }
 

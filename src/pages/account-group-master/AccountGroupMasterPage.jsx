@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Layers, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -9,9 +10,15 @@ import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColum
 import { createListActionsColumn } from "../../utils/listGridUtils";
 import AccountGroupMasterForm from "./AccountGroupMasterForm";
 import { AGM_CONFIG } from "./constants";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountGroupMasterPage.css";
 
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+function buildAccountGroupMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -40,7 +47,7 @@ export default function AccountGroupMasterPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -152,6 +159,11 @@ export default function AccountGroupMasterPage() {
             <button type="button" className="agm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="Account Group Master Report"
+              reportFileName="TODO_AccountGroupMaster.rpt"
+              buildParams={buildAccountGroupMasterReportParams}
+            />
             <label htmlFor="agm-list-page-size" className="agm-list-panel__pagesize-label">
               Rows per page
             </label>

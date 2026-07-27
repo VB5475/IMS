@@ -70,7 +70,7 @@ export function useMainGroupMaster() {
       setItemTypeOptions(
         (itemTypeData || []).map((r) => ({
           value: r.idnumber ?? 0,
-          label: String(r.itemtypecode ?? r.itemtypename ?? ""),
+          label: String(r.itemtypedesc ?? ""),
         })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(

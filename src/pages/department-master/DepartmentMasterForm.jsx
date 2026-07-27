@@ -37,6 +37,8 @@ export default function DepartmentMasterForm({
   defsError = null,
   dropdownOptions = {},
   onRefreshDropdowns,
+  onRefreshDeptHead,
+  onQuickAddDeptHead,
   fetchEditRecord,
   seedOptionsFromMaster,
 }) {
@@ -147,6 +149,7 @@ export default function DepartmentMasterForm({
 
   function renderControl(field) {
     const key = field.colname;
+    const isDeptHead = key === String(DM_CONFIG.DEPT_HEAD_COL).toLowerCase();
     return (
       <MasterFormField
         field={field}
@@ -157,6 +160,8 @@ export default function DepartmentMasterForm({
         inputClassName="dm-form-input"
         valueClassName="dm-form-value"
         toggleClassName="dm-form-toggle"
+        onRefresh={isDeptHead ? onRefreshDeptHead : undefined}
+        quickAdd={isDeptHead && onQuickAddDeptHead ? { label: "User", onAdd: onQuickAddDeptHead } : null}
       />
     );
   }

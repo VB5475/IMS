@@ -159,6 +159,7 @@ export default function AssetItemMasterForm({
   }
 
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     // itemcode is auto-generated — skip it from mandatory validation
     const fieldsToValidate = visibleFields.filter((f) => f.colname !== "itemcode");
     const normalizedValues = Object.fromEntries(

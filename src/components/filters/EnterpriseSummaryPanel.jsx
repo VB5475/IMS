@@ -31,6 +31,13 @@
 //                  live auto-calculated total; typing a value "pins" it (an
 //                  explicit override) until cleared (blur with an empty/invalid
 //                  value reverts to auto) or `resetOverrides()` is called.
+//   roundToNearestFromKeys — this field's own auto value (e.g. Round Off) is
+//                  the adjustment that rounds the sum of the given source
+//                  keys to the nearest whole number (whole_number − raw_sum).
+//                  Resolves before any `deriveFromKeys` field, so a Net Base
+//                  Amount summing this field's result comes out as a clean
+//                  whole number by default. Still just a default — `editable`
+//                  above still applies on top.
 //   rowFilter    — optional (row) => boolean; excludes rows the backend
 //                  itself excludes from its stored totals (e.g. PV rows
 //                  with puttouse=0 — confirmed live against a saved record
@@ -73,13 +80,21 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
   const autoTotals = useMemo(() => {
     const totals = {};
     const summableRows = rowFilter ? rows.filter(rowFilter) : rows;
+    const roundingFields = [];
     const derivedFields = [];
 
     fields.forEach((field) => {
-      const { detKey, mstKey, fromMaster, deriveFromKeys } = field;
+      const { detKey, mstKey, fromMaster, deriveFromKeys, roundToNearestFromKeys } = field;
       const k = mstKey || detKey;
-      // Derived fields (e.g. mstnetbaseamount) depend on other fields' totals —
-      // resolve them in a second pass once every direct total is known.
+      // Rounding fields (e.g. Round Off) and derived fields (e.g. Net Base
+      // Amount) both depend on other fields' totals — resolve them in later
+      // passes once every direct total is known. Rounding fields resolve
+      // BEFORE derived fields, since a derived field (Net Base Amount) may
+      // itself sum a rounding field's result.
+      if (roundToNearestFromKeys) {
+        roundingFields.push(field);
+        return;
+      }
       if (deriveFromKeys) {
         derivedFields.push(field);
         return;
@@ -93,6 +108,21 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
         const v = Number(row[detKey]);
         return acc + (isNaN(v) ? 0 : v);
       }, 0);
+    });
+
+    // Auto Round Off = the adjustment that rounds the summed source keys UP
+    // to the next whole number (e.g. raw 1234.12 → auto round off +0.88, so
+    // Net Base Amount comes out to 1235). Business rule confirmed by PM
+    // 2026-07-25: always ceil (never round-to-nearest, never down) — still
+    // just a DEFAULT, a manual override (below) always wins.
+    roundingFields.forEach(({ detKey, mstKey, roundToNearestFromKeys }) => {
+      const k = mstKey || detKey;
+      const raw = roundToNearestFromKeys.reduce((acc, srcKey) => {
+        const override = overrides[srcKey];
+        const effective = override !== undefined ? Number(override) : totals[srcKey];
+        return acc + (Number.isFinite(effective) ? effective : 0);
+      }, 0);
+      totals[k] = Math.ceil(raw) - raw;
     });
 
     // Resolve against each source's EFFECTIVE value — a manual override on an

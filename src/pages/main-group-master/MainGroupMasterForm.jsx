@@ -190,6 +190,7 @@ export default function MainGroupMasterForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     // Skip maingroupshortcode in validation — it's auto-filled, not user-entered
     const fieldsToValidate = visibleFields.filter((f) => !READONLY_AUTO.has(f.colname));
     const normalizedValues = Object.fromEntries(

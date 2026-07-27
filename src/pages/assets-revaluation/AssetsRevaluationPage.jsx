@@ -9,6 +9,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { ARV_CONFIG, ENTRY_FORM_LABEL, buildArvListJsonPayload } from "./constants";
 import "./AssetsRevaluationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildArvReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -81,6 +89,11 @@ export default function AssetsRevaluationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Revaluation Report"
+              reportFileName="TODO_AssetsRevaluation.rpt"
+              buildParams={buildArvReportParams}
+            />
             <label htmlFor="arv-list-page-size" className="arv-list-panel__pagesize-label">
               Rows per page
             </label>

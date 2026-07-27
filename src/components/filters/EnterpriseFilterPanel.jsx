@@ -271,6 +271,9 @@ function FilterControl({
               type="checkbox"
               className="efq-cell__checkbox"
               checked={getCheckboxValue(value) === 1}
+              ref={(el) => {
+                if (el) el.indeterminate = !!filter.indeterminate;
+              }}
               onChange={(e) => onChange(FilterColName, e.target.checked ? 1 : 0)}
               disabled={isLoading}
               tabIndex={0}
@@ -617,9 +620,16 @@ export default function EnterpriseFilterPanel({
         onFiltersLoaded?.(filterList.length > 0);
 
         const seed = {};
+        // Dropdown fields seeded from an RB-configured FilterCtrlDefaultValue —
+        // tracked separately so the default can be revoked below once we know
+        // how many options that dropdown actually resolves to.
+        const dropdownDefaultSeeded = new Set();
         filterList.forEach((f) => {
           if (f.FilterCtrlDefaultValue != null && f.FilterCtrlDefaultValue !== "") {
             seed[f.FilterColName] = String(f.FilterCtrlDefaultValue);
+            if (f.FilterColCtrlType === controlTypeMap.DROPDOWN) {
+              dropdownDefaultSeeded.add(f.FilterColName);
+            }
           } else if (
             f.FilterCtrlDefaultValue === null ||
             (f.FilterCtrlDefaultValue === "" && f.FilterColCtrlType === controlTypeMap.DROPDOWN)
@@ -655,6 +665,22 @@ export default function EnterpriseFilterPanel({
 
         if (signal?.aborted) return;
         setDropdownOptions(optionsMap);
+
+        // A dropdown may only keep an auto-applied default when it resolves to
+        // exactly one option — with 2+ options the user must choose explicitly
+        // (client requirement 2026-07-24), even though RB configured a default.
+        if (dropdownDefaultSeeded.size > 0) {
+          const revoke = {};
+          dropdownFilters.forEach((f) => {
+            if (!dropdownDefaultSeeded.has(f.FilterColName)) return;
+            const optCount = (optionsMap[f.FilterParameterID] || []).length;
+            if (optCount !== 1) revoke[f.FilterColName] = "";
+          });
+          if (Object.keys(revoke).length > 0) {
+            setValues((prev) => ({ ...prev, ...revoke }));
+            setDefaults((prev) => ({ ...prev, ...revoke }));
+          }
+        }
       } catch (err) {
         if (signal?.aborted) return;
         setErrorMsg(err?.message || "Failed to load filter configuration. Please try again.");
@@ -707,6 +733,47 @@ export default function EnterpriseFilterPanel({
     if (!root || disabled || !enableKeyboardNav) return undefined;
     return bindFormKeyboardNav(root, { enabled: true });
   }, [panelRef, disabled, enableKeyboardNav, filters, fieldTones]);
+
+  // Focus-loss recovery (PM 2026-07-24 — "tab focus loses, sometimes"): many
+  // pages wire an async cascade-loading flag (e.g. "fetching a dependent
+  // dropdown's options") straight into this panel's shared `disabled` prop.
+  // When that flips true, every field disables at once — including whichever
+  // one the user is currently on — and the browser force-blurs a field that
+  // becomes disabled while focused, with no successor focus target. That's a
+  // real, timing-dependent (hence "sometimes") loss of keyboard position.
+  // Track the last field focused while enabled; once `disabled` clears again,
+  // restore focus to it, but ONLY if focus is still sitting on <body> (i.e.
+  // truly lost) — never overrides a deliberate cascade-focus call (e.g.
+  // focusFieldAfterCascade) that already moved focus somewhere on purpose.
+  const lastFocusedIdRef = useRef(null);
+  useEffect(() => {
+    const root = panelRef?.current;
+    if (!root) return undefined;
+    const onFocusIn = (e) => {
+      const el = e.target?.closest?.('[id^="efq-"]');
+      if (el) lastFocusedIdRef.current = el.id;
+    };
+    root.addEventListener("focusin", onFocusIn);
+    return () => root.removeEventListener("focusin", onFocusIn);
+  }, [panelRef]);
+
+  const prevDisabledRef = useRef(disabled);
+  useEffect(() => {
+    const wasDisabled = prevDisabledRef.current;
+    prevDisabledRef.current = disabled;
+    if (!wasDisabled || disabled) return;
+
+    const targetId = lastFocusedIdRef.current;
+    const root = panelRef?.current;
+    if (!targetId || !root) return;
+
+    requestAnimationFrame(() => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      const target =
+        root.querySelector(`#${targetId} .search-select__trigger`) || root.querySelector(`#${targetId}`);
+      target?.focus?.();
+    });
+  }, [disabled, panelRef]);
 
   useEffect(() => {
     if (!externalValues) return;

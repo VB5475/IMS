@@ -24,6 +24,18 @@ export const RB_CODES = Object.freeze({
   ASSET_ITEM_MASTER: "rb_astitemmst",
   ACCOUNT_GROUP_MASTER: "rb_acountgroupmst",
   ACCOUNT_MASTER: "rb_accountmst",
+  // ⚠️ CONFIRM with DBA — MRD's Nav/Route labels say "Document Type Master"
+  // but the embedded screen design & RB name ("wkf" = workflow, "dop" =
+  // Delegation Of Power) both confirm this is DOP Master, an approval-
+  // authority matrix (amount-band + approver assignment), not a document
+  // type lookup. Using the screenshot as ground truth per MRD_Template4DMS_DOPMaster.docx.
+  DOP_MASTER: "rb_wkf_dopmst",
+
+  // DMS (Document Management System) module — three-level master hierarchy:
+  // Department → Document Type (FK department) → Document SubType (FK both).
+  DM_DEPARTMENT_MASTER: "rb_dmdepartmaster",
+  DOCUMENT_TYPE_MASTER: "rb_dm_doctypemst",
+  DOCUMENT_SUBTYPE_MASTER: "rb_dm_docsubtypemst",
 
   // ── Purchase ────────────────────────────────────────────────────
   PURCHASE_INDENT: "rb_purindtmst",
@@ -82,6 +94,14 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ASSET_ITEM_MASTER]: "/account/master/asset-item-master",
   [RB_CODES.ACCOUNT_GROUP_MASTER]: "/admin/account-group-master",
   [RB_CODES.ACCOUNT_MASTER]: "/admin/account-master",
+  [RB_CODES.DOP_MASTER]: "/admin/dop-master",
+
+  // DMS module — namespaced separately from RB_CODES.DEPARTMENT_MASTER's
+  // "/admin/department-master" (a different RB: rb_departmentmst, the
+  // org-wide department master) to avoid a route/nav collision.
+  [RB_CODES.DM_DEPARTMENT_MASTER]: "/admin/dms/department-master",
+  [RB_CODES.DOCUMENT_TYPE_MASTER]: "/admin/dms/document-type-master",
+  [RB_CODES.DOCUMENT_SUBTYPE_MASTER]: "/admin/dms/document-subtype-master",
 
   [RB_CODES.PURCHASE_INDENT]: "/purchase-indent",
   [RB_CODES.PURCHASE_INQUIRY]: "/purchase-inquiry",

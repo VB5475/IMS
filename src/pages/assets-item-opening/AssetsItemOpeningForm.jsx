@@ -302,6 +302,7 @@ export default function AssetsItemOpeningForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible) && !AOP_SUMMARY_COL_NAMES.has(col.colname))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -444,6 +445,7 @@ export default function AssetsItemOpeningForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Shield, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useUserGroup } from "../../hooks/useUserGroup";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
@@ -8,7 +9,14 @@ import { createListActionsColumn } from "../../utils/listGridUtils";
 import UserGroupForm from "./UserGroupForm";
 import { UG_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserGroupPage.css";
+
+function buildUserGroupReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -110,6 +118,11 @@ export default function UserGroupPage() {
             <button type="button" className="ug-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="User Group Report"
+              reportFileName="TODO_UserGroup.rpt"
+              buildParams={buildUserGroupReportParams}
+            />
             <label htmlFor="ug-list-page-size" className="ug-list-panel__pagesize-label">
               Rows per page
             </label>

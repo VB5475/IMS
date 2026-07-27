@@ -78,10 +78,10 @@ export const SM_CONFIG = {
 // (colname-keyed, control type read live) rather than GRN's older per-block
 // FilterColCtrlType arrays.
 export const SM_CORE_FIELDS = new Set([
-  "supcode", "supname", "catrgoryid", "accountgroupid", "partyname",
+  "supcode", "supname", "partyname","catrgoryid", "accountgroupid", 
   "address", "mailingaddress", "countryid", "stateid", "cityid",
   "zipcode", "district", "msmedate", "msmeno", "registrationtypeid",
-  "gstno", "currencyid", "crlimit", "creditamt",
+  "gstno","panno", "currencyid", "crlimit", "creditamt",
 ]);
 
 export const SM_CONTACTS_FIELDS = new Set([
@@ -101,6 +101,14 @@ export const SM_BANK_FIELDS = new Set([
   "bankmobileno", "accountno", "accounttype", "ifsccode",
 ]);
 
+// ⚠️ Live RB bug (confirmed 2026-07-27 via GetDetailColData?prmMasterID=10112) —
+// "panno"'s displayname comes back as "IFSC Code" (an exact copy-paste
+// duplicate of the ifsccode column right before it, same colseqno too).
+// Same override pattern as SM_CHECKBOX_OVERRIDE_FIELDS below.
+export const SM_LABEL_OVERRIDES = {
+  panno: "PAN No",
+};
+
 // tds is a Textbox in the live RB (colctrltype 1), but the MRD requires it to
 // gate the Deductee Type / NOP fields as a checkbox — same override pattern as
 // ItemMasterForm.jsx's CHECKBOX_OVERRIDES.
@@ -119,9 +127,9 @@ export const SM_FORM_LAYOUT = {
       rows: [
         ["supcode"],
         ["supname"],
+        ["partyname"],
         ["catrgoryid"],
         ["accountgroupid"],
-        ["partyname"],
         ["address"],
         ["mailingaddress"],
         ["countryid", "stateid"],
@@ -131,6 +139,7 @@ export const SM_FORM_LAYOUT = {
         ["msmeno"],
         ["registrationtypeid"],
         ["gstno"],
+        ["panno"],
         ["currencyid"],
         ["crlimit"],
         ["creditamt"],

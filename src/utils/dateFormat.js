@@ -153,6 +153,15 @@ export function shiftStoredDate(value, days) {
   return dateToStoredValue(next);
 }
 
+/** Today's date as a native <input type="date"> value (yyyy-MM-dd). */
+export function getTodayDateInputValue() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /** Shift a native date input value (yyyy-mm-dd) by days. */
 export function shiftNativeDateInputValue(value, days) {
   const base = parseFlexibleDate(value) ?? new Date();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { UserCheck, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -12,6 +13,13 @@ import { CM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "../supplier-master/SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildCustomerMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const session = getUserSession();
@@ -132,6 +140,11 @@ export default function CustomerMasterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Customer Master Report"
+              reportFileName="TODO_CustomerMaster.rpt"
+              buildParams={buildCustomerMasterReportParams}
+            />
             <label htmlFor="cm-list-page-size" className="sm-list-panel__pagesize-label">
               Rows per page
             </label>

@@ -327,8 +327,18 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"]);
-      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"].forEach((k) => evtSet.add(k));
+      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "expense", "gstperc"]);
+      // Force-add amount-driving columns regardless of API iseventreq flags —
+      // "expense" is a real, RB-editable field (confirmed live: rb_purpvdet,
+      // ctrltype textbox) that was missing here, so typing a value directly
+      // into it and leaving the cell never recalculated CGST/SGST/IGST/
+      // Taxable Value/Net Base Amount (client-confirmed gap, 2026-07-24).
+      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "expense", "gstperc"].forEach((k) => evtSet.add(k));
+      // Put To Use must never call the qty/rate recalc SP (fn_tbl_rb_purpvdet_event) —
+      // toggling it is a pure local include/exclude-from-totals flag (PV_SUMMARY_ROW_FILTER),
+      // not a value the recalc SP needs to see. Explicit exclusion guards against RB
+      // later flipping iseventreq/iseventcol on puttouse and silently re-introducing this.
+      evtSet.delete("puttouse");
       setEventColumns(evtSet);
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));

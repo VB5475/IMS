@@ -96,12 +96,14 @@ export const PV_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
   // roundoff has NO per-line equivalent at all on the detail grid
-  // (fn_tbl_rb_purpvdet has no roundoff column) — same "can't be summed,
-  // must read from master" case as the TDS section below. Manually
-  // editable (business rule 2026-07-23): default shown/used value is the
-  // auto-calculated total, but the user can type an override — see
-  // EnterpriseSummaryPanel's `editable` handling.
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true, editable: true },
+  // (fn_tbl_rb_purpvdet has no roundoff column). Auto-calculated (business
+  // rule confirmed by PM 2026-07-24): the adjustment that rounds the base+
+  // expense+tax total to the nearest whole number, so Net Base Amount comes
+  // out clean by default — still manually editable on top (2026-07-23 rule).
+  {
+    SummaryParameterID: "mstroundoff", detKey: "roundoff", editable: true,
+    roundToNearestFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst"],
+  },
   // Net Base Amount = every other summary amount EXCEPT Taxable Value
   // (business rule confirmed by PM 2026-07-23) — computed live from the
   // other fields' own totals, not read from master, so it's correct in

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { MapPin, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -11,6 +12,13 @@ import LocationMasterForm from "./LocationMasterForm";
 import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./LocationMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildLocationMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -125,6 +133,11 @@ export default function LocationMasterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Location Master Report"
+              reportFileName="TODO_LocationMaster.rpt"
+              buildParams={buildLocationMasterReportParams}
+            />
             <label htmlFor="lm-list-page-size" className="lm-list-panel__pagesize-label">
               Rows per page
             </label>

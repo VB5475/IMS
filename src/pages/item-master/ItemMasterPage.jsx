@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Package, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
@@ -6,10 +6,16 @@ import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useItemMaster } from "../../hooks/useItemMaster";
+import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
+import { useSubMainGroupMaster } from "../../hooks/useSubMainGroupMaster";
+import { useSubGroupMaster } from "../../hooks/useSubGroupMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import { createListActionsColumn } from "../../utils/listGridUtils";
 import ItemMasterForm from "./ItemMasterForm";
+import MainGroupMasterForm from "../main-group-master/MainGroupMasterForm";
+import SubMainGroupMasterForm from "../sub-main-group-master/SubMainGroupMasterForm";
+import SubGroupMasterForm from "../sub-group-master/SubGroupMasterForm";
 import { IM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
@@ -58,9 +64,11 @@ export default function ItemMasterPage() {
     baseUnitOptions,
     fetchEditRecord,
     fetchListRows,
+    fetchItemTypeOptions,
     fetchMainGroupOptions,
     fetchSubMainGroupOptions,
     fetchSubGroupLevelOptions,
+    fetchStaticDropdowns,
     seedOptionsFromMaster,
   } = useItemMaster();
 
@@ -74,6 +82,25 @@ export default function ItemMasterPage() {
   const [editPrefill, setEditPrefill] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editLoadError, setEditLoadError] = useState(null);
+
+  // Quick-add sources for Main Group / Sub Main Group / Sub Group dropdowns —
+  // each master module owns its own metadata; fetched lazily the first time
+  // its "+" is used. Item Type / Taxability / Tran Unit / Base Unit have no
+  // master module yet, so they only get a refresh icon (see ItemMasterForm).
+  const mainGroupMaster = useMainGroupMaster();
+  const subMainGroupMaster = useSubMainGroupMaster();
+  const subGroupMaster = useSubGroupMaster();
+  const [mainGroupMetaLoaded, setMainGroupMetaLoaded] = useState(false);
+  const [subMainGroupMetaLoaded, setSubMainGroupMetaLoaded] = useState(false);
+  const [subGroupMetaLoaded, setSubGroupMetaLoaded] = useState(false);
+  const [mainGroupQuickAddOpen, setMainGroupQuickAddOpen] = useState(false);
+  const [subMainGroupQuickAddOpen, setSubMainGroupQuickAddOpen] = useState(false);
+  const [subGroupQuickAddOpen, setSubGroupQuickAddOpen] = useState(false);
+  // Cascade context captured when a quick-add opens, so the right dropdown
+  // level gets refreshed on save regardless of what's selected by then.
+  const mainGroupQuickAddCtxRef = useRef(0);
+  const subMainGroupQuickAddCtxRef = useRef({ itemTypeId: 0, mainGroupId: 0 });
+  const subGroupQuickAddCtxRef = useRef({ itemTypeId: 0, mainGroupId: 0, subMainGroupId: 0 });
 
   usePageHeader({
     title: "Item Master",
@@ -120,6 +147,84 @@ export default function ItemMasterPage() {
     },
     [fetchSubGroupLevelOptions]
   );
+
+  // ── Dropdown refresh (re-fetch options for the current cascade context) ──
+  const handleRefreshItemType = useCallback(() => {
+    fetchItemTypeOptions();
+  }, [fetchItemTypeOptions]);
+
+  const handleRefreshMainGroup = useCallback(
+    (itemTypeId) => { fetchMainGroupOptions(itemTypeId); },
+    [fetchMainGroupOptions]
+  );
+
+  const handleRefreshSubMainGroup = useCallback(
+    ({ itemTypeId, mainGroupId }) => { fetchSubMainGroupOptions({ itemTypeId, mainGroupId }); },
+    [fetchSubMainGroupOptions]
+  );
+
+  const handleRefreshSubGroup = useCallback(
+    ({ itemTypeId, mainGroupId, subMainGroupId }) => {
+      fetchSubGroupLevelOptions({ itemTypeId, mainGroupId, subMainGroupId });
+    },
+    [fetchSubGroupLevelOptions]
+  );
+
+  const handleRefreshStatic = useCallback(() => {
+    fetchStaticDropdowns();
+  }, [fetchStaticDropdowns]);
+
+  // ── Quick-add (open another master's own form inline, refresh on save) ──
+  const handleOpenMainGroupQuickAdd = useCallback(
+    (itemTypeId) => {
+      mainGroupQuickAddCtxRef.current = itemTypeId;
+      if (!mainGroupMetaLoaded) {
+        mainGroupMaster.fetchHeaderMeta();
+        setMainGroupMetaLoaded(true);
+      }
+      setMainGroupQuickAddOpen(true);
+    },
+    [mainGroupMetaLoaded, mainGroupMaster]
+  );
+
+  const handleMainGroupQuickAddSaved = useCallback(() => {
+    setMainGroupQuickAddOpen(false);
+    fetchMainGroupOptions(mainGroupQuickAddCtxRef.current);
+  }, [fetchMainGroupOptions]);
+
+  const handleOpenSubMainGroupQuickAdd = useCallback(
+    (ctx) => {
+      subMainGroupQuickAddCtxRef.current = ctx;
+      if (!subMainGroupMetaLoaded) {
+        subMainGroupMaster.fetchHeaderMeta();
+        setSubMainGroupMetaLoaded(true);
+      }
+      setSubMainGroupQuickAddOpen(true);
+    },
+    [subMainGroupMetaLoaded, subMainGroupMaster]
+  );
+
+  const handleSubMainGroupQuickAddSaved = useCallback(() => {
+    setSubMainGroupQuickAddOpen(false);
+    fetchSubMainGroupOptions(subMainGroupQuickAddCtxRef.current);
+  }, [fetchSubMainGroupOptions]);
+
+  const handleOpenSubGroupQuickAdd = useCallback(
+    (ctx) => {
+      subGroupQuickAddCtxRef.current = ctx;
+      if (!subGroupMetaLoaded) {
+        subGroupMaster.fetchHeaderMeta();
+        setSubGroupMetaLoaded(true);
+      }
+      setSubGroupQuickAddOpen(true);
+    },
+    [subGroupMetaLoaded, subGroupMaster]
+  );
+
+  const handleSubGroupQuickAddSaved = useCallback(() => {
+    setSubGroupQuickAddOpen(false);
+    fetchSubGroupLevelOptions(subGroupQuickAddCtxRef.current);
+  }, [fetchSubGroupLevelOptions]);
 
   const handleAddNew = useCallback(() => {
     setModalMode("add");
@@ -279,6 +384,62 @@ export default function ItemMasterPage() {
         onItemTypeChange={handleItemTypeChange}
         onMainGroupChange={handleMainGroupChange}
         onSubMainGroupChange={handleSubMainGroupChange}
+        onRefreshItemType={handleRefreshItemType}
+        onRefreshMainGroup={handleRefreshMainGroup}
+        onRefreshSubMainGroup={handleRefreshSubMainGroup}
+        onRefreshSubGroup={handleRefreshSubGroup}
+        onRefreshStatic={handleRefreshStatic}
+        onQuickAddMainGroup={handleOpenMainGroupQuickAdd}
+        onQuickAddSubMainGroup={handleOpenSubMainGroupQuickAdd}
+        onQuickAddSubGroup={handleOpenSubGroupQuickAdd}
+      />
+
+      <MainGroupMasterForm
+        isOpen={mainGroupQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setMainGroupQuickAddOpen(false)}
+        onSaved={handleMainGroupQuickAddSaved}
+        fieldDefs={mainGroupMaster.headerColumns}
+        allColumns={mainGroupMaster.allColumns}
+        defsLoading={mainGroupMaster.headerFetching}
+        defsError={mainGroupMaster.headerError}
+        itemTypeOptions={mainGroupMaster.itemTypeOptions}
+        fixedAssetAccOptions={mainGroupMaster.fixedAssetAccOptions}
+        fetchEditRecord={mainGroupMaster.fetchEditRecord}
+        seedOptionsFromMaster={mainGroupMaster.seedOptionsFromMaster}
+      />
+
+      <SubMainGroupMasterForm
+        isOpen={subMainGroupQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setSubMainGroupQuickAddOpen(false)}
+        onSaved={handleSubMainGroupQuickAddSaved}
+        fieldDefs={subMainGroupMaster.headerColumns}
+        allColumns={subMainGroupMaster.allColumns}
+        defsLoading={subMainGroupMaster.headerFetching}
+        defsError={subMainGroupMaster.headerError}
+        itemTypeOptions={subMainGroupMaster.itemTypeOptions}
+        mainGroupOptions={subMainGroupMaster.mainGroupOptions}
+        mainGroupLoading={subMainGroupMaster.mainGroupLoading}
+        fixedAssetAccOptions={subMainGroupMaster.fixedAssetAccOptions}
+        fetchMainGroupByItemType={subMainGroupMaster.fetchMainGroupByItemType}
+        fetchEditRecord={subMainGroupMaster.fetchEditRecord}
+        seedOptionsFromMaster={subMainGroupMaster.seedOptionsFromMaster}
+      />
+
+      <SubGroupMasterForm
+        isOpen={subGroupQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setSubGroupQuickAddOpen(false)}
+        onSaved={handleSubGroupQuickAddSaved}
+        fieldDefs={subGroupMaster.headerColumns}
+        allColumns={subGroupMaster.allColumns}
+        defsLoading={subGroupMaster.headerFetching}
+        defsError={subGroupMaster.headerError}
+        fetchEditRecord={subGroupMaster.fetchEditRecord}
       />
     </div>
   );

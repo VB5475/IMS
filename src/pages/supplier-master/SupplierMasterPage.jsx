@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Truck, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -12,6 +13,13 @@ import { SM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildSupplierMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const session = getUserSession();
@@ -53,7 +61,6 @@ export default function SupplierMasterPage() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    detailColumns, detailAllColumns, detailFetching, detailError, fetchDetailMeta,
     stateOptions, cityOptions, fetchStateOptions, fetchCityOptions, clearStates, clearCities,
     categoryOptions, accountGroupOptions, countryOptions, registrationTypeOptions,
     currencyOptions, transporterOptions, transporterDestinationOptions,
@@ -79,8 +86,7 @@ export default function SupplierMasterPage() {
 
   useEffect(() => {
     fetchHeaderMeta();
-    fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta]);
+  }, [fetchHeaderMeta]);
 
   const fetchSupplierList = useCallback(async () => {
     try {
@@ -132,6 +138,11 @@ export default function SupplierMasterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Supplier Master Report"
+              reportFileName="TODO_SupplierMaster.rpt"
+              buildParams={buildSupplierMasterReportParams}
+            />
             <label htmlFor="sm-list-page-size" className="sm-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -179,10 +190,6 @@ export default function SupplierMasterPage() {
         headerColumns={headerColumns}
         headerFetching={headerFetching}
         headerError={headerError}
-        detailColumns={detailColumns}
-        detailAllColumns={detailAllColumns}
-        detailFetching={detailFetching}
-        detailError={detailError}
         stateOptions={stateOptions}
         cityOptions={cityOptions}
         fetchStateOptions={fetchStateOptions}

@@ -60,7 +60,13 @@ export const PURCHASE_GST_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff", fromMaster: true, editable: true },
+  // Auto-calculated (business rule confirmed by PM 2026-07-24, same as PV/PO):
+  // the adjustment that rounds the base+expense+tax total to the nearest
+  // whole number — still manually editable on top (2026-07-23 rule).
+  {
+    SummaryParameterID: "mstroundoff", detKey: "roundoff", editable: true,
+    roundToNearestFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst"],
+  },
   {
     SummaryParameterID: "mstnetbaseamount",
     detKey: "netbaseamount",
@@ -70,7 +76,7 @@ export const PURCHASE_GST_SUMMARY_FIELDS = [
 
 export const CURRENCY_READONLY_FIELDS = ["currencyid", "currencyrate"];
 
-export const DEFAULT_BASED_ON_FILTER_VALUES = { basedonid: "0" };
+export const DEFAULT_BASED_ON_FILTER_VALUES = { basedonid: "" };
 
 /** Division change → clear config type (common cascade). */
 export const DIVISION_CONFIG_CASCADE_RESET = { DivisionID: ["ConfigID"] };

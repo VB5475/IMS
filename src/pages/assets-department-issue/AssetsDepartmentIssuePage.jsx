@@ -9,6 +9,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { ADI_CONFIG, ENTRY_FORM_LABEL, buildAdiListJsonPayload } from "./constants";
 import "./AssetsDepartmentIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAdiReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -78,6 +86,11 @@ export default function AssetsDepartmentIssuePage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Department Issue Report"
+              reportFileName="TODO_AssetsDepartmentIssue.rpt"
+              buildParams={buildAdiReportParams}
+            />
             <label htmlFor="adi-list-page-size" className="adi-list-panel__pagesize-label">
               Rows per page
             </label>

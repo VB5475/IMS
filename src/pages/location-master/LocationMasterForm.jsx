@@ -174,6 +174,7 @@ export default function LocationMasterForm({
 
   // Save — validation from ismandatory, save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
         f.colname,

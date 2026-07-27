@@ -46,6 +46,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -176,14 +177,9 @@ export default function PurchaseOrderForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const headerValuesRef = useRef({
     trancode:      "",
-    trandate:      todayISO,
+    trandate:      getTodayDateInputValue(),
     configid:      0,
     deliverydate:  null,
     divisionid:    0,
@@ -193,7 +189,7 @@ export default function PurchaseOrderForm() {
     currencyname:  "",
     currencyrate:  0,
     creditdays:    0,
-    basedonid:     "0",
+    basedonid:     "",
     remarks:       "",
     tranmstgenid:  0,
     companyid:     getUserSession().companyId,
@@ -206,10 +202,13 @@ export default function PurchaseOrderForm() {
     funccode:      PO_CONFIG.RB_MASTER,
   });
 
+  // trandate defaults to today on a new record; existing records keep their
+  // loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { basedonid: "0", trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { basedonid: "", trandate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
 
@@ -461,6 +460,7 @@ export default function PurchaseOrderForm() {
         !PO_SUMMARY_COL_NAMES.has(col.colname) &&
         !PO_HEADER_HIDDEN_COLS.has(col.colname)
       )
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -709,7 +709,13 @@ export default function PurchaseOrderForm() {
         if (!activeCols?.length) return;
         setChildRowsMap({});
         setChildColumns([]);
-        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+        rows.forEach((row) => addItemRow(row));
+        // Fire the same qty/rate recalc a manual blur would trigger, so a
+        // picker-inserted row's calculated amounts are correct immediately
+        // instead of staying 0.00 until the user touches the cell (client-
+        // confirmed 2026-07-24, same fix as Purchase Voucher).
+        await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
         return;
       }
 
@@ -755,7 +761,7 @@ export default function PurchaseOrderForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, itemModalColumns, postSave]
+    [ensureItemColumns, allColumns, addItemRow, itemModalColumns, postSave, handleCellEvent]
   );
 
   const handleSelectListShortcut = useCallback(() => {
@@ -779,7 +785,7 @@ export default function PurchaseOrderForm() {
 
   const buildDefaultHeaderValues = useCallback(() => ({
     trancode:      "",
-    trandate:      todayISO,
+    trandate:      getTodayDateInputValue(),
     configid:      0,
     deliverydate:  null,
     divisionid:    0,
@@ -789,7 +795,7 @@ export default function PurchaseOrderForm() {
     currencyname:  "",
     currencyrate:  0,
     creditdays:    0,
-    basedonid:     "0",
+    basedonid:     "",
     remarks:       "",
     tranmstgenid:  0,
     companyid:     getUserSession().companyId,
@@ -800,7 +806,7 @@ export default function PurchaseOrderForm() {
     amendpoid:     0,
     compuniquekey: 0,
     funccode:      PO_CONFIG.RB_MASTER,
-  }), [todayISO]);
+  }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [PO_CONFIG.STORAGE_HEADER_META, PO_CONFIG.STORAGE_ENTRY_META],
@@ -848,6 +854,7 @@ export default function PurchaseOrderForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const hv = headerValuesRef.current;
 
     // ── Validation (header + detail + indent) ────────────────────────

@@ -34,6 +34,7 @@ import { validateApiColumns, validateGridRows } from "../../utils/columnValidati
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -145,15 +146,11 @@ export default function AssetsClientAllocationForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
+  // trandate/issuedate default to today on a new record; existing records keep their loaded date.
   const headerValuesRef = useRef(applyAcaHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
-    issuedate: todayISO,
+    trandate: getTodayDateInputValue(),
+    issuedate: getTodayDateInputValue(),
     fromdivisionid: 0,
     tolocationid: 0,
     todeptid: 0,
@@ -173,12 +170,12 @@ export default function AssetsClientAllocationForm() {
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: todayISO,
-      issuedate: todayISO,
+      trandate: getTodayDateInputValue(),
+      issuedate: getTodayDateInputValue(),
       frmtype: String(ACA_CONFIG.FRM_TYPE),
       issuetypeid: String(ACA_CONFIG.ISSUE_TYPE_ID),
     };
-  }, [loadedFilterValues, todayISO]);
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -339,6 +336,7 @@ export default function AssetsClientAllocationForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions = dropdownOptionsByCol[col.colname];
@@ -527,6 +525,7 @@ export default function AssetsClientAllocationForm() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateAcaBusinessRules(headerValuesRef.current);
@@ -594,8 +593,8 @@ export default function AssetsClientAllocationForm() {
     localStorage.removeItem(ACA_CONFIG.STORAGE_ENTRY_META);
     headerValuesRef.current = applyAcaHardcodedHeaderValues({
       trancode: "",
-      trandate: todayISO,
-      issuedate: todayISO,
+      trandate: getTodayDateInputValue(),
+      issuedate: getTodayDateInputValue(),
       fromdivisionid: 0,
       tolocationid: 0,
       todeptid: 0,
@@ -625,7 +624,7 @@ export default function AssetsClientAllocationForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearSaveError, exitEditMode, todayISO]);
+  }, [clearSaveError, exitEditMode]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

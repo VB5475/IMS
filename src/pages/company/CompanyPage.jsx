@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Building } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useCompanyMaster } from "../../hooks/useCompanyMaster";
@@ -10,7 +11,14 @@ import { createEditActionColumn } from "../../utils/listGridUtils";
 import CompanyForm from "./CompanyForm";
 import { CO_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./CompanyPage.css";
+
+function buildCompanyReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -111,6 +119,11 @@ export default function CompanyPage() {
             <span>Company</span>
           </div>
           <div className="co-list-panel__toolbar">
+            <PrintReportButton
+              reportTitle="Company Report"
+              reportFileName="TODO_Company.rpt"
+              buildParams={buildCompanyReportParams}
+            />
             <label htmlFor="co-list-page-size" className="co-list-panel__pagesize-label">
               Rows per page
             </label>

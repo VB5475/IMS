@@ -13,6 +13,14 @@ import { createDeleteActionColumn } from "../../utils/listGridUtils";
 import { AIME_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsItemOpeningExcelPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAimeReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -114,6 +122,11 @@ export default function AssetsItemOpeningExcelPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Asset Item Opening Excel Report"
+              reportFileName="TODO_AssetsItemOpeningExcel.rpt"
+              buildParams={buildAimeReportParams}
+            />
             <label htmlFor="aime-list-page-size" className="aop-list-panel__pagesize-label">
               Rows per page
             </label>

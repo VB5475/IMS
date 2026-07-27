@@ -195,6 +195,7 @@ export default function SubMainGroupMasterForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns via buildSaveRowFromColumns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
         f.colname,

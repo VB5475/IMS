@@ -4,8 +4,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus } from "lucide-react";
+import { Layers, Plus, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -14,6 +15,13 @@ import { createListActionsColumn } from "../../utils/listGridUtils";
 import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildCWIPToFAReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 const MONTH_ABBR = [
   "Jan","Feb","Mar","Apr","May","Jun",
@@ -137,6 +145,11 @@ export default function CWIPToFAPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="CWIP To FA Report"
+              reportFileName="TODO_CWIPToFA.rpt"
+              buildParams={buildCWIPToFAReportParams}
+            />
             <label htmlFor="c2f-list-page-size" className="c2f-list-panel__pagesize-label">
               Rows per page
             </label>

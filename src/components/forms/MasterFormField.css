@@ -1,5 +1,42 @@
 /* Shared master-form control primitives (toggle, checkbox) */
 
+.master-form-dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.master-form-dropdown-row > .search-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.master-form-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  background: var(--surface, #fff);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.master-form-icon-btn:hover:not(:disabled) {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+.master-form-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .master-form-control--toggle {
   display: inline-flex;
   align-items: center;

@@ -279,6 +279,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           prev.map((r) => (String(r.id) === String(rowId) ? { ...r, ...fields } : r))
         );
       },
+      updateAllRows(fields) {
+        setRows((prev) => prev.map((r) => ({ ...r, ...fields })));
+      },
       removeRows(rowIds) {
         const removeSet = new Set(rowIds.map(String));
         setRows((prev) => prev.filter((r) => !removeSet.has(String(r.id))));
@@ -1257,6 +1260,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                 <button
                   type="button"
                   className="primary"
+                  title="Save Remark (Alt+R)"
                   onClick={() => {
                     handleCellChange(remarkEditor.rowId, remarkEditor.colKey, remarkEditor.value);
                     setRemarkEditor(null);
@@ -1279,10 +1283,12 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               setRemarkEditor((prev) => ({ ...prev, value: next }));
             }}
             onKeyDown={(e) => {
-              // Alt+S saves the remark and closes the modal — takes priority
-              // over the page's own Alt+S (Save whole form) while this modal
-              // owns focus (see shouldIgnoreKeyboardEvent's ".cell-remark-modal__textarea" check).
-              if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "s") {
+              // Alt+S (Save whole form, shadowed here) and Alt+R (Save Remark)
+              // both save the remark and close the modal — take priority over
+              // the page's own Alt+S while this modal owns focus (see
+              // shouldIgnoreKeyboardEvent's ".cell-remark-modal__textarea" check).
+              const key = e.key.toLowerCase();
+              if (e.altKey && !e.ctrlKey && !e.metaKey && (key === "s" || key === "r")) {
                 e.preventDefault();
                 if (!remarkEditor.readOnly) {
                   handleCellChange(remarkEditor.rowId, remarkEditor.colKey, remarkEditor.value);

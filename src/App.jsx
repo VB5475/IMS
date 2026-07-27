@@ -100,6 +100,11 @@ const DepartmentMasterPage = lazy(() => import("./pages/department-master/Depart
 const CompanyPage = lazy(() => import("./pages/company/CompanyPage"));
 const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/AccountGroupMasterPage"));
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
+const DopMasterPage = lazy(() => import("./pages/dop-master/DopMasterPage"));
+const DopMasterForm = lazy(() => import("./pages/dop-master/DopMasterForm"));
+const DMDepartmentMasterPage = lazy(() => import("./pages/dm-department-master/DMDepartmentMasterPage"));
+const DocumentTypeMasterPage = lazy(() => import("./pages/document-type-master/DocumentTypeMasterPage"));
+const DocumentSubTypeMasterPage = lazy(() => import("./pages/document-subtype-master/DocumentSubTypeMasterPage"));
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetItemMasterPage = lazy(() => import("./pages/asset-item-master/AssetItemMasterPage"));
 const AssetsItemOpeningExcelPage = lazy(
@@ -313,6 +318,14 @@ const router = createBrowserRouter([
           rbLeaf({ rb: RB.COMPANY, element: <CompanyPage /> }),
           rbLeaf({ rb: RB.ACCOUNT_GROUP_MASTER, element: <AccountGroupMasterPage /> }),
           rbLeaf({ rb: RB.ACCOUNT_MASTER, element: <AccountMasterPage /> }),
+          rbModule({
+            rb: RB.DOP_MASTER,
+            list: <DopMasterPage />,
+            form: <DopMasterForm />,
+          }),
+          rbLeaf({ rb: RB.DM_DEPARTMENT_MASTER, element: <DMDepartmentMasterPage /> }),
+          rbLeaf({ rb: RB.DOCUMENT_TYPE_MASTER, element: <DocumentTypeMasterPage /> }),
+          rbLeaf({ rb: RB.DOCUMENT_SUBTYPE_MASTER, element: <DocumentSubTypeMasterPage /> }),
           { path: "demo/trial-balance", element: <TrialBalanceDemoPage /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

@@ -14,6 +14,14 @@ import { createListActionsColumn } from "../../utils/listGridUtils";
 import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildDpcReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 const MONTH_ABBR = [
   "Jan","Feb","Mar","Apr","May","Jun",
@@ -139,6 +147,11 @@ export default function AssetsDepreciationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Company Act Depreciation Report"
+              reportFileName="TODO_AssetsDepreciation.rpt"
+              buildParams={buildDpcReportParams}
+            />
             <label htmlFor="dpc-list-page-size" className="dpc-list-panel__pagesize-label">
               Rows per page
             </label>
