@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Wrench } from "lucide-react";
 import CallAllocationForm from "../call-allocation/CallAllocationForm";
 import CallFollowUpForm from "../call-follow-up/CallFollowUpForm";
+import CallReportingForm from "../call-reporting/CallReportingForm";
 import DashboardFilterPanelV2 from "../../components/filters/DashboardFilterPanelV2";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
@@ -120,6 +121,8 @@ export default function MaintenanceDashboard() {
   const [callAllocationRow, setCallAllocationRow] = useState(null);
   const [callFollowUpOpen, setCallFollowUpOpen] = useState(false);
   const [callFollowUpRow, setCallFollowUpRow] = useState(null);
+  const [callReportingOpen, setCallReportingOpen] = useState(false);
+  const [callReportingRow, setCallReportingRow] = useState(null);
 
   usePageHeader({
     title: "Maintenance Dashboard",
@@ -411,8 +414,17 @@ export default function MaintenanceDashboard() {
   }, []);
 
   const handleActionClick = useCallback((actionId) => {
-    if (actionId === "call-allocation" || actionId === "vendor-follow-up") {
-      const actionLabel = actionId === "call-allocation" ? "Call Allocation" : "Vendor Follow Up";
+    if (
+      actionId === "call-allocation"
+      || actionId === "vendor-follow-up"
+      || actionId === "call-reporting"
+    ) {
+      const actionLabel =
+        actionId === "call-allocation"
+          ? "Call Allocation"
+          : actionId === "vendor-follow-up"
+            ? "Vendor Follow Up"
+            : "Call Reporting";
       if (selectedRowKeys.length !== 1) {
         notify.error(`Select exactly one maintenance call for ${actionLabel}.`);
         return;
@@ -429,9 +441,12 @@ export default function MaintenanceDashboard() {
       if (actionId === "call-allocation") {
         setCallAllocationRow(dashboardRow);
         setCallAllocationOpen(true);
-      } else {
+      } else if (actionId === "vendor-follow-up") {
         setCallFollowUpRow(dashboardRow);
         setCallFollowUpOpen(true);
+      } else {
+        setCallReportingRow(dashboardRow);
+        setCallReportingOpen(true);
       }
       return;
     }
@@ -457,6 +472,16 @@ export default function MaintenanceDashboard() {
     handleCallFollowUpClose();
     handleSearch(filterValues);
   }, [filterValues, handleCallFollowUpClose, handleSearch]);
+
+  const handleCallReportingClose = useCallback(() => {
+    setCallReportingOpen(false);
+    setCallReportingRow(null);
+  }, []);
+
+  const handleCallReportingSaved = useCallback(() => {
+    handleCallReportingClose();
+    handleSearch(filterValues);
+  }, [filterValues, handleCallReportingClose, handleSearch]);
 
   return (
     <div className="workspace-page workspace-page--fill maintenance-dashboard">
@@ -542,6 +567,14 @@ export default function MaintenanceDashboard() {
         filterContext={filterValues}
         onClose={handleCallFollowUpClose}
         onSaved={handleCallFollowUpSaved}
+      />
+
+      <CallReportingForm
+        isOpen={callReportingOpen}
+        dashboardRow={callReportingRow}
+        filterContext={filterValues}
+        onClose={handleCallReportingClose}
+        onSaved={handleCallReportingSaved}
       />
     </div>
   );
