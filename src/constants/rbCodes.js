@@ -72,6 +72,8 @@ export const RB_CODES = Object.freeze({
   COMPLAINT_REGISTER: "rb_mntcpnmst",
   CALL_ALLOCATION: "rb_mntallocation",
   CALL_FOLLOW_UP: "rb_mntfollowup",
+  CALL_REPORTING: "rb_mnt_clrpt",
+  MAINTENANCE_CONTRACT_RENEWAL: "rb_mntamcrnwmst",
 });
 
 /**
@@ -130,6 +132,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
 
   [RB_CODES.MAINTENANCE_DASHBOARD]: "/maintenance-dashboard",
   [RB_CODES.COMPLAINT_REGISTER]: "/complaint-register",
+  [RB_CODES.MAINTENANCE_CONTRACT_RENEWAL]: "/maintenance-contract-renewal",
 });
 
 /** Absolute public base path for a module (e.g. `/purchase-indent`). */

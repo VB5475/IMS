@@ -8,14 +8,23 @@ import {
 import { getUserSession } from "../session/userSession";
 import { MGM_CONFIG } from "../pages/main-group-master/constants";
 
+function pickFirst(row, keys, fallback = "") {
+  for (const key of keys) {
+    if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") {
+      return row[key];
+    }
+  }
+  return fallback;
+}
+
 export function useMainGroupMaster() {
   const { get } = useApi(API_BASE_URL);
 
-  const [headerColumns,        setHeaderColumns]        = useState([]);
-  const [allColumns,           setAllColumns]           = useState([]);
-  const [headerFetching,       setHeaderFetching]       = useState(false);
-  const [headerError,          setHeaderError]          = useState(null);
-  const [itemTypeOptions,      setItemTypeOptions]      = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
+  const [itemTypeOptions, setItemTypeOptions] = useState([]);
   const [fixedAssetAccOptions, setFixedAssetAccOptions] = useState([]);
 
   const fetchHeaderMeta = useCallback(async () => {
@@ -24,11 +33,11 @@ export function useMainGroupMaster() {
     try {
       // Phase 1 — RB metadata → RBID
       const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType:   2,
-        ObjName:   MGM_CONFIG.SP_RB_META,
-        JSon:      JSON.stringify([{ prmrbcode: MGM_CONFIG.RB_MASTER }]),
+        ObjType: 2,
+        ObjName: MGM_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: MGM_CONFIG.RB_MASTER }]),
         p_ErrCode: -1,
-        p_ErrMsg:  "",
+        p_ErrMsg: "",
       });
       const tableRow = metaData?.[0];
       if (!tableRow) throw new Error("No Main Group Master RB metadata returned.");
@@ -38,7 +47,7 @@ export function useMainGroupMaster() {
       // Phase 2 — column definitions (drives form fields, defaults, and save row)
       const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
         prmMasterID: hdrMeta.RBID,
-        prmLoginID:  getUserSession().loginId,
+        prmLoginID: getUserSession().loginId,
       });
       setHeaderColumns(colData || []);
       setAllColumns(
@@ -48,36 +57,43 @@ export function useMainGroupMaster() {
       // Phase 3 — Item Type + Fixed Asset A/C dropdowns in parallel
       const [itemTypeData, fixedAssetData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType:   2,
-          ObjName:   MGM_CONFIG.SP_ITEM_TYPE,
-          JSon:      JSON.stringify([{}]),
+          ObjType: 2,
+          ObjName: MGM_CONFIG.SP_ITEM_TYPE,
+          JSon: JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Item Type fetch failed:", err); return null; }),
 
         get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType:   2,
-          ObjName:   MGM_CONFIG.SP_FIXED_ASSET_ACC,
-          JSon:      JSON.stringify([{}]),
+          ObjType: 2,
+          ObjName: MGM_CONFIG.SP_FIXED_ASSET_ACC,
+          JSon: JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[MGM] Fixed Asset A/C fetch failed:", err); return null; }),
       ]);
 
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[MGM] ItemType row sample:",      itemTypeData?.[0]);
-        console.log("[MGM] FixedAssetAcc row sample:", fixedAssetData?.[0]);
-      }
-
       setItemTypeOptions(
         (itemTypeData || []).map((r) => ({
-          value: r.idnumber ?? 0,
-          label: String(r.itemtypedesc ?? ""),
-        })).filter((o) => o.value != null)
+          value: String(pickFirst(r, ["idnumber", "IDNumber"], "")),
+          label: String(
+            pickFirst(
+              r,
+              ["itemtypedesc", "itemtypename", "ItemTypeDesc", "ItemTypeName", "itemtypecode", "ItemTypeCode"],
+              ""
+            )
+          ),
+        })).filter((o) => o.value !== "")
       );
       setFixedAssetAccOptions(
         (fixedAssetData || []).map((r) => ({
-          value: r.idnumber ?? 0,
-          label: String(r.acname ?? r.accountname ?? ""),
-        })).filter((o) => o.value != null)
+          value: String(pickFirst(r, ["idnumber", "IDNumber"], "")),
+          label: String(
+            pickFirst(
+              r,
+              ["acname", "accountname", "fixedassetaccountname", "AcName", "AccountName", "FixedAssetAccountName"],
+              ""
+            )
+          ),
+        })).filter((o) => o.value !== "")
       );
     } catch (err) {
       console.error("[MGM] fetchHeaderMeta failed:", err);
@@ -92,44 +108,53 @@ export function useMainGroupMaster() {
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const session = getUserSession();
     const prmParameters = [
-      Number(companyId)  || session.companyId,
-      Number(yearId)     || session.yearId,
-      Number(loginId)    || session.loginId,
-      Number(sessionId)  || DEFAULT_SESSION_ID,
-      Number(idNumber)   || 0,
+      Number(companyId) || session.companyId,
+      Number(yearId) || session.yearId,
+      Number(loginId) || session.loginId,
+      Number(sessionId) || DEFAULT_SESSION_ID,
+      Number(idNumber) || 0,
     ].join(",");
 
     const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
       prmProcedure: MGM_CONFIG.SP_MASTER_FILL,
       prmParameters,
-      prmFuncCode:  MGM_CONFIG.RB_MASTER,
+      prmFuncCode: MGM_CONFIG.RB_MASTER,
     });
     const master = mstRes?.[0] ?? null;
     return {
       master,
       headerValues: master ? {
         ...master,
-        yearid:    Number(master.yearid    ?? yearId)    || session.yearId,
-        loginid:   Number(master.loginid   ?? loginId)   || session.loginId,
+        yearid: Number(master.yearid ?? yearId) || session.yearId,
+        loginid: Number(master.loginid ?? loginId) || session.loginId,
         sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
-        funccode:  master.funccode ?? MGM_CONFIG.RB_MASTER,
+        funccode: master.funccode ?? MGM_CONFIG.RB_MASTER,
       } : null,
     };
   }, [get]);
 
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.itemtypeid != null && (master.itemtypename ?? master.itemtypecode)) {
+    const itemTypeId = pickFirst(master, ["itemtypeid", "ItemTypeID"]);
+    const itemTypeLabel = pickFirst(master, [
+      "itemtypedesc", "itemtypename", "ItemTypeDesc", "ItemTypeName", "itemtypecode", "ItemTypeCode",
+    ]);
+    if (itemTypeId != null && itemTypeLabel) {
       setItemTypeOptions((prev) =>
-        prev.some((o) => Number(o.value) === Number(master.itemtypeid))
+        prev.some((o) => String(o.value) === String(itemTypeId))
           ? prev
-          : [{ value: master.itemtypeid, label: master.itemtypename ?? master.itemtypecode }, ...prev]
+          : [{ value: String(itemTypeId), label: String(itemTypeLabel) }, ...prev]
       );
     }
-    if (master.fixedassetaccountid != null && (master.fixedassetaccountname ?? master.acname)) {
+
+    const fixedAssetId = pickFirst(master, ["fixedassetaccountid", "FixedAssetAccountID"]);
+    const fixedAssetLabel = pickFirst(master, [
+      "fixedassetaccountname", "acname", "accountname", "FixedAssetAccountName", "AcName", "AccountName",
+    ]);
+    if (fixedAssetId != null && fixedAssetLabel) {
       setFixedAssetAccOptions((prev) =>
-        prev.some((o) => Number(o.value) === Number(master.fixedassetaccountid))
+        prev.some((o) => String(o.value) === String(fixedAssetId))
           ? prev
-          : [{ value: master.fixedassetaccountid, label: master.fixedassetaccountname ?? master.acname }, ...prev]
+          : [{ value: String(fixedAssetId), label: String(fixedAssetLabel) }, ...prev]
       );
     }
   }, []);

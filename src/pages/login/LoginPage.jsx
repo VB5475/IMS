@@ -16,13 +16,20 @@ import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
+  API_BASE_URL_IMS,
   OBJ_TYPE,
   BASE_PROJECT_OPTIONS,
   PROD_BASE_PROJECT,
   switchBaseProject,
 } from "../../api/constants";
 import { useUser } from "../../context/UserContext";
-import { LOGIN_CONFIG } from "./constants";
+import { getClientIpAddress } from "../../utils/clientIp";
+import {
+  LOGIN_CONFIG,
+  parseLoginAuthResponse,
+  isLoginAuthSuccess,
+  getLoginAuthErrorMessage,
+} from "./constants";
 import Loader from "../../components/ui/Loader";
 import "./LoginPage.css";
 
@@ -225,6 +232,7 @@ function LoginForm({
 export default function LoginPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
+  const { post: postAuth } = useApi(API_BASE_URL_IMS);
   const { login, isAuthenticated } = useUser();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -238,12 +246,24 @@ export default function LoginPage() {
   const [yearId, setYearId] = useState("");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
+  const [clientIp, setClientIp] = useState("");
 
   useEffect(() => {
     if (isAuthenticated) {
       navigate("/", { replace: true });
     }
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ip = await getClientIpAddress();
+      if (!cancelled) setClientIp(ip);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadLoginOptions = useCallback(async () => {
     setLoadingOptions(true);
@@ -286,24 +306,18 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const authRes = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: LOGIN_CONFIG.SP_AUTH,
-        JSon: JSON.stringify([
-          {
-            prmUserID: userId.trim(),
-            prmPassword: password,
-            prmCompanyID: Number(companyId),
-            prmYearID: Number(yearId),
-          },
-        ]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      const ipAddress = clientIp || (await getClientIpAddress());
+      const authRes = await postAuth(LOGIN_CONFIG.AUTH_ENDPOINT, {
+        prmuserid: userId.trim(),
+        prmpassword: password,
+        prmcompanyid: Number(companyId),
+        prmyearid: Number(yearId),
+        prmipaddress: ipAddress
       });
 
-      const authRow = authRes?.[0];
-      if (!authRow?.loginid) {
-        setError("Invalid user ID or password. Please try again.");
+      const authRow = parseLoginAuthResponse(authRes);
+      if (!isLoginAuthSuccess(authRow)) {
+        setError(getLoginAuthErrorMessage(authRow));
         return;
       }
 

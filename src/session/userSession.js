@@ -1,6 +1,8 @@
 // userSession.js — persisted session readable outside React (hooks, utils, API helpers)
 
 const STORAGE_KEY = "ims_user_session";
+/** Login `sessionid` — written on auth, cleared on logout; used by Enterprise Dashboard. */
+const SESSION_ID_STORAGE_KEY = "ims_login_session_id";
 
 export const DEFAULT_USER_SESSION = {
   isAuthenticated: false,
@@ -9,6 +11,7 @@ export const DEFAULT_USER_SESSION = {
   userName: "Administrator",
   companyId: 1,
   yearId: 1,
+  sessionId: 0,
   company: null,
   year: null,
   userGroupId: null,
@@ -30,6 +33,10 @@ function readStoredSession() {
       ...DEFAULT_USER_SESSION,
       ...parsed,
       isAuthenticated: Boolean(parsed?.isAuthenticated),
+      sessionId:
+        Number(parsed?.sessionId)
+        || Number(localStorage.getItem(SESSION_ID_STORAGE_KEY))
+        || 0,
     };
   } catch {
     return null;
@@ -38,12 +45,32 @@ function readStoredSession() {
 
 function writeStoredSession(session) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  writeStoredSessionId(session?.sessionId);
+}
+
+function writeStoredSessionId(sessionId) {
+  const id = Number(sessionId) || 0;
+  if (id > 0) {
+    localStorage.setItem(SESSION_ID_STORAGE_KEY, String(id));
+  } else {
+    localStorage.removeItem(SESSION_ID_STORAGE_KEY);
+  }
+}
+
+/** Login session id from localStorage (Enterprise Dashboard). */
+export function getStoredSessionId() {
+  const fromKey = Number(localStorage.getItem(SESSION_ID_STORAGE_KEY)) || 0;
+  if (fromKey > 0) return fromKey;
+  return Number(getUserSession()?.sessionId) || 0;
 }
 
 /** Hydrate in-memory session from localStorage (call once on app boot). */
 export function initUserSession() {
   const stored = readStoredSession();
-  if (stored) currentSession = stored;
+  if (stored) {
+    currentSession = stored;
+    writeStoredSessionId(stored.sessionId);
+  }
   return currentSession;
 }
 
@@ -63,40 +90,55 @@ export function setUserSession(partial) {
 export function clearUserSession() {
   currentSession = { ...DEFAULT_USER_SESSION, isAuthenticated: false };
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(SESSION_ID_STORAGE_KEY);
   return currentSession;
 }
 
-// The live auth SP (Fn_tbl_FetchUserAuthenitcationDetail) returns lowercase
-// PG-style keys (loginid, userid, username, ...) — read those first, with a
-// PascalCase fallback only for safety against any legacy/SQL-Server caller.
-function pickAuthField(row, lowerKey, pascalKey) {
-  if (row?.[lowerKey] !== undefined && row[lowerKey] !== null && row[lowerKey] !== "") return row[lowerKey];
-  if (row?.[pascalKey] !== undefined && row[pascalKey] !== null && row[pascalKey] !== "") return row[pascalKey];
+function pickRow(row, ...keys) {
+  if (!row || typeof row !== "object") return undefined;
+  for (const key of keys) {
+    if (key in row && row[key] != null && row[key] !== "") return row[key];
+    const lower = String(key).toLowerCase();
+    const found = Object.keys(row).find((k) => k.toLowerCase() === lower);
+    if (found !== undefined && row[found] != null && row[found] !== "") {
+      return row[found];
+    }
+  }
   return undefined;
 }
 
-function isTruthyAuthFlag(value) {
-  if (value === true || value === 1 || value === "1") return true;
-  if (typeof value === "string") return value.trim().toLowerCase() === "true";
-  return false;
+function toBoolFlag(value) {
+  if (typeof value === "boolean") return value;
+  const n = Number(value);
+  if (!Number.isNaN(n)) return n === 1;
+  return Boolean(value);
 }
 
 /** Map auth API row + login selections into session fields. */
 export function buildSessionFromAuthRow(row, { companyId, yearId, company, year }) {
   return {
     isAuthenticated: true,
-    loginId: Number(pickAuthField(row, "loginid", "LoginID")) || DEFAULT_USER_SESSION.loginId,
-    userId: pickAuthField(row, "userid", "UserID") ?? DEFAULT_USER_SESSION.userId,
-    userName: pickAuthField(row, "username", "UserName") ?? DEFAULT_USER_SESSION.userName,
+    loginId:
+      Number(pickRow(row, "idnumber", "loginid", "LoginID", "IDNumber"))
+      || DEFAULT_USER_SESSION.loginId,
+    userId: pickRow(row, "userid", "UserID") ?? DEFAULT_USER_SESSION.userId,
+    userName: pickRow(row, "username", "UserName") ?? DEFAULT_USER_SESSION.userName,
     companyId: Number(companyId) || DEFAULT_USER_SESSION.companyId,
     yearId: Number(yearId) || DEFAULT_USER_SESSION.yearId,
+    sessionId: Number(pickRow(row, "sessionid", "SessionID")) || 0,
     company: company ?? null,
     year: year ?? null,
-    userGroupId: pickAuthField(row, "usergroupid", "UserGroupID") ?? null,
-    desgId: pickAuthField(row, "desgid", "DesgID") ?? null,
-    departmentId: pickAuthField(row, "departmentid", "DepartmentID") ?? null,
-    isAdminUser: isTruthyAuthFlag(pickAuthField(row, "isadminuser", "IsAdminUser")),
-    isDepartmentHead: isTruthyAuthFlag(pickAuthField(row, "isdepartmenthead", "IsDepartmentHead")),
-    isDivisionHead: isTruthyAuthFlag(pickAuthField(row, "isdivisionhead", "IsDivisionHead")),
+    userGroupId:
+      pickRow(row, "groupidnumber", "usergroupid", "UserGroupID") ?? null,
+    desgId: pickRow(row, "desgid", "DesgID") ?? null,
+    departmentId:
+      pickRow(row, "deptid", "departmentid", "DepartmentID") ?? null,
+    isAdminUser: toBoolFlag(pickRow(row, "isadminuser", "IsAdminUser")),
+    isDepartmentHead: toBoolFlag(
+      pickRow(row, "isdepthead", "isdepartmenthead", "IsDepartmentHead")
+    ),
+    isDivisionHead: toBoolFlag(
+      pickRow(row, "isdivisionhead", "IsDivisionHead")
+    ),
   };
 }

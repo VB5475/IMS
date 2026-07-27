@@ -31,6 +31,14 @@ const DEFAULT_MASTER_ID = DASHBOARD_CONFIG.DEFAULT_MASTER_ID;
 const DEFAULT_SESSION_ID = DASHBOARD_CONFIG.DEFAULT_SESSION_ID;
 const DASHBOARD_CART_STORAGE_KEY = "enterpriseDashboardSelectedItems";
 
+function resolveSessionId(sessionId) {
+  const fromProp = Number(sessionId) || 0;
+  if (fromProp > 0) return fromProp;
+  const fromSession = Number(getUserSession()?.sessionId) || 0;
+  if (fromSession > 0) return fromSession;
+  return DEFAULT_SESSION_ID;
+}
+
 function readDashboardCart() {
   try {
     const parsed = JSON.parse(sessionStorage.getItem(DASHBOARD_CART_STORAGE_KEY) || "null");
@@ -83,7 +91,7 @@ function buildDivisionParams() {
   };
 }
 
-function buildReportBoardParams(divisionId) {
+function buildReportBoardParams(divisionId, sessionId) {
   const session = getUserSession();
   return {
     ObjType: DASHBOARD_CONFIG.REPORT_OBJ_TYPE,
@@ -93,7 +101,7 @@ function buildReportBoardParams(divisionId) {
         prmcompanyid: Number(session.companyId) || 1,
         prmyearid: Number(session.yearId) || 1,
         prmloginid: Number(session.loginId) || 1,
-        prmsessionid: DEFAULT_SESSION_ID,
+        prmsessionid: resolveSessionId(sessionId),
         prmmasterid: DEFAULT_MASTER_ID,
         prmdivisionid: Number(divisionId) || 0,
       },
@@ -103,7 +111,7 @@ function buildReportBoardParams(divisionId) {
   };
 }
 
-function buildAstFormListParams() {
+function buildAstFormListParams(sessionId) {
   const session = getUserSession();
   return {
     ObjType: DASHBOARD_CONFIG.FORM_LIST_OBJ_TYPE,
@@ -113,7 +121,7 @@ function buildAstFormListParams() {
         prmloginid: Number(session.loginId) || 1,
         prmcompanyid: Number(session.companyId) || 1,
         prmyearid: Number(session.yearId) || 1,
-        prmsessionid: DEFAULT_SESSION_ID,
+        prmsessionid: resolveSessionId(sessionId),
       },
     ]),
     p_ErrCode: -1,
@@ -154,7 +162,11 @@ function getReportRowKey(row, index) {
   return `row-${index}`;
 }
 
-export default function ReportBoardPanel({ compact = false, fill = compact }) {
+export default function ReportBoardPanel({
+  compact = false,
+  fill = compact,
+  sessionId = 0,
+}) {
   const { get } = useApi(API_BASE_URL);
   const notify = useNotification();
   const navigate = useNavigate();
@@ -303,7 +315,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
       try {
         setLoading(true);
         setError(null);
-        const json = await get(ENDPOINTS.FN_FETCH_DATA, buildReportBoardParams(divisionId));
+        const json = await get(ENDPOINTS.FN_FETCH_DATA, buildReportBoardParams(divisionId, sessionId));
         setData(Array.isArray(json) ? json : []);
       } catch (err) {
         console.error("[ReportBoardPanel] fetch failed:", err);
@@ -313,7 +325,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
         setLoading(false);
       }
     },
-    [get]
+    [get, sessionId]
   );
 
   useEffect(() => {
@@ -369,7 +381,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     try {
       setFormsLoading(true);
       setFormsError(null);
-      const json = await get(ENDPOINTS.FN_FETCH_DATA, buildAstFormListParams());
+      const json = await get(ENDPOINTS.FN_FETCH_DATA, buildAstFormListParams(sessionId));
       const options = mapAstFormOptions(json);
       setEntryForms(options);
       setSelectedForm((current) =>
@@ -384,7 +396,7 @@ export default function ReportBoardPanel({ compact = false, fill = compact }) {
     } finally {
       setFormsLoading(false);
     }
-  }, [get]);
+  }, [get, sessionId]);
 
   useEffect(() => {
     if (!cartOpen) return undefined;

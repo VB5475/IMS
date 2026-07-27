@@ -73,6 +73,12 @@ const AssetsClientAllocationForm = lazy(
 );
 const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
 const ComplaintRegisterForm = lazy(() => import("./pages/complaint-register/ComplaintRegisterForm"));
+const MaintenanceContractRenewalPage = lazy(
+  () => import("./pages/maintenance-contract-renewal/MaintenanceContractRenewalPage")
+);
+const MaintenanceContractRenewalForm = lazy(
+  () => import("./pages/maintenance-contract-renewal/MaintenanceContractRenewalForm")
+);
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
@@ -292,6 +298,11 @@ const router = createBrowserRouter([
             rb: RB.COMPLAINT_REGISTER,
             list: <ComplaintRegisterPage />,
             form: <ComplaintRegisterForm />,
+          }),
+          rbModule({
+            rb: RB.MAINTENANCE_CONTRACT_RENEWAL,
+            list: <MaintenanceContractRenewalPage />,
+            form: <MaintenanceContractRenewalForm />,
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
 

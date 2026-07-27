@@ -18,19 +18,40 @@ import { useNotification } from "../../context/NotificationContext";
 import { MGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./MainGroupMasterPage.css";
 
-// Fields locked during edit mode (RB colnames — all lowercase)
+// Compare against RB colnames case-insensitively (API now returns PascalCase).
 const LOCK_ON_EDIT = new Set(["itemtypeid", "maingroupcode", "fixedassetaccountid"]);
 
-// maingroupshortcode is always read-only — auto-filled from usedinautoitemcodegeneration
+// MainGroupShortCode is always read-only — auto-filled from UsedInAutoItemCodeGeneration
 const READONLY_AUTO = new Set(["maingroupshortcode"]);
 
-// Corrected display labels (guards against backend displayname typos)
 const DISPLAY_OVERRIDES = {
-  maingroupshortcode:           "Main Group Short Code",
-  maingroupshortname:           "Main Group Short Name",
+  maingroupshortcode: "Main Group Short Code",
+  maingroupshortname: "Main Group Short Name",
   usedinautoitemcodegeneration: "Used in Code Generation",
 };
-function getLabel(field) { return DISPLAY_OVERRIDES[field.colname] || field.displayname; }
+
+function colKey(name) {
+  return String(name || "").toLowerCase();
+}
+
+function getLabel(field) {
+  return DISPLAY_OVERRIDES[colKey(field.colname)] || field.displayname;
+}
+
+function pickFormValue(values, ...keys) {
+  if (!values) return undefined;
+  for (const key of keys) {
+    if (values[key] !== undefined && values[key] !== null) return values[key];
+    const found = Object.keys(values).find((k) => colKey(k) === colKey(key));
+    if (found !== undefined) return values[found];
+  }
+  return undefined;
+}
+
+function setFormKey(values, key, value) {
+  const existing = Object.keys(values).find((k) => colKey(k) === colKey(key));
+  return { ...values, [existing || key]: value };
+}
 
 export default function MainGroupMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
@@ -106,68 +127,78 @@ export default function MainGroupMasterForm({
       .sort((a, b) => a.colseqno - b.colseqno),
   [fieldDefs]);
 
-  // Dropdown options keyed by RB colname
+  // Dropdown options keyed by lowercase RB colname (API may return PascalCase)
   const optionsMap = useMemo(() => ({
-    itemtypeid:          itemTypeOptions,
+    itemtypeid: itemTypeOptions,
     fixedassetaccountid: fixedAssetAccOptions,
   }), [itemTypeOptions, fixedAssetAccOptions]);
 
-  function isLocked(field) {
-    if (!isEditMode)                return true;
-    if (READONLY_AUTO.has(field.colname)) return true;
-    if (isAddMode)                  return false;
-    return LOCK_ON_EDIT.has(field.colname);
+  function resolveOptions(fieldName) {
+    return optionsMap[colKey(fieldName)] || [];
   }
 
-  // Cascade: usedinautoitemcodegeneration checked → auto-fill maingroupshortcode from maingroupcode
-  //          maingroupcode change → keep maingroupshortcode in sync if code-gen is on
+  function isLocked(field) {
+    const key = colKey(field.colname);
+    if (!isEditMode) return true;
+    if (READONLY_AUTO.has(key)) return true;
+    if (isAddMode) return false;
+    return LOCK_ON_EDIT.has(key);
+  }
+
+  // Cascade: UsedInAutoItemCodeGeneration checked → auto-fill MainGroupShortCode from MainGroupCode
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
-      const next = { ...prev, [key]: value };
-      if (key === "usedinautoitemcodegeneration") {
-        next.maingroupshortcode = value ? (prev.maingroupcode || "") : "";
+      let next = setFormKey(prev, key, value);
+      const lowered = colKey(key);
+      if (lowered === "usedinautoitemcodegeneration") {
+        const code = pickFormValue(next, "MainGroupCode", "maingroupcode") || "";
+        next = setFormKey(next, "MainGroupShortCode", value ? code : "");
       }
-      if (key === "maingroupcode" && prev.usedinautoitemcodegeneration) {
-        next.maingroupshortcode = value;
+      if (lowered === "maingroupcode") {
+        const codeGenOn = !!pickFormValue(next, "UsedInAutoItemCodeGeneration", "usedinautoitemcodegeneration");
+        if (codeGenOn) next = setFormKey(next, "MainGroupShortCode", value);
       }
       return next;
     });
   }, []);
 
   function renderControl(field) {
-    const key    = field.colname;
+    const key = field.colname;
+    const lowered = colKey(key);
     const locked = isLocked(field);
+    const currentValue = pickFormValue(formValues, key);
 
-    // maingroupshortcode — always a read-only display value
-    if (READONLY_AUTO.has(key)) {
-      return <span className="mgm-form-value">{formValues[key] || "—"}</span>;
+    // MainGroupShortCode — always a read-only display value
+    if (READONLY_AUTO.has(lowered)) {
+      return <span className="mgm-form-value">{currentValue || "—"}</span>;
     }
 
-    // usedinautoitemcodegeneration — numeric 0/1 stored but rendered as checkbox
-    if (key === "usedinautoitemcodegeneration") {
+    // UsedInAutoItemCodeGeneration — numeric 0/1 stored but rendered as checkbox
+    if (lowered === "usedinautoitemcodegeneration") {
       return (
         <div className="mgm-form-control--checkbox">
           <input
             type="checkbox"
             className="mgm-form-checkbox"
-            checked={!!formValues[key]}
+            checked={!!currentValue}
             onChange={(e) => handleChange(key, e.target.checked ? 1 : 0)}
             disabled={locked}
           />
           <span className="mgm-form-checkbox-label">
-            {formValues[key] ? "Yes" : "No"}
+            {currentValue ? "Yes" : "No"}
           </span>
         </div>
       );
     }
 
     // colctrltype 4 — Dropdown
-    if (field.colctrltype === 4) {
+    if (Number(field.colctrltype) === 4) {
+      const options = resolveOptions(key);
       return (
         <SearchSelect
-          value={formValues[key] ? String(formValues[key]) : ""}
+          value={currentValue ? String(currentValue) : ""}
           onChange={(val) => handleChange(key, Number(val) || 0)}
-          options={optionsMap[key] || []}
+          options={options}
           placeholder="Select..."
           disabled={locked}
         />
@@ -179,7 +210,7 @@ export default function MainGroupMasterForm({
       <input
         className="mgm-form-input"
         type="text"
-        value={formValues[key] ?? ""}
+        value={currentValue ?? ""}
         onChange={(e) => handleChange(key, e.target.value)}
         placeholder={`Enter ${getLabel(field)}...`}
         readOnly={locked}
@@ -190,14 +221,16 @@ export default function MainGroupMasterForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
-    setFormErrors([]);
-    // Skip maingroupshortcode in validation — it's auto-filled, not user-entered
-    const fieldsToValidate = visibleFields.filter((f) => !READONLY_AUTO.has(f.colname));
+    // Skip MainGroupShortCode in validation — it's auto-filled, not user-entered
+    const fieldsToValidate = visibleFields.filter((f) => !READONLY_AUTO.has(colKey(f.colname)));
     const normalizedValues = Object.fromEntries(
-      fieldsToValidate.map((f) => [
-        f.colname,
-        f.colctrltype === 4 && formValues[f.colname] === 0 ? "" : formValues[f.colname],
-      ])
+      fieldsToValidate.map((f) => {
+        const value = pickFormValue(formValues, f.colname);
+        return [
+          f.colname,
+          Number(f.colctrltype) === 4 && (value === 0 || value === "0") ? "" : value,
+        ];
+      })
     );
     const errors = validateApiColumns(normalizedValues, fieldsToValidate);
     if (errors.length > 0) { setFormErrors(errors); return; }
@@ -228,7 +261,7 @@ export default function MainGroupMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify, post, buildEmptyFromColumns]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -305,22 +338,25 @@ export default function MainGroupMasterForm({
         <>
           <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
           <div className="mgm-form">
-            {visibleFields.map((field) => (
+            {visibleFields.map((field) => {
+              const lowered = colKey(field.colname);
+              return (
               <div
                 key={field.colname}
                 className={[
                   "mgm-form-row",
-                  READONLY_AUTO.has(field.colname) ? "mgm-form-row--view" : "",
+                  READONLY_AUTO.has(lowered) ? "mgm-form-row--view" : "",
                 ].join(" ").trim()}
               >
-                <span className={`mgm-form-label${field.ismandatory && !READONLY_AUTO.has(field.colname) && field.colname !== "usedinautoitemcodegeneration" ? " mgm-form-label--required" : ""}`}>
+                <span className={`mgm-form-label${field.ismandatory && !READONLY_AUTO.has(lowered) && lowered !== "usedinautoitemcodegeneration" ? " mgm-form-label--required" : ""}`}>
                   {getLabel(field)}
                 </span>
-                <div className={`mgm-form-control${field.colname === "usedinautoitemcodegeneration" ? " mgm-form-control--checkbox" : ""}`}>
+                <div className={`mgm-form-control${lowered === "usedinautoitemcodegeneration" ? " mgm-form-control--checkbox" : ""}`}>
                   {renderControl(field)}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           {saveError && (
             <div className="master-modal-save-error">
