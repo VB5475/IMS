@@ -82,6 +82,6 @@ export const IND_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "configid",   label: "Indent Type" },
 ];
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return getMissingPickerFields(headerValues, IND_ITEM_PICKER_JSON_FIELDS);
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return getMissingPickerFields(headerValues, IND_ITEM_PICKER_JSON_FIELDS, { headerColumns });
 }

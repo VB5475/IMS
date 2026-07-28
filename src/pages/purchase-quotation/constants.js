@@ -127,8 +127,8 @@ export const QTN_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "basedonid", label: "Based On", allowZero: true },
 ];
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return getMissingPickerFields(headerValues, QTN_ITEM_PICKER_JSON_FIELDS);
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return getMissingPickerFields(headerValues, QTN_ITEM_PICKER_JSON_FIELDS, { headerColumns });
 }
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {

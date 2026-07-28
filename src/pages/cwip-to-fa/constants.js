@@ -1,5 +1,6 @@
 // constants.js — CWIP To FA (C2F) page config
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "CWIP To FA";
@@ -101,8 +102,16 @@ function isMissingValue(field, value) {
   return Number(value) === 0 || value === "0";
 }
 
-export function getMissingItemPickerHeaderFields(headerValues) {
+/**
+ * @param {object} headerValues
+ * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
+ *   enforced as required if its matching column's IsMandatory flag is truthy.
+ */
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
   return C2F_ITEM_PICKER_REQUIRED_FIELDS
-    .filter((f) => isMissingValue(f, headerValues?.[f.headerKey]))
+    .filter((f) => {
+      if (headerColumns && !isColumnMandatoryByName(headerColumns, f.headerKey)) return false;
+      return isMissingValue(f, headerValues?.[f.headerKey]);
+    })
     .map((f) => f.label);
 }

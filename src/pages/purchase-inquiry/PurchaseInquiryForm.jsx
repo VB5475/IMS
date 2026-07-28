@@ -819,7 +819,7 @@ export default function PurchaseInquiryForm() {
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -885,7 +885,7 @@ export default function PurchaseInquiryForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -979,7 +979,7 @@ export default function PurchaseInquiryForm() {
   // (PI_CONFIG.SUPPLIER_SP is the PI-only rb_purinqselonlysupp RB — see constants.js).
   const handleSelectSupplier = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -1016,7 +1016,7 @@ export default function PurchaseInquiryForm() {
     } finally {
       setSupplierModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertSuppliers = useCallback(
     async (selectedSuppliers) => {
@@ -1053,7 +1053,7 @@ export default function PurchaseInquiryForm() {
   // in the MRD, so columns are entirely RB-driven (no hardcoded field names).
   const handleSelectTerms = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -1099,7 +1099,7 @@ export default function PurchaseInquiryForm() {
     } finally {
       setTermsModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertTerms = useCallback(
     async (selectedTerms) => {

@@ -338,9 +338,9 @@ export const GRN_ITEM_PICKER_JSON_FIELDS = [
 
 
 
-export function getMissingItemPickerHeaderFields(headerValues) {
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
 
-  return getMissingPickerFields(headerValues, GRN_ITEM_PICKER_JSON_FIELDS);
+  return getMissingPickerFields(headerValues, GRN_ITEM_PICKER_JSON_FIELDS, { headerColumns });
 
 }
 

@@ -129,8 +129,11 @@ export const PI_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "basedonid", label: "Based On", allowZero: true },
 ];
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return getMissingPickerFields(headerValues, PI_ITEM_PICKER_JSON_FIELDS, { basedOnKey: "basedonid" });
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return getMissingPickerFields(headerValues, PI_ITEM_PICKER_JSON_FIELDS, {
+    basedOnKey: "basedonid",
+    headerColumns,
+  });
 }
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {

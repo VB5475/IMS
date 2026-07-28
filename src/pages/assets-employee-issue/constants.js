@@ -1,6 +1,7 @@
 // constants.js — Assets Employee Issue (AEI) page config
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Employee Issue";
@@ -98,10 +99,18 @@ function isMissingValue(field, value) {
   return Number(value) === 0 || value === "0";
 }
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return AEI_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
-    isMissingValue(f, pickHeaderValue(headerValues, f.keys))
-  ).map((f) => f.label);
+/**
+ * @param {object} headerValues
+ * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
+ *   enforced as required if its matching column's IsMandatory flag is truthy; fields not marked
+ *   mandatory are skipped here (their raw/default value still flows into the picker payload).
+ *   When omitted (or before it loads), every field is treated as required — unchanged behavior.
+ */
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return AEI_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
+    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
+    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
+  }).map((f) => f.label);
 }
 
 function pickHeaderInt(headerValues, ...keys) {
