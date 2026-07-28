@@ -32,8 +32,8 @@ export const ADI_CONFIG = {
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
-  SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
-  SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
+  SP_FROM_LOCATION: "fn_gen_fetchastissfromlocationmaster",
+  SP_TO_LOCATION: "fn_gen_fetchastisstolocationmaster",
   SP_FROM_DEPT: "fn_tbl_fetchfromdepartmentdata",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
   SP_CONFIG: "Fn_tbl_ddl_prod_configuration",

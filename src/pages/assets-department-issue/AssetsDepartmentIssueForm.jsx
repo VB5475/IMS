@@ -397,10 +397,10 @@ export default function AssetsDepartmentIssueForm() {
         if (Number(val) > 0) {
           const fetches = [];
           if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            fetches.push(fetchFromLocations());
+            fetches.push(fetchFromLocations(val));
           }
           if (hasVisibleCol(headerColumns, "tolocationid")) {
-            fetches.push(fetchToLocations());
+            fetches.push(fetchToLocations(val));
           }
           if (hasVisibleCol(headerColumns, "configid")) {
             fetches.push(fetchConfigOptions(val));

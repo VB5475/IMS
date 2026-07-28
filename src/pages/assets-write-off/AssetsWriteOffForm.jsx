@@ -359,7 +359,7 @@ export default function AssetsWriteOffForm() {
           if (val && val !== "0") {
             const fetches = [];
             if (hasVisibleCol(headerColumns, "fromlocid", "locationid")) {
-              fetches.push(fetchLocations());
+              fetches.push(fetchLocations(val));
             }
             if (hasVisibleCol(headerColumns, "accountid")) {
               fetches.push(fetchAssetsAccByDivision(val));

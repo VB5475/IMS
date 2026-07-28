@@ -450,10 +450,10 @@ export default function AssetsEmployeeTransferForm() {
           if (val && val !== "0") {
             const fetches = [];
             if (hasVisibleCol(headerColumns, "fromlocationid")) {
-              fetches.push(fetchFromLocations());
+              fetches.push(fetchFromLocations(val));
             }
             if (hasVisibleCol(headerColumns, "tolocationid")) {
-              fetches.push(fetchToLocations());
+              fetches.push(fetchToLocations(val));
             }
             if (hasVisibleCol(headerColumns, "fromdeptid")) {
               fetches.push(fetchFromDepartments());
@@ -537,7 +537,7 @@ export default function AssetsEmployeeTransferForm() {
           itemGridRef.current?.clearRows?.();
           if (val && val !== "0") {
             const fetches = [];
-            if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+            if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations(val));
             if (hasVisibleCol(headerColumns, "todeptid")) fetches.push(fetchToDepartments());
             if (hasVisibleCol(headerColumns, "tovendorid")) {
               fetches.push(fetchToVendors(val, hv.tolocationid));

@@ -135,15 +135,17 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     [get]
   );
 
-  const fetchLocations = useCallback(async () => {
+  const fetchLocations = useCallback(async (divisionId = 0) => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AWF_CONFIG.SP_LOCATION,
         JSon: JSON.stringify([{
           prmcompanyid: getUserSession().companyId,
+          prmdivisionid: Number(divisionId) || 0,
           prmloginid: getUserSession().loginId,
           prmlocationtype: "",
+          prmfrmtype: String(AWF_CONFIG.FRM_TYPE),
         }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
@@ -393,7 +395,7 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
             .catch(() => {})
         );
       }
-      if (needsCol("fromlocid") || needsCol("locationid")) tasks.push(fetchLocations());
+      if (needsCol("fromlocid") || needsCol("locationid")) tasks.push(fetchLocations(divisionId));
       if (divisionId) {
         if (needsCol("accountid")) tasks.push(fetchAssetsAccByDivision(divisionId));
         if (needsCol("profitlossactid")) tasks.push(fetchProfitLossAccByDivision(divisionId));

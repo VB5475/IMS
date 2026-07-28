@@ -398,8 +398,17 @@ export default function AssetsEmployeeReturnForm() {
           clearFromEmpOptions();
           itemGridRef.current?.clearRows?.();
           if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "tolocationid")) {
+              fetches.push(fetchToLocations(val));
+            }
             if (hasVisibleCol(headerColumns, "configid")) {
-              await fetchConfigOptions(val);
+              fetches.push(fetchConfigOptions(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            if (hasVisibleCol(headerColumns, "tolocationid")) {
+              focusFieldAfterCascade(filterPanelRef, "tolocationid");
+            } else if (hasVisibleCol(headerColumns, "configid")) {
               focusFieldAfterCascade(filterPanelRef, "configid");
             }
           }
@@ -445,6 +454,7 @@ export default function AssetsEmployeeReturnForm() {
       requestGridClear,
       clearFromEmpOptions,
       fetchConfigOptions,
+      fetchToLocations,
       fetchFromEmployees,
     ]
   );

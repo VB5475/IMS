@@ -384,7 +384,7 @@ export default function AssetsReturnableGatePassInForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
-          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations(val));
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (hasVisibleCol(headerColumns, "fromvendorid")) fetches.push(fetchFromVendors(val));
           if (fetches.length) await Promise.all(fetches);

@@ -33,10 +33,11 @@ export const IND_CONFIG = {
   //    MRD Section 7 constants table says "RB_PurIndtMst". Using "IND" per Section 3.
   FORM_TAG: "IND",
   TRAN_BOOK: "PURIND",
+  FRM_TYPE: "IND",
 
   SP_ITEM_PICKER: "fn_tbl_rb_purindtselitem",
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
-  SP_LOCATION: "fn_gen_fetchlocationmaster",
+  SP_LOCATION: "fn_gen_fetchastisslocationmaster",
 
   SP_MASTER_FILL: "fn_tbl_rb_purindtmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purindtdet",

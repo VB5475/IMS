@@ -1,26 +1,26 @@
-// Maintenance Contract Renewal — module config (MRD_Template4MntContractRenewal.docx)
+// Maintenance Contract (New) — module config (MRD_Template4MntNewContractGeneration.docx)
 
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
-export const PAGE_TITLE = "Maintenance Contract Renewal";
-export const PAGE_TITLE_NEW = "New Maintenance Contract Renewal";
+export const PAGE_TITLE = "Maintenance Contract (New)";
+export const PAGE_TITLE_NEW = "New Maintenance Contract";
 
-export const MACR_CONFIG = {
-  RB_MASTER: RB_CODES.MAINTENANCE_CONTRACT_RENEWAL,
-  ROUTE_PATH: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL),
-  RB_DETAIL: "rb_mntamcrnwdet",
-  RB_TERMS_DETAIL: "rb_mntamcrnwtncdet",
-  RB_ITEM_PICKER: "rb_mntamcrnwselonly",
+export const MACNG_CONFIG = {
+  RB_MASTER: RB_CODES.MAINTENANCE_NEW_CONTRACT,
+  ROUTE_PATH: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT),
+  RB_DETAIL: "rb_mntamcnewdet",
+  RB_TERMS_DETAIL: "rb_mntamcnewtncdet",
+  RB_ITEM_PICKER: "rb_mntamcnewselonly",
   RB_TERMS_PICKER: "rb_mntamcnewtncsel",
 
   MODULE_CODE: "MC",
-  FORM_TAG: "rb_mntamcrnwmst",
-  TRAN_BOOK: "PMR",
+  FORM_TAG: "rb_mntamcnewmst",
+  TRAN_BOOK: "CA",
   CONFIG_FORM_TAG: "MNTCLT",
-  CONFIG_REF_TYPE: "PMR",
+  CONFIG_REF_TYPE: "PMN",
   SUPPLIER_PARTY_TYPE: "S",
 
   CONFIG_YEAR_ID: 2,
@@ -33,33 +33,31 @@ export const MACR_CONFIG = {
   VIEW_CONTRACT_TYPE: "vw_mnt_contracttype",
   VIEW_FREQUENCY: "vw_gen_frequencytype",
 
-  SP_ITEM_PICKER: "fn_tbl_rb_mntamcrnwselonly",
-  SP_TERMS_PICKER: "fn_tbl_rb_mntamcrnwtncsel",
+  SP_ITEM_PICKER: "fn_tbl_rb_mntamcnewselonly",
+  SP_TERMS_PICKER: "fn_tbl_rb_mntamcnewtncsel",
 
-  SP_MASTER_FILL: "fn_tbl_rb_mntamcrnwmst",
-  SP_DETAIL_FILL: "fn_tbl_rb_mntamcrnwdet",
-  /** MRD §5.1 edit terms fill names the picker SP; use detail RB fill name. */
-  SP_TERMS_FILL: "fn_tbl_rb_mntamcrnwtncdet",
+  SP_MASTER_FILL: "fn_tbl_rb_mntamcnewmst",
+  SP_DETAIL_FILL: "fn_tbl_rb_mntamcnewdet",
+  SP_TERMS_FILL: "fn_tbl_rb_mntamcnewtncdet",
 
-  SAVE_ENDPOINT: "/API/MntAmcRnwMst/Post_RB_MntAmcRnwMst_Save",
+  SAVE_ENDPOINT: "/API/MntAmcNewMst/Post_RB_MntAmcNewMst_Save",
 
   LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_mntamcrnwmst_list",
+  SP_LIST: "fn_tbl_rb_mntamcnewmst_list",
   LIST_DIVISION_ID: 15,
 
-  STORAGE_HEADER_META: "macrHeaderMeta",
-  STORAGE_ENTRY_META: "macrEntryMeta",
-  STORAGE_TERMS_META: "macrTermsMeta",
+  STORAGE_HEADER_META: "macngHeaderMeta",
+  STORAGE_ENTRY_META: "macngEntryMeta",
+  STORAGE_TERMS_META: "macngTermsMeta",
 };
 
-export const MACR_GRID_TABS = [
+export const MACNG_GRID_TABS = [
   { id: "items", label: "Contract Item Detail" },
   { id: "terms", label: "Terms & Condition Detail" },
 ];
 
 const ITEM_PICKER_REQUIRED = [
   { keys: ["divisionid", "DivisionID"], label: "Division" },
-  { keys: ["supplierid", "SupplierID"], label: "Supplier" },
 ];
 
 const TERMS_PICKER_REQUIRED = [
@@ -100,20 +98,19 @@ export function getMissingTermsPickerHeaderFields(headerValues) {
   );
 }
 
-/** fn_tbl_rb_mntamcrnwselonly — note MRD typo prmdivisonid. */
-export function buildMacrItemPickerJsonPayload(headerValues, { companyId, loginId, yearId } = {}) {
+/** fn_tbl_rb_mntamcnewselonly — MRD typo prmdivisonid; no supplier param. */
+export function buildMacngItemPickerJsonPayload(headerValues, { companyId, loginId, yearId } = {}) {
   const session = getUserSession();
   return {
     prmdivisonid: pickHeaderInt(headerValues, "divisionid", "DivisionID"),
-    prmsupplierid: pickHeaderInt(headerValues, "supplierid", "SupplierID"),
     prmcompanyid: Number(companyId) || session.companyId,
     prmloginid: Number(loginId) || session.loginId,
     prmyearid: Number(yearId) || session.yearId,
   };
 }
 
-/** fn_tbl_rb_mntamcrnwtncsel */
-export function buildMacrTermsPickerJsonPayload(headerValues, loginId) {
+/** fn_tbl_rb_mntamcnewtncsel */
+export function buildMacngTermsPickerJsonPayload(headerValues, loginId) {
   const session = getUserSession();
   return {
     prmdivisionid: pickHeaderInt(headerValues, "divisionid", "DivisionID"),
@@ -131,14 +128,14 @@ export function buildMacrTermsPickerJsonPayload(headerValues, loginId) {
   };
 }
 
-export function applyMacrHardcodedHeaderValues(headerValues = {}) {
+export function applyMacngHardcodedHeaderValues(headerValues = {}) {
   return {
     ...headerValues,
-    funccode: MACR_CONFIG.RB_MASTER,
+    funccode: MACNG_CONFIG.RB_MASTER,
   };
 }
 
-export function resolveMacrColKey(fieldDefs, ...hints) {
+export function resolveMacngColKey(fieldDefs, ...hints) {
   const lowerHints = hints.map((h) => String(h).toLowerCase());
   const found = (fieldDefs || []).find((col) => {
     const name = String(col.colname ?? col.ColName ?? "").toLowerCase();
@@ -147,17 +144,17 @@ export function resolveMacrColKey(fieldDefs, ...hints) {
   return found?.colname ?? found?.ColName ?? hints[0] ?? "";
 }
 
-export function buildMacrCascadeResets(fieldDefs) {
-  const division = resolveMacrColKey(fieldDefs, "divisionid");
-  const config = resolveMacrColKey(fieldDefs, "configtypeid", "configid");
-  const supplier = resolveMacrColKey(fieldDefs, "supplierid");
+export function buildMacngCascadeResets(fieldDefs) {
+  const division = resolveMacngColKey(fieldDefs, "divisionid");
+  const config = resolveMacngColKey(fieldDefs, "configtypeid", "configid");
+  const supplier = resolveMacngColKey(fieldDefs, "supplierid");
   const resets = {};
   if (division) resets[division] = [config, supplier].filter(Boolean);
   return resets;
 }
 
 /** Contract To Date cannot be earlier than today (MRD §3). */
-export function validateMacrBusinessRules(headerValues = {}) {
+export function validateMacngBusinessRules(headerValues = {}) {
   const errors = [];
   const toDateRaw = pickHeaderValue(headerValues, ["contracttodate", "ContractToDate"]);
   if (toDateRaw) {
@@ -171,13 +168,13 @@ export function validateMacrBusinessRules(headerValues = {}) {
   return errors;
 }
 
-export function buildMacrListJsonPayload({
+export function buildMacngListJsonPayload({
   companyId,
   loginId,
   yearId,
   fromDate,
   toDate,
-  divisionId = MACR_CONFIG.LIST_DIVISION_ID,
+  divisionId = MACNG_CONFIG.LIST_DIVISION_ID,
 } = {}) {
   const session = getUserSession();
   const year = new Date().getFullYear();

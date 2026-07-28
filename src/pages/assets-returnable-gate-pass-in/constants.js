@@ -32,7 +32,7 @@ export const ARGI_CONFIG = {
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
-  SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
+  SP_TO_LOCATION: "fn_gen_fetchastisstolocationmaster",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
   SP_FROM_VENDOR: "fn_gen_fetchfromvendor",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",

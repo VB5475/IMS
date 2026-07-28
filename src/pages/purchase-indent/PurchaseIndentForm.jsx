@@ -124,6 +124,7 @@ export default function PurchaseIndentForm() {
     locationOptions,
     fetchIndentTypes,
     clearIndentTypes,
+    fetchLocations,
     isLoadingIndentTypes,
     columns,
     allColumns,
@@ -371,10 +372,14 @@ export default function PurchaseIndentForm() {
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
+        headerValuesRef.current.locationid = 0;
         clearIndentTypes();
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
-          await fetchIndentTypes(val);
+          await Promise.all([
+            fetchIndentTypes(val),
+            fetchLocations(val),
+          ]);
           focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return;
@@ -384,7 +389,7 @@ export default function PurchaseIndentForm() {
         itemGridRef.current?.clearRows?.();
       }
     },
-    [fetchIndentTypes, clearIndentTypes]
+    [fetchIndentTypes, clearIndentTypes, fetchLocations]
   );
 
   const ensureItemColumns = useCallback(async () => {

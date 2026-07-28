@@ -21,11 +21,12 @@ export const C2F_CONFIG = {
   // Form identifiers
   FORM_TAG:   "C2F",
   TRAN_BOOK:  "C2F",
+  FRM_TYPE:   "C2F",
 
   // SP names
   SP_RB_META:      "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS:    "fn_tbl_fetchuserwsdivision",
-  SP_LOCATION:     "fn_gen_fetchlocationmaster",
+  SP_LOCATION:     "fn_gen_fetchastisslocationmaster",
   SP_CWIP_ACC:     "fn_tbl_fetch_assetsaccount",
   SP_COST_CENTER:  "fn_tbl_fas_fetchcostcenterac",
   SP_ITEM_PICKER:  "fn_tbl_rb_astcwip2fadetsel",

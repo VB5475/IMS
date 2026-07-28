@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Plus, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Plus, Trash2, Package, ClipboardList, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -8,13 +8,12 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import { useAstCliAllo } from "../../hooks/useAstCliAllo";
+import { useMntNewContractGeneration } from "../../hooks/useMntNewContractGeneration";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
-  DEFAULT_LOGIN_ID,
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
@@ -31,41 +30,42 @@ import {
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
-import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  ACA_CONFIG,
-  ACA_MULTI_PASTE_COLUMNS,
-  ACA_REMARK_COLUMNS,
-  ACA_GRID_TABS,
-  ACA_FRM_TYPE_OPTIONS,
+  MACNG_CONFIG,
+  MACNG_GRID_TABS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
-  buildAcaItemPickerJsonPayload,
-  applyAcaHardcodedHeaderValues,
-  buildAcaCascadeResets,
-  validateAcaBusinessRules,
+  getMissingTermsPickerHeaderFields,
+  buildMacngItemPickerJsonPayload,
+  buildMacngTermsPickerJsonPayload,
+  applyMacngHardcodedHeaderValues,
+  buildMacngCascadeResets,
+  validateMacngBusinessRules,
 } from "./constants";
-import "./AssetsClientAllocationPage.css";
+import "./MaintenanceNewContractPage.css";
 
-let _acaTempId = -1;
-const nextTempId = () => _acaTempId--;
+let _macngTempId = -1;
+const nextTempId = () => _macngTempId--;
+
+const QTY_RATE_EVENT_COLUMNS = new Set(["qty", "rate", "Qty", "Rate"]);
 
 function resolveEditLoadParams(recordId, listRecord) {
   const session = getUserSession();
   return {
     companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
-    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? ACA_CONFIG.CONFIG_YEAR_ID,
+    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? MACNG_CONFIG.CONFIG_YEAR_ID,
     loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
     sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
     idNumber:
-      listRecord?.astcliallomstid
-      ?? listRecord?.AstCliAlloMstID
+      listRecord?.mntamcnewmstid
+      ?? listRecord?.MntAmcNewMstID
       ?? listRecord?.idnumber
       ?? listRecord?.IDNumber
       ?? recordId,
@@ -76,17 +76,23 @@ function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   const str = (v) => (v == null || v === "" ? "" : String(v));
   return {
-    trancode: str(headerValues.trancode),
-    trandate: headerValues.trandate ?? "",
+    contractno: headerValues.contractno ?? "",
+    contractdate: headerValues.contractdate ?? "",
     issuedate: headerValues.issuedate ?? "",
-    fromdivisionid: str(headerValues.fromdivisionid),
-    tolocationid: str(headerValues.tolocationid),
-    todeptid: str(headerValues.todeptid),
-    toworkingclientid: str(headerValues.toworkingclientid),
+    divisionid: str(headerValues.divisionid),
+    configtypeid: str(headerValues.configtypeid ?? headerValues.configid),
+    configid: str(headerValues.configid ?? headerValues.configtypeid),
+    contractfromdate: headerValues.contractfromdate ?? "",
+    contracttodate: headerValues.contracttodate ?? "",
+    supplierid: str(headerValues.supplierid),
+    contracttypeid: str(headerValues.contracttypeid),
+    frequencyid: str(headerValues.frequencyid),
     remarks: headerValues.remarks ?? "",
-    configid: str(headerValues.configid),
-    frmtype: str(headerValues.frmtype ?? ACA_CONFIG.FRM_TYPE),
-    issuetypeid: str(headerValues.issuetypeid ?? ACA_CONFIG.ISSUE_TYPE_ID),
+    companyid: str(headerValues.companyid),
+    yearid: str(headerValues.yearid),
+    loginid: str(headerValues.loginid),
+    idnumber: str(headerValues.idnumber),
+    funccode: headerValues.funccode ?? MACNG_CONFIG.RB_MASTER,
   };
 }
 
@@ -99,9 +105,9 @@ function queryEditableFilterFields(panel) {
   ].filter((el) => el.offsetParent !== null);
 }
 
-function buildGridRow(source, allColumns) {
+function buildGridRow(source, allGridColumns) {
   const row = { id: nextTempId() };
-  allColumns.forEach(({ key, colDataType }) => {
+  allGridColumns.forEach(({ key, colDataType }) => {
     row[key] = getColDefault(colDataType);
   });
   Object.entries(source || {}).forEach(([k, v]) => {
@@ -111,7 +117,12 @@ function buildGridRow(source, allColumns) {
   return row;
 }
 
-export default function AssetsClientAllocationForm() {
+function stripRowId(row) {
+  const { id, ...rest } = row || {};
+  return rest;
+}
+
+export default function MaintenanceNewContractForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
@@ -122,22 +133,25 @@ export default function AssetsClientAllocationForm() {
   const [formErrors, setFormErrors] = useState([]);
 
   const itemGridRef = useRef(null);
+  const termsGridRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
+  const termsColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const queuedTermsRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    fromDivisionOptions, toLocationOptions, toDepartmentOptions, toClientOptions, configOptions,
-    fetchToLocations, fetchToDepartments, fetchToWorkingClients, fetchConfigOptions,
-    columns, allColumns, eventColumns, isFetching, metaError,
-    fetchDetailMeta, fetchGridColumns,
+    divisionOptions, configOptions, supplierOptions, contractTypeOptions, frequencyOptions,
+    fetchConfigOptions, fetchSuppliers,
+    columns, allColumns, termsColumns, allTermsColumns, isFetching, metaError,
+    fetchDetailMeta, fetchGridColumns, fetchTermsGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useAstCliAllo(API_BASE_URL);
+  } = useMntNewContractGeneration(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -150,42 +164,44 @@ export default function AssetsClientAllocationForm() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
-  const headerValuesRef = useRef(applyAcaHardcodedHeaderValues({
-    trancode: "",
-    trandate: todayISO,
+  const headerValuesRef = useRef(applyMacngHardcodedHeaderValues({
+    contractno: "",
+    contractdate: todayISO,
     issuedate: todayISO,
-    fromdivisionid: 0,
-    tolocationid: 0,
-    todeptid: 0,
-    toworkingclientid: 0,
-    remarks: "",
+    divisionid: 0,
+    configtypeid: 0,
     configid: 0,
-    frmtype: ACA_CONFIG.FRM_TYPE,
-    issuetypeid: ACA_CONFIG.ISSUE_TYPE_ID,
-    tranmstgenid: 0,
+    contractfromdate: todayISO,
+    contracttodate: todayISO,
+    supplierid: 0,
+    contracttypeid: 0,
+    frequencyid: 0,
+    remarks: "",
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: recordId,
-    funccode: ACA_CONFIG.RB_MASTER,
+    funccode: MACNG_CONFIG.RB_MASTER,
   }));
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: todayISO,
+      contractdate: todayISO,
       issuedate: todayISO,
-      frmtype: String(ACA_CONFIG.FRM_TYPE),
-      issuetypeid: String(ACA_CONFIG.ISSUE_TYPE_ID),
+      contractfromdate: todayISO,
+      contracttodate: todayISO,
     };
   }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
+  const [termsSelectionCount, setTermsSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [pickerMode, setPickerMode] = useState("items");
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [itemModalItems, setItemModalItems] = useState([]);
   const [itemModalColumns, setItemModalColumns] = useState([]);
@@ -194,7 +210,9 @@ export default function AssetsClientAllocationForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const cascadeResets = useMemo(() => buildAcaCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildMacngCascadeResets(headerColumns), [headerColumns]);
+
+  const activeSelectionCount = activeTab === "terms" ? termsSelectionCount : itemSelectionCount;
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -223,14 +241,14 @@ export default function AssetsClientAllocationForm() {
   usePageHeader({
     title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
-      ? "Fill in the header fields, then add items via the grid."
+      ? "Fill in the header fields, then add contract items and terms via the grids."
       : recordLoading
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `Client Allocation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Maintenance Contract (New) #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: ACA_CONFIG.ROUTE_PATH,
+    backTo: MACNG_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {
@@ -240,10 +258,17 @@ export default function AssetsClientAllocationForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
+
+  useEffect(() => {
+    if (allTermsColumns.length === 0 || termsColumnsLoadedRef.current || isEditRoute) return;
+    fetchTermsGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
+      if (cols?.length > 0) termsColumnsLoadedRef.current = true;
+    });
+  }, [allTermsColumns, fetchTermsGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
@@ -253,15 +278,23 @@ export default function AssetsClientAllocationForm() {
     }
   }, [columns]);
 
+  useEffect(() => {
+    if (termsColumns.length > 0 && termsGridRef.current && queuedTermsRowsRef.current.length > 0) {
+      if (termsGridRef.current.loadRows) termsGridRef.current.loadRows(queuedTermsRowsRef.current);
+      else queuedTermsRowsRef.current.forEach((r) => termsGridRef.current.addRow(r));
+      queuedTermsRowsRef.current = [];
+    }
+  }, [termsColumns]);
+
   const loadEditRecord = useCallback(async () => {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
       const params = resolveEditLoadParams(recordId, listRecord);
-      const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Client Allocation record not found.");
+      const { master, headerValues, details, termsDetails } = await fetchEditRecord(params);
+      if (!master || !headerValues) throw new Error("Maintenance Contract (New) record not found.");
 
-      headerValuesRef.current = applyAcaHardcodedHeaderValues({
+      headerValuesRef.current = applyMacngHardcodedHeaderValues({
         ...headerValuesRef.current,
         ...headerValues,
       });
@@ -272,20 +305,27 @@ export default function AssetsClientAllocationForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-      const divId = headerValues.fromdivisionid ?? 0;
+      const divId = headerValues.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
       if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
       else queuedRowsRef.current = syncedDetails;
+
+      const activeTermsCols = await fetchTermsGridColumns(divId, editRecordGridColumnOpts(master));
+      if (activeTermsCols?.length > 0) termsColumnsLoadedRef.current = true;
+
+      const syncedTerms = syncEditGridDropdownValues(termsDetails, activeTermsCols || []);
+      if (termsGridRef.current?.loadRows) termsGridRef.current.loadRows(syncedTerms);
+      else queuedTermsRowsRef.current = syncedTerms;
     } catch (err) {
-      console.error("[ACA] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Client Allocation record.");
+      console.error("[MACNG] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Maintenance Contract (New) record.");
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, fetchTermsGridColumns]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -295,34 +335,37 @@ export default function AssetsClientAllocationForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     fetchUnlockedHeaderDropdowns(headerValuesRef.current);
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? loadedMasterRow?.fromdivisionid ?? 0, {
+    const divId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
+    fetchGridColumns(divId, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
     });
-  }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns]);
+    fetchTermsGridColumns(divId, {
+      existingRecordEdit: true,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+  }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns, fetchTermsGridColumns]);
 
   const addItemRow = useCallback((row) => {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── Multi-value paste — Sr. No replication ──────────────────────
-  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
-    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
-    values.slice(1).forEach((val) => {
-      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
-    });
-  }, [addItemRow]);
+  const addTermsRow = useCallback((row) => {
+    if (termsGridRef.current) termsGridRef.current.addRow(row);
+    else queuedTermsRowsRef.current.push(row);
+  }, []);
 
   const dropdownSources = useMemo(() => ({
-    fromdivisionid: fromDivisionOptions,
-    tolocationid: toLocationOptions,
-    todeptid: toDepartmentOptions,
-    toworkingclientid: toClientOptions,
+    divisionid: divisionOptions,
+    configtypeid: configOptions,
     configid: configOptions,
-    frmtype: ACA_FRM_TYPE_OPTIONS,
-  }), [fromDivisionOptions, toLocationOptions, toDepartmentOptions, toClientOptions, configOptions]);
+    supplierid: supplierOptions,
+    contracttypeid: contractTypeOptions,
+    frequencyid: frequencyOptions,
+  }), [divisionOptions, configOptions, supplierOptions, contractTypeOptions, frequencyOptions]);
 
   const dropdownOptionsByCol = useMemo(() => {
     const map = { ...dropdownSources };
@@ -369,9 +412,10 @@ export default function AssetsClientAllocationForm() {
   const [clearRowsLabel, setClearRowsLabel] = useState("");
   const pendingClearActionRef = useRef(null);
 
-  const requestGridClear = useCallback((fieldLabel, action) => {
-    const rows = itemGridRef.current?.getRows?.() ?? [];
-    if (rows.length === 0) {
+  const requestGridClear = useCallback((fieldLabel, action, { includeTerms = false } = {}) => {
+    const itemRows = itemGridRef.current?.getRows?.() ?? [];
+    const termsRows = includeTerms ? (termsGridRef.current?.getRows?.() ?? []) : [];
+    if (itemRows.length === 0 && termsRows.length === 0) {
       action();
       return;
     }
@@ -381,47 +425,50 @@ export default function AssetsClientAllocationForm() {
   }, []);
 
   const handleFilterChange = useCallback(async (colName, val) => {
-    headerValuesRef.current = applyAcaHardcodedHeaderValues({
+    headerValuesRef.current = applyMacngHardcodedHeaderValues({
       ...headerValuesRef.current,
       [colName]: val,
     });
     const hv = headerValuesRef.current;
     const col = String(colName).toLowerCase();
 
-    if (col === "fromdivisionid") {
-      requestGridClear("Division", async () => {
-        hv.tolocationid = 0;
-        hv.todeptid = 0;
-        hv.toworkingclientid = 0;
-        hv.configid = 0;
-        itemGridRef.current?.clearRows?.();
-        if (Number(val) > 0) {
-          const fetches = [];
-          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations(val));
-          if (hasVisibleCol(headerColumns, "todeptid")) fetches.push(fetchToDepartments());
-          if (hasVisibleCol(headerColumns, "toworkingclientid")) fetches.push(fetchToWorkingClients(val));
-          if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
-          if (fetches.length) await Promise.all(fetches);
-          if (hasVisibleCol(headerColumns, "tolocationid")) {
-            focusFieldAfterCascade(filterPanelRef, "tolocationid");
-          }
-        }
-      });
-      return;
+    if (col === "configid" || col === "configtypeid") {
+      hv.configtypeid = val;
+      hv.configid = val;
     }
 
-    if (col === "toworkingclientid") {
-      requestGridClear("Client", async () => {
+    if (col === "divisionid") {
+      requestGridClear("Division", async () => {
+        hv.configtypeid = 0;
+        hv.configid = 0;
+        hv.supplierid = 0;
         itemGridRef.current?.clearRows?.();
-      });
+        setItemSelectionCount(0);
+        if (Number(val) > 0) {
+          const fetches = [];
+          if (hasVisibleCol(headerColumns, "configtypeid") || hasVisibleCol(headerColumns, "configid")) {
+            fetches.push(fetchConfigOptions(val));
+          }
+          if (hasVisibleCol(headerColumns, "supplierid")) {
+            fetches.push(fetchSuppliers(val));
+          }
+          if (fetches.length) await Promise.all(fetches);
+          if (hasVisibleCol(headerColumns, "configtypeid")) {
+            focusFieldAfterCascade(filterPanelRef, "configtypeid");
+          } else if (hasVisibleCol(headerColumns, "configid")) {
+            focusFieldAfterCascade(filterPanelRef, "configid");
+          } else if (hasVisibleCol(headerColumns, "supplierid")) {
+            focusFieldAfterCascade(filterPanelRef, "supplierid");
+          }
+        }
+      }, { includeTerms: false });
+      return;
     }
   }, [
     requestGridClear,
     headerColumns,
-    fetchToLocations,
-    fetchToDepartments,
-    fetchToWorkingClients,
     fetchConfigOptions,
+    fetchSuppliers,
   ]);
 
   const ensureItemColumns = useCallback(async () => {
@@ -429,7 +476,7 @@ export default function AssetsClientAllocationForm() {
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const divId = headerValuesRef.current?.fromdivisionid ?? 0;
+      const divId = headerValuesRef.current?.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
@@ -438,23 +485,39 @@ export default function AssetsClientAllocationForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    const key = String(colKey).toLowerCase();
-    if (key === "qty" || key === "rate") {
-      const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-      const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-      const amount = qty * rate;
-      const patch = { amount };
-      if ("Amount" in rowData) patch.Amount = amount;
-      itemGridRef.current?.updateRow?.(rowId, patch);
+  const ensureTermsColumns = useCallback(async () => {
+    if (termsColumnsLoadedRef.current && termsColumns.length > 0) return termsColumns;
+    if (allTermsColumns.length === 0) return [];
+    setIsGridLoading(true);
+    try {
+      const divId = headerValuesRef.current?.divisionid ?? 0;
+      const activeCols = await fetchTermsGridColumns(divId);
+      if (activeCols?.length > 0) termsColumnsLoadedRef.current = true;
+      return activeCols;
+    } finally {
+      setIsGridLoading(false);
     }
-  }, []);
+  }, [termsColumns, allTermsColumns, fetchTermsGridColumns]);
 
   const handleAddNewItem = useCallback(async () => {
+    if (activeTab === "terms") {
+      const activeCols = await ensureTermsColumns();
+      if (!activeCols?.length) return;
+      addTermsRow(buildGridRow({}, allTermsColumns));
+      return;
+    }
     const activeCols = await ensureItemColumns();
     if (!activeCols?.length) return;
     addItemRow(buildGridRow({}, allColumns));
-  }, [ensureItemColumns, addItemRow, allColumns]);
+  }, [activeTab, ensureItemColumns, ensureTermsColumns, addItemRow, addTermsRow, allColumns, allTermsColumns]);
+
+  const openPickerModal = useCallback(() => {
+    setItemModalOpen(true);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalError(null);
+    setItemModalLoading(true);
+  }, []);
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -464,17 +527,14 @@ export default function AssetsClientAllocationForm() {
       return;
     }
 
-    setItemModalOpen(true);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalError(null);
-    setItemModalLoading(true);
+    setPickerMode("items");
+    openPickerModal();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ACA_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: ACA_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: MACNG_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: MACNG_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -493,45 +553,126 @@ export default function AssetsClientAllocationForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ACA_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAcaItemPickerJsonPayload(headerValues)]),
+        ObjName: MACNG_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildMacngItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[ACA] Item picker fetch failed:", err);
+      console.error("[MACNG] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, openPickerModal]);
 
-  const handleInsertItems = useCallback(async (selectedItems) => {
+  const handleSelectTerms = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingTermsPickerHeaderFields(headerValues);
+    if (missingFields.length > 0) {
+      setFormErrors(missingFields.map((label) => `${label} is required before selecting terms.`));
+      return;
+    }
+
+    setPickerMode("terms");
+    openPickerModal();
+
+    try {
+      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: MACNG_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: MACNG_CONFIG.RB_TERMS_PICKER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const rbRow = rbRes?.[0];
+      if (!rbRow) throw new Error("Could not load terms & conditions picker configuration.");
+
+      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: rbRow.rbid,
+        prmLoginID: getUserSession().loginId,
+      });
+      const gridColumns = buildGridColumns(colRes || [], {}, {
+        filterable: false,
+        allEditable: false,
+      });
+      setItemModalColumns(gridColumns);
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: MACNG_CONFIG.SP_TERMS_PICKER,
+        JSon: JSON.stringify([
+          buildMacngTermsPickerJsonPayload(headerValues, getUserSession().loginId),
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setItemModalItems(rowRes || []);
+    } catch (err) {
+      console.error("[MACNG] Terms picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch terms & conditions.");
+    } finally {
+      setItemModalLoading(false);
+    }
+  }, [getLive, openPickerModal]);
+
+  const handleInsertPickerRows = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
+
+    if (pickerMode === "terms") {
+      setActiveTab("terms");
+      const activeCols = await ensureTermsColumns();
+      if (!activeCols?.length) return;
+      selectedItems.forEach((item) => addTermsRow(buildGridRow(item, allTermsColumns)));
+      return;
+    }
+
     setActiveTab("items");
     const activeCols = await ensureItemColumns();
     if (!activeCols?.length) return;
     selectedItems.forEach((item) => addItemRow(buildGridRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+  }, [
+    pickerMode,
+    ensureItemColumns,
+    ensureTermsColumns,
+    allColumns,
+    allTermsColumns,
+    addItemRow,
+    addTermsRow,
+  ]);
 
   const handleSelectListShortcut = useCallback(() => {
-    if (activeTab === "items") handleSelectItem();
-  }, [activeTab, handleSelectItem]);
+    if (activeTab === "terms") handleSelectTerms();
+    else handleSelectItem();
+  }, [activeTab, handleSelectItem, handleSelectTerms]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (!itemGridRef.current) return;
-    const selected = itemGridRef.current.getSelectedRows?.() ?? [];
+    const gridRef = activeTab === "terms" ? termsGridRef : itemGridRef;
+    if (!gridRef.current) return;
+    const selected = gridRef.current.getSelectedRows?.() ?? [];
     if (selected.length === 0) return;
-    itemGridRef.current.removeRows?.(selected.map((r) => r.id));
+    gridRef.current.removeRows?.(selected.map((r) => r.id));
+  }, [activeTab]);
+
+  const handleCellEvent = useCallback(({ rowId, colKey, rowData, gridRef }) => {
+    const key = String(colKey).toLowerCase();
+    if (key !== "qty" && key !== "rate") return;
+    const qty = Number(rowData?.qty ?? rowData?.Qty) || 0;
+    const rate = Number(rowData?.rate ?? rowData?.Rate) || 0;
+    const amount = qty * rate;
+    const patch = { amount };
+    if ("Amount" in (rowData || {})) patch.Amount = amount;
+    gridRef?.current?.updateRow?.(rowId, patch);
   }, []);
 
   const handleSave = useCallback(async () => {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const businessErrors = validateAcaBusinessRules(headerValuesRef.current);
+    const businessErrors = validateMacngBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
-    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
+    const termsErrors = validateGridRows(termsGridRef.current?.getRows?.() ?? [], termsColumns);
+    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors, ...termsErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -541,29 +682,39 @@ export default function AssetsClientAllocationForm() {
     headerColumns.forEach((col) => {
       mstRow[col.colname] = getColDefault(col.coldatatype);
     });
-    const hv = applyAcaHardcodedHeaderValues(headerValuesRef.current);
+    const hv = applyMacngHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
     Object.entries(hv).forEach(([k, v]) => {
       if (k !== "id") mstRow[k] = v;
     });
-    mstRow.frmtype = ACA_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = ACA_CONFIG.ISSUE_TYPE_ID;
     mstRow.loginid = getUserSession().loginId;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: getUserSession().loginId };
+    const itemRowsWithoutId = (itemGridRef.current?.getRows?.() ?? []).map((row) => {
+      const rest = stripRowId(row);
+      const seeded = {};
+      allColumns.forEach(({ key, colDataType }) => { seeded[key] = getColDefault(colDataType); });
+      return { ...seeded, ...rest, loginid: getUserSession().loginId };
+    });
+
+    const termsRowsWithoutId = (termsGridRef.current?.getRows?.() ?? []).map((row) => {
+      const rest = stripRowId(row);
+      const seeded = {};
+      allTermsColumns.forEach(({ key, colDataType }) => { seeded[key] = getColDefault(colDataType); });
+      return { ...seeded, ...rest, loginid: getUserSession().loginId };
     });
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: ACA_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
+      {
+        prmStrMstJSON: JSON.stringify([mstRow]),
+        prmStrContractItemDetail: JSON.stringify(itemRowsWithoutId),
+        prmTermsNConditionDetail: JSON.stringify(termsRowsWithoutId),
+      },
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const result = await postSave(ACA_CONFIG.SAVE_ENDPOINT, payload);
+      const result = await postSave(MACNG_CONFIG.SAVE_ENDPOINT, payload);
       const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
@@ -572,13 +723,22 @@ export default function AssetsClientAllocationForm() {
       notify.success(message);
       return true;
     } catch (err) {
-      console.error("[ACA Save] Failed:", err);
+      console.error("[MACNG Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave]);
+  }, [
+    headerColumns,
+    columns,
+    termsColumns,
+    allColumns,
+    allTermsColumns,
+    isEditRoute,
+    notify,
+    postSave,
+  ]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
@@ -590,39 +750,45 @@ export default function AssetsClientAllocationForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(ACA_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(ACA_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyAcaHardcodedHeaderValues({
-      trancode: "",
-      trandate: todayISO,
+    localStorage.removeItem(MACNG_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(MACNG_CONFIG.STORAGE_ENTRY_META);
+    localStorage.removeItem(MACNG_CONFIG.STORAGE_TERMS_META);
+    headerValuesRef.current = applyMacngHardcodedHeaderValues({
+      contractno: "",
+      contractdate: todayISO,
       issuedate: todayISO,
-      fromdivisionid: 0,
-      tolocationid: 0,
-      todeptid: 0,
-      toworkingclientid: 0,
-      remarks: "",
+      divisionid: 0,
+      configtypeid: 0,
       configid: 0,
-      frmtype: ACA_CONFIG.FRM_TYPE,
-      issuetypeid: ACA_CONFIG.ISSUE_TYPE_ID,
-      funccode: ACA_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
+      contractfromdate: todayISO,
+      contracttodate: todayISO,
+      supplierid: 0,
+      contracttypeid: 0,
+      frequencyid: 0,
+      remarks: "",
+      funccode: MACNG_CONFIG.RB_MASTER,
       companyid: getUserSession().companyId,
       yearid: getUserSession().yearId,
       loginid: getUserSession().loginId,
       idnumber: 0,
     });
     queuedRowsRef.current = [];
+    queuedTermsRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
+    termsColumnsLoadedRef.current = false;
     clearSaveError();
     setActiveTab("items");
     setIsGridLoading(false);
     setItemSelectionCount(0);
+    setTermsSelectionCount(0);
     setItemModalOpen(false);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalLoading(false);
     setItemModalError(null);
+    setPickerMode("items");
     itemGridRef.current?.clearRows?.();
+    termsGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
   }, [clearSaveError, exitEditMode, todayISO]);
@@ -670,10 +836,14 @@ export default function AssetsClientAllocationForm() {
   ], [handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
+  const termsGridConfig = {
+    columns: termsColumns,
+    pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
+  };
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page workspace-page--fill aca-page">
+    <div className="workspace-page workspace-page--fill macng-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -684,7 +854,7 @@ export default function AssetsClientAllocationForm() {
       <ConfirmDialog
         isOpen={clearRowsOpen}
         type="warning"
-        message={`Changing ${clearRowsLabel} will clear all item rows. Proceed?`}
+        message={`Changing ${clearRowsLabel} will clear related grid rows. Proceed?`}
         confirmLabel="Continue"
         cancelLabel="Cancel"
         onConfirm={handleClearRowsConfirm}
@@ -702,7 +872,7 @@ export default function AssetsClientAllocationForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Client Allocation Detail"
+            title="Maintenance Contract (New) Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -716,10 +886,10 @@ export default function AssetsClientAllocationForm() {
         )}
       </section>
 
-      <section className="aca-grid-section">
+      <section className="macng-grid-section">
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
-            {ACA_GRID_TABS.map((t) => (
+            {MACNG_GRID_TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -737,29 +907,42 @@ export default function AssetsClientAllocationForm() {
               className="eg-tab-btn"
               onClick={handleAddNewItem}
               disabled={!isEditMode}
-              title="Add a blank item row"
+              title={activeTab === "terms" ? "Add a blank terms row" : "Add a blank contract item row"}
             >
               <Plus size={12} strokeWidth={2.5} />
               Add New
             </button>
 
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick assets for client allocation"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
+            {activeTab === "items" ? (
+              <button
+                ref={selectItemBtnRef}
+                type="button"
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick items for contract renewal"
+              >
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="eg-tab-btn"
+                onClick={handleSelectTerms}
+                disabled={!isEditMode}
+                title="Pick terms & conditions"
+              >
+                <ClipboardList size={12} strokeWidth={2.5} />
+                Select Item
+              </button>
+            )}
 
             <button
               type="button"
               className="eg-tab-btn eg-tab-btn--danger"
               onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
+              disabled={!isEditMode || activeSelectionCount === 0}
               title="Delete selected rows"
             >
               <Trash2 size={12} strokeWidth={2} />
@@ -768,7 +951,7 @@ export default function AssetsClientAllocationForm() {
           </div>
         </div>
 
-        <div className={`aca-tab-pane${activeTab === "items" ? " aca-tab-pane--active" : ""}`}>
+        <div className={`macng-tab-pane${activeTab === "items" ? " macng-tab-pane--active" : ""}`}>
           <EntryGrid
             ref={itemGridRef}
             config={itemGridConfig}
@@ -776,14 +959,27 @@ export default function AssetsClientAllocationForm() {
             hideBottomPanel
             emptyMessage="No items yet. Click Add New or Select Item above."
             onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
+            onCellEvent={(evt) => handleCellEvent({ ...evt, gridRef: itemGridRef })}
+            eventColumns={QTY_RATE_EVENT_COLUMNS}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
-            multiValuePasteColumns={ACA_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={ACA_REMARK_COLUMNS}
+          />
+        </div>
+
+        <div className={`macng-tab-pane${activeTab === "terms" ? " macng-tab-pane--active" : ""}`}>
+          <EntryGrid
+            ref={termsGridRef}
+            config={termsGridConfig}
+            title=""
+            hideBottomPanel
+            emptyMessage="No terms & conditions yet. Click Add New or Select Item above."
+            onSelectionChange={setTermsSelectionCount}
+            onCellEvent={(evt) => handleCellEvent({ ...evt, gridRef: termsGridRef })}
+            eventColumns={QTY_RATE_EVENT_COLUMNS}
+            readOnly={isEditRoute && !isEditMode}
+            existingRecordEdit={isEditRoute && isEditMode}
+            loading={isGridLoading || isFetching}
           />
         </div>
       </section>
@@ -807,7 +1003,7 @@ export default function AssetsClientAllocationForm() {
           columns={itemModalColumns}
           isLoading={itemModalLoading}
           error={itemModalError}
-          onInsert={handleInsertItems}
+          onInsert={handleInsertPickerRows}
         />
       </Suspense>
     </div>

@@ -384,7 +384,7 @@ export default function ComplaintRegisterForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
-          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchLocations());
+          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchLocations(val));
           if (hasVisibleCol(headerColumns, "fromdeptid")) fetches.push(fetchDepartments());
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);

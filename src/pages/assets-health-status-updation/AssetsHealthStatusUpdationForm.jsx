@@ -395,7 +395,7 @@ export default function AssetsHealthStatusUpdationForm() {
         if (Number(val) > 0) {
           const fetches = [];
           if (hasVisibleCol(headerColumns, "tolocationid")) {
-            fetches.push(fetchToLocations());
+            fetches.push(fetchToLocations(val));
           }
           if (hasVisibleCol(headerColumns, "configid")) {
             fetches.push(fetchConfigOptions(val));

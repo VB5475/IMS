@@ -384,7 +384,7 @@ export default function AssetsStockTransferForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
-          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchFromLocations());
+          if (hasVisibleCol(headerColumns, "fromlocationid")) fetches.push(fetchFromLocations(val));
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (fetches.length) await Promise.all(fetches);
           if (hasVisibleCol(headerColumns, "fromlocationid")) {
@@ -401,7 +401,7 @@ export default function AssetsStockTransferForm() {
         hv.tolocationid = 0;
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0 && hasVisibleCol(headerColumns, "tolocationid")) {
-          await fetchToLocations();
+          await fetchToLocations(val);
           focusFieldAfterCascade(filterPanelRef, "tolocationid");
         }
       });

@@ -22,10 +22,11 @@ export const AWF_CONFIG = {
 
   FORM_TAG: "rb_astwriteoffmst",
   TRAN_BOOK: "ASTWOF",
+  FRM_TYPE: "WRT",
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_LOCATION: "Fn_Gen_FetchLocationMaster",
+  SP_LOCATION: "fn_gen_fetchastissfromlocationmaster",
   SP_ASSETS_ACC: "Fn_tbl_Fetch_AssetsAccount",
   SP_ITEM_PICKER: "fn_tbl_rb_astwritoffselonly",
 

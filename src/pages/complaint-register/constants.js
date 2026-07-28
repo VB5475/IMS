@@ -25,7 +25,7 @@ export const MCR_CONFIG = {
 
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_DIVISION: "fn_tbl_fetchuserwsdivision",
-  SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
+  SP_FROM_LOCATION: "fn_gen_fetchastissfromlocationmaster",
   SP_DEPARTMENT: "fn_gen_fetchdepartmentmaster",
   SP_CONFIG: "fn_tbl_ddl_maintenanceconfiguration",
   SP_ITEM_PICKER: "fn_tbl_rb_mntcpnselonly",

@@ -128,10 +128,12 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
   );
 
   const locationFetchJson = useCallback(
-    () => JSON.stringify([{
+    (divisionId = 0) => JSON.stringify([{
       prmcompanyid: DEFAULT_COMPANY_ID,
+      prmdivisionid: Number(divisionId) || 0,
       prmloginid: DEFAULT_LOGIN_ID,
       prmlocationtype: "",
+      prmfrmtype: String(MCR_CONFIG.FRM_TYPE),
     }]),
     []
   );
@@ -163,12 +165,12 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     }
   }, [get, divisionFetchJson]);
 
-  const fetchLocations = useCallback(async () => {
+  const fetchLocations = useCallback(async (divisionId = 0) => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: MCR_CONFIG.SP_FROM_LOCATION,
-        JSon: locationFetchJson(),
+        JSon: locationFetchJson(divisionId),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -378,7 +380,7 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     const divId = headerValues.divisionid ?? 0;
     const tasks = [];
     if (needsCol("divisionid")) tasks.push(fetchDivisions());
-    if (needsCol("fromlocationid")) tasks.push(fetchLocations());
+    if (needsCol("fromlocationid")) tasks.push(fetchLocations(divId));
     if (needsCol("fromdeptid")) tasks.push(fetchDepartments());
     if (needsCol("configid")) tasks.push(fetchConfigOptions(divId));
     await Promise.all(tasks);

@@ -33,8 +33,8 @@ export const AST_CONFIG = {
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_DIVISION: "fn_tbl_fetchuserwstodivision",
-  SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
-  SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
+  SP_FROM_LOCATION: "fn_gen_fetchastissfromlocationmaster",
+  SP_TO_LOCATION: "fn_gen_fetchastisstolocationmaster",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_rb_astisstktrselonly",
 
