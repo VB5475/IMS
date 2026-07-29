@@ -14,16 +14,18 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save, Filter as FilterIcon } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import SearchSelect from "../../components/ui/SearchSelect";
 import { useGoodsReceivedNote } from "../../hooks/useGoodsReceivedNote";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -178,8 +180,6 @@ export default function GoodsReceivedNoteForm() {
     transporterOptions,
     destinationOptions,
     locationOptions,
-    itemMainGroupOptions,
-    itemSubMainGroupOptions,
     fetchGrnTypes,
     clearGrnTypes,
     fetchSupplierOptions,
@@ -188,9 +188,6 @@ export default function GoodsReceivedNoteForm() {
     fetchTransporterOptions,
     fetchDestinationOptions,
     fetchLocationOptions,
-    fetchItemMainGroupOptions,
-    fetchItemSubMainGroupOptions,
-    clearItemSubMainGroupOptions,
     clearTransporters,
     clearDestinations,
     clearLocations,
@@ -283,10 +280,11 @@ export default function GoodsReceivedNoteForm() {
   const [itemModalError, setItemModalError] = useState(null);
   // Select Item popup filters (Based On = Direct only) — items are only
   // fetched once the user clicks Filter; PO Base branch is untouched.
-  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
-  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
-  const [itemFilterApplied, setItemFilterApplied] = useState(false);
-  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: GRN_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: GRN_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: GRN_CONFIG.FORM_TAG,
+  });
   const [itemPickerIsDirect, setItemPickerIsDirect] = useState(false);
 
   const clearItemGridState = useCallback(() => {
@@ -755,11 +753,8 @@ export default function GoodsReceivedNoteForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
-    setItemMainGroupFilter("");
-    setItemSubMainGroupFilter("");
-    setItemFilterApplied(!isDirect);
+    groupFilter.resetFilter();
     setItemPickerIsDirect(isDirect);
-    clearItemSubMainGroupOptions();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -781,7 +776,7 @@ export default function GoodsReceivedNoteForm() {
       );
 
       if (isDirect) {
-        await fetchItemMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
+        await groupFilter.fetchMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
       } else {
         const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
@@ -798,19 +793,7 @@ export default function GoodsReceivedNoteForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
-
-  // Main Group changed → reload Sub Main Group options, reset its own selection.
-  const handleItemMainGroupFilterChange = useCallback((value) => {
-    setItemMainGroupFilter(value);
-    setItemSubMainGroupFilter("");
-    const headerValues = headerValuesRef.current;
-    if (value) {
-      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
-    } else {
-      clearItemSubMainGroupOptions();
-    }
-  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, headerColumns, groupFilter]);
 
   // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
   // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
@@ -822,28 +805,26 @@ export default function GoodsReceivedNoteForm() {
     const loginId = getUserSession().loginId;
 
     setItemModalError(null);
-    setItemFilterLoading(true);
     try {
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
-        JSon: JSON.stringify([{
-          ...buildItemPickerJsonPayload(headerValues, loginId),
-          prmmaingroupid: Number(itemMainGroupFilter) || 0,
-          prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
-        }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.applyFilter(async () => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
+          JSon: JSON.stringify([{
+            ...buildItemPickerJsonPayload(headerValues, loginId),
+            prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
+            prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
       });
-      setItemModalItems(rowRes || []);
-      setItemFilterApplied(true);
     } catch (err) {
       console.error("[GRN] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
-    } finally {
-      setItemFilterLoading(false);
     }
-  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
+  }, [getLive, groupFilter]);
 
   const handleCellEvent = useCallback(
     async ({ rowId, colKey, rowData }) => {
@@ -956,7 +937,7 @@ export default function GoodsReceivedNoteForm() {
       });
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
-      const detailErrors = validateGridRows(itemRows, columns);
+      const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
 
       const indentChildRows = Object.values(childRowsMap).flat();
       const indentErrors = validateGridRows(indentChildRows, childColumns);
@@ -1117,39 +1098,19 @@ export default function GoodsReceivedNoteForm() {
 
   // Direct mode only — PO Base items fetch immediately, no filter step.
   const itemFilterBar = !itemPickerIsDirect ? null : (
-    <div className="oim-filter-bar">
-      <label className="oim-filter-bar__field">
-        <span>Item Main Group</span>
-        <SearchSelect
-          value={itemMainGroupFilter}
-          onChange={handleItemMainGroupFilterChange}
-          options={itemMainGroupOptions}
-          placeholder="All main groups"
-          ariaLabel="Item Main Group"
-        />
-      </label>
-      <label className="oim-filter-bar__field">
-        <span>Item Sub Main Group</span>
-        <SearchSelect
-          value={itemSubMainGroupFilter}
-          onChange={setItemSubMainGroupFilter}
-          options={itemSubMainGroupOptions}
-          placeholder="All sub main groups"
-          ariaLabel="Item Sub Main Group"
-          disabled={!itemMainGroupFilter}
-        />
-      </label>
-      <button
-        type="button"
-        className="oim-filter-bar__btn"
-        onClick={handleApplyItemFilter}
-        disabled={itemFilterLoading}
-        title="Load items for the selected filters"
-      >
-        <FilterIcon size={13} strokeWidth={2.5} />
-        {itemFilterLoading ? "Filtering…" : "Filter"}
-      </button>
-    </div>
+    <ItemPickerGroupFilterBar
+      mainGroupOptions={groupFilter.mainGroupOptions}
+      subMainGroupOptions={groupFilter.subMainGroupOptions}
+      mainGroupValue={groupFilter.mainGroupFilter}
+      subMainGroupValue={groupFilter.subMainGroupFilter}
+      onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+        divisionId: headerValuesRef.current.divisionid,
+        configId: headerValuesRef.current.configid,
+      })}
+      onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+      onFilter={handleApplyItemFilter}
+      filterLoading={groupFilter.filterLoading}
+    />
   );
 
   return (
@@ -1302,11 +1263,11 @@ export default function GoodsReceivedNoteForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading || itemFilterLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
-          awaitingFilter={!itemFilterApplied}
+          awaitingFilter={itemPickerIsDirect && !groupFilter.filterApplied}
         />
       </Suspense>
     </div>

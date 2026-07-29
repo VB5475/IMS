@@ -30,16 +30,22 @@ export const PV_CONFIG = {
   SUPPLIER_SP: "fn_tbl_fetchcustomersuppliertranws4web",
 
   // RB codes for item picker modal (3 modes based on BasedOnID)
-  RB_ITEM_PICKER_GRN: "rb_purpvselgrndet",    // BasedOn = '0' (GRN Base)
+  // 2026-07-29: user corrected the mapping — BasedOnID 0 = Direct, 2 = GRN
+  // Base (1 = PO Base, unchanged). Was previously 0=GRN/2=Direct; every
+  // branch keying off basedonid (handleSelectItem's rbCode/spItemPicker
+  // resolution, handleApplyItemFilter's hardcoded prmfrmoption, the GRN
+  // bill-copy check in handleInsertItems) was updated to match — see
+  // PurchaseVoucherForm.jsx.
+  RB_ITEM_PICKER_GRN: "rb_purpvselgrndet",    // BasedOn = '2' (GRN Base)
   RB_ITEM_PICKER_PO: "rb_purpvselpodet",     // BasedOn = '1' (PO Base)
-  RB_ITEM_PICKER_DIRECT: "rb_purpvselonlyitem",  // BasedOn = '2' (Direct)
+  RB_ITEM_PICKER_DIRECT: "rb_purpvselonlyitem",  // BasedOn = '0' (Direct)
 
   // SP / function names
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
-  SP_ITEM_PICKER_GRN: "fn_tbl_rb_purpvselgrndet",    // BasedOn = '0' (GRN Base)
+  SP_ITEM_PICKER_GRN: "fn_tbl_rb_purpvselgrndet",    // BasedOn = '2' (GRN Base)
   SP_ITEM_PICKER_PO: "fn_tbl_rb_purpvselpodet",     // BasedOn = '1' (PO Base)
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purpvselonlyitem",  // BasedOn = '2' (Direct)
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purpvselonlyitem",  // BasedOn = '0' (Direct)
   SP_SUPPLIER_INFO: "fn_tbl_fetchsuppliercurrencyinfo",
   SP_COST_CENTER: "fn_tbl_fas_fetchcostcenterac",
   SP_DEPT: "pr_fetch_departmentdata_ims",
@@ -74,9 +80,9 @@ export const PV_CONFIG = {
 
   // "Based On" dropdown — MRD: GRN Base | PO Base | Direct
   BASED_ON_OPTIONS: [
-    { value: "0", label: "GRN Base" },
-    { value: "1", label: "PO Base" },
-    { value: "2", label: "Direct" },
+    { value: "0", label: "Direct" },
+    // { value: "1", label: "PO Base" },
+    { value: "2", label: "GRN Base" },
   ],
 };
 

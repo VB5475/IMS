@@ -4,8 +4,8 @@ import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE = "Assets Employee Transfer";
-export const PAGE_TITLE_NEW = "New Assets Employee Transfer";
+export const PAGE_TITLE = "Employee Location Transfer";
+export const PAGE_TITLE_NEW = "New Employee Location Transfer";
 
 // Values aligned to MRD_Template4EmpTransfer.docx (Richa, 23-Jun-2026).
 

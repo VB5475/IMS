@@ -37,4 +37,27 @@ export default [
       "no-unused-vars": ["warn", { args: "none", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // Playwright E2E specs/fixtures run in Node (process, console) but also
+    // write inline callbacks that execute in the browser (addInitScript,
+    // page.evaluate — localStorage, document, etc.) — both global sets apply.
+    files: ["tests/e2e/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { args: "none", varsIgnorePattern: "^_" }],
+    },
+  },
+  {
+    // Root-level Node config files (Vite/Playwright config, scripts).
+    files: ["*.config.js", "scripts/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.node },
+    },
+  },
 ];

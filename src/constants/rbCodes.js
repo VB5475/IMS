@@ -21,7 +21,6 @@ export const RB_CODES = Object.freeze({
   LOCATION_MASTER: "rb_genlocationmst",
   DIVISION_MASTER: "rb_divisionmst",
   SUPPLIER_MASTER: "rb_suppliermst",
-  ASSET_ITEM_MASTER: "rb_astitemmst",
   ACCOUNT_GROUP_MASTER: "rb_acountgroupmst",
   ACCOUNT_MASTER: "rb_accountmst",
   // ⚠️ CONFIRM with DBA — MRD's Nav/Route labels say "Document Type Master"
@@ -40,6 +39,10 @@ export const RB_CODES = Object.freeze({
   // MRD_Template4DMS_DocumentTransactionToDocument.docx (Om, 24-Jun-2026,
   // clarified live with Om 2026-07-28 — see constants.js for the resolved gaps).
   DM_TT2DOCTYPE_MASTER: "rb_dm_tt2doctype",
+  // 5th DMS module — standalone Document List master, 2 independently
+  // RB-driven grids (Docs + Reference Documents), no header fields.
+  // MRD_Template4DMS_DocumentList.docx (Om, 29-Jul-2026).
+  DM_DOCUMENT_LIST: "rb_dm_tranwisedocs",
 
   // ── Purchase ────────────────────────────────────────────────────
   PURCHASE_INDENT: "rb_purindtmst",
@@ -98,7 +101,6 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.LOCATION_MASTER]: "/admin/company/location-master",
   [RB_CODES.DIVISION_MASTER]: "/admin/company/division-master",
   [RB_CODES.SUPPLIER_MASTER]: "/admin/master/supplier-master",
-  [RB_CODES.ASSET_ITEM_MASTER]: "/account/master/asset-item-master",
   [RB_CODES.ACCOUNT_GROUP_MASTER]: "/admin/account-group-master",
   [RB_CODES.ACCOUNT_MASTER]: "/admin/account-master",
   [RB_CODES.DOP_MASTER]: "/admin/dop-master",
@@ -110,6 +112,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.DOCUMENT_TYPE_MASTER]: "/admin/dms/document-type-master",
   [RB_CODES.DOCUMENT_SUBTYPE_MASTER]: "/admin/dms/document-subtype-master",
   [RB_CODES.DM_TT2DOCTYPE_MASTER]: "/admin/dms/tt2doctype-master",
+  [RB_CODES.DM_DOCUMENT_LIST]: "/admin/dms/document-list",
 
   [RB_CODES.PURCHASE_INDENT]: "/purchase-indent",
   [RB_CODES.PURCHASE_INQUIRY]: "/purchase-inquiry",

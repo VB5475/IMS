@@ -16,16 +16,17 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save, Filter as FilterIcon } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
-import SearchSelect from "../../components/ui/SearchSelect";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -124,14 +125,9 @@ export default function PurchaseIndentForm() {
     indentTypeOptions,
     departmentOptions,
     locationOptions,
-    itemMainGroupOptions,
-    itemSubMainGroupOptions,
     fetchIndentTypes,
     clearIndentTypes,
     fetchLocations,
-    fetchItemMainGroupOptions,
-    fetchItemSubMainGroupOptions,
-    clearItemSubMainGroupOptions,
     // fetchLocations,
     isLoadingIndentTypes,
     columns,
@@ -196,10 +192,11 @@ export default function PurchaseIndentForm() {
   const [itemModalError, setItemModalError] = useState(null);
   // Select Item popup filters (Direct mode only) — items are only fetched
   // once the user clicks Filter, not automatically when the modal opens.
-  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
-  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
-  const [itemFilterApplied, setItemFilterApplied] = useState(false);
-  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: IND_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: IND_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: IND_CONFIG.FORM_TAG,
+  });
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -458,10 +455,7 @@ export default function PurchaseIndentForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
-    setItemMainGroupFilter("");
-    setItemSubMainGroupFilter("");
-    setItemFilterApplied(false);
-    clearItemSubMainGroupOptions();
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -484,33 +478,23 @@ export default function PurchaseIndentForm() {
       });
       setItemModalColumns(gridColumns);
 
-      await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+      await groupFilter.fetchMainGroupOptions({ divisionId: divisionID, configId: configid });
     } catch (err) {
       console.error("[Indent] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
-
-  // Main Group changed → reload Sub Main Group options, reset its own selection.
-  const handleItemMainGroupFilterChange = useCallback((value) => {
-    setItemMainGroupFilter(value);
-    setItemSubMainGroupFilter("");
-    const { divisionid, configid } = headerValuesRef.current;
-    if (value) {
-      fetchItemSubMainGroupOptions({ divisionId: divisionid ?? 0, configId: configid, mainGroupId: value });
-    } else {
-      clearItemSubMainGroupOptions();
-    }
-  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, headerColumns, groupFilter]);
 
   // Actual item fetch — deferred until the user clicks Filter. Main/Sub Main
   // Group ARE now sent to SP_ITEM_PICKER — live-confirmed 2026-07-28 that
   // fn_tbl_rb_purindtselitem accepts prmmaingroupid/prmsubmaingroupid
   // (previously threw "Must declare the scalar variable ..."; that's gone).
   // prmsubmaingroupid sends 0 when no sub group is picked (matches this
-  // app's usual "unfiltered" sentinel for id params).
+  // app's usual "unfiltered" sentinel for id params). Only these 2 filter
+  // params are sent here (not the Assets modules' full 5-param signature) —
+  // preserved as-is, this shape was live-verified 2026-07-28.
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const { divisionid, configid, trandate, expecteddate } = headerValues;
@@ -518,38 +502,36 @@ export default function PurchaseIndentForm() {
     const expectedDate = expecteddate ?? "";
 
     setItemModalError(null);
-    setItemFilterLoading(true);
     try {
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: IND_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([
-          {
-            prmdivisionid: Number(divisionID),
-            prmyearid: getUserSession().yearId,
-            prmloginid: getUserSession().loginId,
-            prmtrandate: formatIndentTranDate(trandate),
-            prmconfigid: Number(configid ?? 0),
-            prmsupplierid: 0,
-            prmexpdeldate: expectedDate,
-            prmtranbook: IND_CONFIG.TRAN_BOOK,
-            prmfrmoption: 0,
-            prmmaingroupid: Number(itemMainGroupFilter) || 0,
-            prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
-          },
-        ]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.applyFilter(async () => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: IND_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([
+            {
+              prmdivisionid: Number(divisionID),
+              prmyearid: getUserSession().yearId,
+              prmloginid: getUserSession().loginId,
+              prmtrandate: formatIndentTranDate(trandate),
+              prmconfigid: Number(configid ?? 0),
+              prmsupplierid: 0,
+              prmexpdeldate: expectedDate,
+              prmtranbook: IND_CONFIG.TRAN_BOOK,
+              prmfrmoption: 0,
+              prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
+              prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
       });
-      setItemModalItems(rowRes || []);
-      setItemFilterApplied(true);
     } catch (err) {
       console.error("[Indent] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
-    } finally {
-      setItemFilterLoading(false);
     }
-  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter, headerColumns]);
+  }, [getLive, groupFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -643,7 +625,7 @@ export default function PurchaseIndentForm() {
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors = validateGridRows(detailRows, columns);
+    const detailErrors = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
@@ -753,39 +735,19 @@ export default function PurchaseIndentForm() {
   const combinedError = metaError || headerError;
 
   const itemFilterBar = (
-    <div className="oim-filter-bar">
-      <label className="oim-filter-bar__field">
-        <span>Item Main Group</span>
-        <SearchSelect
-          value={itemMainGroupFilter}
-          onChange={handleItemMainGroupFilterChange}
-          options={itemMainGroupOptions}
-          placeholder="All main groups"
-          ariaLabel="Item Main Group"
-        />
-      </label>
-      <label className="oim-filter-bar__field">
-        <span>Item Sub Main Group</span>
-        <SearchSelect
-          value={itemSubMainGroupFilter}
-          onChange={setItemSubMainGroupFilter}
-          options={itemSubMainGroupOptions}
-          placeholder="All sub main groups"
-          ariaLabel="Item Sub Main Group"
-          disabled={!itemMainGroupFilter}
-        />
-      </label>
-      <button
-        type="button"
-        className="oim-filter-bar__btn"
-        onClick={handleApplyItemFilter}
-        disabled={itemFilterLoading}
-        title="Load items for the selected filters"
-      >
-        <FilterIcon size={13} strokeWidth={2.5} />
-        {itemFilterLoading ? "Filtering…" : "Filter"}
-      </button>
-    </div>
+    <ItemPickerGroupFilterBar
+      mainGroupOptions={groupFilter.mainGroupOptions}
+      subMainGroupOptions={groupFilter.subMainGroupOptions}
+      mainGroupValue={groupFilter.mainGroupFilter}
+      subMainGroupValue={groupFilter.subMainGroupFilter}
+      onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+        divisionId: headerValuesRef.current.divisionid,
+        configId: headerValuesRef.current.configid,
+      })}
+      onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+      onFilter={handleApplyItemFilter}
+      filterLoading={groupFilter.filterLoading}
+    />
   );
 
   return (
@@ -895,11 +857,11 @@ export default function PurchaseIndentForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading || itemFilterLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
-          awaitingFilter={!itemFilterApplied}
+          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>

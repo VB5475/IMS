@@ -17,6 +17,8 @@ export function useLocationMaster() {
   const [headerError,         setHeaderError]         = useState(null);
   const [locationTypeOptions, setLocationTypeOptions] = useState([]);
   const [premisesOptions,     setPremisesOptions]     = useState([]);
+  const [divisionOptions,     setDivisionOptions]     = useState([]);
+  const [parentLocationOptions, setParentLocationOptions] = useState([]);
 
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
@@ -45,8 +47,9 @@ export function useLocationMaster() {
         (colData || []).map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
       );
 
-      // Phase 3 — LocationType + Premises dropdowns in parallel
-      const [locTypeData, premisesData] = await Promise.all([
+      // Phase 3 — LocationType + Premises + Division dropdowns in parallel
+      const session = getUserSession();
+      const [locTypeData, premisesData, divisionData] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType:   2,
           ObjName:   LM_CONFIG.SP_LOCATION_TYPE,
@@ -60,11 +63,28 @@ export function useLocationMaster() {
           JSon:      JSON.stringify([{}]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[LM] Premises fetch failed:", err); return null; }),
+
+        // fn_tbl_tbd_division(@prmFuncCode, @prmDivisionID, @prmLoginID) —
+        // live-confirmed 2026-07-29: prmdivisionid=0 returns the full,
+        // user-rights-scoped division list (not a single-record filter).
+        // Response is PascalCase (DivisionID/DivisionName), unlike most
+        // other SPs in this app — mapped defensively below.
+        get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType:   2,
+          ObjName:   LM_CONFIG.SP_DIVISION,
+          JSon:      JSON.stringify([{
+            prmfunccode:  LM_CONFIG.RB_MASTER,
+            prmdivisionid: 0,
+            prmloginid:   session.loginId,
+          }]),
+          p_ErrCode: -1, p_ErrMsg: "",
+        }).catch((err) => { console.warn("[LM] Division fetch failed:", err); return null; }),
       ]);
 
       if (import.meta.env.DEV) {
         console.log("[LM] LocationType row sample:", locTypeData?.[0]);
         console.log("[LM] Premises row sample:",     premisesData?.[0]);
+        console.log("[LM] Division row sample:",     divisionData?.[0]);
       }
 
       setLocationTypeOptions(
@@ -80,6 +100,13 @@ export function useLocationMaster() {
           label: String(r.idnumber + " - " + r.locationname),
         })).filter((o) => o.value != null)
       );
+
+      setDivisionOptions(
+        (divisionData || []).map((r) => ({
+          value: r.DivisionID ?? r.divisionid,
+          label: String(r.DivisionName ?? r.divisionname ?? r.DivisionID ?? r.divisionid),
+        })).filter((o) => o.value != null)
+      );
     } catch (err) {
       console.error("[LM] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Location Master configuration.");
@@ -87,6 +114,37 @@ export function useLocationMaster() {
       setHeaderFetching(false);
     }
   }, [get]);
+
+  // Parent Location cascades off Location Type — genuinely cascading
+  // (live-confirmed 2026-07-29: some Location Type ids return [], others
+  // return distinct real lists), so this is fetched on demand per selected
+  // Location Type rather than once in fetchHeaderMeta's parallel batch.
+  const fetchParentLocationOptions = useCallback(async (locationTypeId) => {
+    if (!locationTypeId) {
+      setParentLocationOptions([]);
+      return [];
+    }
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType:   2,
+        ObjName:   LM_CONFIG.SP_PARENT_LOCATION,
+        JSon:      JSON.stringify([{ prmlocationtypeid: Number(locationTypeId) }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: r.locationid ?? r.LocationID,
+        label: String(r.locationname ?? r.LocationName ?? r.locationid ?? r.LocationID),
+      })).filter((o) => o.value != null);
+      setParentLocationOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[LM] Parent Location fetch failed:", err);
+      setParentLocationOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearParentLocationOptions = useCallback(() => setParentLocationOptions([]), []);
 
   // Returns master spread directly (PG returns lowercase keys matching RB colnames).
   // System context fields are overlaid so the save SP always gets consistent values.
@@ -113,6 +171,12 @@ export function useLocationMaster() {
         // API returns locationtypeid (numeric) + locationtype (display string).
         // The form dropdown is keyed on "locationtype" and matches by numeric ID.
         locationtype: master.locationtypeid ?? master.locationtype,
+        // Real RB column is "companyidnumber", not "companyid" — see
+        // buildEmptyFromColumns in LocationMasterForm.jsx for the matching
+        // Add-mode fix. `...master` above already carries whatever the DB
+        // returned for companyidnumber; this just guarantees a session
+        // fallback if it ever comes back null.
+        companyidnumber: Number(master.companyidnumber ?? companyId) || session.companyId,
         companyid: Number(companyId)                     || session.companyId,
         yearid:    Number(master.yearid    ?? yearId)    || session.yearId,
         loginid:   Number(master.loginid   ?? loginId)   || session.loginId,
@@ -124,7 +188,8 @@ export function useLocationMaster() {
 
   return {
     headerColumns, allColumns, headerFetching, headerError, fetchHeaderMeta,
-    locationTypeOptions, premisesOptions,
+    locationTypeOptions, premisesOptions, divisionOptions,
+    parentLocationOptions, fetchParentLocationOptions, clearParentLocationOptions,
     fetchEditRecord,
   };
 }

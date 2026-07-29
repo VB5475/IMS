@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "print-bridge": "node scripts/ims-print-bridge.mjs",
     "format": "prettier --write .",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report tests/e2e/report"
   },
   "dependencies": {
     "axios": "^1.16.0",
@@ -27,6 +29,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@vitejs/plugin-react": "^6.0.1",
     "docx": "^9.7.1",
     "eslint": "^9.39.5",

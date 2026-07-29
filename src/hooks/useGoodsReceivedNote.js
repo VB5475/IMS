@@ -132,8 +132,6 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const [transporterOptions, setTransporterOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
-  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
-  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
   const supplierRowsRef = useRef(new Map());
   const [isLoadingGrnTypes, setIsLoadingGrnTypes] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
@@ -150,76 +148,6 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
 
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
-
-  // ── Select Item popup filters (Based On = Direct only) ────────────────
-  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
-    try {
-      const session = getUserSession();
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: GRN_CONFIG.SP_ITEM_MAIN_GROUP,
-        JSon: JSON.stringify([{
-          prmcompanyid: session.companyId,
-          prmdivisionid: Number(divisionId) || 0,
-          prmyearid: session.yearId,
-          prmloginid: session.loginId,
-          prmitemtype: 0,
-          prmconfigid: Number(configId) || 0,
-          prmfrmtype: GRN_CONFIG.FORM_TAG,
-        }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const opts = (res || []).map((r) => ({
-        value: String(r.maingroupid),
-        label: r.maingroup ?? String(r.maingroupid),
-      }));
-      setItemMainGroupOptions(opts);
-      return opts;
-    } catch (err) {
-      console.warn("[GRN] Item Main Group fetch failed:", err);
-      setItemMainGroupOptions([]);
-      return [];
-    }
-  }, [get]);
-
-  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
-    if (!mainGroupId) {
-      setItemSubMainGroupOptions([]);
-      return [];
-    }
-    try {
-      const session = getUserSession();
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: GRN_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
-        JSon: JSON.stringify([{
-          prmcompanyid: session.companyId,
-          prmdivisionid: Number(divisionId) || 0,
-          prmyearid: session.yearId,
-          prmloginid: session.loginId,
-          prmitemtype: 0,
-          prmconfigid: Number(configId) || 0,
-          prmfrmtype: GRN_CONFIG.FORM_TAG,
-          prmmaingroupid: Number(mainGroupId),
-        }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const opts = (res || []).map((r) => ({
-        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
-        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
-      }));
-      setItemSubMainGroupOptions(opts);
-      return opts;
-    } catch (err) {
-      console.warn("[GRN] Item Sub Main Group fetch failed:", err);
-      setItemSubMainGroupOptions([]);
-      return [];
-    }
-  }, [get]);
-
-  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   const fetchGrnTypes = useCallback(
     async (divisionId) => {
@@ -745,16 +673,11 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     transporterOptions,
     destinationOptions,
     locationOptions,
-    itemMainGroupOptions,
-    itemSubMainGroupOptions,
     fetchGrnTypes,
     fetchSupplierOptions,
     fetchTransporterOptions,
     fetchDestinationOptions,
     fetchLocationOptions,
-    fetchItemMainGroupOptions,
-    fetchItemSubMainGroupOptions,
-    clearItemSubMainGroupOptions,
     getSupplierRow,
     clearGrnTypes,
     clearSuppliers,
