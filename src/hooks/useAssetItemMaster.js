@@ -70,7 +70,7 @@ export function useAssetItemMaster() {
         }).catch((err) => { console.warn("[AIM] Tran Unit fetch failed:", err); return null; }),
       ]);
 
-      if (process.env.NODE_ENV !== "production") {
+      if (import.meta.env.DEV) {
         console.log("[AIM] Item Group row sample:", itemGroupData?.[0]);
         console.log("[AIM] Account row sample:",    accountData?.[0]);
         console.log("[AIM] Tran Unit row sample:",  tranUnitData?.[0]);

@@ -62,7 +62,7 @@ export function useLocationMaster() {
         }).catch((err) => { console.warn("[LM] Premises fetch failed:", err); return null; }),
       ]);
 
-      if (process.env.NODE_ENV !== "production") {
+      if (import.meta.env.DEV) {
         console.log("[LM] LocationType row sample:", locTypeData?.[0]);
         console.log("[LM] Premises row sample:",     premisesData?.[0]);
       }

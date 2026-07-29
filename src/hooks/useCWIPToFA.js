@@ -147,7 +147,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       });
       const opts = (res || []).map((r) => ({
         value: r.accountid ?? 0,
-        label: String(r.accode  + " | "+ r.acname) ?? "",
+        label: `${r.accode ?? ""} | ${r.acname ?? ""}`,
       }));
       setCWIPAccOptions(opts);
       return opts;

@@ -215,7 +215,6 @@ export function buildColumnMeta(apiCol) {
     isCrossYearEntryAllow: isTruthyApiFlag(apiCol.iscrossyearentryallow ?? apiCol.IsCrossYearEntryAllow),
     isFutureDateAllow: isTruthyApiFlag(apiCol.isfuturedateallow ?? apiCol.IsFutureDateAllow),
   };
-  return meta;
 }
 
 /** Read column meta from a grid column def or raw API column. */

@@ -36,7 +36,6 @@ export const PV_CONFIG = {
 
   // SP / function names
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
-  SP_PV_TYPES: "fn_tbl_ddl_pur_configuration",
   SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
   SP_ITEM_PICKER_GRN: "fn_tbl_rb_purpvselgrndet",    // BasedOn = '0' (GRN Base)
   SP_ITEM_PICKER_PO: "fn_tbl_rb_purpvselpodet",     // BasedOn = '1' (PO Base)
