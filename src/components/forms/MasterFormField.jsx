@@ -87,7 +87,8 @@ export default function MasterFormField({
 
   const revertOnInvalid = useCallback(
     (nextValue) => {
-      if (!validateOnBlur) return true;
+      const shouldValidateOnBlur = validateOnBlur || columnMeta?.dataKind === "date";
+      if (!shouldValidateOnBlur) return true;
       const isDropdown = isMasterDropdownField(field);
       const meta = { ...columnMeta, isDropdown: isDropdown || columnMeta?.isDropdown };
       const result = validateColumnValue(
@@ -97,7 +98,11 @@ export default function MasterFormField({
       );
       if (!result.valid) {
         notify.error(result.message);
-        onChange(lastValidRef.current);
+        // Date fields keep the typed value visible so the user can see and correct it;
+        // other field types still revert to the last valid value.
+        if (columnMeta?.dataKind !== "date") {
+          onChange(lastValidRef.current);
+        }
         return false;
       }
       lastValidRef.current = nextValue;
@@ -252,6 +257,10 @@ export default function MasterFormField({
         value={toNativeDateInputValue(value)}
         onChange={(e) => onChange(e.target.value)}
         onFocus={handleFocus}
+        onInput={(e) => {
+          const yearPart = String(e.target.value || "").split("-")[0] || "";
+          if (yearPart.length > 4) onChange(lastValidRef.current ?? "");
+        }}
         onKeyDown={(e) =>
           handleDateArrowKeys(e, toNativeDateInputValue(value), onChange, { nativeInput: true })
         }

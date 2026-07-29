@@ -222,6 +222,7 @@ export function buildColumnMeta(apiCol) {
 export function resolveColumnMeta(col) {
   if (!col) return null;
   if (col.columnMeta) return col.columnMeta;
+  if ("dataKind" in col || "displayName" in col || "isValidationReq" in col) return col;
   return buildColumnMeta(col);
 }
 
@@ -246,9 +247,11 @@ function toIsoDateOnly(date) {
 
 function getSessionYearBounds() {
   const year = getUserSession()?.year;
+  const yearFromRaw = pickApiField(year, "YearFrom", "yearfrom");
+  const yearToRaw = pickApiField(year, "YearTo", "yearto");
   return {
-    yearFrom: year?.YearFrom ? parseFlexibleDate(year.YearFrom) : null,
-    yearTo: year?.YearTo ? parseFlexibleDate(year.YearTo) : null,
+    yearFrom: yearFromRaw ? parseFlexibleDate(yearFromRaw) : null,
+    yearTo: yearToRaw ? parseFlexibleDate(yearToRaw) : null,
   };
 }
 
@@ -284,10 +287,11 @@ export function getDateInputConstraints(meta) {
  * Validate a single field value against column metadata.
  * @param {object} [options]
  * @param {boolean} [options.skipMandatory] — when true, required checks are skipped (e.g. on blur)
+ * @param {boolean} [options.skipDateValidation] — when true, date range/format checks are skipped
  * @returns {{ valid: boolean, message: string }}
  */
 export function validateColumnValue(value, colOrMeta, options = {}) {
-  const { skipMandatory = false, allowZero = false } = options;
+  const { skipMandatory = false, allowZero = false, skipDateValidation = false } = options;
   const meta = resolveColumnMeta(colOrMeta);
   if (!meta) return { valid: true, message: "" };
 
@@ -346,6 +350,9 @@ export function validateColumnValue(value, colOrMeta, options = {}) {
   }
 
   if (kind === "date") {
+    if (skipDateValidation) {
+      return { valid: true, message: "" };
+    }
     const date = parseFlexibleDate(value);
     if (!date) {
       return { valid: false, message: `${label} must be a valid date.` };

@@ -79,6 +79,12 @@ const MaintenanceContractRenewalPage = lazy(
 const MaintenanceContractRenewalForm = lazy(
   () => import("./pages/maintenance-contract-renewal/MaintenanceContractRenewalForm")
 );
+const MaintenanceNewContractPage = lazy(
+  () => import("./pages/maintenance-new-contract/MaintenanceNewContractPage")
+);
+const MaintenanceNewContractForm = lazy(
+  () => import("./pages/maintenance-new-contract/MaintenanceNewContractForm")
+);
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
@@ -304,6 +310,11 @@ const router = createBrowserRouter([
             rb: RB.MAINTENANCE_CONTRACT_RENEWAL,
             list: <MaintenanceContractRenewalPage />,
             form: <MaintenanceContractRenewalForm />,
+          }),
+          rbModule({
+            rb: RB.MAINTENANCE_NEW_CONTRACT,
+            list: <MaintenanceNewContractPage />,
+            form: <MaintenanceNewContractForm />,
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
 

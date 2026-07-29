@@ -357,7 +357,7 @@ export default function AssetsWriteOffForm() {
           if (val && val !== "0") {
             const fetches = [];
             if (hasVisibleCol(headerColumns, "fromlocid", "locationid")) {
-              fetches.push(fetchLocations());
+              fetches.push(fetchLocations(val));
             }
             if (hasVisibleCol(headerColumns, "accountid")) {
               fetches.push(fetchAssetsAccByDivision(val));
@@ -415,7 +415,7 @@ export default function AssetsWriteOffForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -477,7 +477,7 @@ export default function AssetsWriteOffForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {

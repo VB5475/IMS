@@ -168,12 +168,14 @@ export function useAstRgi(baseURL = API_BASE_URL) {
     }]);
   }, []);
 
-  const locationFetchJson = useCallback(() => {
+  const locationFetchJson = useCallback((divisionId = 0) => {
     const session = getUserSession();
     return JSON.stringify([{
       prmcompanyid: session.companyId,
+      prmdivisionid: Number(divisionId) || 0,
       prmloginid: session.loginId,
       prmlocationtype: "",
+      prmfrmtype: String(ARGI_CONFIG.FRM_TYPE),
     }]);
   }, []);
 
@@ -201,12 +203,12 @@ export function useAstRgi(baseURL = API_BASE_URL) {
     }
   }, [get, divisionFetchJson]);
 
-  const fetchToLocations = useCallback(async () => {
+  const fetchToLocations = useCallback(async (divisionId = 0) => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: ARGI_CONFIG.SP_TO_LOCATION,
-        JSon: locationFetchJson(),
+        JSon: locationFetchJson(divisionId),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -448,7 +450,7 @@ export function useAstRgi(baseURL = API_BASE_URL) {
     const fromDiv = headerValues.fromdivisionid ?? 0;
     const tasks = [];
     if (needsCol("fromdivisionid")) tasks.push(fetchFromDivisions());
-    if (needsCol("tolocationid")) tasks.push(fetchToLocations());
+    if (needsCol("tolocationid")) tasks.push(fetchToLocations(fromDiv));
     if (needsCol("todeptid")) tasks.push(fetchToDepartments());
     if (needsCol("fromvendorid")) tasks.push(fetchFromVendors(fromDiv));
     if (needsCol("configid")) tasks.push(fetchConfigOptions(fromDiv));

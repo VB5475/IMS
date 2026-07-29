@@ -181,13 +181,19 @@ export default function MaintenanceDashboard() {
     setDivisionOptions(mapDivisionOptions(rows));
   }, [fetchFunction, session]);
 
-  const loadLocations = useCallback(async () => {
+  const loadLocations = useCallback(async (divisionId = 0) => {
+    if (!divisionId) {
+      setLocationOptions([]);
+      return;
+    }
     const rows = await fetchFunction(
       MAINTENANCE_DASHBOARD_CONFIG.SP_LOCATION,
       {
         prmcompanyid: Number(session.companyId) || 1,
+        prmdivisionid: Number(divisionId) || 0,
         prmloginid: Number(session.loginId) || 1,
         prmlocationtype: "",
+        prmfrmtype: String(MAINTENANCE_DASHBOARD_CONFIG.FRM_TYPE),
       },
       "locations"
     );
@@ -333,7 +339,7 @@ export default function MaintenanceDashboard() {
       setDepartmentOptions([]);
       setAssetTypeOptions([]);
       if (value) {
-        loadLocations().catch((err) => {
+        loadLocations(value).catch((err) => {
           console.error("[MaintenanceDashboard] location fetch failed:", err);
           notify.error(err?.message || "Failed to load locations.");
         });

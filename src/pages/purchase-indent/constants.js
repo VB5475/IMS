@@ -1,6 +1,6 @@
 // constants.js — Purchase Indent page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE     = "Purchase Indent";
+export const PAGE_TITLE = "Purchase Indent";
 export const PAGE_TITLE_NEW = "New Purchase Indent";
 
 // All RB codes, SP names, IDs, and request defaults for the Indent module.
@@ -33,27 +33,17 @@ export const IND_CONFIG = {
   //    MRD Section 7 constants table says "RB_PurIndtMst". Using "IND" per Section 3.
   FORM_TAG: "IND",
   TRAN_BOOK: "PURIND",
+  FRM_TYPE: "IND",
 
   SP_ITEM_PICKER: "fn_tbl_rb_purindtselitem",
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
-  SP_LOCATION: "fn_tbl_fetch_divwslocation",
+  SP_LOCATION: "fn_gen_fetchastisslocationmaster",
 
-  // Select Item popup filters (Based On = Direct only) — client instruction
-  // 2026-07-28, not yet in the MRD. Both live-verified: return real Main
-  // Group rows for this company/division; Sub Main Group call succeeds but
-  // returned [] for every main group tried (no data seeded, not an error).
-  // fn_tbl_rb_purindtselitem (SP_ITEM_PICKER) now accepts
-  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (it used
-  // to throw "Must declare the scalar variable ..." for both, now doesn't).
-  // See handleApplyItemFilter in PurchaseIndentForm.jsx for the wiring.
-  // ⚠️ DBA-CONFIRM: while re-verifying, a *different* division/config combo
-  // that previously returned real item rows started returning
-  // {"ErrCode":"-1","ErrMsg":"There is no row at position 9."} once
-  // prmmaingroupid/prmsubmaingroupid were added — looks like a backend bug
-  // in the new group-filter logic that only surfaces when rows actually
-  // match (empty-result combos were fine). Flag to whoever owns this SP.
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
+
+
 
   SP_MASTER_FILL: "fn_tbl_rb_purindtmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purindtdet",
@@ -94,10 +84,10 @@ export const IND_SHORTCUT_CONFIG = {
 /** Header fields required before Select Item can be opened */
 export const IND_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "divisionid", label: "Division" },
-  { headerKey: "trandate",   label: "Tran Date", isDate: true },
-  { headerKey: "configid",   label: "Indent Type" },
+  { headerKey: "trandate", label: "Tran Date", isDate: true },
+  { headerKey: "configid", label: "Indent Type" },
 ];
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return getMissingPickerFields(headerValues, IND_ITEM_PICKER_JSON_FIELDS);
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return getMissingPickerFields(headerValues, IND_ITEM_PICKER_JSON_FIELDS, { headerColumns });
 }

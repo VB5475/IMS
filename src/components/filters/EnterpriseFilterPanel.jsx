@@ -107,6 +107,8 @@ function FilterControl({
   layout = "table",
 }) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
+  const notify = useNotification();
+  const lastValidValueRef = useRef(value);
   const accent = getAccentClass(filter);
   const isView = tone === "view";
   const isFrozen = tone === "frozen";
@@ -120,7 +122,17 @@ function FilterControl({
   const handleBlurValidate = (nextValue) => {
     if (readOnly || !filter.columnMeta) return;
     const result = validateColumnValue(nextValue, filter.columnMeta);
-    if (!result.valid) notify.error(result.message);
+    if (!result.valid) {
+      notify.error(result.message);
+      // Date fields keep the typed value visible so the user can see and correct it;
+      // other field types still revert to the last valid value.
+      if (filter.columnMeta?.dataKind !== "date") {
+        onChange(FilterColName, lastValidValueRef.current ?? "");
+      }
+      return false;
+    }
+    lastValidValueRef.current = nextValue;
+    return true;
   };
 
   const isRequired = isColumnMandatory(filter);
@@ -233,6 +245,9 @@ function FilterControl({
               type="date"
               className="efq-cell__input efq-cell__input--date"
               value={value || ""}
+              onFocus={() => {
+                lastValidValueRef.current = value || "";
+              }}
               onChange={(e) => {
                 const yearPart = String(e.target.value || "").split("-")[0] || "";
                 if (yearPart.length > 4) return;
@@ -243,7 +258,9 @@ function FilterControl({
                   nativeInput: true,
                 })
               }
-              onBlur={(e) => handleBlurValidate(e.target.value)}
+              onBlur={(e) => {
+                handleBlurValidate(e.target.value);
+              }}
               min={dateMin}
               max={dateMax}
               title={controlTooltip}

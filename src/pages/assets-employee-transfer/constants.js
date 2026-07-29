@@ -1,6 +1,7 @@
 // constants.js — Assets Employee Transfer (AET) page config
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Employee Transfer";
@@ -40,8 +41,8 @@ export const AET_CONFIG = {
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
   SP_TO_DIVISION: "fn_tbl_fetchuserwstodivision",
-  SP_FROM_LOCATION: "fn_gen_fetchfromlocationmaster",
-  SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
+  SP_FROM_LOCATION: "fn_gen_fetchastissfromlocationmaster",
+  SP_TO_LOCATION: "fn_gen_fetchastisstolocationmaster",
   SP_FROM_DEPT: "fn_tbl_fetchfromdepartmentdata",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
   SP_FROM_EMP: "fn_gen_fetchfromuser",
@@ -108,10 +109,16 @@ function isMissingValue(field, value) {
   return Number(value) === 0 || value === "0";
 }
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return AET_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
-    isMissingValue(f, pickHeaderValue(headerValues, f.keys))
-  ).map((f) => f.label);
+/**
+ * @param {object} headerValues
+ * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
+ *   enforced as required if its matching column's IsMandatory flag is truthy.
+ */
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return AET_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
+    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
+    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
+  }).map((f) => f.label);
 }
 
 function pickHeaderInt(headerValues, ...keys) {

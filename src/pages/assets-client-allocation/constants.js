@@ -1,5 +1,6 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -33,7 +34,7 @@ export const ACA_CONFIG = {
 
   SP_RB_META: "Fn_Fetch_RBDetailByRBCode",
   SP_FROM_DIVISION: "fn_tbl_fetchuserwsfromdivision",
-  SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
+  SP_TO_LOCATION: "fn_gen_fetchastisstolocationmaster",
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
   SP_TO_WORKING_CLIENT: "fn_gen_fetchtoworkingclient",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
@@ -97,10 +98,16 @@ function pickHeaderInt(headerValues, ...keys) {
   return Number(raw) || 0;
 }
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return ACA_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
-    isMissingValue(f, pickHeaderValue(headerValues, f.keys))
-  ).map((f) => f.label);
+/**
+ * @param {object} headerValues
+ * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
+ *   enforced as required if its matching column's IsMandatory flag is truthy.
+ */
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return ACA_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
+    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
+    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
+  }).map((f) => f.label);
 }
 
 export function buildAcaItemPickerJsonPayload(

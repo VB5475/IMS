@@ -188,8 +188,10 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
         ObjName: C2F_CONFIG.SP_LOCATION,
         JSon: JSON.stringify([{
           prmcompanyid:    session.companyId,
+          prmdivisionid:   Number(divisionId) || 0,
           prmloginid:      session.loginId,
           prmlocationtype: "",
+          prmfrmtype:      String(C2F_CONFIG.FRM_TYPE),
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });

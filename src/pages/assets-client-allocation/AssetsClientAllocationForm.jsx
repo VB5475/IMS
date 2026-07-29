@@ -402,7 +402,7 @@ export default function AssetsClientAllocationForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
-          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations(val));
           if (hasVisibleCol(headerColumns, "todeptid")) fetches.push(fetchToDepartments());
           if (hasVisibleCol(headerColumns, "toworkingclientid")) fetches.push(fetchToWorkingClients(val));
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
@@ -548,7 +548,7 @@ export default function AssetsClientAllocationForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields.map((label) => `${label} is required before selecting items.`));
       return;
@@ -628,7 +628,7 @@ export default function AssetsClientAllocationForm() {
     } finally {
       setItemFilterLoading(false);
     }
-  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
+  }, [getLive, headerColumns, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;

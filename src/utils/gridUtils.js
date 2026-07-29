@@ -38,6 +38,21 @@ export function hasVisibleCol(apiColumns, ...colNames) {
 }
 
 /**
+ * True when GET_DETAIL_COL_DATA marks one of colNames as IsMandatory.
+ * Defaults to `true` (required) when apiColumns hasn't loaded yet or the column
+ * isn't found, so callers fail safe rather than silently skipping a real requirement.
+ * @param {object[]} apiColumns - GET_DETAIL_COL_DATA rows
+ * @param {string|string[]} colNames - one colname, or several aliases to match
+ */
+export function isColumnMandatoryByName(apiColumns, colNames) {
+  if (!Array.isArray(apiColumns) || apiColumns.length === 0) return true;
+  const names = (Array.isArray(colNames) ? colNames : [colNames]).map((n) => String(n).toLowerCase());
+  const col = apiColumns.find((c) => names.includes(String(c.colname ?? c.ColName ?? "").toLowerCase()));
+  if (!col) return true;
+  return isTruthyApiFlag(col.ismandatory ?? col.IsMandatory);
+}
+
+/**
  * Maps a ColCtrlType numeric code to a filter-type string understood by GridForm.
  * @param {number} ctrlType
  * @returns {'date'|'select'|'text'}

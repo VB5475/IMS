@@ -542,13 +542,13 @@ export default function GoodsReceivedNoteForm() {
   // blank for several GRN header columns (configid, supplierid, ...) and was
   // causing locked/edit-mode fields to display raw IDs instead of names.
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    divisionid:    divisionOptions,
-    configid:      grnTypeOptions,
-    supplierid:    supplierOptions,
-    basedonid:     GRN_CONFIG.BASED_ON_OPTIONS,
+    divisionid: divisionOptions,
+    configid: grnTypeOptions,
+    supplierid: supplierOptions,
+    basedonid: GRN_CONFIG.BASED_ON_OPTIONS,
     transporterid: transporterOptions,
     destinationid: destinationOptions,
-    locationid:    locationOptions,
+    locationid: locationOptions,
   }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions, locationOptions]);
 
   // Filter definitions are built straight from the live RB column (caption,
@@ -739,7 +739,7 @@ export default function GoodsReceivedNoteForm() {
   // module — see BASED_ON_OPTIONS — so only these two branches are live.)
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -798,7 +798,7 @@ export default function GoodsReceivedNoteForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, headerColumns, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
 
   // Main Group changed → reload Sub Main Group options, reset its own selection.
   const handleItemMainGroupFilterChange = useCallback((value) => {
