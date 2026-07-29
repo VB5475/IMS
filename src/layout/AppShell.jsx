@@ -274,10 +274,10 @@ export default function AppShell({ children }) {
               <h1 className="ent-topbar__title">{title}</h1>
               {subtitle && <p className="ent-topbar__subtitle">{subtitle}</p>}
             </div>
-            <div className="ent-topbar__search">
+            {/* <div className="ent-topbar__search">
               <Search size={14} />
               <input type="text" placeholder="Global Search..." />
-            </div>
+            </div> */}
           </div>
           <div className="ent-topbar__actions">
             <div className="ent-env-switcher" role="group" aria-label="API environment">

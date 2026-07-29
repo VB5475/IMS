@@ -1,43 +1,28 @@
 // useDMTT2DocTypeMaster.js — Transaction To Document Type Master (DMS module).
-// See constants.js's 2026-07-28 live-verification addendum: the live RB has
-// no real Department form field, so Tran Type options are populated by
-// fetching fn_tbl_fetch_trantype once per known department and merging the
-// results (addendum #B), instead of a live Department->TranType cascade.
+// Direct-form hook: RB header field metadata + Department options up front,
+// then Tran Type + Document Type checklist fetched per selected department.
+// See constants.js for the confirmed live-SP gap around round-tripping
+// already-saved checks.
 
 import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
-import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
+import { ENDPOINTS, API_BASE_URL } from "../api/constants";
 import { getUserSession } from "../session/userSession";
-import {
-  mapMasterRowToHeaderValues,
-  normalizeDetailColLinks,
-  resolveDetailColLinks,
-} from "../utils/masterFormUtils";
-import { normalizeListRows } from "../utils/listGridUtils";
+import { normalizeDetailColLinks, resolveDetailColLinks } from "../utils/masterFormUtils";
 import { TT2DOCTYPE_CONFIG } from "../pages/dm-tt2doctype-master/constants";
 
-function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId }) {
-  const session = getUserSession();
-  return [
-    Number(companyId) || session.companyId,
-    Number(yearId) || session.yearId,
-    Number(loginId) || session.loginId,
-    Number(sessionId) || DEFAULT_SESSION_ID,
-    Number(masterId) || 0,
-  ].join(",");
-}
-
 /** fn_tbl_dm_department_list / fn_tbl_fetch_trantype — [{ idnumber, name/trantype }, …] */
-function mapIdNameRows(rows, labelKeys = ["Name", "name"]) {
+function mapIdNameRows(rows, labelKeys = ["name", "Name"]) {
   return (rows || [])
     .map((r) => {
-      const value = r.IDNumber ?? r.idnumber;
+      const value = r.idnumber ?? r.IDNumber ?? r.IdNumber;
       if (value == null || value === "") return null;
       let label;
       for (const key of labelKeys) {
         if (r[key] != null && r[key] !== "") { label = r[key]; break; }
       }
-      return { value: String(Number(value) || value), label: String(label ?? value) };
+      const num = Number(value);
+      return { value: Number.isFinite(num) ? String(Math.round(num)) : String(value), label: String(label ?? value) };
     })
     .filter(Boolean);
 }
@@ -48,50 +33,7 @@ export function useDMTT2DocTypeMaster() {
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
-  const [tranTypeOptions, setTranTypeOptions] = useState([]);
-
-  const fetchDepartmentIds = useCallback(async () => {
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: TT2DOCTYPE_CONFIG.LIST_OBJ_TYPE,
-        ObjName: TT2DOCTYPE_CONFIG.SP_DEPARTMENT,
-        JSon: JSON.stringify([{}]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      return mapIdNameRows(resolveDetailColLinks(res)).map((opt) => opt.value);
-    } catch (err) {
-      console.warn("[TT2DocType] Department id fetch failed:", err);
-      return [];
-    }
-  }, [get]);
-
-  /** Merge Tran Type options across every known department (see module addendum #B). */
-  const fetchAllTranTypeOptions = useCallback(async () => {
-    const departmentIds = await fetchDepartmentIds();
-    const merged = new Map();
-    await Promise.all(
-      departmentIds.map(async (departmentId) => {
-        try {
-          const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-            ObjType: TT2DOCTYPE_CONFIG.LIST_OBJ_TYPE,
-            ObjName: TT2DOCTYPE_CONFIG.SP_TRAN_TYPE,
-            JSon: JSON.stringify([{ prmdepartmentid: Number(departmentId) }]),
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          });
-          for (const opt of mapIdNameRows(resolveDetailColLinks(res), ["trantype", "TranType"])) {
-            merged.set(opt.value, opt);
-          }
-        } catch (err) {
-          console.warn(`[TT2DocType] Tran Type fetch failed for department ${departmentId}:`, err);
-        }
-      })
-    );
-    const opts = Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
-    setTranTypeOptions(opts);
-    return opts;
-  }, [get, fetchDepartmentIds]);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
 
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
@@ -117,44 +59,88 @@ export function useDMTT2DocTypeMaster() {
       });
       setHeaderColumns(normalizeDetailColLinks(resolveDetailColLinks(colData)));
 
-      await fetchAllTranTypeOptions();
+      const deptRes = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: TT2DOCTYPE_CONFIG.LIST_OBJ_TYPE,
+        ObjName: TT2DOCTYPE_CONFIG.SP_DEPARTMENT,
+        JSon: JSON.stringify([{}]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setDepartmentOptions(mapIdNameRows(resolveDetailColLinks(deptRes)));
     } catch (err) {
       console.error("[TT2DocType] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Transaction To Document Type Master configuration.");
     } finally {
       setHeaderFetching(false);
     }
-  }, [get, fetchAllTranTypeOptions]);
+  }, [get]);
 
-  const fetchEditRecord = useCallback(
-    async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
-      const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-        prmProcedure: TT2DOCTYPE_CONFIG.SP_MASTER_FILL,
-        prmParameters: buildMasterFillParameterString({ companyId, yearId, loginId, sessionId, masterId: idNumber }),
-        prmFuncCode: TT2DOCTYPE_CONFIG.RB_MASTER,
-      });
-      const master = resolveDetailColLinks(mstRes)[0] ?? null;
-
-      return {
-        master,
-        headerValues: master
-          ? mapMasterRowToHeaderValues(master, headerColumns, {
-              companyId, yearId, loginId, sessionId, idNumber, funcCode: TT2DOCTYPE_CONFIG.RB_MASTER,
-            })
-          : null,
-      };
+  /** Live cascade — genuinely department-scoped, see constants.js. */
+  const fetchTranTypeOptions = useCallback(
+    async (departmentId) => {
+      if (!departmentId) return [];
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: TT2DOCTYPE_CONFIG.LIST_OBJ_TYPE,
+          ObjName: TT2DOCTYPE_CONFIG.SP_TRAN_TYPE,
+          JSon: JSON.stringify([{ prmdepartmentid: Number(departmentId) }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        return mapIdNameRows(resolveDetailColLinks(res), ["trantype", "TranType"]);
+      } catch (err) {
+        console.warn("[TT2DocType] Tran Type fetch failed:", err);
+        return [];
+      }
     },
-    [get, headerColumns]
+    [get]
   );
 
-  const fetchListRows = useCallback(
-    async (listParams) => normalizeListRows(resolveDetailColLinks(await get(ENDPOINTS.FN_FETCH_DATA, listParams))),
+  /** Checklist rows for the grid — filtered client-side by department label.
+   *  `checked` always starts false: see constants.js's confirmed-gap note,
+   *  there is no SP to read back already-saved checks. */
+  const fetchDocumentTypeRows = useCallback(
+    async (departmentLabel) => {
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: TT2DOCTYPE_CONFIG.LIST_OBJ_TYPE,
+          ObjName: TT2DOCTYPE_CONFIG.SP_DOCUMENT_TYPE,
+          JSon: JSON.stringify([{}]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const rows = resolveDetailColLinks(res);
+        const scoped = departmentLabel
+          ? rows.filter(
+              (r) => String(r.department ?? r.Department ?? "").toUpperCase() === departmentLabel.toUpperCase()
+            )
+          : rows;
+        return scoped
+          .map((r) => {
+            const idnumber = Number(r.idnumber ?? r.IDNumber) || 0;
+            if (!idnumber) return null;
+            return {
+              documenttypeid: idnumber,
+              documenttype: String(r.name ?? r.Name ?? ""),
+              checked: false,
+            };
+          })
+          .filter(Boolean);
+      } catch (err) {
+        console.warn("[TT2DocType] Document Type fetch failed:", err);
+        return [];
+      }
+    },
     [get]
   );
 
   return {
-    headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    tranTypeOptions,
-    fetchEditRecord, fetchListRows,
+    headerColumns,
+    headerFetching,
+    headerError,
+    fetchHeaderMeta,
+    departmentOptions,
+    fetchTranTypeOptions,
+    fetchDocumentTypeRows,
   };
 }
