@@ -19,10 +19,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  height: 36px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 36px;
+  height: auto;
   flex-shrink: 0;
-  padding: 0 16px;
+  padding: 4px 16px;
   background: #f4f6f9;
   border-bottom: 1px solid var(--border);
 }
@@ -92,8 +94,11 @@
 .rbp-panel__toolbar {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .rbp-panel__pagesize-label {
@@ -107,6 +112,42 @@
   height: 26px;
   min-width: 56px;
   padding: 0 24px 0 8px;
+}
+
+.rbp-panel__group-select {
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.rbp-panel__assign-radios {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  height: auto;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: #fff;
+}
+
+.rbp-panel__assign-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rbp-panel__assign-option input {
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
 }
 
 .rbp-panel__qr-btn {
@@ -575,4 +616,17 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.rbp-panel .ng-bottom-panel {
+  gap: 8px;
+}
+
+.rbp-panel .ng-bottom-panel__extras {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.rbp-panel .ng-bottom-panel .rbp-panel__pagesize-label {
+  color: var(--text-secondary);
 }
