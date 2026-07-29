@@ -13,7 +13,11 @@ export const DASHBOARD_CONFIG = {
   REPORT_OBJ_TYPE: 2,
 
   // Report board stock issue data
-  SP_REPORT_DATA: "fn_tbl_fetch_adb_aststockissue",
+  SP_REPORT_DATA: "fn_tbl_fetch_adb_astdashboard",
+
+  // Filter dropdowns — main / sub-main group (cascading)
+  SP_MAIN_GROUP: "fn_fetch_itemmaingroup4assetadb",
+  SP_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4assetadb",
 
   // Dashboard cart — available asset entry forms
   SP_AST_FORM_LIST: "fn_tbl_fetch_adb_astformlist",
@@ -24,6 +28,14 @@ export const DASHBOARD_CONFIG = {
   DEFAULT_SUB_DESG_ID: 0,
   DEFAULT_MASTER_ID: 1,
   DEFAULT_SESSION_ID: 1,
+  DEFAULT_ASSIGN_STATUS: "ALL",
 
   STORAGE_DETAIL_META: "dashboardAstStockDetailMeta",
 };
+
+/** Assignment filter radios for the asset dashboard. */
+export const DASHBOARD_ASSIGN_OPTIONS = [
+  { label: "All", value: "ALL" },
+  { label: "Assigned To Employee", value: "ASSIGNED" },
+  { label: "Not Assigned", value: "NOTASSIGN" },
+];
