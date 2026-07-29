@@ -1,0 +1,120 @@
+/* master-form-responsive.css — phone-width fix for master-form modals
+ * ─────────────────────────────────────────────────────────────────────
+ * Every master-form CSS file (Location/Division/Supplier/Company/Account/
+ * AccountGroup/AssetItem/Item/DivisionWiseRights/Department/SubGroup/
+ * SubMainGroup/MainGroup/UserGroup/UserMaster/CallFollowUp/CallAllocation,
+ * plus Customer Master which reuses Supplier's CSS) independently
+ * duplicates the same fixed-width "label beside input" row pattern under
+ * its own class prefix, with no (or an insufficient) phone breakpoint —
+ * on a real phone viewport the label eats most of the width and the
+ * input/dropdown becomes unusably narrow.
+ *
+ * Centralized here instead of touching ~17 files individually. `!important`
+ * is required: this file is imported once, globally, from src/index.css,
+ * but each master page's own CSS is imported again by its lazily-loaded
+ * route/modal chunk — which loads *after* this file in the document, so
+ * without !important the later-loaded, equal-specificity page rule would
+ * win even while this media query is active.
+ *
+ * Two structural patterns exist across modules:
+ *   A) row IS the flex container (label + control direct children):
+ *      lm/am/agm/aim/im/dwr/dm/sgm/smgm/mgm/ug/um/mfu/mca
+ *   B) row wraps a "field" (Division/Supplier/Company): the row itself is
+ *      just a border wrapper; `.xx-form-field` is the actual flex row,
+ *      and becomes a 2-col grid (label px | control 1fr) inside a
+ *      `.xx-form-row--split` (two fields side by side).
+ *   C) grid-row + cell (Account/AccountGroup multi-column wireframe rows):
+ *      `.xx-form-grid-row` is a display:grid with 1/2/3 columns of
+ *      `.xx-form-cell`, each cell itself a flex label|control row.
+ * ───────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  /* Pattern A — row is the flex container */
+  .lm-form-row,
+  .am-form-row,
+  .agm-form-row,
+  .aim-form-row,
+  .im-form-row,
+  .dwr-form-row,
+  .dm-form-row,
+  .sgm-form-row,
+  .smgm-form-row,
+  .mgm-form-row,
+  .ug-form-row,
+  .um-form-row,
+  .mfu-form-row,
+  .mca-form-row {
+    flex-direction: column !important;
+  }
+
+  /* Pattern B — the nested "field" is the actual flex row (plain rows) */
+  .dv-form-field,
+  .sm-form-field,
+  .co-form-field {
+    flex-direction: column !important;
+  }
+
+  /* Pattern B — split rows: stack the two side-by-side fields... */
+  .dv-form-row--split,
+  .sm-form-row--split,
+  .co-form-row--split {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ...and stack label above control within each split field too
+     (it's display:grid there, not flex, so flex-direction is a no-op) */
+  .dv-form-row--split .dv-form-field,
+  .sm-form-row--split .sm-form-field,
+  .co-form-row--split .co-form-field {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dv-form-row--split .dv-form-field:first-child,
+  .sm-form-row--split .sm-form-field:first-child,
+  .co-form-row--split .co-form-field:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  /* Pattern C — collapse 2/3-column wireframe rows to a single column */
+  .am-form-grid-row,
+  .agm-form-grid-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .am-form-cell,
+  .agm-form-cell {
+    flex-direction: column !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  /* All label variants, regardless of which contextual selector set their
+     fixed width (grid-row--2/--3, modal-dialog--account-master scoping,
+     split-row overrides, ...) — !important on the base class beats all of
+     them since none of the originals use !important. */
+  .lm-form-label,
+  .dv-form-label,
+  .sm-form-label,
+  .am-form-label,
+  .agm-form-label,
+  .aim-form-label,
+  .im-form-label,
+  .dwr-form-label,
+  .dm-form-label,
+  .co-form-label,
+  .sgm-form-label,
+  .smgm-form-label,
+  .mgm-form-label,
+  .ug-form-label,
+  .um-form-label,
+  .mfu-form-label,
+  .mca-form-label {
+    flex: unset !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+}

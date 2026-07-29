@@ -16,9 +16,18 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { MGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
+import "./MainGroupMasterPage.css";
 
 // Compare against RB colnames case-insensitively (API now returns PascalCase).
-const LOCK_ON_EDIT = new Set(["itemtypeid", "maingroupcode", "fixedassetaccountid"]);
+// Client-side lock-on-edit override, layered on top of (not driven by) the
+// RB's own IsLockOnEditModeAllow flag — same override pattern used elsewhere
+// in the app for real business rules. fixedassetaccountid was removed
+// 2026-07-28: user-confirmed live RB shows islockoneditmodeallow=false and
+// iseditallow=true for this column, so this set was incorrectly forcing it
+// read-only in edit mode with no RB or documented business-rule backing.
+// itemtypeid/maingroupcode are unverified — left as-is; re-check against
+// live RB before assuming they're also wrong.
+const LOCK_ON_EDIT = new Set(["itemtypeid", "maingroupcode"]);
 
 // MainGroupShortCode is always read-only — auto-filled from UsedInAutoItemCodeGeneration
 const READONLY_AUTO = new Set(["maingroupshortcode"]);

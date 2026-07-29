@@ -59,7 +59,7 @@ export default function AssetsReturnableGatePassInPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[ARGI] list fetch failed:", err);
-      setError("Failed to load Assets Returnable Gate Pass In records.");
+      setError(err?.message || "Failed to load Assets Returnable Gate Pass In records.");
     } finally {
       setLoading(false);
     }

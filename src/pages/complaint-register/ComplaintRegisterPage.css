@@ -147,19 +147,7 @@
   overflow: hidden;
 }
 
-.mcr-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.mcr-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.mcr-tab-pane .erp-grid-container {
+.mcr-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

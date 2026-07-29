@@ -16,8 +16,9 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import SearchSelect from "../../components/ui/SearchSelect";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
@@ -42,6 +43,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -66,17 +68,17 @@ const nextTempId = () => _indTempId--;
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    trancode:         headerValues.trancode         ?? "",
-    trandate:         headerValues.trandate         ?? "",
-    divisionid:       headerValues.divisionid ?? 0,
-    configid:         headerValues.configid ?? 0,
-    expecteddate:     headerValues.expecteddate     ?? "",
-    deptid:           headerValues.deptid ?? 0,
-    locationid:       headerValues.locationid ?? 0,
-    costcenterid:     headerValues.costcenterid ?? 0,
-    remarks:          headerValues.remarks          ?? "",
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: headerValues.divisionid ?? 0,
+    configid: headerValues.configid ?? 0,
+    expecteddate: headerValues.expecteddate ?? "",
+    deptid: headerValues.deptid ?? 0,
+    locationid: headerValues.locationid ?? 0,
+    costcenterid: headerValues.costcenterid ?? 0,
+    remarks: headerValues.remarks ?? "",
     indentrefrenceno: headerValues.indentrefrenceno ?? "",
-    enteredby:        headerValues.enteredby        ?? "",
+    enteredby: headerValues.enteredby ?? "",
   };
 }
 
@@ -122,8 +124,14 @@ export default function PurchaseIndentForm() {
     indentTypeOptions,
     departmentOptions,
     locationOptions,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
     fetchIndentTypes,
     clearIndentTypes,
+    fetchLocations,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     fetchLocations,
     isLoadingIndentTypes,
     columns,
@@ -149,35 +157,31 @@ export default function PurchaseIndentForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const headerValuesRef = useRef({
-    trancode:         "",
-    trandate:         todayISO,
-    divisionid:       0,
-    configid:         0,
-    expecteddate:     null,
-    deptid:           0,
-    locationid:       0,
-    costcenterid:     0,
-    remarks:          "",
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    divisionid: 0,
+    configid: 0,
+    expecteddate: getTodayDateInputValue(),
+    deptid: 0,
+    locationid: 0,
+    costcenterid: 0,
+    remarks: "",
     indentrefrenceno: "",
-    enteredby:        "",
-    tranmstgenid:     0,
-    companyid:        getUserSession().companyId,
-    yearid:           getUserSession().yearId,
-    loginid:          getUserSession().loginId,
-    idnumber:         recordId,
-    funccode:         IND_CONFIG.RB_MASTER,
+    enteredby: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: recordId,
+    funccode: IND_CONFIG.RB_MASTER,
   });
 
+  // trandate/expecteddate default to today on a new record; existing records keep their loaded date.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { trandate: getTodayDateInputValue(), expecteddate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -190,6 +194,12 @@ export default function PurchaseIndentForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Direct mode only) — items are only fetched
+  // once the user clicks Filter, not automatically when the modal opens.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -329,8 +339,8 @@ export default function PurchaseIndentForm() {
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid: divisionOptions,
-    configid:   indentTypeOptions,
-    deptid:     departmentOptions,
+    configid: indentTypeOptions,
+    deptid: departmentOptions,
     locationid: locationOptions,
   }), [divisionOptions, indentTypeOptions, departmentOptions, locationOptions]);
 
@@ -338,13 +348,14 @@ export default function PurchaseIndentForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
+        const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
           FilterParameterID: col.colname,
-          FilterColName:     col.colname,
-          FilterCaption:     col.displayname ?? col.colname,
+          FilterColName: col.colname,
+          FilterCaption: col.displayname ?? col.colname,
           FilterColCtrlType: col.colctrltype ?? 0,
           ...(staticOptions ? { staticOptions } : {}),
         };
@@ -375,6 +386,9 @@ export default function PurchaseIndentForm() {
         headerValuesRef.current.locationid = 0;
         clearIndentTypes();
         itemGridRef.current?.clearRows?.();
+        // Location is division-wise (fn_tbl_fetch_divwslocation) — always refetch,
+        // even back to the "no division selected" (0) case, so stale options don't linger.
+        await fetchLocations(val && val !== "0" ? val : 0);
         if (val && val !== "0") {
           await Promise.all([
             fetchIndentTypes(val),
@@ -424,6 +438,11 @@ export default function PurchaseIndentForm() {
   );
 
   // ── Select Item ────────────────────────────────────────────────────
+  // Direct mode only (Indent has no Indent-wise variant — BasedOnID = 0 /
+  // prmFrmOption = 0 per MRD). Opening the modal loads the picker's grid
+  // columns and the Main Group filter options, but NOT items — items are
+  // only fetched once the user picks filters and clicks Filter (see
+  // handleApplyItemFilter below). Client instruction 2026-07-28.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
@@ -431,7 +450,7 @@ export default function PurchaseIndentForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { divisionid, configid, trandate } = headerValues;
+    const { divisionid, configid } = headerValues;
     const divisionID = divisionid ?? 0;
 
     setItemModalOpen(true);
@@ -439,9 +458,12 @@ export default function PurchaseIndentForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(false);
+    clearItemSubMainGroupOptions();
 
     try {
-      // Indent always uses Direct mode (BasedOnID = 0 / prmFrmOption = 0) per MRD
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: IND_CONFIG.SP_RB_META,
@@ -462,6 +484,42 @@ export default function PurchaseIndentForm() {
       });
       setItemModalColumns(gridColumns);
 
+      await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+    } catch (err) {
+      console.error("[Indent] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemModalLoading(false);
+    }
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const { divisionid, configid } = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: divisionid ?? 0, configId: configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Actual item fetch — deferred until the user clicks Filter. Main/Sub Main
+  // Group ARE now sent to SP_ITEM_PICKER — live-confirmed 2026-07-28 that
+  // fn_tbl_rb_purindtselitem accepts prmmaingroupid/prmsubmaingroupid
+  // (previously threw "Must declare the scalar variable ..."; that's gone).
+  // prmsubmaingroupid sends 0 when no sub group is picked (matches this
+  // app's usual "unfiltered" sentinel for id params).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const { divisionid, configid, trandate, expecteddate } = headerValues;
+    const divisionID = divisionid ?? 0;
+    const expectedDate = expecteddate ?? "";
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: IND_CONFIG.SP_ITEM_PICKER,
@@ -473,21 +531,25 @@ export default function PurchaseIndentForm() {
             prmtrandate: formatIndentTranDate(trandate),
             prmconfigid: Number(configid ?? 0),
             prmsupplierid: 0,
+            prmexpdeldate: expectedDate,
             prmtranbook: IND_CONFIG.TRAN_BOOK,
             prmfrmoption: 0,
+            prmmaingroupid: Number(itemMainGroupFilter) || 0,
+            prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
     } catch (err) {
-      console.error("[Indent] Item picker fetch failed:", err);
+      console.error("[Indent] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
-      setItemModalLoading(false);
+      setItemFilterLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter, headerColumns]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -495,9 +557,15 @@ export default function PurchaseIndentForm() {
       setActiveTab("items");
       const activeCols = await ensureItemColumns();
       if (!activeCols?.length) return;
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+      rows.forEach((row) => addItemRow(row));
+      // Fire the same qty/rate recalc a manual blur would trigger, so a
+      // picker-inserted row's calculated amounts are correct immediately
+      // instead of staying 0.00 until the user touches the cell (client-
+      // confirmed 2026-07-24, same fix as Purchase Voucher/Order/Quotation/Inquiry).
+      await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
     },
-    [ensureItemColumns, allColumns, addItemRow]
+    [ensureItemColumns, allColumns, addItemRow, handleCellEvent]
   );
 
   const handleSelectListShortcut = useCallback(() => {
@@ -520,24 +588,24 @@ export default function PurchaseIndentForm() {
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
   const buildDefaultHeaderValues = useCallback(() => ({
-    trancode:         "",
-    trandate:         todayISO,
-    divisionid:       0,
-    configid:         0,
-    expecteddate:     null,
-    deptid:           0,
-    locationid:       0,
-    costcenterid:     0,
-    remarks:          "",
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    divisionid: 0,
+    configid: 0,
+    expecteddate: getTodayDateInputValue(),
+    deptid: 0,
+    locationid: 0,
+    costcenterid: 0,
+    remarks: "",
     indentrefrenceno: "",
-    enteredby:        "",
-    tranmstgenid:     0,
-    companyid:        getUserSession().companyId,
-    yearid:           getUserSession().yearId,
-    loginid:          getUserSession().loginId,
-    idnumber:         0,
-    funccode:         IND_CONFIG.RB_MASTER,
-  }), [todayISO]);
+    enteredby: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+    funccode: IND_CONFIG.RB_MASTER,
+  }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [IND_CONFIG.STORAGE_HEADER_META, IND_CONFIG.STORAGE_ENTRY_META],
@@ -570,6 +638,7 @@ export default function PurchaseIndentForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
@@ -683,6 +752,42 @@ export default function PurchaseIndentForm() {
   };
   const combinedError = metaError || headerError;
 
+  const itemFilterBar = (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="workspace-page workspace-page--fill ind-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
@@ -728,63 +833,49 @@ export default function PurchaseIndentForm() {
 
       {/* ── Single-tab grid section ───────────────────────────────────── */}
       <section className="ind-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {IND_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={IND_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
+                ref={selectItemBtnRef}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick items from list (Tab here after header fields)"
               >
-                {t.label}
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick items from list (Tab here after header fields)"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`ind-tab-pane${activeTab === "items" ? " ind-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={IND_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={IND_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          multiValuePasteColumns={IND_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={IND_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar
@@ -804,9 +895,11 @@ export default function PurchaseIndentForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

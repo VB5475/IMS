@@ -1,16 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { BookUser, Plus, Pencil } from "lucide-react";
+import { BookUser, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useAccountMaster } from "../../hooks/useAccountMaster";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import AccountMasterForm from "./AccountMasterForm";
 import { AM_CONFIG } from "./constants";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountMasterPage.css";
 
-const PAGE_SIZE_OPTIONS = [5, 8, 10, 15, 20];
+function buildAccountMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -38,7 +46,7 @@ export default function AccountMasterPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -138,26 +146,14 @@ export default function AccountMasterPage() {
   );
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: handleEdit,
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="am-list__edit-btn"
-            title={`Edit ${row.acname ?? row.AcName ?? row.accode ?? ""}`}
-            aria-label={`Edit ${row.acname ?? row.AcName ?? row.accode ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.acname ?? row.AcName ?? row.accode ?? "",
+        getDeleteLabel: (row) => row.acname ?? row.AcName ?? row.accode ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -173,6 +169,11 @@ export default function AccountMasterPage() {
             <button type="button" className="am-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="Account Master Report"
+              reportFileName="TODO_AccountMaster.rpt"
+              buildParams={buildAccountMasterReportParams}
+            />
             <label htmlFor="am-list-page-size" className="am-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -205,6 +206,8 @@ export default function AccountMasterPage() {
           emptyMessage="No accounts found."
           hideHeader
           searchable
+          deleteProcName={AM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

@@ -147,19 +147,7 @@
   overflow: hidden;
 }
 
-.adi-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.adi-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.adi-tab-pane .erp-grid-container {
+.adi-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

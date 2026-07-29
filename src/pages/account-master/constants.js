@@ -30,6 +30,8 @@ export const AM_CONFIG = {
   SP_LIST: "fn_tbl_acc_accountmaster_list",
   LIST_DIVISION_ID: 0,
 
+  DELETE_PROC_NAME: "pr_rb_accountmst_delete",
+
   SAVE_ENDPOINT: "/API/accountmst/Post_rb_accountmst_Save",
   STORAGE_HEADER_META: "amHeaderMeta",
 };

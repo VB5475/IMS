@@ -147,19 +147,7 @@
   overflow: hidden;
 }
 
-.argi-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.argi-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.argi-tab-pane .erp-grid-container {
+.argi-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

@@ -1,15 +1,26 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Network, Plus, Pencil } from "lucide-react";
+import { Network } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDivisionMaster } from "../../hooks/useDivisionMaster";
+import { useUserMaster } from "../../hooks/useUserMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createEditActionColumn } from "../../utils/listGridUtils";
 import DivisionMasterForm from "./DivisionMasterForm";
+import UserMasterForm from "../user-master/UserMasterForm";
 import { DV_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DivisionMasterPage.css";
+
+function buildDivisionMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -40,6 +51,7 @@ export default function DivisionMasterPage() {
     headerError,
     fetchEditRecord,
     fetchListRows,
+    refreshBaseDropdowns,
     refreshDropdownOptions,
     seedOptionsFromMaster,
   } = useDivisionMaster();
@@ -50,12 +62,30 @@ export default function DivisionMasterPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
+
+  // Quick-add source for the Head Name (User) dropdown — User Master owns
+  // its own metadata; fetched lazily the first time its "+" is used.
+  const userMaster = useUserMaster();
+  const [userMetaLoaded, setUserMetaLoaded] = useState(false);
+  const [userQuickAddOpen, setUserQuickAddOpen] = useState(false);
+
+  const handleOpenUserQuickAdd = useCallback(() => {
+    if (!userMetaLoaded) {
+      userMaster.fetchHeaderMeta();
+      setUserMetaLoaded(true);
+    }
+    setUserQuickAddOpen(true);
+  }, [userMetaLoaded, userMaster]);
+
+  const handleUserQuickAddSaved = useCallback(() => {
+    setUserQuickAddOpen(false);
+    refreshBaseDropdowns();
+  }, [refreshBaseDropdowns]);
 
   usePageHeader({
     title:    "Division Master",
-    subtitle: "Browse divisions or create a new division record.",
+    subtitle: "Browse and update division records.",
     showBack: true,
     backTo:   "/",
   });
@@ -78,14 +108,7 @@ export default function DivisionMasterPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => {
-    setModalMode("add");
-    setEditRecordId(null);
-    setModalOpen(true);
-  }, []);
-
   const handleEdit = useCallback((idNumber) => {
-    setModalMode("edit");
     setEditRecordId(idNumber);
     setModalOpen(true);
   }, []);
@@ -96,29 +119,16 @@ export default function DivisionMasterPage() {
   }, [fetchList]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createEditActionColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="dv-list__edit-btn"
-            title={`Edit ${row.divisionname ?? row.DivisionName ?? row.divisioncode ?? ""}`}
-            aria-label={`Edit ${row.divisionname ?? row.DivisionName ?? row.divisioncode ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.divisionname ?? row.DivisionName ?? row.divisioncode ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -131,9 +141,11 @@ export default function DivisionMasterPage() {
             <span>Division Master</span>
           </div>
           <div className="dv-list-panel__toolbar">
-            <button type="button" className="dv-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            <PrintReportButton
+              reportTitle="Division Master Report"
+              reportFileName="TODO_DivisionMaster.rpt"
+              buildParams={buildDivisionMasterReportParams}
+            />
             <label htmlFor="dv-list-page-size" className="dv-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -170,7 +182,7 @@ export default function DivisionMasterPage() {
 
       <DivisionMasterForm
         isOpen={modalOpen}
-        mode={modalMode}
+        mode="edit"
         recordId={editRecordId}
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
@@ -180,8 +192,25 @@ export default function DivisionMasterPage() {
         defsError={headerError}
         dropdownOptions={dropdownOptions}
         onRefreshDropdowns={refreshDropdownOptions}
+        onRefreshHeadName={refreshBaseDropdowns}
+        onQuickAddHeadName={handleOpenUserQuickAdd}
         fetchEditRecord={fetchEditRecord}
         seedOptionsFromMaster={seedOptionsFromMaster}
+      />
+
+      <UserMasterForm
+        isOpen={userQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setUserQuickAddOpen(false)}
+        onSaved={handleUserQuickAddSaved}
+        fieldDefs={userMaster.headerColumns}
+        allColumns={userMaster.allColumns}
+        defsLoading={userMaster.headerFetching}
+        defsError={userMaster.headerError}
+        dropdownOptions={userMaster.dropdownOptions}
+        onRefreshDropdowns={userMaster.refreshDropdownOptions}
+        onRefreshField={userMaster.refreshDropdownField}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { SGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
+import "./SubGroupMasterPage.css";
 
 // Fields locked during edit mode (RB colnames — all lowercase)
 const LOCK_ON_EDIT = new Set(["subgroupcode", "subgroupname"]);
@@ -150,6 +151,7 @@ export default function SubGroupMasterForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const errors = validateApiColumns(formValues, visibleFields);
     if (errors.length > 0) { setFormErrors(errors); return; }
 

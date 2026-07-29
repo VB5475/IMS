@@ -14,12 +14,17 @@
 //   3. CollapsibleGrid        — Indent Details
 //   4. PIActionBar            — Save / Cancel etc.
 //
-// All three EntryGrid instances (Items, Suppliers, Terms) are always mounted
-// (CSS show/hide) so their row state is preserved when switching tabs.
+// The Items EntryGrid is always mounted; Suppliers/Terms share a single
+// tabContentOverride slot and fully unmount when the user leaves their tab
+// (e.g. via Items) or swaps between each other. Each needs a distinct `key`
+// so React doesn't reuse one grid's mounted instance/state for the other,
+// and each grid's row state is mirrored into a ref (persistedSupplierRowsRef /
+// persistedTermsRowsRef) and re-seeded via the `initialRows` prop so it
+// survives the unmount/remount around tab switches.
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Truck, Trash2, Package, FileText, ClipboardList, Printer, Save } from "lucide-react";
+import { AlertCircle, Truck, Trash2, Package, FileText, ClipboardList, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
@@ -58,6 +63,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -136,14 +142,14 @@ function mapPickerRowToGridRow(item, allGridColumns, aliasMap = {}, overrides = 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    trancode:     headerValues.trancode ?? "",
-    trandate:     headerValues.trandate ?? "",
-    divisionid:   String(headerValues.divisionid ?? ""),
-    configid:     String(headerValues.configid ?? ""),
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: String(headerValues.divisionid ?? ""),
+    configid: String(headerValues.configid ?? ""),
     expecteddate: headerValues.expecteddate ?? "",
-    deptid:       String(headerValues.deptid ?? ""),
-    basedonid:    String(headerValues.basedonid ?? "0"),
-    remarks:      headerValues.remarks ?? "",
+    deptid: String(headerValues.deptid ?? ""),
+    basedonid: String(headerValues.basedonid ?? "0"),
+    remarks: headerValues.remarks ?? "",
   };
 }
 
@@ -205,6 +211,13 @@ export default function PurchaseInquiryForm() {
   const queuedRowsRef = useRef([]);
   const queuedSupplierRowsRef = useRef([]);
   const queuedTermsRowsRef = useRef([]);
+  // Supplier/Terms grids live inside a single tabContentOverride slot and
+  // fully unmount whenever the user leaves their tab (e.g. via Items) — an
+  // EntryGrid's row state is internal to the component instance, so it's
+  // lost on unmount unless the parent keeps its own copy and re-seeds it via
+  // the `initialRows` prop on remount. Kept in sync via onRowsChange below.
+  const persistedSupplierRowsRef = useRef([]);
+  const persistedTermsRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -219,6 +232,11 @@ export default function PurchaseInquiryForm() {
     fetchInquiryTypes,
     clearInquiryTypes,
     isLoadingInquiryTypes,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     columns,
     allColumns,
     allIndentColumns,
@@ -252,37 +270,33 @@ export default function PurchaseInquiryForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  // Computed first so both the ref and the filter panel share the same initial date.
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
-  // TranDate seeded with todayISO so prmTranDate is correct on the first
-  // "Select Item" click even before the user touches the date field.
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    trancode:     "",
-    trandate:     todayISO,
-    configid:     0,
-    expecteddate: null,
-    divisionid:   0,
-    deptid:       0,
-    basedonid:    "0",
-    remarks:      "",
-    yearid:       session.yearId,
-    funccode:     PI_CONFIG.RB_MASTER,
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    configid: 0,
+    expecteddate: getTodayDateInputValue(),
+    divisionid: 0,
+    deptid: 0,
+    basedonid: "",
+    remarks: "",
+    yearid: session.yearId,
+    funccode: PI_CONFIG.RB_MASTER,
     tranmstgenid: 0,
-    loginid:      session.loginId,
-    sessionid:    DEFAULT_SESSION_ID,
-    idnumber:     recordId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    idnumber: recordId,
   });
 
+  // trandate/expecteddate default to today on a new record; existing records
+  // keep their loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown; Select Item is already gated on
+  // both being filled (PI_ITEM_PICKER_JSON_FIELDS).
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { basedonid: "0", trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { basedonid: "", trandate: getTodayDateInputValue(), expecteddate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
   // initialValues, resetting all filter field values visually on Cancel.
@@ -330,25 +344,27 @@ export default function PurchaseInquiryForm() {
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      trancode:     "",
-      trandate:     todayISO,
-      configid:     0,
-      expecteddate: null,
-      divisionid:   0,
-      deptid:       0,
-      basedonid:    "0",
-      remarks:      "",
-      yearid:       resetSession.yearId,
-      funccode:     PI_CONFIG.RB_MASTER,
+      trancode: "",
+      trandate: getTodayDateInputValue(),
+      configid: 0,
+      expecteddate: getTodayDateInputValue(),
+      divisionid: 0,
+      deptid: 0,
+      basedonid: "",
+      remarks: "",
+      yearid: resetSession.yearId,
+      funccode: PI_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      loginid:      resetSession.loginId,
-      sessionid:    DEFAULT_SESSION_ID,
-      idnumber:     0,
+      loginid: resetSession.loginId,
+      sessionid: DEFAULT_SESSION_ID,
+      idnumber: 0,
     };
 
     queuedRowsRef.current = [];
     queuedSupplierRowsRef.current = [];
     queuedTermsRowsRef.current = [];
+    persistedSupplierRowsRef.current = [];
+    persistedTermsRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
     supplierColumnsLoadedRef.current = false;
     termsColumnsLoadedRef.current = false;
@@ -390,7 +406,7 @@ export default function PurchaseInquiryForm() {
 
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [clearInquiryTypes, clearSaveError, exitEditMode, todayISO]);
+  }, [clearInquiryTypes, clearSaveError, exitEditMode]);
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
@@ -421,6 +437,7 @@ export default function PurchaseInquiryForm() {
 
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [supplierModalItems, setSupplierModalItems] = useState([]);
+  const [supplierModalColumns, setSupplierModalColumns] = useState([]);
   const [supplierModalLoading, setSupplierModalLoading] = useState(false);
   const [supplierModalError, setSupplierModalError] = useState(null);
 
@@ -435,6 +452,13 @@ export default function PurchaseInquiryForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Based On = Direct only) — items are only
+  // fetched once the user clicks Filter; the Indent-wise branch is untouched.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const [itemPickerIsIndentWise, setItemPickerIsIndentWise] = useState(false);
 
   // ── Collapsible indent children (indent-wise mode only) ───────────────
   // childRowsMap  — { [parentRowId: string]: selectedIndentRows[] }
@@ -511,6 +535,7 @@ export default function PurchaseInquiryForm() {
       );
       if (activeSupplierCols?.length > 0) supplierColumnsLoadedRef.current = true;
       const syncedSupplierDetails = syncEditGridDropdownValues(supplierDetails, activeSupplierCols || []);
+      persistedSupplierRowsRef.current = syncedSupplierDetails;
       if (supplierGridRef.current?.loadRows) {
         supplierGridRef.current.loadRows(syncedSupplierDetails);
       } else {
@@ -523,6 +548,7 @@ export default function PurchaseInquiryForm() {
       );
       if (activeTermsCols?.length > 0) termsColumnsLoadedRef.current = true;
       const syncedTermsDetails = syncEditGridDropdownValues(termsDetails, activeTermsCols || []);
+      persistedTermsRowsRef.current = syncedTermsDetails;
       if (termsGridRef.current?.loadRows) {
         termsGridRef.current.loadRows(syncedTermsDetails);
       } else {
@@ -638,6 +664,15 @@ export default function PurchaseInquiryForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
+  // Mirror the Supplier/Terms grids' live row state into refs that survive
+  // their tab-switch unmounts — see persistedSupplierRowsRef comment above.
+  const handleSupplierRowsChange = useCallback((rows) => {
+    persistedSupplierRowsRef.current = rows;
+  }, []);
+  const handleTermsRowsChange = useCallback((rows) => {
+    persistedTermsRowsRef.current = rows;
+  }, []);
+
   // ── syncedFilters ─────────────────────────────────────────────────
   const syncedFilters = useMemo(() => {
     const apiColMap = buildHeaderColMap(headerColumns);
@@ -700,6 +735,10 @@ export default function PurchaseInquiryForm() {
       .filter((filter) =>
         isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
       )
+      .sort((a, b) =>
+        Number(resolveHeaderApiCol(a, apiColMap)?.colseqno) -
+        Number(resolveHeaderApiCol(b, apiColMap)?.colseqno)
+      )
       .map(buildFilterDef);
   }, [
     headerColumns,
@@ -756,8 +795,10 @@ export default function PurchaseInquiryForm() {
         // clearing any previously-picked rows tied to the old division).
         supplierGridRef.current?.clearRows?.();
         setSupplierSelectionCount(0);
+        persistedSupplierRowsRef.current = [];
         termsGridRef.current?.clearRows?.();
         setTermsSelectionCount(0);
+        persistedTermsRowsRef.current = [];
         if (val && val !== "0") {
           await fetchInquiryTypes(val);
           fetchSupplierGridColumns(val);
@@ -815,7 +856,10 @@ export default function PurchaseInquiryForm() {
   //   1. Pick RB code by BasedOn ('0'→Direct, '2'→Indent wise)
   //   2. Fetch RBID via fn_fetch_rbdetailbyrbcode
   //   3. Fetch grid columns via GetDetailColData (read-only, no dropdown fetch)
-  //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INDENT (by BasedOn)
+  //   4a. Indent-wise: fetch item rows immediately (unchanged).
+  //   4b. Direct: fetch Main Group filter options instead — items are only
+  //       fetched once the user clicks Filter (see handleApplyItemFilter).
+  //       Client instruction 2026-07-28, same rollout as Purchase Indent.
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -827,16 +871,21 @@ export default function PurchaseInquiryForm() {
 
     const loginId = getUserSession().loginId;
     const BasedOnID = headerValues.basedonid;
+    const isIndentWise = Number(BasedOnID) === 2;
 
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(isIndentWise); // Indent-wise has no filter step to await
+    setItemPickerIsIndentWise(isIndentWise);
+    clearItemSubMainGroupOptions();
 
     try {
       // Step 1 — choose RB code + row-fetch SP by BasedOnID
-      const isIndentWise = Number(BasedOnID) === 2;
       const rbCode = isIndentWise
         ? PI_CONFIG.RB_ITEM_PICKER_INDENT
         : PI_CONFIG.RB_ITEM_PICKER_DIRECT;
@@ -870,22 +919,87 @@ export default function PurchaseInquiryForm() {
       );
       setItemModalColumns(gridColumns);
 
-      // Step 4 — fetch item rows (all JSON params validated before this call)
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: itemPickerSp,
-        JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      setItemModalItems(rowRes || []);
+      if (isIndentWise) {
+        // Step 4a — fetch item rows immediately (all JSON params validated before this call)
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: itemPickerSp,
+          JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      } else {
+        // Step 4b — Direct: load filter options only, defer the item fetch.
+        await fetchItemMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
+      }
     } catch (err) {
       console.error("[PI] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions, headerColumns]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
+  // Group ARE now sent to SP_ITEM_PICKER_DIRECT — live-confirmed 2026-07-28
+  // (previously threw "Must declare the scalar variable ..."; that's gone).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const loginId = getUserSession().loginId;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_ITEM_PICKER_DIRECT,
+        JSon: JSON.stringify([{
+          ...buildItemPickerJsonPayload(headerValues, loginId),
+          prmmaingroupid: Number(itemMainGroupFilter) || 0,
+          prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
+    } catch (err) {
+      console.error("[PI] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemFilterLoading(false);
+    }
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
+
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.errcode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { errcode, errmsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -901,7 +1015,13 @@ export default function PurchaseInquiryForm() {
         if (!activeCols?.length) return;
         setChildRowsMap({});
         setChildColumns([]);
-        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+        rows.forEach((row) => addItemRow(row));
+        // Fire the same qty/rate recalc a manual blur would trigger, so a
+        // picker-inserted row's calculated amounts are correct immediately
+        // instead of staying 0.00 until the user touches the cell (client-
+        // confirmed 2026-07-24, same fix as Purchase Voucher/Order/Quotation).
+        await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
         return;
       }
 
@@ -971,12 +1091,16 @@ export default function PurchaseInquiryForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns, postSave]
+    [ensureItemColumns, allColumns, addItemRow, getLive, fetchIndentDetailColumns, postSave, handleCellEvent]
   );
 
   // ── Select Supplier (Suppliers tab) ──────────────────────────────
   // Uses the same header-field gate + JSON payload shape as the item picker
   // (PI_CONFIG.SUPPLIER_SP is the PI-only rb_purinqselonlysupp RB — see constants.js).
+  // Same 3-step flow as handleSelectTerms: RB code → RBID → GetDetailColData
+  // (picker's own columns, incl. live colwidth) → row-fetch SP. Previously
+  // SupplierPickerModal hardcoded its own column widths client-side instead
+  // of reading them from the RB, unlike every sibling picker in this form.
   const handleSelectSupplier = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
@@ -985,22 +1109,38 @@ export default function PurchaseInquiryForm() {
       return;
     }
 
-    const loginId = getUserSession().loginId;
-
     setSupplierModalOpen(true);
     setSupplierModalItems([]);
+    setSupplierModalColumns([]);
     setSupplierModalError(null);
     setSupplierModalLoading(true);
     try {
+      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: PI_CONFIG.RB_SUPPLIER_PICKER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const rbRow = rbRes?.[0];
+      if (!rbRow) throw new Error("Could not load supplier picker configuration.");
+
+      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: rbRow.rbid,
+        prmLoginID: getUserSession().loginId,
+      });
+      const gridColumns = buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false });
+      setSupplierModalColumns(gridColumns);
+
       const response = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SUPPLIER_SP,
         JSon: JSON.stringify([{
-            prmdivisionid: Number(headerValues.divisionid) || 0,
-            prmcompanyid:    getUserSession().companyId,
-            prmyearid:     getUserSession().yearId,
-            prmsupplieridnotin : "",
-          }]),
+          prmdivisionid: Number(headerValues.divisionid) || 0,
+          prmcompanyid: getUserSession().companyId,
+          prmyearid: getUserSession().yearId,
+          prmsupplieridnotin: "",
+        }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -1141,28 +1281,12 @@ export default function PurchaseInquiryForm() {
     ref.current.removeRows?.(selected.map((r) => r.id));
   }, [activeTab]);
 
-  const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
-  );
-
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingPI, setIsSavingPI] = useState(false);
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      setFormErrors([]);
       const hv = headerValuesRef.current;
 
       // ── Validation (header + detail grids) ───────────────────────────
@@ -1200,7 +1324,7 @@ export default function PurchaseInquiryForm() {
       });
       const session = getUserSession();
       mstRow.loginid = session.loginId;
-      mstRow.userid  = session.userId;
+      mstRow.userid = session.userId;
 
       // ── Detail ────────────────────────────────────────────────────────
       const sessionFields = { loginid: session.loginId, userid: session.userId };
@@ -1363,6 +1487,43 @@ export default function PurchaseInquiryForm() {
     [handleSaveAndPrint, isSavingPI, handleSave]
   );
 
+  // Direct mode only — Indent-wise items fetch immediately, no filter step.
+  const itemFilterBar = itemPickerIsIndentWise ? null : (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="workspace-page workspace-page--fill pi-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
@@ -1407,129 +1568,118 @@ export default function PurchaseInquiryForm() {
       </section>
 
       <section className="pi-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {PI_GRID_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={PI_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            <>
+              {activeTab === "items" && (
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+              )}
 
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
+              {activeTab === "suppliers" && (
+                <button
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectSupplier}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Truck size={12} strokeWidth={2.5} />
+                  Select Supplier
+                </button>
+              )}
 
-            {activeTab === "suppliers" && (
+              {activeTab === "terms" && (
+                <button
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectTerms}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <ClipboardList size={12} strokeWidth={2.5} />
+                  Select Terms
+                </button>
+              )}
+
+              <div className="pi-tab-filter">
+                <span className="pi-tab-filter__label">Approved</span>
+                <SearchSelect
+                  value={approvedFilter}
+                  onChange={setApprovedFilter}
+                  options={APPROVED_OPTS}
+                  compact
+                  ariaLabel="Approved filter"
+                />
+              </div>
               <button
                 type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectSupplier}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || activeSelectionCount === 0}
+                title="Delete selected rows"
               >
-                <Truck size={12} strokeWidth={2.5} />
-                Select Supplier
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
               </button>
-            )}
-
-            {activeTab === "terms" && (
-              <button
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectTerms}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <ClipboardList size={12} strokeWidth={2.5} />
-                Select Terms
-              </button>
-            )}
-
-            <div className="pi-tab-filter">
-              <span className="pi-tab-filter__label">Approved</span>
-              <SearchSelect
-                value={approvedFilter}
-                onChange={setApprovedFilter}
-                options={APPROVED_OPTS}
-                compact
-                ariaLabel="Approved filter"
+            </>
+          }
+          tabContentOverride={
+            activeTab === "suppliers" ? (
+              <EntryGrid
+                key="pi-supplier-grid"
+                ref={supplierGridRef}
+                config={supplierGridConfig}
+                title=""
+                hideBottomPanel
+                readOnly={isEditRoute && !isEditMode}
+                emptyMessage="No suppliers added. Click Select Supplier above."
+                onSelectionChange={setSupplierSelectionCount}
+                initialRows={persistedSupplierRowsRef.current}
+                onRowsChange={handleSupplierRowsChange}
               />
-            </div>
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || activeSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div
-          className={`pi-tab-pane pi-tab-pane--items${activeTab === "items" ? " pi-tab-pane--active" : ""}`}
-        >
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
-            existingRecordEdit={isEditRoute}
-            containerClassName="pi-item-entry-grid"
-            remarkModalColumns={PI_REMARK_COLUMNS}
-          />
-        </div>
-
-        <div className={`pi-tab-pane${activeTab === "suppliers" ? " pi-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={supplierGridRef}
-            config={supplierGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No suppliers added. Click Select Supplier above."
-            onSelectionChange={setSupplierSelectionCount}
-          />
-        </div>
-
-        <div className={`pi-tab-pane${activeTab === "terms" ? " pi-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={termsGridRef}
-            config={termsGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No terms & conditions added. Click Select Terms above."
-            onSelectionChange={setTermsSelectionCount}
-          />
-        </div>
+            ) : activeTab === "terms" ? (
+              <EntryGrid
+                key="pi-terms-grid"
+                ref={termsGridRef}
+                config={termsGridConfig}
+                title=""
+                hideBottomPanel
+                readOnly={isEditRoute && !isEditMode}
+                emptyMessage="No terms & conditions added. Click Select Terms above."
+                onSelectionChange={setTermsSelectionCount}
+                initialRows={persistedTermsRowsRef.current}
+                onRowsChange={handleTermsRowsChange}
+              />
+            ) : null
+          }
+          readOnly={isEditRoute && !isEditMode}
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          enableCollapsible={Object.keys(childRowsMap).length > 0}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          existingRecordEdit={isEditRoute}
+          containerClassName="pi-item-entry-grid"
+          remarkModalColumns={PI_REMARK_COLUMNS}
+        />
       </section>
 
       {/* <section className="pi-page__section">
@@ -1556,6 +1706,7 @@ export default function PurchaseInquiryForm() {
         isOpen={supplierModalOpen}
         onClose={() => setSupplierModalOpen(false)}
         items={supplierModalItems}
+        columns={supplierModalColumns}
         isLoading={supplierModalLoading}
         error={supplierModalError}
         onInsert={handleInsertSuppliers}
@@ -1577,9 +1728,11 @@ export default function PurchaseInquiryForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

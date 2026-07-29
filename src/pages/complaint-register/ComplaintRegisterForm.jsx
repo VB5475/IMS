@@ -32,6 +32,7 @@ import {
 } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -141,10 +142,6 @@ export default function ComplaintRegisterForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
   const callGenByUser = useMemo(() => {
     const session = getUserSession();
     return String(session.userName || session.userId || "");
@@ -152,7 +149,7 @@ export default function ComplaintRegisterForm() {
 
   const headerValuesRef = useRef(applyMcrHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     divisionid: 0,
     fromlocationid: 0,
     fromdeptid: 0,
@@ -168,14 +165,15 @@ export default function ComplaintRegisterForm() {
     funccode: MCR_CONFIG.RB_MASTER,
   }));
 
+  // trandate defaults to today on a new record; existing records keep their loaded date.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       callgenbyuser: callGenByUser,
       frmtype: String(MCR_CONFIG.FRM_TYPE),
     };
-  }, [loadedFilterValues, todayISO, callGenByUser]);
+  }, [loadedFilterValues, callGenByUser]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -327,6 +325,7 @@ export default function ComplaintRegisterForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions = dropdownOptionsByCol[col.colname];
@@ -504,6 +503,7 @@ export default function ComplaintRegisterForm() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateMcrBusinessRules(headerValuesRef.current);
@@ -570,7 +570,7 @@ export default function ComplaintRegisterForm() {
     localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
     headerValuesRef.current = applyMcrHardcodedHeaderValues({
       trancode: "",
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       divisionid: 0,
       fromlocationid: 0,
       fromdeptid: 0,
@@ -599,7 +599,7 @@ export default function ComplaintRegisterForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
-  }, [callGenByUser, clearSaveError, exitEditMode, todayISO]);
+  }, [callGenByUser, clearSaveError, exitEditMode]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -691,70 +691,56 @@ export default function ComplaintRegisterForm() {
       </section>
 
       <section className="mcr-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {MCR_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={MCR_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleAddNewItem}
+                disabled={!isEditMode}
+                title="Add a blank complaint item row"
               >
-                {t.label}
+                <Plus size={12} strokeWidth={2.5} />
+                Add New
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleAddNewItem}
-              disabled={!isEditMode}
-              title="Add a blank complaint item row"
-            >
-              <Plus size={12} strokeWidth={2.5} />
-              Add New
-            </button>
+              <button
+                ref={selectItemBtnRef}
+                type="button"
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick items for complaint register"
+              >
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
+              </button>
 
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick items for complaint register"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`mcr-tab-pane${activeTab === "items" ? " mcr-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Add New or Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            loading={isGridLoading || isFetching}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Add New or Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          loading={isGridLoading || isFetching}
+        />
       </section>
 
       <ActionBar

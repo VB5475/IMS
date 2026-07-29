@@ -15,6 +15,8 @@ export const UG_CONFIG = {
   SP_LIST: "fn_tbl_gen_groupmaster_list",
   LIST_DIVISION_ID: 15,
 
+  DELETE_PROC_NAME: "pr_rb_usergroupmst_Delete",
+
   SAVE_ENDPOINT: "/API/GenUserGroupMst/Post_RB_GenUserGroupMst_Save",
   STORAGE_HEADER_META: "ugHeaderMeta",
 };

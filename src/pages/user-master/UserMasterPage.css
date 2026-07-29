@@ -99,6 +99,39 @@
   border-color: var(--primary);
 }
 
+.um-list-panel__refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.um-list-panel__refresh-btn:hover:not(:disabled) {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+.um-list-panel__refresh-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.um-list-panel__refresh-btn .spin {
+  animation: um-spin 0.8s linear infinite;
+}
+
+@keyframes um-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .um-form-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
@@ -192,6 +225,43 @@
 .um-form-control--checkbox {
   padding-top: 5px;
   padding-bottom: 5px;
+}
+
+.um-form-dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.um-form-dropdown-row > .search-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.um-form-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.um-form-icon-btn:hover:not(:disabled) {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+.um-form-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .um-hierarchy-panel {

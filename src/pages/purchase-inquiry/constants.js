@@ -37,6 +37,12 @@ export const PI_CONFIG = {
   // PURCHASE_API.SUPPLIER_SP used by other purchase modules). Takes the same JSON
   // payload shape as the item picker — see buildItemPickerJsonPayload below.
   SUPPLIER_SP: "fn_tbl_rb_purinqselonlysupp",
+  // RB code for the same picker's own column metadata — "fn_tbl_" + RB code is
+  // this module's established convention (see RB_ITEM_PICKER_DIRECT/SP_ITEM_PICKER_DIRECT,
+  // RB_TERMS_PICKER/SP_TERMS_PICKER above), so this is SUPPLIER_SP with that
+  // prefix stripped. Live-verified 2026-07-28 — used to replace SupplierPickerModal's
+  // previously-hardcoded column widths with real GetDetailColData metadata.
+  RB_SUPPLIER_PICKER: "rb_purinqselonlysupp",
 
   RB_MASTER: RB_CODES.PURCHASE_INQUIRY,
   ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_INQUIRY),
@@ -73,6 +79,15 @@ export const PI_CONFIG = {
   SP_GRID_EVENT: "fn_tbl_rb_purinquirydet_event",
   SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4inquiry",
 
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purinqselonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE],
 
   INDENT_FRM_OPTION: 0,
@@ -85,8 +100,8 @@ export const PI_CONFIG = {
   STORAGE_SUPP_META: "piSuppMeta",
   STORAGE_TERMS_META: "piTermsMeta",
 
-  SP_INQUIRY_LIST: "fn_tbl_pur_inquirymst_list",
-  LIST_DIVISION_ID: 15,
+  SP_INQUIRY_LIST: "fn_tbl_rb_purinquirymst_list",
+  LIST_DIVISION_ID: 0,
 };
 
 export const PI_HEADER_FILTERS = [

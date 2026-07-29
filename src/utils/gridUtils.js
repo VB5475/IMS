@@ -9,6 +9,7 @@ import { ENDPOINTS, CBO_MODE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { buildColumnMeta, formatColumnDisplayValue, getDateInputConstraints, isNumericColumnDef } from "./columnValidation";
 import { isDateColumnDef } from "./dateFormat";
+import { isCheckboxColCtrlType } from "../data/dummyData";
 
 // ── Column helpers ───────────────────────────────────────────────────
 
@@ -68,14 +69,20 @@ export function deriveFilterType(ctrlType) {
 }
 
 /**
- * Derives a pixel width exclusively from the API column width.
- * @param {{ columnwidth?: number|string }} apiCol
+ * Derives a pixel width exclusively from the API column width — RB's
+ * columnwidth is already a literal pixel value (verified live: e.g.
+ * itemname/remarks=250, tranqty/tranrate=100, discperc/tax fields=75,
+ * tranunit=50), so it's used as-is. Checkbox columns are always rendered
+ * compact regardless of what RB specifies — a checkbox needs no more room
+ * than the frozen row-select column (48px).
+ * @param {{ columnwidth?: number|string, colctrltype?: number|string }} apiCol
  * @returns {number}
  */
 export function getColumnWidth(apiCol) {
+  if (isCheckboxColCtrlType(apiCol?.colctrltype)) return 48;
   const apiWidth = Number(apiCol?.columnwidth);
   if (Number.isFinite(apiWidth) && apiWidth > 0) {
-    return Math.max(60, Math.ceil(apiWidth / 2));
+    return Math.max(60, apiWidth);
   }
   return 120;
 }
@@ -547,10 +554,16 @@ export async function fetchAndBuildGridColumns(
  * @param {object}  [opts]
  * @param {boolean} [opts.filterable=true]      - false for entry grids
  * @param {boolean} [opts.allEditable=false]    - true for entry grids
+ * @param {Record<string, number>} [opts.controlTypeOverrides] - colname → forced
+ *   ColCtrlType, for the rare case where a live RB has a field genuinely
+ *   miscategorized (e.g. an entry field wrongly set to Label=0, which always
+ *   renders read-only regardless of isEditAllow — see controlTypeMap). Same
+ *   escape hatch as SM_CHECKBOX_OVERRIDE_FIELDS elsewhere in the app, but for
+ *   grid columns instead of master-form fields.
  * @returns {object[]}  gridColumns for EntryGrid or conversion via toEnterpriseDataGridColumns
  */
 export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
-  const { filterable = true, allEditable = false, existingRecordEdit = false } = opts;
+  const { filterable = true, allEditable = false, existingRecordEdit = false, controlTypeOverrides = {} } = opts;
 
   const dataColumns = apiColumns
     .filter((col) => isTruthyApiFlag(col.isvisible))
@@ -567,7 +580,7 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
         id: col.colname,
         name: col.displayname,
         key: col.colname,
-        controlType: col.colctrltype,
+        controlType: controlTypeOverrides[col.colname] ?? col.colctrltype,
         colDataType: col.coldatatype || null,
         columnMeta: buildColumnMeta(col),
         width: getColumnWidth(col),
@@ -579,10 +592,20 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
         ctrlValueCol: col.ctrlvaluecol || col.colname,
         ctrlDisplayCol: col.ctrldisplaycol || null,
         dropdownOptions: colDropdownOptions[col.colname] || [],
+        colSeqNo: Number(col.colseqno) || 0,
       };
     });
 
-  dataColumns.sort((a, b) => (a.isFixed === b.isFixed ? 0 : a.isFixed ? -1 : 1));
+  // Tab/Enter navigation walks columns in this array's order — it must
+  // follow the RB's own colseqno, not whatever order the API happened to
+  // return, or focus order silently drifts from the sequence configured in
+  // the RB. isFixed columns still float to the front (frozen-column UX),
+  // but colseqno is now the tiebreak within each group instead of being
+  // ignored entirely.
+  dataColumns.sort((a, b) => {
+    if (a.isFixed !== b.isFixed) return a.isFixed ? -1 : 1;
+    return a.colSeqNo - b.colSeqNo;
+  });
 
   return [
     {

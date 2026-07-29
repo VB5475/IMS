@@ -18,6 +18,7 @@ export const MGM_CONFIG = {
   LIST_OBJ_TYPE:       2,
   SP_LIST:             "fn_tbl_purmaingroupmst_list",
   LIST_DIVISION_ID:    15,            // ⚠️ CONFIRM with DBA
+  DELETE_PROC_NAME:    "pr_rb_purmaingroupmst_delete",
   SAVE_ENDPOINT:       "/API/PurMainGroup/pr_RB_PurMainGroupMst_Save",
   STORAGE_HEADER_META: "mgmHeaderMeta",
 };

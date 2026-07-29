@@ -83,21 +83,8 @@
   overflow: hidden;
 }
 
-/* Tab pane: hidden by default; fills remaining height when active */
-.pq-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.pq-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
 /* Strip duplicate border/shadow from the child EntryGrid */
-.pq-tab-pane .erp-grid-container {
+.pq-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -105,9 +92,6 @@
 
 /* Terms tab: plain scrollable pane */
 .pq-terms-pane {
-  flex: 1;
-  overflow: auto;
-  padding: 12px 16px;
   background: var(--surface);
 }
 

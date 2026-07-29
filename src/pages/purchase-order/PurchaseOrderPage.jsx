@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,23 +16,28 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildPurchaseOrderReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: PO_CONFIG.LIST_OBJ_TYPE,
     ObjName: PO_CONFIG.SP_PO_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:    getUserSession().companyId,
+        prmcompanyid:    session.companyId,
         prmdivisionid:   PO_CONFIG.LIST_DIVISION_ID,
-        prmsupplierid:   0,
+        prmyearid: session.yearId,
         prmfromdate:     `01-Jan-${year}`,
         prmtodate:       `31-Dec-${year}`,
-        prmreftypeid:    0,
-        prmbasedon:      0,
-        prmdepartmentid: 0,
-        prmstatus:       0,
+        prmloginid:      session.loginId,
       },
     ]),
     p_ErrCode: -1,
@@ -73,7 +79,7 @@ export default function PurchaseOrderPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseOrderPage] list fetch failed:", err);
-      setError("Failed to load purchase orders.");
+      setError(err?.message || "Failed to load purchase orders.");
     } finally {
       setLoading(false);
     }
@@ -100,6 +106,11 @@ export default function PurchaseOrderPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Purchase Order Report"
+              reportFileName="TODO_PurchaseOrder.rpt"
+              buildParams={buildPurchaseOrderReportParams}
+            />
             <label htmlFor="po-list-page-size" className="po-list-panel__pagesize-label">
               Rows per page
             </label>

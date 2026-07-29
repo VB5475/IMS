@@ -344,3 +344,15 @@ export function mapMasterRowToHeaderValues(master, fieldDefs, context = {}) {
 
   return header;
 }
+
+/** Alerts and returns true if there are validation errors (caller should abort save). */
+export function alertMasterFormValidationErrors(errors) {
+  if (!errors || errors.length === 0) return false;
+  window.alert(errors.join("\n"));
+  return true;
+}
+
+/** Defers fn until after any in-flight field blur has settled. */
+export function runAfterFieldBlur(fn) {
+  setTimeout(fn, 0);
+}

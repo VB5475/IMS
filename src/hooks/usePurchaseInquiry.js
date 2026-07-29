@@ -27,6 +27,7 @@ import { parseApiErrMsg } from "../utils/apiResponse";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 import { PI_CONFIG } from "../pages/purchase-inquiry/constants";
+import { BASED_ON } from "../constants/purchaseCommon";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -140,6 +141,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [inquiryTypeOptions, setInquiryTypeOptions] = useState([]);
   const [isLoadingInquiryTypes, setIsLoadingInquiryTypes] = useState(false);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
 
   // ── Detail grid state ─────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
@@ -208,6 +211,76 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     },
     [get]
   );
+
+  // ── Select Item popup filters (Based On = Direct only) ────────────────
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PI_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PI] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PI_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PI] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   const fetchHeaderMeta = useCallback(
     async ({ skipListDropdowns = false } = {}) => {
@@ -613,12 +686,20 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
       const supplierDetails = mapDetailRowsToGridRows(suppRes || []);
       const termsDetails = mapDetailRowsToGridRows(termsRes || []);
 
+      // Direct-based PIs have no indent linkage at all. The indent-detail
+      // fetch above joins purely by ItemID (see mapIndentRowsToChildRowsMap),
+      // not by any actual indent reference on this record — so it can
+      // spuriously match an unrelated indent that happens to contain the
+      // same item, even for a Direct PI. Gate on basedonid explicitly
+      // rather than trusting an empty join result.
+      const isDirectBase = String(master?.basedonid ?? "") === BASED_ON.DIRECT.value;
+
       return {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
-        childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
+        childRowsMap: isDirectBase ? {} : mapIndentRowsToChildRowsMap(details, indentDetails),
         supplierDetails,
         termsDetails,
       };
@@ -743,6 +824,11 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     fetchInquiryTypes,
     clearInquiryTypes,
     isLoadingInquiryTypes,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     columns,
     allColumns,
     allIndentColumns,

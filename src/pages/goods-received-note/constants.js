@@ -8,8 +8,6 @@ export const PAGE_TITLE_NEW = "New Goods Received Note";
 
 
 
-import { controlTypeMap } from "../../data/dummyData";
-
 import {
 
   APPROVED_FILTER_OPTS,
@@ -51,8 +49,14 @@ export { CURRENCY_READONLY_FIELDS as GRN_READONLY_FIELDS };
 
 
 
-/** Item-grid column that supports multi-value paste (Serial Number replication). */
-export const GRN_MULTI_PASTE_COLUMNS = new Set(["batchnosrno"]);
+/**
+ * Columns that support multi-value paste (Serial Number replication).
+ * Both keys are listed because the live column name differs by backend project —
+ * "batchsrno" on IMS_LIVE, "batchnosrno" on IMS_PGLIVE (verified against GetDetailColData,
+ * same as PV's PV_MULTI_PASTE_COLUMNS). GRN only listed "batchnosrno", so paste-driven
+ * row replication silently did nothing on IMS_LIVE, where the column is "batchsrno".
+ */
+export const GRN_MULTI_PASTE_COLUMNS = new Set(["batchsrno", "batchnosrno"]);
 
 /** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
 export const GRN_REMARK_COLUMNS = new Set(["remarks"]);
@@ -109,7 +113,19 @@ export const GRN_CONFIG = {
 
   SP_DESTINATIONS: "fn_tbl_gen_fetchdestination",
 
+  /** Division-wise location — same SP as Purchase Indent's Location cascade. */
+  SP_LOCATION: "fn_tbl_fetch_divwslocation",
+
   SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4grn",
+
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purgrnselonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
 
 
@@ -130,7 +146,7 @@ export const GRN_CONFIG = {
 
 
 
-  SP_GRN_LIST: "fn_tbl_pur_grnmst_list",
+  SP_GRN_LIST: "fn_tbl_rb_purgrnmst_list",
 
   LIST_DIVISION_ID: 15,
 
@@ -152,119 +168,39 @@ export const GRN_LIST_DROPDOWN_FIELDS = new Set([
 
   "vehicletypeid",
 
+  "locationid",
+
 ]);
 
 
 
-export const GRN_HEADER_FILTERS = [
+// Header field DEFINITIONS (caption, control type, lock state, validation) are no
+// longer hand-maintained here — they're built straight from the live RB metadata
+// (see syncedHeaderFilters/syncedTransporterFilters/syncedDriverFilters in
+// GoodsReceivedNoteForm.jsx). A static list silently drops any RB field nobody
+// remembers to add here — that's exactly how `locationid` went missing (both
+// unrendered AND unvalidated) despite being mandatory in the live RB.
+//
+// The one thing the RB genuinely can't tell us is *which of GRN's three tabs*
+// a field belongs to (Item Grid header / Transporter / Driver) — that's a UI
+// layout decision, not RB data. These two membership sets are the only static
+// config left; every other RB-visible field not listed here falls into the
+// main header group by default.
+export const GRN_TRANSPORTER_FIELD_NAMES = new Set([
+  "transporterid",
+  "destinationid",
+  "lrno",
+  "lrdate",
+  "vehicleno",
+  "vehicletypeid",
+  "noofperson",
+]);
 
-  { FilterParameterID: "trancode", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  { FilterParameterID: "trandate", FilterColCtrlType: controlTypeMap.DATE },
-
-  {
-
-    FilterParameterID: "divisionid",
-
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-
-    staticOptions: [],
-
-  },
-
-  { FilterParameterID: "configid", FilterColCtrlType: controlTypeMap.DROPDOWN, staticOptions: [] },
-
-  {
-
-    FilterParameterID: "supplierid",
-
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-
-    staticOptions: [],
-
-  },
-
-  { FilterParameterID: "currencyname", FilterColCtrlType: controlTypeMap.LABEL },
-
-  { FilterParameterID: "currencyrate", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  {
-
-    FilterParameterID: "basedonid",
-
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-
-    staticOptions: GRN_CONFIG.BASED_ON_OPTIONS,
-
-  },
-
-  { FilterParameterID: "billno", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  { FilterParameterID: "billdate", FilterColCtrlType: controlTypeMap.DATE },
-
-  { FilterParameterID: "challanno", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  { FilterParameterID: "challandate", FilterColCtrlType: controlTypeMap.DATE },
-
-  { FilterParameterID: "remarks", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-];
-
-
-
-export const GRN_TRANSPORTER_FILTERS = [
-
-  {
-
-    FilterParameterID: "transporterid",
-
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-
-    staticOptions: [],
-
-  },
-
-  {
-
-    FilterParameterID: "destinationid",
-
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-
-    staticOptions: [],
-
-  },
-
-  { FilterParameterID: "lrno", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  { FilterParameterID: "lrdate", FilterColCtrlType: controlTypeMap.DATE },
-
-  { FilterParameterID: "vehicleno", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  {
-
-    FilterParameterID: "vehicletypeid",
-
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-
-    staticOptions: [],
-
-  },
-
-  { FilterParameterID: "noofperson", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-];
-
-
-
-export const GRN_DRIVER_FILTERS = [
-
-  { FilterParameterID: "drivername", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  { FilterParameterID: "drivercontactno", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-  { FilterParameterID: "driverlicenceno", FilterColCtrlType: controlTypeMap.TEXTBOX },
-
-];
+export const GRN_DRIVER_FIELD_NAMES = new Set([
+  "drivername",
+  "drivercontactno",
+  "driverlicenceno",
+]);
 
 
 
@@ -285,6 +221,8 @@ export const GRN_FILTER_CASCADE_RESETS = {
   divisionid: [
 
     "configid",
+
+    "locationid",
 
     "supplierid",
 
@@ -348,13 +286,31 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {
 
-  return buildPickerPayload(headerValues, loginId, {
+  const base = buildPickerPayload(headerValues, loginId, {
 
     configYearId: getUserSession().yearId,
 
     tranBook: GRN_CONFIG.TRAN_BOOK,
 
   });
+
+  // Item picker (fn_tbl_rb_purgrnselonlyitem / fn_tbl_rb_purgrnselpodet) needs
+  // prmlocationid — the selected Location dropdown — right after prmsupplierid.
+  // Not in the shared buildItemPickerJsonPayload since other purchase modules
+  // (PO, Voucher, ...) don't have a Location header field.
+  const { prmtranbook, prmfrmoption, ...rest } = base;
+
+  return {
+
+    ...rest,
+
+    prmlocationid: Number(headerValues.locationid ?? headerValues.LocationID ?? 0),
+
+    prmtranbook,
+
+    prmfrmoption,
+
+  };
 
 }
 

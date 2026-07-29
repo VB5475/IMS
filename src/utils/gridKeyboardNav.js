@@ -120,7 +120,11 @@ function scanForTarget(matrix, startRow, startCol, dRow, dCol) {
       row -= 1;
     }
 
-    if (row < 0 || row >= rowCount) return null;
+    // Wrap top/bottom instead of escaping the grid — Tab/Enter/arrows must
+    // stay inside this grid until focus is moved by mouse (a click outside
+    // never goes through this handler at all, so that stays unaffected).
+    if (row >= rowCount) row = 0;
+    else if (row < 0) row = rowCount - 1;
 
     const target = matrix[row][col];
     if (target) return target;
@@ -176,6 +180,20 @@ export function handleGridKeyboardEvent(
   { root, readOnly = false, includeHeaderRow = false, onToggleRow = null }
 ) {
   if (!root || isDropdownOpen(e.target)) return false;
+
+  // Ctrl+Z/Cmd+Z (undo) is not reversible for most grid cells — remarks/notes
+  // fields (rendered as <textarea>, or the remark cell's own input before the
+  // paste-friendly modal takes over) are the sole exception.
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    !e.shiftKey &&
+    e.key.toLowerCase() === "z" &&
+    !(e.target instanceof HTMLTextAreaElement) &&
+    !e.target?.closest?.(".cell-remark__input")
+  ) {
+    e.preventDefault();
+    return true;
+  }
 
   const matrix = buildCellMatrix(root, readOnly, { includeHeaderRow });
   if (matrix.length === 0) return false;

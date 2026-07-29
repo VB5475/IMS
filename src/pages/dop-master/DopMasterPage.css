@@ -1,0 +1,262 @@
+/* DopMasterPage.css */
+
+/* ── Listing page ──────────────────────────────────────────────────────────── */
+.dop-list-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dop-list-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dop-list-panel--fill {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.dop-list-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+}
+
+.dop-list-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.dop-list-panel__toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.dop-list-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dop-list-panel__add-btn:hover { filter: brightness(1.05); }
+
+.dop-list-panel__pagesize-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dop-list-panel__pagesize-select {
+  height: 26px;
+  min-width: 56px;
+  padding: 0 24px 0 8px;
+}
+
+.dop-list-panel .ng-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.dop-list-panel .ng-card-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dop-list__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.dop-list__edit-btn:hover {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+/* ── Form page shell ───────────────────────────────────────────────────────── */
+/* A variable-length list of amount-band cards, each with its own nested
+   employee grid, needs the whole page to scroll normally — no fixed-fill /
+   internal-scroll-per-panel layout like the old two-grid version. */
+.dop-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.dop-page .efq-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Amount bands section ─────────────────────────────────────────────────── */
+.dop-bands-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dop-bands-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dop-bands-section__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+}
+
+.dop-bands-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted, #737780);
+  font-size: 12.5px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.dop-band-card {
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(30, 74, 122, 0.08);
+  overflow: hidden;
+}
+
+.dop-band-card__fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 12px 14px;
+  background: var(--primary-lighter, #eef4fa);
+  border-bottom: 1px solid var(--border);
+}
+
+.dop-band-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--primary);
+}
+
+.dop-band-card__field input {
+  height: 30px;
+  min-width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dop-band-card__field input:disabled {
+  background: var(--field-view-bg, #e6f1fc);
+  color: var(--text-secondary);
+}
+
+.dop-band-card__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--danger, #d93025);
+  cursor: pointer;
+}
+
+.dop-band-card__remove:hover {
+  background: #fff5f4;
+  border-color: var(--danger, #d93025);
+}
+
+.dop-band-card__employees {
+  padding: 10px 14px 14px;
+}
+
+.dop-band-card__employee-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dop-band-card__employee-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+
+/* CollapsibleGrid's own header badge reflects its (intentionally static,
+   never-updated) `rows` prop, not the live uncontrolled grid — always 0.
+   The real count is .dop-band-card__employee-count below; hide the stale one. */
+.dop-band-card__employees .cg-header__badge {
+  display: none;
+}

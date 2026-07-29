@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,19 +16,28 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildPurchaseIndentReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const year = new Date().getFullYear();
+  const session = getUserSession();
   return {
     ObjType: IND_CONFIG.LIST_OBJ_TYPE,
     ObjName: IND_CONFIG.SP_INDENT_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid: getUserSession().companyId,
+        prmcompanyid: session.companyId,
         prmdivisionid: IND_CONFIG.LIST_DIVISION_ID,
+         prmyearid:    session.yearId,
         prmfromdate: `01-Jan-${year}`,
         prmtodate: `31-Dec-${year}`,
-        prmdepartmentid: 0,
+        prmloginid: session.loginId,
       },
     ]),
     p_ErrCode: -1,
@@ -69,7 +79,7 @@ export default function PurchaseIndentPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseIndentPage] list fetch failed:", err);
-      setError("Failed to load purchase indents.");
+      setError(err?.message || "Failed to load purchase indents.");
     } finally {
       setLoading(false);
     }
@@ -96,6 +106,11 @@ export default function PurchaseIndentPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Purchase Indent Report"
+              reportFileName="TODO_PurchaseIndent.rpt"
+              buildParams={buildPurchaseIndentReportParams}
+            />
             <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">
               Rows per page
             </label>

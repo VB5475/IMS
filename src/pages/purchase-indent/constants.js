@@ -1,6 +1,6 @@
 // constants.js — Purchase Indent page config
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE     = "Purchase Indent";
+export const PAGE_TITLE = "Purchase Indent";
 export const PAGE_TITLE_NEW = "New Purchase Indent";
 
 // All RB codes, SP names, IDs, and request defaults for the Indent module.
@@ -48,13 +48,13 @@ export const IND_CONFIG = {
   STORAGE_ENTRY_META: "indEntryMeta",
 
   SP_INDENT_LIST: "fn_tbl_rb_purindtmst_list",
-  LIST_DIVISION_ID: 15,
+  LIST_DIVISION_ID: 0,
 };
 
 export const IND_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 export const IND_FILTER_CASCADE_RESETS = {
-  divisionid: ["configid"],
+  divisionid: ["configid", "locationid"],
 };
 
 export const IND_SHORTCUT_CONFIG = {
@@ -78,8 +78,8 @@ export const IND_SHORTCUT_CONFIG = {
 /** Header fields required before Select Item can be opened */
 export const IND_ITEM_PICKER_JSON_FIELDS = [
   { headerKey: "divisionid", label: "Division" },
-  { headerKey: "trandate",   label: "Tran Date", isDate: true },
-  { headerKey: "configid",   label: "Indent Type" },
+  { headerKey: "trandate", label: "Tran Date", isDate: true },
+  { headerKey: "configid", label: "Indent Type" },
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {

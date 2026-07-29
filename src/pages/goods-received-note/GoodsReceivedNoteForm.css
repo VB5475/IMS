@@ -78,28 +78,10 @@
   overflow: hidden;
 }
 
-.grn-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.grn-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.grn-tab-pane .erp-grid-container {
+.grn-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-}
-
-.grn-sub-panel {
-  flex: 1;
-  overflow: auto;
-  padding: 8px 12px 12px;
 }
 
 /* Tab-bar action button styles → shared eg-tab-btn in EntryGrid.css */

@@ -32,6 +32,21 @@ export { DEFAULT_BASED_ON_FILTER_VALUES as QTN_FILTER_INITIAL_VALUES };
 /** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
 export const QTN_REMARK_COLUMNS = new Set(["remarks"]);
 
+// ⚠️ CONFIRMED live 2026-07-28 — rb_purqtndet's `tranqty` column comes back
+// with ColCtrlType=0 (Label), which EntryGrid always renders as a plain,
+// unfocusable <span> regardless of IsEditAllow (Label isn't an "editable vs
+// not" toggle, it's a widget choice with no editable form — see
+// gridColumnClass.js / EntryGrid.jsx's cell renderer). Since Tran Qty is the
+// core "how many are you quoting" field, not a computed/display value, this
+// silently broke both editing AND Tab order (focus skips straight over an
+// unfocusable label from the header panel into Tran Rate). Overriding to
+// TEXTBOX client-side — same escape hatch as SM_CHECKBOX_OVERRIDE_FIELDS.
+// CONFIRM with DBA whether rb_purqtndet's ColCtrlType for tranqty should be
+// fixed at the source instead of overridden here.
+export const QTN_GRID_CONTROL_TYPE_OVERRIDES = {
+  tranqty: controlTypeMap.TEXTBOX,
+};
+
 export const QTN_CONFIG = {
   ...PURCHASE_API,
   SP_QUOTATION_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
@@ -54,14 +69,16 @@ export const QTN_CONFIG = {
   SP_ITEM_PICKER_INQUIRY: "fn_tbl_rb_purqtnselinqitem",
   SP_GRID_EVENT: "fn_tbl_rb_purqtndet_event",
 
-  BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INQUIRY_BASED],
+  BASED_ON_OPTIONS: [
+    // BASED_ON.DIRECT, 
+    BASED_ON.INQUIRY_BASED],
 
   SAVE_ENDPOINT: "/API/PurQtnSave/Post_RB_PurQtnMst_Save",
 
   STORAGE_HEADER_META: "pqHeaderMeta",
   STORAGE_ENTRY_META: "pqEntryMeta",
 
-  SP_QUOTATION_LIST: "fn_tbl_pur_qtnmst_list",
+  SP_QUOTATION_LIST: "fn_tbl_rb_purqtnmst_list",
   LIST_DIVISION_ID: 15,
 };
 

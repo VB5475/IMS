@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileSpreadsheet,
   ClipboardList,
   FileText,
+  FileStack,
+  Archive,
   ShoppingCart,
   Receipt,
   PackageCheck,
@@ -35,6 +37,7 @@ import {
   Building,
   FolderTree,
   Landmark,
+  ShieldCheck,
   Truck,
   UserCheck,
   Scale,
@@ -43,6 +46,7 @@ import {
   Search,
   ArrowLeft,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -57,27 +61,8 @@ const NAV_SECTIONS = [
     label: "Home",
     items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
   },
-  {
-    label: "Master",
-    items: [
-      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
-      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
-      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
-      { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
-      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: false },
-      { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
-      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
-      { to: rbRoutePath(RB_CODES.ASSET_ITEM_MASTER), icon: LayoutList, label: "Asset Item Master", end: false },
-      { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
-    ],
-  },
+  
+ 
   {
     label: "Purchase",
     items: [
@@ -121,11 +106,44 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false },
     ],
   },
+   {
+    label: "DMS",
+    items: [
+      // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
+      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false },
+      { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
+      { to: rbRoutePath(RB_CODES.DM_TT2DOCTYPE_MASTER), icon: ArrowLeftRight, label: "Transaction To Document Type Master", end: false },
+    ],
+  },
+  {
+    label: "Master",
+    items: [
+      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
+      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
+      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
+      { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
+      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: false },
+      { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
+      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
+      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
+      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
+      { to: rbRoutePath(RB_CODES.ASSET_ITEM_MASTER), icon: LayoutList, label: "Asset Item Master", end: false },
+      { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
+    ],
+  },
 
 ];
 
 export default function AppShell({ children }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
@@ -136,12 +154,41 @@ export default function AppShell({ children }) {
     navigate("/login", { replace: true });
   };
 
+  // Close the mobile drawer whenever the route changes (link click, back/forward, etc.)
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Escape closes the mobile drawer, same convention as Modal/ConfirmDialog.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileNavOpen]);
+
+  const handleOpenMobileNav = () => {
+    setCollapsed(false); // the drawer always shows full labeled nav, never the icon rail
+    setMobileNavOpen(true);
+  };
+
   const title = header.title ?? getDefaultRouteTitle(location.pathname);
   const subtitle = header.subtitle ?? "FY 2025-26 · 01 Jun 2026";
   const profileInitial = (userName || userId || "U").charAt(0).toUpperCase();
 
   return (
-    <div className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""}`}>
+    <div
+      className={`ent-shell ${collapsed ? "ent-shell--collapsed" : ""} ${mobileNavOpen ? "ent-shell--mobile-nav-open" : ""}`}
+    >
+      {mobileNavOpen && (
+        <div
+          className="ent-mobile-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <aside className="ent-sidebar">
         <div className="ent-sidebar__header">
           <div className="ent-sidebar__brand">
@@ -162,6 +209,14 @@ export default function AppShell({ children }) {
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
+          </button>
+          <button
+            type="button"
+            className="ent-sidebar__mobile-close"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation"
+          >
+            <PanelLeftClose size={14} />
           </button>
         </div>
 
@@ -199,6 +254,14 @@ export default function AppShell({ children }) {
       <div className="ent-main">
         <header className="ent-topbar">
           <div className="ent-topbar__left">
+            <button
+              type="button"
+              className="ent-topbar__hamburger"
+              onClick={handleOpenMobileNav}
+              aria-label="Open navigation"
+            >
+              <Menu size={18} strokeWidth={2} />
+            </button>
             {header.showBack && (
               <button
                 type="button"
@@ -206,17 +269,17 @@ export default function AppShell({ children }) {
                 onClick={() => navigate(header.backTo || "/")}
               >
                 <ArrowLeft size={14} />
-                Back
+                <span>Back</span>
               </button>
             )}
             <div className="ent-topbar__titles">
               <h1 className="ent-topbar__title">{title}</h1>
               {subtitle && <p className="ent-topbar__subtitle">{subtitle}</p>}
             </div>
-            <div className="ent-topbar__search">
+            {/* <div className="ent-topbar__search">
               <Search size={14} />
               <input type="text" placeholder="Global Search..." />
-            </div>
+            </div> */}
           </div>
           <div className="ent-topbar__actions">
             <div className="ent-env-switcher" role="group" aria-label="API environment">

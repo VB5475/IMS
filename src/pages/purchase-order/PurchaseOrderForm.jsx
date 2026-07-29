@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -40,12 +40,13 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -87,18 +88,18 @@ function mapHeaderValuesToFilterValues(headerValues) {
   const resolvedBasedOnID = validBasedOn ? validBasedOn.value : "0";
 
   return {
-    trancode:     headerValues.trancode ?? "",
-    trandate:     headerValues.trandate ?? "",
-    divisionid:   String(headerValues.divisionid ?? ""),
-    configid:     String(headerValues.configid ?? ""),
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: String(headerValues.divisionid ?? ""),
+    configid: String(headerValues.configid ?? ""),
     deliverydate: headerValues.deliverydate ?? "",
-    supplierid:   String(headerValues.supplierid ?? ""),
-    deptid:       String(headerValues.deptid ?? ""),
-    basedonid:    resolvedBasedOnID,
+    supplierid: String(headerValues.supplierid ?? ""),
+    deptid: String(headerValues.deptid ?? ""),
+    basedonid: resolvedBasedOnID,
     currencyname: headerValues.currencyname ?? "",
     currencyrate: String(headerValues.currencyrate ?? ""),
-    creditdays:   String(headerValues.creditdays ?? ""),
-    remarks:      headerValues.remarks ?? "",
+    creditdays: String(headerValues.creditdays ?? ""),
+    remarks: headerValues.remarks ?? "",
   };
 }
 
@@ -152,6 +153,11 @@ export default function PurchaseOrderForm() {
     getSupplierCurrency,
     fetchExistingPOs,
     fetchUniqueId,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     isLoadingPoTypes,
     columns,
     allColumns,
@@ -176,40 +182,38 @@ export default function PurchaseOrderForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const headerValuesRef = useRef({
-    trancode:      "",
-    trandate:      todayISO,
-    configid:      0,
-    deliverydate:  null,
-    divisionid:    0,
-    supplierid:    0,
-    deptid:        0,
-    currencyid:    0,
-    currencyname:  "",
-    currencyrate:  0,
-    creditdays:    0,
-    basedonid:     "0",
-    remarks:       "",
-    tranmstgenid:  0,
-    companyid:     getUserSession().companyId,
-    yearid:        getUserSession().yearId,
-    loginid:       getUserSession().loginId,
-    idnumber:      recordId,
-    isamend:       0,
-    amendpoid:     0,
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    configid: 0,
+    deliverydate: null,
+    divisionid: 0,
+    supplierid: 0,
+    deptid: 0,
+    currencyid: 0,
+    currencyname: "",
+    currencyrate: 0,
+    creditdays: 0,
+    basedonid: "",
+    remarks: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: recordId,
+    isamend: 0,
+    amendpoid: 0,
     compuniquekey: 0,
-    funccode:      PO_CONFIG.RB_MASTER,
+    funccode: PO_CONFIG.RB_MASTER,
   });
 
+  // trandate defaults to today on a new record; existing records keep their
+  // loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { basedonid: "0", trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return { basedonid: "", trandate: getTodayDateInputValue() };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
 
@@ -286,6 +290,14 @@ export default function PurchaseOrderForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Based On = Direct only) — items are only
+  // fetched once the user clicks Filter; Indent-wise/Quotation branches
+  // are untouched.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const [itemPickerIsDirect, setItemPickerIsDirect] = useState(false);
 
   // Collapsible indent children (indent-wise mode)
   const [childRowsMap, setChildRowsMap] = useState({});
@@ -359,7 +371,7 @@ export default function PurchaseOrderForm() {
         setCurrencyExternalValues({
           currencyname: headerValues.currencyname ?? "",
           currencyrate: String(headerValues.currencyrate ?? ""),
-          creditdays:   String(headerValues.creditdays ?? ""),
+          creditdays: String(headerValues.creditdays ?? ""),
         });
       }
 
@@ -446,10 +458,10 @@ export default function PurchaseOrderForm() {
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ──
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid: divisionOptions,
-    configid:   poTypeOptions,
+    configid: poTypeOptions,
     supplierid: supplierOptions,
-    deptid:     departmentOptions,
-    basedonid:  PO_CONFIG.BASED_ON_OPTIONS,
+    deptid: departmentOptions,
+    basedonid: PO_CONFIG.BASED_ON_OPTIONS,
   }), [divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
 
   const syncedFilters = useMemo(() => {
@@ -461,13 +473,14 @@ export default function PurchaseOrderForm() {
         !PO_SUMMARY_COL_NAMES.has(col.colname) &&
         !PO_HEADER_HIDDEN_COLS.has(col.colname)
       )
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
+        const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
           FilterParameterID: col.colname,
-          FilterColName:     col.colname,
-          FilterCaption:     col.displayname ?? col.colname,
+          FilterColName: col.colname,
+          FilterCaption: col.displayname ?? col.colname,
           FilterColCtrlType: PO_LABEL_OVERRIDE_COLS.has(col.colname)
             ? controlTypeMap.LABEL
             : (col.colctrltype ?? 0),
@@ -482,8 +495,8 @@ export default function PurchaseOrderForm() {
       const supplierIdx = cols.findIndex((f) => f.FilterParameterID === "supplierid");
       cols.splice(supplierIdx >= 0 ? supplierIdx + 1 : cols.length, 0, {
         FilterParameterID: "currencyname",
-        FilterColName:     "currencyname",
-        FilterCaption:     "Currency",
+        FilterColName: "currencyname",
+        FilterCaption: "Currency",
         FilterColCtrlType: controlTypeMap.LABEL,
       });
     }
@@ -504,16 +517,11 @@ export default function PurchaseOrderForm() {
     return tones;
   }, [syncedFilters, isEditMode, isEditRoute]);
 
-  // ── syncedSummaryFields — enrich PO_SUMMARY_FIELDS with labels from header RB columns ──
-  const syncedSummaryFields = useMemo(() => {
-    const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.colname] = col; });
-    return PO_SUMMARY_FIELDS.map((f) => ({
-      ...f,
-      mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
-    }));
-  }, [headerColumns]);
+  // ── syncedSummaryFields — only fields RB marks visible, labelled from header RB columns ──
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(PO_SUMMARY_FIELDS, headerColumns),
+    [headerColumns]
+  );
 
   // ── Filter change / cascade ────────────────────────────────────────
   const handleFilterChange = useCallback(
@@ -558,31 +566,31 @@ export default function PurchaseOrderForm() {
         if (val && val !== "0") {
           const cached = getSupplierCurrency(val);
           if (cached) {
-            headerValuesRef.current.currencyid   = cached.currencyid;
+            headerValuesRef.current.currencyid = cached.currencyid;
             headerValuesRef.current.currencyname = cached.currencyname;
             headerValuesRef.current.currencyrate = cached.currencyrate;
-            headerValuesRef.current.creditdays   = cached.crdays;
+            headerValuesRef.current.creditdays = cached.crdays;
             setCurrencyExternalValues({
               currencyname: cached.currencyname,
               currencyrate: String(cached.currencyrate),
-              creditdays:   String(cached.crdays),
+              creditdays: String(cached.crdays),
             });
           } else {
             const info = await fetchSupplierInfo(val);
             if (info) {
-              headerValuesRef.current.currencyid   = info.currencyid;
+              headerValuesRef.current.currencyid = info.currencyid;
               headerValuesRef.current.currencyname = info.currencyname ?? "";
               headerValuesRef.current.currencyrate = info.currencyrate;
-              headerValuesRef.current.creditdays   = info.crdays;
+              headerValuesRef.current.creditdays = info.crdays;
               setCurrencyExternalValues({
                 currencyname: info.currencyname ?? "",
                 currencyrate: String(info.currencyrate),
-                creditdays:   String(info.crdays),
+                creditdays: String(info.crdays),
               });
             }
           }
         } else {
-          headerValuesRef.current.currencyid   = 0;
+          headerValuesRef.current.currencyid = 0;
           headerValuesRef.current.currencyname = "";
           headerValuesRef.current.currencyrate = 0;
           setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
@@ -624,6 +632,9 @@ export default function PurchaseOrderForm() {
   );
 
   // ── Select Item ────────────────────────────────────────────────────
+  // Direct branch (basedonid not 2 or 3) defers the item fetch until the
+  // user clicks Filter — Indent-wise/Quotation branches fetch immediately,
+  // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
@@ -633,23 +644,25 @@ export default function PurchaseOrderForm() {
     }
     const { divisionid, configid, trandate, basedonid } = headerValues;
     const divisionID = divisionid ?? 0;
+    const basedOnNum = Number(basedonid);
+    const isDirect = basedOnNum !== 2 && basedOnNum !== 3;
 
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(!isDirect); // non-Direct modes have no filter step to await
+    setItemPickerIsDirect(isDirect);
+    clearItemSubMainGroupOptions();
 
     try {
       let rbCode;
-      if (Number(basedonid) === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
-      else if (Number(basedonid) === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
+      if (basedOnNum === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
+      else if (basedOnNum === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
       else rbCode = PO_CONFIG.RB_ITEM_PICKER_DIRECT;
-
-      let spItemPicker;
-      if (Number(basedonid) === 2) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_INDENT;
-      else if (Number(basedonid) === 3) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_QUOT;
-      else spItemPicker = PO_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
@@ -675,32 +688,92 @@ export default function PurchaseOrderForm() {
       );
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: spItemPicker,
-        JSon: JSON.stringify([
-          {
-            prmdivisionid: Number(divisionID),
-            prmyearid:     getUserSession().yearId,
-            prmloginid:    getUserSession().loginId,
-            prmtrandate:   formatTranDate(trandate),
-            prmconfigid:   Number(configid ?? 0),
-            prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
-            prmtranbook:   PO_CONFIG.TRAN_BOOK,
-            prmfrmoption:  Number(basedonid) || 0,
-          },
-        ]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      setItemModalItems(rowRes || []);
+      if (isDirect) {
+        await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+      } else {
+        const spItemPicker = basedOnNum === 2 ? PO_CONFIG.SP_ITEM_PICKER_INDENT : PO_CONFIG.SP_ITEM_PICKER_QUOT;
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: spItemPicker,
+          JSon: JSON.stringify([
+            {
+              prmdivisionid: Number(divisionID),
+              prmyearid: getUserSession().yearId,
+              prmloginid: getUserSession().loginId,
+              prmtrandate: formatTranDate(trandate),
+              prmconfigid: Number(configid ?? 0),
+              prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
+              prmtranbook: PO_CONFIG.TRAN_BOOK,
+              prmfrmoption: basedOnNum || 0,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      }
     } catch (err) {
       console.error("[PO] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
+  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
+  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
+  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
+  // threw "Must declare the scalar variable ..."; that's gone).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const { divisionid, configid, trandate } = headerValues;
+    const divisionID = divisionid ?? 0;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PO_CONFIG.SP_ITEM_PICKER_DIRECT,
+        JSon: JSON.stringify([
+          {
+            prmdivisionid: Number(divisionID),
+            prmyearid: getUserSession().yearId,
+            prmloginid: getUserSession().loginId,
+            prmtrandate: formatTranDate(trandate),
+            prmconfigid: Number(configid ?? 0),
+            prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
+            prmtranbook: PO_CONFIG.TRAN_BOOK,
+            prmfrmoption: 0,
+            prmmaingroupid: Number(itemMainGroupFilter) || 0,
+            prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
+          },
+        ]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
+    } catch (err) {
+      console.error("[PO] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemFilterLoading(false);
+    }
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -714,7 +787,13 @@ export default function PurchaseOrderForm() {
         if (!activeCols?.length) return;
         setChildRowsMap({});
         setChildColumns([]);
-        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+        rows.forEach((row) => addItemRow(row));
+        // Fire the same qty/rate recalc a manual blur would trigger, so a
+        // picker-inserted row's calculated amounts are correct immediately
+        // instead of staying 0.00 until the user touches the cell (client-
+        // confirmed 2026-07-24, same fix as Purchase Voucher).
+        await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
         return;
       }
 
@@ -760,7 +839,7 @@ export default function PurchaseOrderForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, itemModalColumns, postSave]
+    [ensureItemColumns, allColumns, addItemRow, itemModalColumns, postSave, handleCellEvent]
   );
 
   const handleSelectListShortcut = useCallback(() => {
@@ -783,29 +862,29 @@ export default function PurchaseOrderForm() {
   const [isSavingPO, setIsSavingPO] = useState(false);
 
   const buildDefaultHeaderValues = useCallback(() => ({
-    trancode:      "",
-    trandate:      todayISO,
-    configid:      0,
-    deliverydate:  null,
-    divisionid:    0,
-    supplierid:    0,
-    deptid:        0,
-    currencyid:    0,
-    currencyname:  "",
-    currencyrate:  0,
-    creditdays:    0,
-    basedonid:     "0",
-    remarks:       "",
-    tranmstgenid:  0,
-    companyid:     getUserSession().companyId,
-    yearid:        getUserSession().yearId,
-    loginid:       getUserSession().loginId,
-    idnumber:      0,
-    isamend:       0,
-    amendpoid:     0,
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    configid: 0,
+    deliverydate: null,
+    divisionid: 0,
+    supplierid: 0,
+    deptid: 0,
+    currencyid: 0,
+    currencyname: "",
+    currencyrate: 0,
+    creditdays: 0,
+    basedonid: "",
+    remarks: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+    isamend: 0,
+    amendpoid: 0,
     compuniquekey: 0,
-    funccode:      PO_CONFIG.RB_MASTER,
-  }), [todayISO]);
+    funccode: PO_CONFIG.RB_MASTER,
+  }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [PO_CONFIG.STORAGE_HEADER_META, PO_CONFIG.STORAGE_ENTRY_META],
@@ -840,6 +919,7 @@ export default function PurchaseOrderForm() {
       setApprovedFilter("all");
       setChildRowsMap({});
       setChildColumns([]);
+      summaryRef.current?.resetOverrides?.();
     },
   });
 
@@ -852,6 +932,7 @@ export default function PurchaseOrderForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const hv = headerValuesRef.current;
 
     // ── Validation (header + detail + indent) ────────────────────────
@@ -926,6 +1007,10 @@ export default function PurchaseOrderForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
+    // Covers discardChanges()'s edit-route branch too (re-fetches instead of
+    // going through extraReset) — a stale Round Off override must not
+    // survive a Cancel either way.
+    summaryRef.current?.resetOverrides?.();
     discardChanges();
   }, [discardChanges]);
 
@@ -980,6 +1065,43 @@ export default function PurchaseOrderForm() {
     pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
   };
   const combinedError = metaError || headerError;
+
+  // Direct mode only — Indent-wise/Quotation items fetch immediately, no filter step.
+  const itemFilterBar = !itemPickerIsDirect ? null : (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
 
   return (
     <div className="workspace-page workspace-page--fill po-page">
@@ -1060,102 +1182,89 @@ export default function PurchaseOrderForm() {
 
       {/* ── 3-tab grid section ───────────────────────────────────────── */}
       <section className="po-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {PO_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={PO_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            <>
+              {activeTab === "items" && (
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+              )}
+
+              <div className="po-tab-filter">
+                <span className="po-tab-filter__label">Approved</span>
+                <SearchSelect
+                  value={approvedFilter}
+                  onChange={setApprovedFilter}
+                  options={APPROVED_OPTS}
+                  compact
+                  ariaLabel="Approved filter"
+                />
+              </div>
               <button
-                key={t.id}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || activeSelectionCount === 0}
+                title="Delete selected rows"
               >
-                {t.label}
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
               </button>
-            ))}
-          </div>
-
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
-
-            <div className="po-tab-filter">
-              <span className="po-tab-filter__label">Approved</span>
-              <SearchSelect
-                value={approvedFilter}
-                onChange={setApprovedFilter}
-                options={APPROVED_OPTS}
-                compact
-                ariaLabel="Approved filter"
-              />
-            </div>
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || activeSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`po-tab-pane${activeTab === "items" ? " po-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Entry Form or Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            remarkModalColumns={PO_REMARK_COLUMNS}
-          />
-        </div>
-
-        {activeTab === "terms" && (
-          <div className="po-terms-pane">
-            <table className="po-terms-table">
-              <thead>
-                <tr>
-                  {TERMS_COLUMNS.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={TERMS_COLUMNS.length} className="po-terms-empty">
-                    No terms &amp; conditions added.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+            </>
+          }
+          tabContentOverride={
+            activeTab === "terms" ? (
+              <div className="po-terms-pane">
+                <table className="po-terms-table">
+                  <thead>
+                    <tr>
+                      {TERMS_COLUMNS.map((c) => (
+                        <th key={c}>{c}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={TERMS_COLUMNS.length} className="po-terms-empty">
+                        No terms &amp; conditions added.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : null
+          }
+          emptyMessage="No items yet. Click Entry Form or Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onRowsChange={setGridRows}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          enableCollapsible={Object.keys(childRowsMap).length > 0}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          remarkModalColumns={PO_REMARK_COLUMNS}
+        />
       </section>
 
       {/* ── Summary totals — live from grid rows ── */}
-      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
+      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} masterValues={loadedMasterRow} />
 
       <ActionBar
         alignEnd
@@ -1174,9 +1283,11 @@ export default function PurchaseOrderForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

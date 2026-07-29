@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Users, Save, Pencil, AlertCircle } from "lucide-react";
+import { Users, Save, Pencil, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
@@ -22,8 +22,18 @@ import {
   isMasterFieldRequired,
   isMasterCheckboxField,
   isMasterToggleField,
+  isMasterDropdownField,
 } from "../../utils/masterFormUtils";
 import { UM_CONFIG } from "./constants";
+import "./UserMasterPage.css";
+
+// Dropdown columns that get a "refresh" icon (re-fetch fresh options) and,
+// where a master module exists to create one, a "+" quick-add icon.
+const DROPDOWN_QUICK_ADD = {
+  groupid: { label: "Group", handlerKey: "onQuickAddGroup" },
+  deptid: { label: "Department", handlerKey: "onQuickAddDepartment" },
+  // desgid (Designation) has no master/save module yet — DBA-pending, refresh only.
+};
 
 /** Synthetic VerifyPWD column — mirrors the Pwd RB column but is never saved. */
 function buildVerifyPasswordField(pwdField) {
@@ -48,6 +58,9 @@ export default function UserMasterForm({
   defsError = null,
   dropdownOptions = {},
   onRefreshDropdowns,
+  onRefreshField,
+  onQuickAddGroup,
+  onQuickAddDepartment,
   editPrefill = null,
   recordLoading = false,
   recordLoadError = null,
@@ -157,18 +170,55 @@ export default function UserMasterForm({
     );
   }
 
+  const quickAddHandlers = { onQuickAddGroup, onQuickAddDepartment };
+
   function renderControl(field) {
     const key = field.colname;
-    return (
+    const locked = isMasterFieldLocked(field, { isAddMode, isEditMode });
+    const control = (
       <MasterFormField
         field={field}
         value={formValues[key]}
         onChange={(val) => handleChange(key, val)}
-        locked={isMasterFieldLocked(field, { isAddMode, isEditMode })}
+        locked={locked}
         options={dropdownOptions[key] || []}
         inputClassName="um-form-input"
         valueClassName="um-form-value"
       />
+    );
+
+    if (locked || !isMasterDropdownField(field)) return control;
+
+    const quickAdd = DROPDOWN_QUICK_ADD[key];
+    const addHandler = quickAdd ? quickAddHandlers[quickAdd.handlerKey] : null;
+
+    return (
+      <div className="um-form-dropdown-row">
+        {control}
+        <button
+          type="button"
+          className="um-form-icon-btn"
+          tabIndex={-1}
+          onClick={() => onRefreshField?.(key)}
+          title={`Refresh ${getMasterFieldLabel(field)} options`}
+          aria-label={`Refresh ${getMasterFieldLabel(field)} options`}
+        >
+          <RefreshCw size={12} strokeWidth={2.5} />
+        </button>
+        {quickAdd && (
+          <button
+            type="button"
+            className="um-form-icon-btn"
+            tabIndex={-1}
+            onClick={() => addHandler?.()}
+            disabled={!addHandler}
+            title={addHandler ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
+            aria-label={addHandler ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
+          >
+            <Plus size={12} strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
     );
   }
 

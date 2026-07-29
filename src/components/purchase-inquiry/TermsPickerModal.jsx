@@ -184,6 +184,7 @@ export default function TermsPickerModal({
                 config={gridConfig}
                 title=""
                 readOnly
+                disableSelection={false}
                 initialRows={normalizedItems}
                 hideBottomPanel
                 emptyMessage="No terms & conditions found for the selected criteria."

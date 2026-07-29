@@ -16,14 +16,15 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { LM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
+import "./LocationMasterPage.css";
 
-// Visible dropdown colname for Premises (RB colname = "parentid")
-const PREMISES_COL = "parentid";
+// Visible dropdown colname for Premises (live RB colname, confirmed via GetDetailColData)
+const PREMISES_COL = "parentidnumber";
 
 // Fields locked during edit mode (use RB colnames — all lowercase)
-const LOCK_ON_EDIT = new Set(["locationtype", "parentid", "loc_code", "location_name"]);
+const LOCK_ON_EDIT = new Set(["locationtype", "parentidnumber", "loc_code", "location_name"]);
 
-// Fields cleared when Premises (parentid) changes
+// Fields cleared when Premises (parentidnumber) changes
 const CASCADE_FIELDS = ["loc_code", "location_name", "address1", "city", "state", "country", "zipcode"];
 
 export default function LocationMasterForm({
@@ -173,6 +174,7 @@ export default function LocationMasterForm({
 
   // Save — validation from ismandatory, save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
         f.colname,

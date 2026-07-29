@@ -14,7 +14,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -42,13 +42,12 @@ import {
   isTruthyApiFlag,
   syncEditGridDropdownValues,
   syncHeaderFilterWithApiCol,
-  buildHeaderColMap,
-  resolveHeaderApiCol,
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -56,9 +55,8 @@ import {
   GRN_CONFIG,
   GRN_MULTI_PASTE_COLUMNS,
   GRN_REMARK_COLUMNS,
-  GRN_HEADER_FILTERS,
-  GRN_TRANSPORTER_FILTERS,
-  GRN_DRIVER_FILTERS,
+  GRN_TRANSPORTER_FIELD_NAMES,
+  GRN_DRIVER_FIELD_NAMES,
   GRN_GRID_TABS,
   APPROVED_OPTS,
   GRN_FILTER_CASCADE_RESETS,
@@ -82,6 +80,7 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     trancode: headerValues.trancode ?? "",
     trandate: headerValues.trandate ?? "",
     divisionid: String(headerValues.divisionid ?? ""),
+    locationid: String(headerValues.locationid ?? ""),
     configid: String(headerValues.configid ?? ""),
     supplierid: String(headerValues.supplierid ?? ""),
     // Edit-mode master fill (fn_tbl_rb_purgrnmst) returns the display name under
@@ -172,11 +171,15 @@ export default function GoodsReceivedNoteForm() {
     headerFetching,
     headerError,
     fetchHeaderMeta,
+    fetchDivisionOptions,
     divisionOptions,
     grnTypeOptions,
     supplierOptions,
     transporterOptions,
     destinationOptions,
+    locationOptions,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
     fetchGrnTypes,
     clearGrnTypes,
     fetchSupplierOptions,
@@ -184,12 +187,18 @@ export default function GoodsReceivedNoteForm() {
     getSupplierRow,
     fetchTransporterOptions,
     fetchDestinationOptions,
+    fetchLocationOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     clearTransporters,
     clearDestinations,
+    clearLocations,
     isLoadingGrnTypes,
     isLoadingSuppliers,
     isLoadingTransporters,
     isLoadingDestinations,
+    isLoadingLocations,
     columns,
     allColumns,
     allIndentColumns,
@@ -211,24 +220,19 @@ export default function GoodsReceivedNoteForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const session = getUserSession();
 
   const headerValuesRef = useRef({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     configid: 0,
     divisionid: 0,
     supplierid: 0,
     currencyid: "",
     currencyrate: "",
-    basedonid: "0",
+    basedonid: "",
     billno: "",
-    billdate: null,
+    billdate: getTodayDateInputValue(),
     challanno: "",
     challandate: null,
     transporterid: 0,
@@ -248,10 +252,17 @@ export default function GoodsReceivedNoteForm() {
     idnumber: recordId,
   });
 
+  // trandate/billdate default to today on a new record; existing records keep
+  // their loaded date. basedonid still has no default — client requirement
+  // 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { ...GRN_FILTER_INITIAL_VALUES, trandate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return {
+      ...GRN_FILTER_INITIAL_VALUES,
+      trandate: getTodayDateInputValue(),
+      billdate: getTodayDateInputValue(),
+    };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
@@ -270,6 +281,13 @@ export default function GoodsReceivedNoteForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Based On = Direct only) — items are only
+  // fetched once the user clicks Filter; PO Base branch is untouched.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const [itemPickerIsDirect, setItemPickerIsDirect] = useState(false);
 
   const clearItemGridState = useCallback(() => {
     queuedRowsRef.current = [];
@@ -333,15 +351,15 @@ export default function GoodsReceivedNoteForm() {
     const resetSession = getUserSession();
     headerValuesRef.current = {
       trancode: "",
-      trandate: todayISO,
+      trandate: getTodayDateInputValue(),
       configid: 0,
       divisionid: 0,
       supplierid: 0,
       currencyid: "",
       currencyrate: "",
-      basedonid: "0",
+      basedonid: "",
       billno: "",
-      billdate: null,
+      billdate: getTodayDateInputValue(),
       challanno: "",
       challandate: null,
       transporterid: 0,
@@ -382,7 +400,6 @@ export default function GoodsReceivedNoteForm() {
     clearIndentDetailMeta,
     clearItemGridState,
     exitEditMode,
-    todayISO,
   ]);
 
   const completeSuccessfulSave = useCallback(() => {
@@ -423,10 +440,17 @@ export default function GoodsReceivedNoteForm() {
 
       const divisionId = headerValues.divisionid ?? 0;
       if (divisionId) {
+        // fetchDivisionOptions is unconditional here (and not gated behind
+        // isEditMode via fetchUnlockedHeaderDropdowns) — the Division
+        // SearchSelect needs a matching option to resolve/display its label
+        // even in read-only view, same reason location/supplier/transporter
+        // are already fetched eagerly on edit-record load.
         await Promise.all([
+          fetchDivisionOptions(),
           fetchGrnTypes(divisionId),
           fetchSupplierOptions(divisionId),
           fetchTransporterOptions(divisionId),
+          fetchLocationOptions(divisionId),
         ]);
         if (headerValues.transporterid) {
           await fetchDestinationOptions(divisionId, headerValues.transporterid);
@@ -457,10 +481,12 @@ export default function GoodsReceivedNoteForm() {
     listRecord,
     fetchEditRecord,
     fetchGridColumns,
+    fetchDivisionOptions,
     fetchGrnTypes,
     fetchSupplierOptions,
     fetchTransporterOptions,
     fetchDestinationOptions,
+    fetchLocationOptions,
     fetchIndentDetailColumns,
   ]);
 
@@ -516,62 +542,64 @@ export default function GoodsReceivedNoteForm() {
   // blank for several GRN header columns (configid, supplierid, ...) and was
   // causing locked/edit-mode fields to display raw IDs instead of names.
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    divisionid:    divisionOptions,
-    configid:      grnTypeOptions,
-    supplierid:    supplierOptions,
-    basedonid:     GRN_CONFIG.BASED_ON_OPTIONS,
+    divisionid: divisionOptions,
+    configid: grnTypeOptions,
+    supplierid: supplierOptions,
+    basedonid: GRN_CONFIG.BASED_ON_OPTIONS,
     transporterid: transporterOptions,
     destinationid: destinationOptions,
-  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions]);
+    locationid: locationOptions,
+  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions, locationOptions]);
 
-  const buildFilterDef = useCallback(
-    (filter, apiColMap) => {
-      const apiCol = resolveHeaderApiCol(filter, apiColMap);
-      const lockOnEditMode = apiCol ? isLockOnEditModeCol(apiCol) : false;
-
-      let def = syncHeaderFilterWithApiCol(filter, apiCol, { lockOnEditMode });
-
-      if (apiCol) {
-        def.FilterColCtrlType = apiCol.colctrltype;
-      }
-
-      const staticOptions = DROPDOWN_OPTIONS_BY_COL[filter.FilterParameterID];
-      if (staticOptions) def.staticOptions = staticOptions;
-
-      return def;
+  // Filter definitions are built straight from the live RB column (caption,
+  // control type, lock state, validation constraints) — no hand-maintained
+  // field list to fall out of sync with the RB. Mirrors Purchase Indent's
+  // syncedFilters. Only `staticOptions` (division/supplier/etc. dropdown data
+  // we fetch ourselves) is layered on top, keyed by colname.
+  const buildFilterDefFromApiCol = useCallback(
+    (col) => {
+      const lockOnEditMode = isLockOnEditModeCol(col);
+      const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
+      const base = {
+        FilterParameterID: col.colname,
+        FilterColName: col.colname,
+        FilterCaption: col.displayname ?? col.colname,
+        FilterColCtrlType: col.colctrltype ?? 0,
+        ...(staticOptions ? { staticOptions } : {}),
+      };
+      return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
     },
     [DROPDOWN_OPTIONS_BY_COL]
   );
 
+  // Visible RB columns, RB-ordered, partitioned by which of GRN's three tabs
+  // they belong to. Tab membership is the one thing the RB can't tell us —
+  // see GRN_TRANSPORTER_FIELD_NAMES/GRN_DRIVER_FIELD_NAMES in constants.js.
+  const visibleHeaderColumns = useMemo(() => {
+    return headerColumns
+      .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno));
+  }, [headerColumns]);
+
   const syncedHeaderFilters = useMemo(() => {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_HEADER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
+    return visibleHeaderColumns
+      .filter(
+        (col) => !GRN_TRANSPORTER_FIELD_NAMES.has(col.colname) && !GRN_DRIVER_FIELD_NAMES.has(col.colname)
       )
-      .map((filter) => buildFilterDef(filter, apiColMap));
-  }, [headerColumns, buildFilterDef]);
+      .map(buildFilterDefFromApiCol);
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const syncedTransporterFilters = useMemo(() => {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_TRANSPORTER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
-      )
-      .map((filter) => buildFilterDef(filter, apiColMap));
-  }, [headerColumns, buildFilterDef]);
+    return visibleHeaderColumns
+      .filter((col) => GRN_TRANSPORTER_FIELD_NAMES.has(col.colname))
+      .map(buildFilterDefFromApiCol);
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const syncedDriverFilters = useMemo(() => {
-    if (headerColumns.length === 0) return [];
-    const apiColMap = buildHeaderColMap(headerColumns);
-    return GRN_DRIVER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
-      )
-      .map((filter) => buildFilterDef(filter, apiColMap));
-  }, [headerColumns, buildFilterDef]);
+    return visibleHeaderColumns
+      .filter((col) => GRN_DRIVER_FIELD_NAMES.has(col.colname))
+      .map(buildFilterDefFromApiCol);
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const buildFieldTones = useCallback(
     (filters) => {
@@ -631,6 +659,7 @@ export default function GoodsReceivedNoteForm() {
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
+        headerValuesRef.current.locationid = 0;
         headerValuesRef.current.supplierid = 0;
         headerValuesRef.current.currencyid = "";
         headerValuesRef.current.currencyrate = "";
@@ -638,12 +667,14 @@ export default function GoodsReceivedNoteForm() {
         headerValuesRef.current.destinationid = 0;
         setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
         clearGrnTypes();
+        clearLocations();
         clearSuppliers();
         clearTransporters();
         void refreshItemGridMeta(val);
         if (val && val !== "0") {
           await Promise.all([
             fetchGrnTypes(val),
+            fetchLocationOptions(val),
             fetchSupplierOptions(val),
             fetchTransporterOptions(val),
           ]);
@@ -671,12 +702,14 @@ export default function GoodsReceivedNoteForm() {
     [
       getSupplierRow,
       clearGrnTypes,
+      clearLocations,
       clearSuppliers,
       clearTransporters,
       clearDestinations,
       clearItemGridState,
       refreshItemGridMeta,
       fetchGrnTypes,
+      fetchLocationOptions,
       fetchSupplierOptions,
       fetchTransporterOptions,
       fetchDestinationOptions,
@@ -700,6 +733,10 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
 
+  // Direct (basedonid 0) defers the item fetch until Filter is clicked — PO
+  // Base (1) fetches immediately, unchanged. Client instruction 2026-07-28,
+  // same rollout as Purchase Indent. (Indent-wise/3 is disabled in this
+  // module — see BASED_ON_OPTIONS — so only these two branches are live.)
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
@@ -711,12 +748,18 @@ export default function GoodsReceivedNoteForm() {
     const loginId = getUserSession().loginId;
     const rbCode = resolveItemPickerRbCode(headerValues.basedonid);
     const itemPickerSp = resolveItemPickerSpName(headerValues.basedonid);
+    const isDirect = Number(headerValues.basedonid) !== 1;
 
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(!isDirect);
+    setItemPickerIsDirect(isDirect);
+    clearItemSubMainGroupOptions();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -737,21 +780,87 @@ export default function GoodsReceivedNoteForm() {
         buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false })
       );
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: itemPickerSp,
-        JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      setItemModalItems(rowRes || []);
+      if (isDirect) {
+        await fetchItemMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
+      } else {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: itemPickerSp,
+          JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      }
     } catch (err) {
       console.error("[GRN] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
+  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
+  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
+  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
+  // threw "Must declare the scalar variable ..."; that's gone).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const loginId = getUserSession().loginId;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
+        JSon: JSON.stringify([{
+          ...buildItemPickerJsonPayload(headerValues, loginId),
+          prmmaingroupid: Number(itemMainGroupFilter) || 0,
+          prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
+    } catch (err) {
+      console.error("[GRN] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemFilterLoading(false);
+    }
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
+
+  const handleCellEvent = useCallback(
+    async ({ rowId, colKey, rowData }) => {
+      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+      if (!result || !itemGridRef.current) return;
+      const responseRow = result?.[0];
+      if (!responseRow) return;
+      const errCode = responseRow.errcode;
+      if (errCode !== 1 && errCode !== 1.0) {
+        console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+        return;
+      }
+      const { errcode, errmsg, ...updatedFields } = responseRow;
+      itemGridRef.current.updateRow?.(rowId, updatedFields);
+    },
+    [fireCellEvent]
+  );
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -765,7 +874,13 @@ export default function GoodsReceivedNoteForm() {
         if (!activeCols?.length) return;
         setChildRowsMap({});
         setChildColumns([]);
-        selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+        const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+        rows.forEach((row) => addItemRow(row));
+        // Fire the same qty/rate recalc a manual blur would trigger, so a
+        // picker-inserted row's calculated amounts are correct immediately
+        // instead of staying 0.00 until the user touches the cell (client-
+        // confirmed 2026-07-24, same fix as the Purchase family forms).
+        await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
         return;
       }
 
@@ -806,7 +921,7 @@ export default function GoodsReceivedNoteForm() {
         setIsGridLoading(false);
       }
     },
-    [ensureItemColumns, allColumns, addItemRow, fetchIndentDetailColumns, post]
+    [ensureItemColumns, allColumns, addItemRow, fetchIndentDetailColumns, post, handleCellEvent]
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -826,36 +941,17 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [childRowsMap]);
 
-  const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
-  );
-
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      setFormErrors([]);
       const hv = headerValuesRef.current;
 
-      const headerFieldNames = new Set([
-        ...GRN_HEADER_FILTERS,
-        ...GRN_TRANSPORTER_FILTERS,
-        ...GRN_DRIVER_FILTERS,
-      ].map((f) => f.FilterParameterID));
-      const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+      // Validate every RB-visible header field, not a hand-maintained subset —
+      // a field missing from a static list (like locationid was) must never be
+      // silently skipped at save time just because nobody remembered to list it.
+      const headerErrors = validateApiColumns(hv, visibleHeaderColumns, {
         zeroValidFields: new Set(["basedonid"]),
       });
 
@@ -918,6 +1014,7 @@ export default function GoodsReceivedNoteForm() {
     },
     [
       headerColumns,
+      visibleHeaderColumns,
       allColumns,
       allIndentColumns,
       childRowsMap,
@@ -975,7 +1072,8 @@ export default function GoodsReceivedNoteForm() {
     isLoadingGrnTypes ||
     isLoadingSuppliers ||
     isLoadingTransporters ||
-    isLoadingDestinations;
+    isLoadingDestinations ||
+    isLoadingLocations;
 
   useEntryFormKeyboard({
     blocked: itemModalOpen,
@@ -1015,6 +1113,43 @@ export default function GoodsReceivedNoteForm() {
       },
     ],
     [handleSaveAndPrint, isSaving, handleSave]
+  );
+
+  // Direct mode only — PO Base items fetch immediately, no filter step.
+  const itemFilterBar = !itemPickerIsDirect ? null : (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
   );
 
   return (
@@ -1062,37 +1197,28 @@ export default function GoodsReceivedNoteForm() {
       </section>
 
       <section className="grn-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {GRN_GRID_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid-tabbar__controls">
-            {activeTab === "items" && (
-              <button
-                ref={selectItemBtnRef}
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title={FORM_SHORTCUT_TITLES.selectList}
-              >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
-              </button>
-            )}
-
-            {activeTab === "items" && (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={GRN_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchable={activeTab === "items"}
+          headerControls={
+            activeTab === "items" ? (
               <>
+                <button
+                  ref={selectItemBtnRef}
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectItem}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <Package size={12} strokeWidth={2.5} />
+                  Select Item
+                </button>
+
                 <div className="grn-tab-filter">
                   <span className="grn-tab-filter__label">Approved</span>
                   <SearchSelect
@@ -1114,63 +1240,49 @@ export default function GoodsReceivedNoteForm() {
                   Delete
                 </button>
               </>
-            )}
-          </div>
-        </div>
-
-        <div className={`grn-tab-pane${activeTab === "items" ? " grn-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            readOnly={isEditRoute && !isEditMode}
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            enableCollapsible={Object.keys(childRowsMap).length > 0}
-            childRowsMap={childRowsMap}
-            childColumns={childColumns}
-            existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={GRN_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={GRN_REMARK_COLUMNS}
-          />
-        </div>
-
-        {activeTab === "transporter" && (
-          <div className="grn-tab-pane grn-tab-pane--active grn-sub-panel">
-            <EnterpriseFilterPanel
-              key={`transporter-${filterResetKey}`}
-              title="Transporter Detail"
-              staticFilters={syncedTransporterFilters}
-              initialValues={filterInitialValues}
-              cascadeResets={{ transporterid: ["destinationid"] }}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={transporterFieldTones}
-            />
-          </div>
-        )}
-
-        {activeTab === "driver" && (
-          <div className="grn-tab-pane grn-tab-pane--active grn-sub-panel">
-            <EnterpriseFilterPanel
-              key={`driver-${filterResetKey}`}
-              title="Driver Detail"
-              staticFilters={syncedDriverFilters}
-              initialValues={filterInitialValues}
-              onFilterChange={handleFilterChange}
-              isSearching={filterPanelLoading}
-              isMetaLoading={!headerMetaReady || recordLoading}
-              disabled={filterPanelLoading || !headerMetaReady}
-              fieldTones={driverFieldTones}
-            />
-          </div>
-        )}
+            ) : null
+          }
+          tabContentOverride={
+            activeTab === "transporter" ? (
+              <EnterpriseFilterPanel
+                key={`transporter-${filterResetKey}`}
+                title="Transporter Detail"
+                staticFilters={syncedTransporterFilters}
+                initialValues={filterInitialValues}
+                cascadeResets={{ transporterid: ["destinationid"] }}
+                onFilterChange={handleFilterChange}
+                isSearching={filterPanelLoading}
+                isMetaLoading={!headerMetaReady || recordLoading}
+                disabled={filterPanelLoading || !headerMetaReady}
+                fieldTones={transporterFieldTones}
+              />
+            ) : activeTab === "driver" ? (
+              <EnterpriseFilterPanel
+                key={`driver-${filterResetKey}`}
+                title="Driver Detail"
+                staticFilters={syncedDriverFilters}
+                initialValues={filterInitialValues}
+                onFilterChange={handleFilterChange}
+                isSearching={filterPanelLoading}
+                isMetaLoading={!headerMetaReady || recordLoading}
+                disabled={filterPanelLoading || !headerMetaReady}
+                fieldTones={driverFieldTones}
+              />
+            ) : null
+          }
+          readOnly={isEditRoute && !isEditMode}
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          enableCollapsible={Object.keys(childRowsMap).length > 0}
+          childRowsMap={childRowsMap}
+          childColumns={childColumns}
+          existingRecordEdit={isEditRoute && isEditMode}
+          multiValuePasteColumns={GRN_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={GRN_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar
@@ -1190,9 +1302,11 @@ export default function GoodsReceivedNoteForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

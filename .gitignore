@@ -18,3 +18,4 @@ npm-debug.log*
 
 # Internal developer docs — not for repo
 docs/
+dist.zip

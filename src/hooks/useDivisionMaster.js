@@ -160,6 +160,16 @@ export function useDivisionMaster() {
     };
   }, [get]);
 
+  // Manual refresh for a base (non-cascading) dropdown — e.g. the "refresh"
+  // icon next to Head Name, or after its quick-add (User Master) modal saves.
+  // Re-fetches the whole base bundle (cheap, same SPs as initial load) and
+  // merges over State/City so an in-progress cascade selection isn't wiped.
+  const refreshBaseDropdowns = useCallback(async () => {
+    const baseOpts = await fetchBaseDropdowns();
+    setDropdownOptions((prev) => ({ ...prev, ...baseOpts, stateid: prev.stateid, cityid: prev.cityid }));
+    return baseOpts;
+  }, [fetchBaseDropdowns]);
+
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
     setHeaderError(null);
@@ -315,6 +325,7 @@ export function useDivisionMaster() {
     fetchHeaderMeta,
     fetchEditRecord,
     fetchListRows,
+    refreshBaseDropdowns,
     refreshDropdownOptions,
     seedOptionsFromMaster,
   };

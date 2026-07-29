@@ -15,6 +15,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AWF_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsWriteOffPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAwfReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -70,7 +78,7 @@ export default function AssetsWriteOffPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AWF] list fetch failed:", err);
-      setError("Failed to load Assets Write Off records.");
+      setError(err?.message || "Failed to load Assets Write Off records.");
     } finally {
       setLoading(false);
     }
@@ -95,6 +103,11 @@ export default function AssetsWriteOffPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Write Off Report"
+              reportFileName="TODO_AssetsWriteOff.rpt"
+              buildParams={buildAwfReportParams}
+            />
             <label htmlFor="awf-list-page-size" className="awf-list-panel__pagesize-label">
               Rows per page
             </label>

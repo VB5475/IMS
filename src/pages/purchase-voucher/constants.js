@@ -6,7 +6,6 @@ export const PAGE_TITLE_NEW = "New Purchase Voucher";
 // All RB codes, SP names, IDs, and request defaults for the PV module.
 // Values aligned to MRD_Template4PV.docx (Richa, 10-Jun-2026).
 
-import { controlTypeMap } from "../../data/dummyData";
 import { BASED_ON, PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
@@ -46,11 +45,23 @@ export const PV_CONFIG = {
   SP_COST_CENTER: "fn_tbl_fas_fetchcostcenterac",
   SP_DEPT: "pr_fetch_departmentdata_ims",
 
+  // Division-wise Location — same SP + cascade contract as GRN/Purchase Indent's fetchLocations.
+  SP_LOCATION: "fn_tbl_fetch_divwslocation",
+
   // Grid cell-event SP (fires on qty / rate column blur)
   SP_GRID_EVENT: "fn_tbl_rb_purpvdet_event",
 
   SP_MASTER_FILL: "fn_tbl_rb_purpvmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purpvdet",
+
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purpvselonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
   SAVE_ENDPOINT: "/API/PurPVSave/Post_RB_PurPVMst_Save",
 
@@ -59,7 +70,7 @@ export const PV_CONFIG = {
 
   // Purchase Voucher listing
   LIST_OBJ_TYPE: 2,
-  SP_PV_LIST: "fn_tbl_pur_pvmst_list",
+  SP_PV_LIST: "fn_tbl_rb_purpvmst_list",
   LIST_DIVISION_ID: 0, // ⚠️ CONFIRM with DBA — MRD says 15; using 0 (all divisions) pending confirmation
 
   // "Based On" dropdown — MRD: GRN Base | PO Base | Direct
@@ -70,129 +81,81 @@ export const PV_CONFIG = {
   ],
 };
 
-// ── Header filter definitions ─────────────────────────────────────────────────
-// Field order per MRD Section 3:
-//   TranCode → TranDate → DivisionID → ConfigID → BasedOnID →
-//   SupplierID → CurrencyID → CurrencyRate →
-//   BillNo → BillDate → CostCenterID →
-//   CreditStartDate → Narration → Remarks
-export const PV_HEADER_FILTERS = [
-  {
-    FilterParameterID: "trancode",
-    FilterColName: "trancode",
-    FilterCaption: "PR No.",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "trandate",
-    FilterColName: "trandate",
-    FilterCaption: "Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "divisionid",
-    FilterColName: "divisionid",
-    FilterCaption: "Division",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "configid",
-    FilterColName: "configid",
-    FilterCaption: "PR Type",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "basedonid",
-    FilterColName: "basedonid",
-    FilterCaption: "Based On",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: PV_CONFIG.BASED_ON_OPTIONS,
-  },
-  {
-    FilterParameterID: "supplierid",
-    FilterColName: "supplierid",
-    FilterCaption: "Supplier",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "currencyname",
-    FilterColName: "currencyname",
-    FilterCaption: "Currency",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "currencyrate",
-    FilterColName: "currencyrate",
-    FilterCaption: "Currency Rate",
-    FilterColCtrlType: controlTypeMap.LABEL,
-  },
-  {
-    FilterParameterID: "billno",
-    FilterColName: "billno",
-    FilterCaption: "Bill No.",
-    FilterColCtrlType: controlTypeMap.TEXTBOX,
-  },
-  {
-    FilterParameterID: "billdate",
-    FilterColName: "billdate",
-    FilterCaption: "Bill Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "costcenterid",
-    FilterColName: "costcenterid",
-    FilterCaption: "Cost Center",
-    FilterColCtrlType: controlTypeMap.DROPDOWN,
-    staticOptions: [],
-  },
-  {
-    FilterParameterID: "creditstartdate",
-    FilterColName: "creditstartdate",
-    FilterCaption: "Cr. Start Date",
-    FilterColCtrlType: controlTypeMap.DATE,
-  },
-  {
-    FilterParameterID: "narration",
-    FilterColName: "narration",
-    FilterCaption: "Narration",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-  {
-    FilterParameterID: "remarks",
-    FilterColName: "remarks",
-    FilterCaption: "Remarks",
-    FilterColCtrlType: controlTypeMap.TEXTAREA,
-  },
-];
+// Header field DEFINITIONS (caption, control type, lock state, validation) are no
+// longer hand-maintained here — they're built straight from the live RB metadata
+// (see syncedFilters in PurchaseVoucherForm.jsx), same fix applied to GRN. A static
+// list silently drops any RB field nobody remembers to add here, both from render
+// AND validation.
 
 export const PV_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 export const PV_FILTER_CASCADE_RESETS = {
-  divisionid: ["configid", "supplierid"],
+  divisionid: ["configid", "supplierid", "locationid"],
 };
 
 export const PV_SUMMARY_FIELDS = [
-  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows ──
+  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows, excluding
+  // rows where puttouse = 0 (see PV_SUMMARY_ROW_FILTER below — verified
+  // against a live fn_tbl_rb_purpvdet response where a puttouse=0 row's
+  // tax figures were excluded from the master's stored totals) ──
   { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
   { SummaryParameterID: "mstexpense", detKey: "expense" },
   { SummaryParameterID: "msttaxablevalue", detKey: "taxablevalue" },
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
-  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
-  // ── TDS section (ColSeqNo 17-22, 31) — detKey confirmed pending backend ──
-  { SummaryParameterID: "nopid", detKey: "nopid" },
-  { SummaryParameterID: "tdsapplicableamount", detKey: "tdsapplicableamount" },
-  { SummaryParameterID: "tdstypeid", detKey: "tdstypeid" },
-  { SummaryParameterID: "tdspercentage", detKey: "tdspercentage" },
-  { SummaryParameterID: "tdsamount", detKey: "tdsamount" },
-  { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount" },
-  { SummaryParameterID: "netpayable", detKey: "netpayable" },
+  // roundoff has NO per-line equivalent at all on the detail grid
+  // (fn_tbl_rb_purpvdet has no roundoff column). Auto-calculated (business
+  // rule confirmed by PM 2026-07-24): the adjustment that rounds the base+
+  // expense+tax total to the nearest whole number, so Net Base Amount comes
+  // out clean by default — still manually editable on top (2026-07-23 rule).
+  {
+    SummaryParameterID: "mstroundoff", detKey: "roundoff", editable: true,
+    roundToNearestFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst"],
+  },
+  // Net Base Amount = every other summary amount EXCEPT Taxable Value
+  // (business rule confirmed by PM 2026-07-23) — computed live from the
+  // other fields' own totals, not read from master, so it's correct in
+  // Add mode too, before the record has ever been saved.
+  {
+    SummaryParameterID: "mstnetbaseamount",
+    detKey: "netbaseamount",
+    deriveFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst", "mstroundoff"],
+  },
+  // ── TDS section — header/master-level values, no per-line equivalent
+  // exists on the detail grid at all (TDS is computed once per voucher from
+  // the supplier's TDS settings, not per item). Read directly from the
+  // loaded master row on edit instead of summing grid rows — summing always
+  // produced 0 here since no detail row ever carries these columns. See
+  // EnterpriseSummaryPanel's `fromMaster` handling.
+  // NOTE: RB_PurPVMst currently marks all 7 of these isvisible=false (verified
+  // live, ColSeqNo 32-41) — syncMasterSummaryFields() drops them from the
+  // rendered panel accordingly. Stubs are kept here so they reappear
+  // automatically, already wired, if DBA flips them visible later.
+  { SummaryParameterID: "nopid", detKey: "nopid", fromMaster: true },
+  { SummaryParameterID: "tdsapplicableamount", detKey: "tdsapplicableamount", fromMaster: true },
+  { SummaryParameterID: "tdstypeid", detKey: "tdstypeid", fromMaster: true },
+  { SummaryParameterID: "tdspercentage", detKey: "tdspercentage", fromMaster: true },
+  { SummaryParameterID: "tdsamount", detKey: "tdsamount", fromMaster: true },
+  { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount", fromMaster: true },
+  { SummaryParameterID: "netpayable", detKey: "netpayable", fromMaster: true },
 ];
+
+// Excludes rows the backend itself excludes from the master's stored totals
+// (confirmed live: a detail row with puttouse=0 carried real tax figures
+// that were NOT reflected in mstbaseamount/msttaxablevalue/mstcgst/mstsgst
+// on the saved master). Passed as EnterpriseSummaryPanel's `rowFilter`.
+export function PV_SUMMARY_ROW_FILTER(row) {
+  return Number(row.puttouse) !== 0;
+}
+
+// RB marks these visible as header columns, but they're computed from grid
+// rows and rendered via EnterpriseSummaryPanel (see syncedSummaryFields), not
+// real header inputs. Must be excluded from the RB-driven header filter/
+// validation set (visibleHeaderColumns in PurchaseVoucherForm.jsx) or they'd
+// render as blank filter fields and fail "required" validation before the
+// grid-derived totals ever get merged into headerValuesRef at save time.
+export const PV_SUMMARY_FIELD_NAMES = new Set(PV_SUMMARY_FIELDS.map((f) => f.SummaryParameterID));
 
 export const PV_SHORTCUT_CONFIG = {
   a: { label: "Add", title: "Add (Alt+A)" },

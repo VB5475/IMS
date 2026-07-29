@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -10,6 +11,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { PI_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseInquiryPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildPurchaseInquiryReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -21,10 +29,10 @@ function buildListParams() {
       {
         prmcompanyid: session.companyId,
         prmdivisionid: PI_CONFIG.LIST_DIVISION_ID,
-        prmfrodate: `${year}-01-01`,
+        prmyearid: session.yearId,
+        prmfromdate: `${year}-01-01`,
         prmtodate: `${year}-12-31`,
         prmloginid: session.loginId,
-        prmyearid: session.yearId,
       },
     ]),
     p_ErrCode: -1,
@@ -66,7 +74,7 @@ export default function PurchaseInquiryPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseInquiryPage] list fetch failed:", err);
-      setError("Failed to load purchase inquiries.");
+      setError(err?.message || "Failed to load purchase inquiries.");
     } finally {
       setLoading(false);
     }
@@ -93,6 +101,11 @@ export default function PurchaseInquiryPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Purchase Inquiry Report"
+              reportFileName="TODO_PurchaseInquiry.rpt"
+              buildParams={buildPurchaseInquiryReportParams}
+            />
             <label htmlFor="pi-list-page-size" className="pi-list-panel__pagesize-label">
               Rows per page
             </label>

@@ -1,15 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { LayoutList, Plus, Pencil } from "lucide-react";
+import { LayoutList, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import { useAssetItemMaster } from "../../hooks/useAssetItemMaster";
 import AssetItemMasterForm from "./AssetItemMasterForm";
 import { AIM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./AssetItemMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+
+function buildAssetItemMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const session = getUserSession();
@@ -33,24 +42,11 @@ function buildColumnsFromData(data, onEdit) {
   const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
     ...keys.map((key) => ({ key, label: toLabel(key), filterable: true, align: "left" })),
-    {
-      key:   "_actions",
-      label: "Edit",
-      width: "80px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="aim-list__edit-btn"
-          title={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
-          aria-label={`Edit ${row.itemcode ?? row.itemname ?? ""}`}
-          disabled={!row.idnumber}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
+    createListActionsColumn({
+      onEdit: (row) => { if (row.idnumber) onEdit(row.idnumber); },
+      getEditLabel: (row) => row.itemcode ?? row.itemname ?? "",
+      getDeleteLabel: (row) => row.itemcode ?? row.itemname ?? "",
+    }),
   ];
 }
 
@@ -130,6 +126,11 @@ export default function AssetItemMasterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Asset Item Master Report"
+              reportFileName="TODO_AssetItemMaster.rpt"
+              buildParams={buildAssetItemMasterReportParams}
+            />
             <label htmlFor="aim-list-page-size" className="aim-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -158,6 +159,8 @@ export default function AssetItemMasterPage() {
           emptyMessage="No asset items found."
           hideHeader
           searchable
+          deleteProcName={AIM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>

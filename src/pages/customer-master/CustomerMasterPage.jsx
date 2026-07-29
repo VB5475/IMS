@@ -1,17 +1,25 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { UserCheck, Plus, Pencil } from "lucide-react";
+import { UserCheck, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { normalizeListRows } from "../../utils/listGridUtils";
+import { normalizeListRows, createListActionsColumn } from "../../utils/listGridUtils";
 import { useCustomerMaster } from "../../hooks/useCustomerMaster";
 import CustomerMasterForm from "./CustomerMasterForm";
 import { CM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "../supplier-master/SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildCustomerMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const session = getUserSession();
@@ -40,24 +48,11 @@ function buildColumnsFromData(data, onEdit) {
   const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
   return [
     ...keys.map((key) => ({ key, label: key, filterable: true, align: "left" })),
-    {
-      key: "_actions",
-      label: "Edit",
-      width: "80px",
-      align: "center",
-      render: (_value, row) => (
-        <button
-          type="button"
-          className="sm-list__edit-btn"
-          title={`Edit ${row.suppliername ?? row.supname ?? ""}`}
-          aria-label={`Edit ${row.suppliername ?? row.supname ?? ""}`}
-          disabled={!row.idnumber}
-          onClick={(e) => { e.stopPropagation(); onEdit(row.idnumber); }}
-        >
-          <Pencil size={13} strokeWidth={2} />
-        </button>
-      ),
-    },
+    createListActionsColumn({
+      onEdit: (row) => { if (row.idnumber) onEdit(row.idnumber); },
+      getEditLabel: (row) => row.suppliername ?? row.supname ?? "",
+      getDeleteLabel: (row) => row.suppliername ?? row.supname ?? "",
+    }),
   ];
 }
 
@@ -66,7 +61,6 @@ export default function CustomerMasterPage() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    detailColumns, detailAllColumns, detailFetching, detailError, fetchDetailMeta,
     stateOptions, cityOptions, fetchStateOptions, fetchCityOptions, clearStates, clearCities,
     categoryOptions, accountGroupOptions, countryOptions, registrationTypeOptions,
     currencyOptions, transporterOptions, transporterDestinationOptions,
@@ -92,8 +86,7 @@ export default function CustomerMasterPage() {
 
   useEffect(() => {
     fetchHeaderMeta();
-    fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta]);
+  }, [fetchHeaderMeta]);
 
   const fetchCustomerList = useCallback(async () => {
     try {
@@ -103,7 +96,7 @@ export default function CustomerMasterPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[CustomerMasterPage] list fetch failed:", err);
-      setError("Failed to load customers.");
+      setError(err?.message || "Failed to load customers.");
     } finally {
       setLoading(false);
     }
@@ -145,6 +138,11 @@ export default function CustomerMasterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Customer Master Report"
+              reportFileName="TODO_CustomerMaster.rpt"
+              buildParams={buildCustomerMasterReportParams}
+            />
             <label htmlFor="cm-list-page-size" className="sm-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -177,6 +175,8 @@ export default function CustomerMasterPage() {
           emptyMessage="No customers found."
           hideHeader
           searchable
+          deleteProcName={CM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchCustomerList}
           fill
         />
       </section>
@@ -190,10 +190,6 @@ export default function CustomerMasterPage() {
         headerColumns={headerColumns}
         headerFetching={headerFetching}
         headerError={headerError}
-        detailColumns={detailColumns}
-        detailAllColumns={detailAllColumns}
-        detailFetching={detailFetching}
-        detailError={detailError}
         stateOptions={stateOptions}
         cityOptions={cityOptions}
         fetchStateOptions={fetchStateOptions}

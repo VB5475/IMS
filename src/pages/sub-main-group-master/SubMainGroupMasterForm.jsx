@@ -16,6 +16,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { SMGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
+import "./SubMainGroupMasterPage.css";
 
 // Fields locked during edit mode (RB colnames — all lowercase)
 const LOCK_ON_EDIT = new Set(["itemtypeid", "submaingroupcode", "fixedassetaccountid"]);
@@ -194,6 +195,7 @@ export default function SubMainGroupMasterForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns via buildSaveRowFromColumns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
         f.colname,
