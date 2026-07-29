@@ -37,6 +37,14 @@ export const AST_CONFIG = {
   SP_TO_LOCATION: "fn_gen_fetchtolocationmaster",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_rb_astisstktrselonly",
+  // Select Item popup filters — Main Group / Sub Main Group cascading
+  // filter, same rollout as Purchase Indent/GRN (2026-07-28) and the rest
+  // of the Assets suite (2026-07-29). Deferred until "Filter" is clicked;
+  // SP_ITEM_PICKER call also gets prmsearchtext/prmotherstr/prmjson as
+  // safe empty defaults (no dedicated UI for those yet, added per RB
+  // signature widening — unconfirmed live whether they affect filtering).
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
   SP_MASTER_FILL: "fn_tbl_Rb_astissstktrmst",
   SP_DETAIL_FILL: "fn_tbl_Rb_astissstktrdet",

@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Plus, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Plus, Trash2, Package, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import SearchSelect from "../../components/ui/SearchSelect";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useAssetsRevaluation } from "../../hooks/useAssetsRevaluation";
@@ -180,6 +181,12 @@ export default function AssetsRevaluationForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -419,6 +426,90 @@ export default function AssetsRevaluationForm() {
     addItemRow(buildGridRow({}, allColumns));
   }, [ensureItemColumns, addItemRow, allColumns]);
 
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: ARV_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: ARV_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARV] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [getLive]);
+
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: ARV_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: ARV_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[ARV] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [getLive]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
+
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({
+        divisionId: headerValues.fromdivisionid,
+        configId: headerValues.configid,
+        mainGroupId: value,
+      });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
@@ -432,6 +523,10 @@ export default function AssetsRevaluationForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(false);
+    clearItemSubMainGroupOptions();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -454,21 +549,47 @@ export default function AssetsRevaluationForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ARV_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildArvItemPickerJsonPayload(headerValues)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await fetchItemMainGroupOptions({
+        divisionId: headerValues.fromdivisionid,
+        configId: headerValues.configid,
       });
-      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[ARV] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: ARV_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([{
+          ...buildArvItemPickerJsonPayload(headerValues),
+          prmmaingroupid: Number(itemMainGroupFilter) || 0,
+          prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
+          prmsearchtext: "",
+          prmotherstr: "",
+          prmjson: "[]",
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
+    } catch (err) {
+      console.error("[ARV] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemFilterLoading(false);
+    }
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
@@ -752,9 +873,45 @@ export default function AssetsRevaluationForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={
+            <div className="oim-filter-bar">
+              <label className="oim-filter-bar__field">
+                <span>Item Main Group</span>
+                <SearchSelect
+                  value={itemMainGroupFilter}
+                  onChange={handleItemMainGroupFilterChange}
+                  options={itemMainGroupOptions}
+                  placeholder="All main groups"
+                  ariaLabel="Item Main Group"
+                />
+              </label>
+              <label className="oim-filter-bar__field">
+                <span>Item Sub Main Group</span>
+                <SearchSelect
+                  value={itemSubMainGroupFilter}
+                  onChange={setItemSubMainGroupFilter}
+                  options={itemSubMainGroupOptions}
+                  placeholder="All sub main groups"
+                  ariaLabel="Item Sub Main Group"
+                  disabled={!itemMainGroupFilter}
+                />
+              </label>
+              <button
+                type="button"
+                className="oim-filter-bar__btn"
+                onClick={handleApplyItemFilter}
+                disabled={itemFilterLoading}
+                title="Load items for the selected filters"
+              >
+                <FilterIcon size={13} strokeWidth={2.5} />
+                {itemFilterLoading ? "Filtering…" : "Filter"}
+              </button>
+            </div>
+          }
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>
