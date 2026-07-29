@@ -39,6 +39,12 @@ export const IND_CONFIG = {
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
   SP_LOCATION: "fn_gen_fetchastisslocationmaster",
 
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
+
+
+
   SP_MASTER_FILL: "fn_tbl_rb_purindtmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purindtdet",
 

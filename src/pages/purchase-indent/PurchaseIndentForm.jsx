@@ -132,7 +132,7 @@ export default function PurchaseIndentForm() {
     fetchItemMainGroupOptions,
     fetchItemSubMainGroupOptions,
     clearItemSubMainGroupOptions,
-    fetchLocations,
+    // fetchLocations,
     isLoadingIndentTypes,
     columns,
     allColumns,
