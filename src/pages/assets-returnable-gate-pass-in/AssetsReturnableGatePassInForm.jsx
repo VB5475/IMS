@@ -382,7 +382,7 @@ export default function AssetsReturnableGatePassInForm() {
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
-          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+          if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations(val));
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (hasVisibleCol(headerColumns, "fromvendorid")) fetches.push(fetchFromVendors(val));
           if (fetches.length) await Promise.all(fetches);
@@ -427,7 +427,7 @@ export default function AssetsReturnableGatePassInForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -474,7 +474,7 @@ export default function AssetsReturnableGatePassInForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;

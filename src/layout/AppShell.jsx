@@ -33,6 +33,7 @@ import {
   Handshake,
   MessageSquareWarning,
   RefreshCw,
+  FilePlus,
   Building,
   FolderTree,
   Landmark,
@@ -102,6 +103,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: LayoutDashboard, label: "Maintenance Dashboard", end: false },
       { to: rbRoutePath(RB_CODES.COMPLAINT_REGISTER), icon: MessageSquareWarning, label: "Complaint Register", end: false },
       { to: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL), icon: RefreshCw, label: "Maintenance Contract Renewal", end: false },
+      { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false },
     ],
   },
    {

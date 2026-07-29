@@ -530,7 +530,7 @@ export default function MaintenanceContractRenewalForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields.map((label) => `${label} is required before selecting items.`));
       return;
@@ -574,11 +574,11 @@ export default function MaintenanceContractRenewalForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, openPickerModal]);
+  }, [getLive, openPickerModal, headerColumns]);
 
   const handleSelectTerms = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingTermsPickerHeaderFields(headerValues);
+    const missingFields = getMissingTermsPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields.map((label) => `${label} is required before selecting terms.`));
       return;
@@ -624,7 +624,7 @@ export default function MaintenanceContractRenewalForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, openPickerModal]);
+  }, [getLive, openPickerModal, headerColumns]);
 
   const handleInsertPickerRows = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;

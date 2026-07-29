@@ -8,10 +8,7 @@
 //
 // Indent-specific vs PO:
 //   fetchIndentTypes(divisionId)  — cascade: Division → Indent Type
-//   fetchLocations(divisionId)    — cascade: Division → Location (fn_tbl_fetch_divwslocation
-//                                   is division-wise; prmdivisionid must be the selected
-//                                   division, not a static/omitted value — see handleFilterChange
-//                                   in PurchaseIndentForm.jsx and fetchUnlockedHeaderDropdowns below)
+//   fetchLocations(divisionId)    — fn_gen_fetchastisslocationmaster (add + edit unlock)
 //   No supplier, currency, amend, or 3rd detail table (simpler than PO)
 
 import { useState, useCallback, useRef } from "react";
@@ -53,12 +50,12 @@ function mapMasterRowToHeaderValues(master) {
   return {
     ...master,
     // Date fields need normalisation from ISO → date-input format
-    trandate:     toDateInput(master.trandate),
+    trandate: toDateInput(master.trandate),
     expecteddate: toDateInput(master.expecteddate ?? master.expdate) || null,
     // Context fields: always use live values, not stale DB values
-    yearid:    getUserSession().yearId,
-    funccode:  IND_CONFIG.RB_MASTER,
-    loginid:   getUserSession().loginId,
+    yearid: getUserSession().yearId,
+    funccode: IND_CONFIG.RB_MASTER,
+    loginid: getUserSession().loginId,
     sessionid: DEFAULT_SESSION_ID,
   };
 }
@@ -135,8 +132,12 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  // ── fetchLocations — division-wise (SP_LOCATION = fn_tbl_fetch_divwslocation) ──
-  const fetchLocations = useCallback(async (divisionId) => {
+  // ── fetchLocations ──────────────────────────────────────────────────
+  const fetchLocations = useCallback(async (divisionId = 0) => {
+    if (!divisionId || divisionId === "0") {
+      setLocationOptions([]);
+      return [];
+    }
     try {
       const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
@@ -145,8 +146,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{
           prmcompanyid: session.companyId,
           prmdivisionid: Number(divisionId) || 0,
-          prmlocationtypeid: 0,
           prmloginid: session.loginId,
+          prmlocationtype: "",
+          prmfrmtype: String(IND_CONFIG.FRM_TYPE),
         }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
@@ -246,7 +248,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_DEPT,
-        JSon: JSON.stringify([{ prmdeptid : 0, prmloginid: getUserSession().loginId }]),
+        JSon: JSON.stringify([{ prmdeptid: 0, prmloginid: getUserSession().loginId }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -348,7 +350,6 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
 
       const needDivision = hasVisibleCol(cols, "divisionid");
       const needDept = hasVisibleCol(cols, "deptid");
-      const needLocation = hasVisibleCol(cols, "locationid");
 
       const tasks = [];
       if (needDivision) {
@@ -400,34 +401,6 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             .catch((err) => {
               console.warn("[Indent] Department fetch failed:", err);
               setDepartmentOptions([]);
-            })
-        );
-      }
-      if (needLocation) {
-        tasks.push(
-          get(ENDPOINTS.FN_FETCH_DATA, {
-            ObjType: 2,
-            ObjName: IND_CONFIG.SP_LOCATION,
-            JSon: JSON.stringify([{
-              prmcompanyid: getUserSession().companyId,
-              prmdivisionid: 0,
-              prmlocationtypeid: 0,
-              prmloginid: getUserSession().loginId,
-            }]),
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          })
-            .then((locationData) => {
-              setLocationOptions(
-                (locationData || []).map((r) => ({
-                  value: r.locationid,
-                  label: r.locationname,
-                }))
-              );
-            })
-            .catch((err) => {
-              console.warn("[Indent] Location fetch failed:", err);
-              setLocationOptions([]);
             })
         );
       }
@@ -660,7 +633,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       }
       if (needsCol("configid") && divisionId) tasks.push(fetchIndentTypes(divisionId));
       if (needsCol("deptid")) tasks.push(fetchDepartments());
-      if (needsCol("locationid")) tasks.push(fetchLocations(divisionId));
+      if (needsCol("locationid") && divisionId) tasks.push(fetchLocations(divisionId));
       await Promise.all(tasks);
     },
     [headerColumns, get, fetchIndentTypes, fetchDepartments, fetchLocations]

@@ -175,10 +175,12 @@ export function useAstCliAllo(baseURL = API_BASE_URL) {
   );
 
   const locationFetchJson = useCallback(
-    () => JSON.stringify([{
+    (divisionId = 0) => JSON.stringify([{
       prmcompanyid: DEFAULT_COMPANY_ID,
+      prmdivisionid: Number(divisionId) || 0,
       prmloginid: DEFAULT_LOGIN_ID,
       prmlocationtype: "",
+      prmfrmtype: String(ACA_CONFIG.FRM_TYPE),
     }]),
     []
   );
@@ -207,12 +209,12 @@ export function useAstCliAllo(baseURL = API_BASE_URL) {
     }
   }, [get, divisionFetchJson]);
 
-  const fetchToLocations = useCallback(async () => {
+  const fetchToLocations = useCallback(async (divisionId = 0) => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: ACA_CONFIG.SP_TO_LOCATION,
-        JSon: locationFetchJson(),
+        JSon: locationFetchJson(divisionId),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -460,7 +462,7 @@ export function useAstCliAllo(baseURL = API_BASE_URL) {
     const fromDiv = headerValues.fromdivisionid ?? 0;
     const tasks = [];
     if (needsCol("fromdivisionid")) tasks.push(fetchFromDivisions());
-    if (needsCol("tolocationid")) tasks.push(fetchToLocations());
+    if (needsCol("tolocationid")) tasks.push(fetchToLocations(fromDiv));
     if (needsCol("todeptid")) tasks.push(fetchToDepartments());
     if (needsCol("toworkingclientid") && fromDiv) tasks.push(fetchToWorkingClients(fromDiv));
     if (needsCol("configid")) tasks.push(fetchConfigOptions(fromDiv));

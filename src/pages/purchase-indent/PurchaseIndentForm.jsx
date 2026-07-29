@@ -68,17 +68,17 @@ const nextTempId = () => _indTempId--;
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    trancode:         headerValues.trancode         ?? "",
-    trandate:         headerValues.trandate         ?? "",
-    divisionid:       headerValues.divisionid ?? 0,
-    configid:         headerValues.configid ?? 0,
-    expecteddate:     headerValues.expecteddate     ?? "",
-    deptid:           headerValues.deptid ?? 0,
-    locationid:       headerValues.locationid ?? 0,
-    costcenterid:     headerValues.costcenterid ?? 0,
-    remarks:          headerValues.remarks          ?? "",
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: headerValues.divisionid ?? 0,
+    configid: headerValues.configid ?? 0,
+    expecteddate: headerValues.expecteddate ?? "",
+    deptid: headerValues.deptid ?? 0,
+    locationid: headerValues.locationid ?? 0,
+    costcenterid: headerValues.costcenterid ?? 0,
+    remarks: headerValues.remarks ?? "",
     indentrefrenceno: headerValues.indentrefrenceno ?? "",
-    enteredby:        headerValues.enteredby        ?? "",
+    enteredby: headerValues.enteredby ?? "",
   };
 }
 
@@ -132,6 +132,7 @@ export default function PurchaseIndentForm() {
     fetchItemMainGroupOptions,
     fetchItemSubMainGroupOptions,
     clearItemSubMainGroupOptions,
+    // fetchLocations,
     isLoadingIndentTypes,
     columns,
     allColumns,
@@ -157,23 +158,23 @@ export default function PurchaseIndentForm() {
   const editRecordLoadedRef = useRef(false);
 
   const headerValuesRef = useRef({
-    trancode:         "",
-    trandate:         getTodayDateInputValue(),
-    divisionid:       0,
-    configid:         0,
-    expecteddate:     getTodayDateInputValue(),
-    deptid:           0,
-    locationid:       0,
-    costcenterid:     0,
-    remarks:          "",
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    divisionid: 0,
+    configid: 0,
+    expecteddate: getTodayDateInputValue(),
+    deptid: 0,
+    locationid: 0,
+    costcenterid: 0,
+    remarks: "",
     indentrefrenceno: "",
-    enteredby:        "",
-    tranmstgenid:     0,
-    companyid:        getUserSession().companyId,
-    yearid:           getUserSession().yearId,
-    loginid:          getUserSession().loginId,
-    idnumber:         recordId,
-    funccode:         IND_CONFIG.RB_MASTER,
+    enteredby: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: recordId,
+    funccode: IND_CONFIG.RB_MASTER,
   });
 
   // trandate/expecteddate default to today on a new record; existing records keep their loaded date.
@@ -338,8 +339,8 @@ export default function PurchaseIndentForm() {
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ────
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid: divisionOptions,
-    configid:   indentTypeOptions,
-    deptid:     departmentOptions,
+    configid: indentTypeOptions,
+    deptid: departmentOptions,
     locationid: locationOptions,
   }), [divisionOptions, indentTypeOptions, departmentOptions, locationOptions]);
 
@@ -350,11 +351,11 @@ export default function PurchaseIndentForm() {
       .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
+        const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
           FilterParameterID: col.colname,
-          FilterColName:     col.colname,
-          FilterCaption:     col.displayname ?? col.colname,
+          FilterColName: col.colname,
+          FilterCaption: col.displayname ?? col.colname,
           FilterColCtrlType: col.colctrltype ?? 0,
           ...(staticOptions ? { staticOptions } : {}),
         };
@@ -389,7 +390,10 @@ export default function PurchaseIndentForm() {
         // even back to the "no division selected" (0) case, so stale options don't linger.
         await fetchLocations(val && val !== "0" ? val : 0);
         if (val && val !== "0") {
-          await fetchIndentTypes(val);
+          await Promise.all([
+            fetchIndentTypes(val),
+            fetchLocations(val),
+          ]);
           focusFieldAfterCascade(filterPanelRef, "configid");
         }
         return;
@@ -441,7 +445,7 @@ export default function PurchaseIndentForm() {
   // handleApplyItemFilter below). Client instruction 2026-07-28.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -545,7 +549,7 @@ export default function PurchaseIndentForm() {
     } finally {
       setItemFilterLoading(false);
     }
-  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter, headerColumns]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -584,23 +588,23 @@ export default function PurchaseIndentForm() {
   const [isSavingIndent, setIsSavingIndent] = useState(false);
 
   const buildDefaultHeaderValues = useCallback(() => ({
-    trancode:         "",
-    trandate:         getTodayDateInputValue(),
-    divisionid:       0,
-    configid:         0,
-    expecteddate:     getTodayDateInputValue(),
-    deptid:           0,
-    locationid:       0,
-    costcenterid:     0,
-    remarks:          "",
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    divisionid: 0,
+    configid: 0,
+    expecteddate: getTodayDateInputValue(),
+    deptid: 0,
+    locationid: 0,
+    costcenterid: 0,
+    remarks: "",
     indentrefrenceno: "",
-    enteredby:        "",
-    tranmstgenid:     0,
-    companyid:        getUserSession().companyId,
-    yearid:           getUserSession().yearId,
-    loginid:          getUserSession().loginId,
-    idnumber:         0,
-    funccode:         IND_CONFIG.RB_MASTER,
+    enteredby: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+    funccode: IND_CONFIG.RB_MASTER,
   }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({

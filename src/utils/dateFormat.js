@@ -172,6 +172,29 @@ export function shiftNativeDateInputValue(value, days) {
   return `${y}-${m}-${d}`;
 }
 
+/** Clamp native `<input type="date">` values to yyyy-mm-dd with a 4-digit year (1000–9999). */
+export function sanitizeNativeDateInput(value) {
+  if (value == null || value === "") return "";
+  const str = String(value).trim();
+  const m = str.match(/^(\d+)-(\d{1,2})-(\d{1,2})$/);
+  if (!m) return "";
+
+  const yearStr = m[1].length > 4 ? m[1].slice(0, 4) : m[1];
+  const y = Number(yearStr);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+
+  if (!Number.isFinite(y) || y < 1000 || y > 9999) return "";
+  if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+
+  const date = new Date(y, month - 1, day);
+  if (date.getFullYear() !== y || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return "";
+  }
+
+  return `${String(y).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /** ArrowUp / ArrowDown on date fields — returns true when handled.
  *  With nativeInput, Tab / Shift+Tab leave the control (skip y/m/d segments).
  */

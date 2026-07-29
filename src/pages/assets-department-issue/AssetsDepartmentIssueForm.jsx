@@ -396,10 +396,10 @@ export default function AssetsDepartmentIssueForm() {
         if (Number(val) > 0) {
           const fetches = [];
           if (hasVisibleCol(headerColumns, "fromlocationid")) {
-            fetches.push(fetchFromLocations());
+            fetches.push(fetchFromLocations(val));
           }
           if (hasVisibleCol(headerColumns, "tolocationid")) {
-            fetches.push(fetchToLocations());
+            fetches.push(fetchToLocations(val));
           }
           if (hasVisibleCol(headerColumns, "configid")) {
             fetches.push(fetchConfigOptions(val));
@@ -460,7 +460,7 @@ export default function AssetsDepartmentIssueForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -507,7 +507,7 @@ export default function AssetsDepartmentIssueForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;

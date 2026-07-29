@@ -142,14 +142,14 @@ function mapPickerRowToGridRow(item, allGridColumns, aliasMap = {}, overrides = 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
-    trancode:     headerValues.trancode ?? "",
-    trandate:     headerValues.trandate ?? "",
-    divisionid:   String(headerValues.divisionid ?? ""),
-    configid:     String(headerValues.configid ?? ""),
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: String(headerValues.divisionid ?? ""),
+    configid: String(headerValues.configid ?? ""),
     expecteddate: headerValues.expecteddate ?? "",
-    deptid:       String(headerValues.deptid ?? ""),
-    basedonid:    String(headerValues.basedonid ?? "0"),
-    remarks:      headerValues.remarks ?? "",
+    deptid: String(headerValues.deptid ?? ""),
+    basedonid: String(headerValues.basedonid ?? "0"),
+    remarks: headerValues.remarks ?? "",
   };
 }
 
@@ -273,20 +273,20 @@ export default function PurchaseInquiryForm() {
   const session = getUserSession();
 
   const headerValuesRef = useRef({
-    trancode:     "",
-    trandate:     getTodayDateInputValue(),
-    configid:     0,
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    configid: 0,
     expecteddate: getTodayDateInputValue(),
-    divisionid:   0,
-    deptid:       0,
-    basedonid:    "",
-    remarks:      "",
-    yearid:       session.yearId,
-    funccode:     PI_CONFIG.RB_MASTER,
+    divisionid: 0,
+    deptid: 0,
+    basedonid: "",
+    remarks: "",
+    yearid: session.yearId,
+    funccode: PI_CONFIG.RB_MASTER,
     tranmstgenid: 0,
-    loginid:      session.loginId,
-    sessionid:    DEFAULT_SESSION_ID,
-    idnumber:     recordId,
+    loginid: session.loginId,
+    sessionid: DEFAULT_SESSION_ID,
+    idnumber: recordId,
   });
 
   // trandate/expecteddate default to today on a new record; existing records
@@ -344,20 +344,20 @@ export default function PurchaseInquiryForm() {
 
     const resetSession = getUserSession();
     headerValuesRef.current = {
-      trancode:     "",
-      trandate:     getTodayDateInputValue(),
-      configid:     0,
+      trancode: "",
+      trandate: getTodayDateInputValue(),
+      configid: 0,
       expecteddate: getTodayDateInputValue(),
-      divisionid:   0,
-      deptid:       0,
-      basedonid:    "",
-      remarks:      "",
-      yearid:       resetSession.yearId,
-      funccode:     PI_CONFIG.RB_MASTER,
+      divisionid: 0,
+      deptid: 0,
+      basedonid: "",
+      remarks: "",
+      yearid: resetSession.yearId,
+      funccode: PI_CONFIG.RB_MASTER,
       tranmstgenid: 0,
-      loginid:      resetSession.loginId,
-      sessionid:    DEFAULT_SESSION_ID,
-      idnumber:     0,
+      loginid: resetSession.loginId,
+      sessionid: DEFAULT_SESSION_ID,
+      idnumber: 0,
     };
 
     queuedRowsRef.current = [];
@@ -863,7 +863,7 @@ export default function PurchaseInquiryForm() {
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -939,7 +939,7 @@ export default function PurchaseInquiryForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions, headerColumns]);
 
   // Main Group changed → reload Sub Main Group options, reset its own selection.
   const handleItemMainGroupFilterChange = useCallback((value) => {
@@ -1103,7 +1103,7 @@ export default function PurchaseInquiryForm() {
   // of reading them from the RB, unlike every sibling picker in this form.
   const handleSelectSupplier = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -1136,11 +1136,11 @@ export default function PurchaseInquiryForm() {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: PI_CONFIG.SUPPLIER_SP,
         JSon: JSON.stringify([{
-            prmdivisionid: Number(headerValues.divisionid) || 0,
-            prmcompanyid:    getUserSession().companyId,
-            prmyearid:     getUserSession().yearId,
-            prmsupplieridnotin : "",
-          }]),
+          prmdivisionid: Number(headerValues.divisionid) || 0,
+          prmcompanyid: getUserSession().companyId,
+          prmyearid: getUserSession().yearId,
+          prmsupplieridnotin: "",
+        }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -1156,7 +1156,7 @@ export default function PurchaseInquiryForm() {
     } finally {
       setSupplierModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertSuppliers = useCallback(
     async (selectedSuppliers) => {
@@ -1193,7 +1193,7 @@ export default function PurchaseInquiryForm() {
   // in the MRD, so columns are entirely RB-driven (no hardcoded field names).
   const handleSelectTerms = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -1239,7 +1239,7 @@ export default function PurchaseInquiryForm() {
     } finally {
       setTermsModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertTerms = useCallback(
     async (selectedTerms) => {
@@ -1324,7 +1324,7 @@ export default function PurchaseInquiryForm() {
       });
       const session = getUserSession();
       mstRow.loginid = session.loginId;
-      mstRow.userid  = session.userId;
+      mstRow.userid = session.userId;
 
       // ── Detail ────────────────────────────────────────────────────────
       const sessionFields = { loginid: session.loginId, userid: session.userId };

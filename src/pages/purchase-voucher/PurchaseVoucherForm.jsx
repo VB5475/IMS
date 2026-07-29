@@ -386,12 +386,12 @@ export default function PurchaseVoucherForm() {
 
   // Dropdown options we fetch ourselves, keyed by live RB colname.
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
-    divisionid:    divisionOptions,
-    configid:      pvTypeOptions,
-    supplierid:    supplierOptions,
-    costcenterid:  costCenterOptions,
-    locationid:    locationOptions,
-    basedonid:     PV_CONFIG.BASED_ON_OPTIONS,
+    divisionid: divisionOptions,
+    configid: pvTypeOptions,
+    supplierid: supplierOptions,
+    costcenterid: costCenterOptions,
+    locationid: locationOptions,
+    basedonid: PV_CONFIG.BASED_ON_OPTIONS,
   }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions, locationOptions]);
 
   // ── syncedFilters — built straight from the live RB column ──────────
@@ -503,7 +503,7 @@ export default function PurchaseVoucherForm() {
         } else {
           const info = await fetchSupplierInfo(val);
           if (info) {
-            headerValuesRef.current.currencyid   = info.CurrencyID   ?? info.currencyid;
+            headerValuesRef.current.currencyid = info.CurrencyID ?? info.currencyid;
             headerValuesRef.current.currencyname = info.CurrencyName ?? info.currencyname ?? "";
             headerValuesRef.current.currencyrate = info.CurrencyRate ?? info.currencyrate;
             setCurrencyExternalValues({
@@ -591,7 +591,7 @@ export default function PurchaseVoucherForm() {
   // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -662,7 +662,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, headerColumns, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
 
   // Main Group changed → reload Sub Main Group options, reset its own selection.
   const handleItemMainGroupFilterChange = useCallback((value) => {

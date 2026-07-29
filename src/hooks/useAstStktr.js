@@ -146,10 +146,12 @@ export function useAstStktr(baseURL = API_BASE_URL) {
   );
 
   const locationFetchJson = useCallback(
-    () => JSON.stringify([{
+    (divisionId = 0) => JSON.stringify([{
       prmcompanyid: getUserSession().companyId,
+      prmdivisionid: Number(divisionId) || 0,
       prmloginid: getUserSession().loginId,
       prmlocationtype: "",
+      prmfrmtype: String(AST_CONFIG.FRM_TYPE),
     }]),
     []
   );
@@ -192,12 +194,12 @@ export function useAstStktr(baseURL = API_BASE_URL) {
     }
   }, [get, divisionFetchJson]);
 
-  const fetchFromLocations = useCallback(async () => {
+  const fetchFromLocations = useCallback(async (divisionId = 0) => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AST_CONFIG.SP_FROM_LOCATION,
-        JSon: locationFetchJson(),
+        JSon: locationFetchJson(divisionId),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -215,12 +217,12 @@ export function useAstStktr(baseURL = API_BASE_URL) {
     }
   }, [get, locationFetchJson]);
 
-  const fetchToLocations = useCallback(async () => {
+  const fetchToLocations = useCallback(async (divisionId = 0) => {
     try {
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: AST_CONFIG.SP_TO_LOCATION,
-        JSon: locationFetchJson(),
+        JSon: locationFetchJson(divisionId),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -417,11 +419,12 @@ export function useAstStktr(baseURL = API_BASE_URL) {
       });
 
     const fromDiv = headerValues.fromdivisionid ?? 0;
+    const toDiv = headerValues.todivisionid ?? fromDiv;
     const tasks = [];
     if (needsCol("fromdivisionid")) tasks.push(fetchFromDivisions());
     if (needsCol("todivisionid")) tasks.push(fetchToDivisions());
-    if (needsCol("fromlocationid")) tasks.push(fetchFromLocations());
-    if (needsCol("tolocationid")) tasks.push(fetchToLocations());
+    if (needsCol("fromlocationid")) tasks.push(fetchFromLocations(fromDiv));
+    if (needsCol("tolocationid")) tasks.push(fetchToLocations(toDiv));
     if (needsCol("configid")) tasks.push(fetchConfigOptions(fromDiv));
     await Promise.all(tasks);
   }, [

@@ -1,5 +1,6 @@
 // constants.js — Assets Write Off (AWF) page config
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Write Off";
@@ -22,10 +23,11 @@ export const AWF_CONFIG = {
 
   FORM_TAG: "rb_astwriteoffmst",
   TRAN_BOOK: "ASTWOF",
+  FRM_TYPE: "WRT",
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS: "Fn_tbl_FetchUserWsDivision",
-  SP_LOCATION: "Fn_Gen_FetchLocationMaster",
+  SP_LOCATION: "fn_gen_fetchastissfromlocationmaster",
   SP_ASSETS_ACC: "Fn_tbl_Fetch_AssetsAccount",
   SP_ITEM_PICKER: "fn_tbl_rb_astwritoffselonly",
 
@@ -72,10 +74,16 @@ function isMissingValue(field, value) {
   return Number(value) === 0 || value === "0";
 }
 
-export function getMissingItemPickerHeaderFields(headerValues) {
-  return AWF_ITEM_PICKER_REQUIRED_FIELDS.filter((f) =>
-    isMissingValue(f, pickHeaderValue(headerValues, f.keys))
-  ).map((f) => f.label);
+/**
+ * @param {object} headerValues
+ * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
+ *   enforced as required if its matching column's IsMandatory flag is truthy.
+ */
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
+  return AWF_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
+    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
+    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
+  }).map((f) => f.label);
 }
 
 export function resolveAwfColKey(fieldDefs, ...hints) {

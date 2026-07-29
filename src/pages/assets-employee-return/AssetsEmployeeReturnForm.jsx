@@ -396,8 +396,17 @@ export default function AssetsEmployeeReturnForm() {
           clearFromEmpOptions();
           itemGridRef.current?.clearRows?.();
           if (val && val !== "0") {
+            const fetches = [];
+            if (hasVisibleCol(headerColumns, "tolocationid")) {
+              fetches.push(fetchToLocations(val));
+            }
             if (hasVisibleCol(headerColumns, "configid")) {
-              await fetchConfigOptions(val);
+              fetches.push(fetchConfigOptions(val));
+            }
+            if (fetches.length) await Promise.all(fetches);
+            if (hasVisibleCol(headerColumns, "tolocationid")) {
+              focusFieldAfterCascade(filterPanelRef, "tolocationid");
+            } else if (hasVisibleCol(headerColumns, "configid")) {
               focusFieldAfterCascade(filterPanelRef, "configid");
             }
           }
@@ -443,6 +452,7 @@ export default function AssetsEmployeeReturnForm() {
       requestGridClear,
       clearFromEmpOptions,
       fetchConfigOptions,
+      fetchToLocations,
       fetchFromEmployees,
     ]
   );
@@ -474,7 +484,7 @@ export default function AssetsEmployeeReturnForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -521,7 +531,7 @@ export default function AssetsEmployeeReturnForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {

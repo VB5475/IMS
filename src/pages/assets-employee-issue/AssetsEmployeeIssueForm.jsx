@@ -449,10 +449,10 @@ export default function AssetsEmployeeIssueForm() {
           if (val && val !== "0") {
             const fetches = [];
             if (hasVisibleCol(headerColumns, "fromlocationid")) {
-              fetches.push(fetchFromLocations());
+              fetches.push(fetchFromLocations(val));
             }
             if (hasVisibleCol(headerColumns, "tolocationid")) {
-              fetches.push(fetchToLocations());
+              fetches.push(fetchToLocations(val));
             }
             if (hasVisibleCol(headerColumns, "fromdeptid")) {
               fetches.push(fetchFromDepartments());
@@ -536,7 +536,7 @@ export default function AssetsEmployeeIssueForm() {
           itemGridRef.current?.clearRows?.();
           if (val && val !== "0") {
             const fetches = [];
-            if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations());
+            if (hasVisibleCol(headerColumns, "tolocationid")) fetches.push(fetchToLocations(val));
             if (hasVisibleCol(headerColumns, "todeptid")) fetches.push(fetchToDepartments());
             if (hasVisibleCol(headerColumns, "tovendorid")) {
               fetches.push(fetchToVendors(val, hv.tolocationid));
@@ -620,7 +620,7 @@ export default function AssetsEmployeeIssueForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -667,7 +667,7 @@ export default function AssetsEmployeeIssueForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {

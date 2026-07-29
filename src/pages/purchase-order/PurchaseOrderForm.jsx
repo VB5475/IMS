@@ -88,18 +88,18 @@ function mapHeaderValuesToFilterValues(headerValues) {
   const resolvedBasedOnID = validBasedOn ? validBasedOn.value : "0";
 
   return {
-    trancode:     headerValues.trancode ?? "",
-    trandate:     headerValues.trandate ?? "",
-    divisionid:   String(headerValues.divisionid ?? ""),
-    configid:     String(headerValues.configid ?? ""),
+    trancode: headerValues.trancode ?? "",
+    trandate: headerValues.trandate ?? "",
+    divisionid: String(headerValues.divisionid ?? ""),
+    configid: String(headerValues.configid ?? ""),
     deliverydate: headerValues.deliverydate ?? "",
-    supplierid:   String(headerValues.supplierid ?? ""),
-    deptid:       String(headerValues.deptid ?? ""),
-    basedonid:    resolvedBasedOnID,
+    supplierid: String(headerValues.supplierid ?? ""),
+    deptid: String(headerValues.deptid ?? ""),
+    basedonid: resolvedBasedOnID,
     currencyname: headerValues.currencyname ?? "",
     currencyrate: String(headerValues.currencyrate ?? ""),
-    creditdays:   String(headerValues.creditdays ?? ""),
-    remarks:      headerValues.remarks ?? "",
+    creditdays: String(headerValues.creditdays ?? ""),
+    remarks: headerValues.remarks ?? "",
   };
 }
 
@@ -183,28 +183,28 @@ export default function PurchaseOrderForm() {
   const editRecordLoadedRef = useRef(false);
 
   const headerValuesRef = useRef({
-    trancode:      "",
-    trandate:      getTodayDateInputValue(),
-    configid:      0,
-    deliverydate:  null,
-    divisionid:    0,
-    supplierid:    0,
-    deptid:        0,
-    currencyid:    0,
-    currencyname:  "",
-    currencyrate:  0,
-    creditdays:    0,
-    basedonid:     "",
-    remarks:       "",
-    tranmstgenid:  0,
-    companyid:     getUserSession().companyId,
-    yearid:        getUserSession().yearId,
-    loginid:       getUserSession().loginId,
-    idnumber:      recordId,
-    isamend:       0,
-    amendpoid:     0,
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    configid: 0,
+    deliverydate: null,
+    divisionid: 0,
+    supplierid: 0,
+    deptid: 0,
+    currencyid: 0,
+    currencyname: "",
+    currencyrate: 0,
+    creditdays: 0,
+    basedonid: "",
+    remarks: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: recordId,
+    isamend: 0,
+    amendpoid: 0,
     compuniquekey: 0,
-    funccode:      PO_CONFIG.RB_MASTER,
+    funccode: PO_CONFIG.RB_MASTER,
   });
 
   // trandate defaults to today on a new record; existing records keep their
@@ -371,7 +371,7 @@ export default function PurchaseOrderForm() {
         setCurrencyExternalValues({
           currencyname: headerValues.currencyname ?? "",
           currencyrate: String(headerValues.currencyrate ?? ""),
-          creditdays:   String(headerValues.creditdays ?? ""),
+          creditdays: String(headerValues.creditdays ?? ""),
         });
       }
 
@@ -458,10 +458,10 @@ export default function PurchaseOrderForm() {
   // ── syncedFilters — built purely from API headerColumns (fully dynamic) ──
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid: divisionOptions,
-    configid:   poTypeOptions,
+    configid: poTypeOptions,
     supplierid: supplierOptions,
-    deptid:     departmentOptions,
-    basedonid:  PO_CONFIG.BASED_ON_OPTIONS,
+    deptid: departmentOptions,
+    basedonid: PO_CONFIG.BASED_ON_OPTIONS,
   }), [divisionOptions, poTypeOptions, supplierOptions, departmentOptions]);
 
   const syncedFilters = useMemo(() => {
@@ -476,11 +476,11 @@ export default function PurchaseOrderForm() {
       .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
+        const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
         const base = {
           FilterParameterID: col.colname,
-          FilterColName:     col.colname,
-          FilterCaption:     col.displayname ?? col.colname,
+          FilterColName: col.colname,
+          FilterCaption: col.displayname ?? col.colname,
           FilterColCtrlType: PO_LABEL_OVERRIDE_COLS.has(col.colname)
             ? controlTypeMap.LABEL
             : (col.colctrltype ?? 0),
@@ -495,8 +495,8 @@ export default function PurchaseOrderForm() {
       const supplierIdx = cols.findIndex((f) => f.FilterParameterID === "supplierid");
       cols.splice(supplierIdx >= 0 ? supplierIdx + 1 : cols.length, 0, {
         FilterParameterID: "currencyname",
-        FilterColName:     "currencyname",
-        FilterCaption:     "Currency",
+        FilterColName: "currencyname",
+        FilterCaption: "Currency",
         FilterColCtrlType: controlTypeMap.LABEL,
       });
     }
@@ -566,31 +566,31 @@ export default function PurchaseOrderForm() {
         if (val && val !== "0") {
           const cached = getSupplierCurrency(val);
           if (cached) {
-            headerValuesRef.current.currencyid   = cached.currencyid;
+            headerValuesRef.current.currencyid = cached.currencyid;
             headerValuesRef.current.currencyname = cached.currencyname;
             headerValuesRef.current.currencyrate = cached.currencyrate;
-            headerValuesRef.current.creditdays   = cached.crdays;
+            headerValuesRef.current.creditdays = cached.crdays;
             setCurrencyExternalValues({
               currencyname: cached.currencyname,
               currencyrate: String(cached.currencyrate),
-              creditdays:   String(cached.crdays),
+              creditdays: String(cached.crdays),
             });
           } else {
             const info = await fetchSupplierInfo(val);
             if (info) {
-              headerValuesRef.current.currencyid   = info.currencyid;
+              headerValuesRef.current.currencyid = info.currencyid;
               headerValuesRef.current.currencyname = info.currencyname ?? "";
               headerValuesRef.current.currencyrate = info.currencyrate;
-              headerValuesRef.current.creditdays   = info.crdays;
+              headerValuesRef.current.creditdays = info.crdays;
               setCurrencyExternalValues({
                 currencyname: info.currencyname ?? "",
                 currencyrate: String(info.currencyrate),
-                creditdays:   String(info.crdays),
+                creditdays: String(info.crdays),
               });
             }
           }
         } else {
-          headerValuesRef.current.currencyid   = 0;
+          headerValuesRef.current.currencyid = 0;
           headerValuesRef.current.currencyname = "";
           headerValuesRef.current.currencyrate = 0;
           setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
@@ -637,7 +637,7 @@ export default function PurchaseOrderForm() {
   // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues);
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       return;
@@ -698,13 +698,13 @@ export default function PurchaseOrderForm() {
           JSon: JSON.stringify([
             {
               prmdivisionid: Number(divisionID),
-              prmyearid:     getUserSession().yearId,
-              prmloginid:    getUserSession().loginId,
-              prmtrandate:   formatTranDate(trandate),
-              prmconfigid:   Number(configid ?? 0),
+              prmyearid: getUserSession().yearId,
+              prmloginid: getUserSession().loginId,
+              prmtrandate: formatTranDate(trandate),
+              prmconfigid: Number(configid ?? 0),
               prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
-              prmtranbook:   PO_CONFIG.TRAN_BOOK,
-              prmfrmoption:  basedOnNum || 0,
+              prmtranbook: PO_CONFIG.TRAN_BOOK,
+              prmfrmoption: basedOnNum || 0,
             },
           ]),
           p_ErrCode: -1,
@@ -718,7 +718,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, headerColumns, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
 
   // Main Group changed → reload Sub Main Group options, reset its own selection.
   const handleItemMainGroupFilterChange = useCallback((value) => {
@@ -751,13 +751,13 @@ export default function PurchaseOrderForm() {
         JSon: JSON.stringify([
           {
             prmdivisionid: Number(divisionID),
-            prmyearid:     getUserSession().yearId,
-            prmloginid:    getUserSession().loginId,
-            prmtrandate:   formatTranDate(trandate),
-            prmconfigid:   Number(configid ?? 0),
+            prmyearid: getUserSession().yearId,
+            prmloginid: getUserSession().loginId,
+            prmtrandate: formatTranDate(trandate),
+            prmconfigid: Number(configid ?? 0),
             prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
-            prmtranbook:   PO_CONFIG.TRAN_BOOK,
-            prmfrmoption:  0,
+            prmtranbook: PO_CONFIG.TRAN_BOOK,
+            prmfrmoption: 0,
             prmmaingroupid: Number(itemMainGroupFilter) || 0,
             prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
           },
@@ -862,28 +862,28 @@ export default function PurchaseOrderForm() {
   const [isSavingPO, setIsSavingPO] = useState(false);
 
   const buildDefaultHeaderValues = useCallback(() => ({
-    trancode:      "",
-    trandate:      getTodayDateInputValue(),
-    configid:      0,
-    deliverydate:  null,
-    divisionid:    0,
-    supplierid:    0,
-    deptid:        0,
-    currencyid:    0,
-    currencyname:  "",
-    currencyrate:  0,
-    creditdays:    0,
-    basedonid:     "",
-    remarks:       "",
-    tranmstgenid:  0,
-    companyid:     getUserSession().companyId,
-    yearid:        getUserSession().yearId,
-    loginid:       getUserSession().loginId,
-    idnumber:      0,
-    isamend:       0,
-    amendpoid:     0,
+    trancode: "",
+    trandate: getTodayDateInputValue(),
+    configid: 0,
+    deliverydate: null,
+    divisionid: 0,
+    supplierid: 0,
+    deptid: 0,
+    currencyid: 0,
+    currencyname: "",
+    currencyrate: 0,
+    creditdays: 0,
+    basedonid: "",
+    remarks: "",
+    tranmstgenid: 0,
+    companyid: getUserSession().companyId,
+    yearid: getUserSession().yearId,
+    loginid: getUserSession().loginId,
+    idnumber: 0,
+    isamend: 0,
+    amendpoid: 0,
     compuniquekey: 0,
-    funccode:      PO_CONFIG.RB_MASTER,
+    funccode: PO_CONFIG.RB_MASTER,
   }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
