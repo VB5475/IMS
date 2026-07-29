@@ -79,7 +79,7 @@ export default function PurchaseOrderPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseOrderPage] list fetch failed:", err);
-      setError("Failed to load purchase orders.");
+      setError(err?.message || "Failed to load purchase orders.");
     } finally {
       setLoading(false);
     }

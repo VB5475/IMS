@@ -575,6 +575,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [selectedIds, rows]);
 
   const handleExport = useCallback(() => {
+    // Guards the click handler itself, not just the button's disabled state —
+    // the button can't be clicked with zero rows, but this stays safe if
+    // handleExport is ever invoked another way (e.g. a future keyboard
+    // shortcut). Exporting a header-only CSV was the "empty export" bug.
+    if (processedRows.length === 0) return;
     const headers = columns.map((c) => c.name).join(",");
     const csvRows = processedRows.map((r) =>
       columns.map((c) => `"${String(r[c.key] ?? "").replace(/"/g, '""')}"`).join(",")
@@ -1230,6 +1235,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           {!readOnly && !hideBottomPanel && (
             <TxnEntryBottomPanel
               selectedCount={selectedIds.size}
+              exportDisabled={processedRows.length === 0}
               onExportExcel={handleExport}
               onCopy={handleCopy}
               onSave={handleSave}

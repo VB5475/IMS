@@ -106,6 +106,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [costCenterOptions, setCostCenterOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
 
   const [isLoadingPvTypes, setIsLoadingPvTypes] = useState(false);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
@@ -123,6 +125,76 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
   const supplierCurrencyMapRef = useRef({});
+
+  // ── Select Item popup filters (Based On = Direct only) ────────────────
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PV_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PV_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   // ── fetchPVTypes — cascade from Division ───────────────────────────
   const fetchPVTypes = useCallback(async (divisionId) => {
@@ -185,7 +257,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{
           prmcompanyid: getUserSession().companyId,
           prmdivisionid: Number(divisionId),
-          prmlocationtypeid: 0,
+          prmlocationtypeid: 1,
           prmloginid: getUserSession().loginId,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
@@ -502,6 +574,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     fetchLocationOptions, clearLocations,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
+    itemMainGroupOptions, itemSubMainGroupOptions,
+    fetchItemMainGroupOptions, fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions,
     fetchSupplierInfo, getSupplierCurrency,
     fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,

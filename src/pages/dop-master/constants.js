@@ -22,9 +22,16 @@
 //   - SAVE_ENDPOINT: MRD gives two different base paths for the same action
 //     (§4 "/API/WKF/..." vs §5.1 "/API/DmDoctypeMst/...") — using §4's.
 //   - Detail save payload keys: MRD never specifies prmStr*JSON key names for
-//     the two detail grids. CONFIRMED live 2026-07-27 from a working payload
-//     sample: prmStrAmountDetJSON / prmStrUserDetailJSON (note "UserDetail",
-//     not "UserDet").
+//     the two detail grids. First confirmed live 2026-07-27 as
+//     prmStrAmountDetJSON / prmStrUserDetailJSON — that turned out to be
+//     wrong; re-confirmed 2026-07-28 as prmStrAmtJSON / prmStrUserJSON
+//     (see DopMasterForm.jsx's handleSave), which is what's actually wired up.
+//   - amountwssrno (added 2026-07-28, client instruction, not in the MRD):
+//     each Employee Detail row's save payload now includes this field, set to
+//     its owning Amount Detail band's 1-based position — an explicit
+//     band-correlation key. CONFIRM with DBA whether the save proc expects a
+//     1-based band position here or something else (e.g. a live srno column
+//     on rb_wkf_dopamountdet, which this module doesn't currently read).
 //   - SP_USER (Employee Detail grid's "User" dropdown, "auto fill from
 //     Gen_UserMaster" per MRD): exact SP name not given — using
 //     "fn_tbl_genusermst", matching RB_CODES.USER_MASTER's RB name.

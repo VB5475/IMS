@@ -38,6 +38,23 @@ export const IND_CONFIG = {
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
   SP_LOCATION: "fn_tbl_fetch_divwslocation",
 
+  // Select Item popup filters (Based On = Direct only) — client instruction
+  // 2026-07-28, not yet in the MRD. Both live-verified: return real Main
+  // Group rows for this company/division; Sub Main Group call succeeds but
+  // returned [] for every main group tried (no data seeded, not an error).
+  // fn_tbl_rb_purindtselitem (SP_ITEM_PICKER) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (it used
+  // to throw "Must declare the scalar variable ..." for both, now doesn't).
+  // See handleApplyItemFilter in PurchaseIndentForm.jsx for the wiring.
+  // ⚠️ DBA-CONFIRM: while re-verifying, a *different* division/config combo
+  // that previously returned real item rows started returning
+  // {"ErrCode":"-1","ErrMsg":"There is no row at position 9."} once
+  // prmmaingroupid/prmsubmaingroupid were added — looks like a backend bug
+  // in the new group-filter logic that only surfaces when rows actually
+  // match (empty-result combos were fine). Flag to whoever owns this SP.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
   SP_MASTER_FILL: "fn_tbl_rb_purindtmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purindtdet",
 

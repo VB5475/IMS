@@ -61,7 +61,7 @@ export default function AssetsStockTransferPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AST] list fetch failed:", err);
-      setError("Failed to load Assets Stock Transfer records.");
+      setError(err?.message || "Failed to load Assets Stock Transfer records.");
     } finally {
       setLoading(false);
     }

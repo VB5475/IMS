@@ -59,7 +59,7 @@ export default function AssetsReturnableGatePassOutPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[ARGO] list fetch failed:", err);
-      setError("Failed to load Assets Returnable Gate Pass Out records.");
+      setError(err?.message || "Failed to load Assets Returnable Gate Pass Out records.");
     } finally {
       setLoading(false);
     }

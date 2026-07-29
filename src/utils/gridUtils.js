@@ -539,10 +539,16 @@ export async function fetchAndBuildGridColumns(
  * @param {object}  [opts]
  * @param {boolean} [opts.filterable=true]      - false for entry grids
  * @param {boolean} [opts.allEditable=false]    - true for entry grids
+ * @param {Record<string, number>} [opts.controlTypeOverrides] - colname → forced
+ *   ColCtrlType, for the rare case where a live RB has a field genuinely
+ *   miscategorized (e.g. an entry field wrongly set to Label=0, which always
+ *   renders read-only regardless of isEditAllow — see controlTypeMap). Same
+ *   escape hatch as SM_CHECKBOX_OVERRIDE_FIELDS elsewhere in the app, but for
+ *   grid columns instead of master-form fields.
  * @returns {object[]}  gridColumns for EntryGrid or conversion via toEnterpriseDataGridColumns
  */
 export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
-  const { filterable = true, allEditable = false, existingRecordEdit = false } = opts;
+  const { filterable = true, allEditable = false, existingRecordEdit = false, controlTypeOverrides = {} } = opts;
 
   const dataColumns = apiColumns
     .filter((col) => isTruthyApiFlag(col.isvisible))
@@ -559,7 +565,7 @@ export function buildGridColumns(apiColumns, colDropdownOptions, opts = {}) {
         id: col.colname,
         name: col.displayname,
         key: col.colname,
-        controlType: col.colctrltype,
+        controlType: controlTypeOverrides[col.colname] ?? col.colctrltype,
         colDataType: col.coldatatype || null,
         columnMeta: buildColumnMeta(col),
         width: getColumnWidth(col),

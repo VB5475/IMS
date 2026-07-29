@@ -61,7 +61,7 @@ export default function AssetsHealthStatusUpdationPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AHS] list fetch failed:", err);
-      setError("Failed to load Assets Health Status Updation records.");
+      setError(err?.message || "Failed to load Assets Health Status Updation records.");
     } finally {
       setLoading(false);
     }

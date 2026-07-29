@@ -61,7 +61,7 @@ export default function AssetsClientAllocationPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[ACA] list fetch failed:", err);
-      setError("Failed to load Assets Client Allocation records.");
+      setError(err?.message || "Failed to load Assets Client Allocation records.");
     } finally {
       setLoading(false);
     }

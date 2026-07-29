@@ -1,79 +1,24 @@
-// SupplierPickerModal — supplier picker for Purchase Inquiry (IMS_LIVE API)
-// Modal + EntryGrid (readOnly) for Fn_tbl_FetchCustomerSupplierTranWs4Web rows.
+// SupplierPickerModal — supplier picker for Purchase Inquiry (Tab-2).
+// Same pattern as TermsPickerModal: columns come from GetDetailColData for
+// the picker RB (rb_purinqselonlysupp, PI_CONFIG.RB_SUPPLIER_PICKER), rows
+// from PI_CONFIG.SUPPLIER_SP — both fetched dynamically by the parent form,
+// not hardcoded here (this used to hardcode its own column widths; that
+// silently diverged from whatever the live RB actually configures).
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Modal from "../ui/Modal";
 import EntryGrid from "../grid/EntryGrid";
 import Loader from "../ui/Loader";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { normalizePickerGridColumns } from "../../utils/dateFormat";
 import { Truck, CheckCheck, Users, AlertCircle } from "lucide-react";
 import "../txn/OrderItemModal.css";
-
-// Keys must match the live API's field casing (fn_tbl_fetchcustomersuppliertranws4web
-// returns fully lowercase field names, e.g. "suppliername", not "SupplierName") — EntryGrid
-// reads row[col.key] with no case-insensitive fallback, so a mismatch here renders blank cells.
-const SUPPLIER_COLUMNS = [
-  { id: "cb", name: "", key: "cb", controlType: -1, width: 48, isFixed: true, isEditAllow: false },
-  {
-    id: "suppliercode",
-    name: "Supplier Code",
-    key: "suppliercode",
-    controlType: 0,
-    width: 120,
-    isFixed: true,
-    isEditAllow: false,
-  },
-  {
-    id: "suppliername",
-    name: "Supplier Name",
-    key: "suppliername",
-    controlType: 0,
-    width: 200,
-    isFixed: false,
-    isEditAllow: false,
-  },
-  {
-    id: "gstregno",
-    name: "GST Reg No.",
-    key: "gstregno",
-    controlType: 0,
-    width: 140,
-    isFixed: false,
-    isEditAllow: false,
-  },
-  {
-    id: "suppaddress",
-    name: "Address",
-    key: "suppaddress",
-    controlType: 0,
-    width: 220,
-    isFixed: false,
-    isEditAllow: false,
-  },
-  {
-    id: "city",
-    name: "City",
-    key: "city",
-    controlType: 0,
-    width: 120,
-    isFixed: false,
-    isEditAllow: false,
-  },
-  {
-    id: "contactno",
-    name: "Contact No.",
-    key: "contactno",
-    controlType: 0,
-    width: 110,
-    isFixed: false,
-    isEditAllow: false,
-  },
-];
 
 export default function SupplierPickerModal({
   isOpen = false,
   onClose,
   items = [],
+  columns = [],
   isLoading = false,
   error = null,
   onInsert,
@@ -89,10 +34,10 @@ export default function SupplierPickerModal({
 
   const gridConfig = useMemo(
     () => ({
-      columns: SUPPLIER_COLUMNS,
+      columns: normalizePickerGridColumns(columns),
       pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
     }),
-    []
+    [columns]
   );
 
   const handleInsert = useCallback(() => {
@@ -104,7 +49,7 @@ export default function SupplierPickerModal({
     }
   }, [onInsert, onClose]);
 
-  const showGrid = !isLoading && !error && items.length > 0;
+  const showGrid = !isLoading && !error && items.length > 0 && columns.length > 0;
 
   const { handleInsertKeyDown, handleCancelKeyDown } = usePickerModalKeyboard({
     isOpen,

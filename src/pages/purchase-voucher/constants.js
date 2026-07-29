@@ -54,6 +54,15 @@ export const PV_CONFIG = {
   SP_MASTER_FILL: "fn_tbl_rb_purpvmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purpvdet",
 
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purpvselonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
   SAVE_ENDPOINT: "/API/PurPVSave/Post_RB_PurPVMst_Save",
 
   STORAGE_HEADER_META: "pvHeaderMeta",

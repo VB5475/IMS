@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -153,6 +153,11 @@ export default function PurchaseOrderForm() {
     getSupplierCurrency,
     fetchExistingPOs,
     fetchUniqueId,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     isLoadingPoTypes,
     columns,
     allColumns,
@@ -285,6 +290,14 @@ export default function PurchaseOrderForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Based On = Direct only) — items are only
+  // fetched once the user clicks Filter; Indent-wise/Quotation branches
+  // are untouched.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const [itemPickerIsDirect, setItemPickerIsDirect] = useState(false);
 
   // Collapsible indent children (indent-wise mode)
   const [childRowsMap, setChildRowsMap] = useState({});
@@ -619,6 +632,9 @@ export default function PurchaseOrderForm() {
   );
 
   // ── Select Item ────────────────────────────────────────────────────
+  // Direct branch (basedonid not 2 or 3) defers the item fetch until the
+  // user clicks Filter — Indent-wise/Quotation branches fetch immediately,
+  // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
@@ -628,23 +644,25 @@ export default function PurchaseOrderForm() {
     }
     const { divisionid, configid, trandate, basedonid } = headerValues;
     const divisionID = divisionid ?? 0;
+    const basedOnNum = Number(basedonid);
+    const isDirect = basedOnNum !== 2 && basedOnNum !== 3;
 
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(!isDirect); // non-Direct modes have no filter step to await
+    setItemPickerIsDirect(isDirect);
+    clearItemSubMainGroupOptions();
 
     try {
       let rbCode;
-      if (Number(basedonid) === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
-      else if (Number(basedonid) === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
+      if (basedOnNum === 2) rbCode = PO_CONFIG.RB_ITEM_PICKER_INDENT;
+      else if (basedOnNum === 3) rbCode = PO_CONFIG.RB_ITEM_PICKER_QUOT;
       else rbCode = PO_CONFIG.RB_ITEM_PICKER_DIRECT;
-
-      let spItemPicker;
-      if (Number(basedonid) === 2) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_INDENT;
-      else if (Number(basedonid) === 3) spItemPicker = PO_CONFIG.SP_ITEM_PICKER_QUOT;
-      else spItemPicker = PO_CONFIG.SP_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
@@ -670,9 +688,66 @@ export default function PurchaseOrderForm() {
       );
       setItemModalColumns(gridColumns);
 
+      if (isDirect) {
+        await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+      } else {
+        const spItemPicker = basedOnNum === 2 ? PO_CONFIG.SP_ITEM_PICKER_INDENT : PO_CONFIG.SP_ITEM_PICKER_QUOT;
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: spItemPicker,
+          JSon: JSON.stringify([
+            {
+              prmdivisionid: Number(divisionID),
+              prmyearid:     getUserSession().yearId,
+              prmloginid:    getUserSession().loginId,
+              prmtrandate:   formatTranDate(trandate),
+              prmconfigid:   Number(configid ?? 0),
+              prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
+              prmtranbook:   PO_CONFIG.TRAN_BOOK,
+              prmfrmoption:  basedOnNum || 0,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      }
+    } catch (err) {
+      console.error("[PO] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemModalLoading(false);
+    }
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
+  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
+  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
+  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
+  // threw "Must declare the scalar variable ..."; that's gone).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const { divisionid, configid, trandate } = headerValues;
+    const divisionID = divisionid ?? 0;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: spItemPicker,
+        ObjName: PO_CONFIG.SP_ITEM_PICKER_DIRECT,
         JSon: JSON.stringify([
           {
             prmdivisionid: Number(divisionID),
@@ -682,20 +757,23 @@ export default function PurchaseOrderForm() {
             prmconfigid:   Number(configid ?? 0),
             prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
             prmtranbook:   PO_CONFIG.TRAN_BOOK,
-            prmfrmoption:  Number(basedonid) || 0,
+            prmfrmoption:  0,
+            prmmaingroupid: Number(itemMainGroupFilter) || 0,
+            prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
     } catch (err) {
-      console.error("[PO] Item picker fetch failed:", err);
+      console.error("[PO] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
-      setItemModalLoading(false);
+      setItemFilterLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -988,6 +1066,43 @@ export default function PurchaseOrderForm() {
   };
   const combinedError = metaError || headerError;
 
+  // Direct mode only — Indent-wise/Quotation items fetch immediately, no filter step.
+  const itemFilterBar = !itemPickerIsDirect ? null : (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="workspace-page workspace-page--fill po-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
@@ -1168,9 +1283,11 @@ export default function PurchaseOrderForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

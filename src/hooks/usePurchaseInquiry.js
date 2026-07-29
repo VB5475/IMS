@@ -141,6 +141,8 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [inquiryTypeOptions, setInquiryTypeOptions] = useState([]);
   const [isLoadingInquiryTypes, setIsLoadingInquiryTypes] = useState(false);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
 
   // ── Detail grid state ─────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
@@ -209,6 +211,76 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     },
     [get]
   );
+
+  // ── Select Item popup filters (Based On = Direct only) ────────────────
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PI_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PI] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: PI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PI_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PI] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   const fetchHeaderMeta = useCallback(
     async ({ skipListDropdowns = false } = {}) => {
@@ -752,6 +824,11 @@ export function usePurchaseInquiry(baseURL = API_BASE_URL) {
     fetchInquiryTypes,
     clearInquiryTypes,
     isLoadingInquiryTypes,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     columns,
     allColumns,
     allIndentColumns,

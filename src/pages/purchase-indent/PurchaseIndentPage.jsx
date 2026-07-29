@@ -79,7 +79,7 @@ export default function PurchaseIndentPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseIndentPage] list fetch failed:", err);
-      setError("Failed to load purchase indents.");
+      setError(err?.message || "Failed to load purchase indents.");
     } finally {
       setLoading(false);
     }

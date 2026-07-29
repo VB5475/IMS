@@ -36,6 +36,10 @@ export const RB_CODES = Object.freeze({
   DM_DEPARTMENT_MASTER: "rb_dmdepartmaster",
   DOCUMENT_TYPE_MASTER: "rb_dm_doctypemst",
   DOCUMENT_SUBTYPE_MASTER: "rb_dm_docsubtypemst",
+  // 4th DMS module — maps Department + Tran Type to a Document Type.
+  // MRD_Template4DMS_DocumentTransactionToDocument.docx (Om, 24-Jun-2026,
+  // clarified live with Om 2026-07-28 — see constants.js for the resolved gaps).
+  DM_TT2DOCTYPE_MASTER: "rb_dm_tt2doctype",
 
   // ── Purchase ────────────────────────────────────────────────────
   PURCHASE_INDENT: "rb_purindtmst",
@@ -104,6 +108,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.DM_DEPARTMENT_MASTER]: "/admin/dms/department-master",
   [RB_CODES.DOCUMENT_TYPE_MASTER]: "/admin/dms/document-type-master",
   [RB_CODES.DOCUMENT_SUBTYPE_MASTER]: "/admin/dms/document-subtype-master",
+  [RB_CODES.DM_TT2DOCTYPE_MASTER]: "/admin/dms/tt2doctype-master",
 
   [RB_CODES.PURCHASE_INDENT]: "/purchase-indent",
   [RB_CODES.PURCHASE_INQUIRY]: "/purchase-inquiry",

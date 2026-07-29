@@ -96,7 +96,7 @@ export default function SupplierMasterPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[SupplierMasterPage] list fetch failed:", err);
-      setError("Failed to load suppliers.");
+      setError(err?.message || "Failed to load suppliers.");
     } finally {
       setLoading(false);
     }

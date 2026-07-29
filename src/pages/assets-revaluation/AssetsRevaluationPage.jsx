@@ -61,7 +61,7 @@ export default function AssetsRevaluationPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[ARV] list fetch failed:", err);
-      setError("Failed to load Assets Revaluation records.");
+      setError(err?.message || "Failed to load Assets Revaluation records.");
     } finally {
       setLoading(false);
     }

@@ -65,7 +65,7 @@ export default function AssetsEmployeeReturnPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AER] list fetch failed:", err);
-      setError("Failed to load Assets Employee Return records.");
+      setError(err?.message || "Failed to load Assets Employee Return records.");
     } finally {
       setLoading(false);
     }

@@ -14,7 +14,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -178,6 +178,8 @@ export default function GoodsReceivedNoteForm() {
     transporterOptions,
     destinationOptions,
     locationOptions,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
     fetchGrnTypes,
     clearGrnTypes,
     fetchSupplierOptions,
@@ -186,6 +188,9 @@ export default function GoodsReceivedNoteForm() {
     fetchTransporterOptions,
     fetchDestinationOptions,
     fetchLocationOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     clearTransporters,
     clearDestinations,
     clearLocations,
@@ -276,6 +281,13 @@ export default function GoodsReceivedNoteForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Based On = Direct only) — items are only
+  // fetched once the user clicks Filter; PO Base branch is untouched.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const [itemPickerIsDirect, setItemPickerIsDirect] = useState(false);
 
   const clearItemGridState = useCallback(() => {
     queuedRowsRef.current = [];
@@ -721,6 +733,10 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
 
+  // Direct (basedonid 0) defers the item fetch until Filter is clicked — PO
+  // Base (1) fetches immediately, unchanged. Client instruction 2026-07-28,
+  // same rollout as Purchase Indent. (Indent-wise/3 is disabled in this
+  // module — see BASED_ON_OPTIONS — so only these two branches are live.)
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
@@ -732,12 +748,18 @@ export default function GoodsReceivedNoteForm() {
     const loginId = getUserSession().loginId;
     const rbCode = resolveItemPickerRbCode(headerValues.basedonid);
     const itemPickerSp = resolveItemPickerSpName(headerValues.basedonid);
+    const isDirect = Number(headerValues.basedonid) !== 1;
 
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(!isDirect);
+    setItemPickerIsDirect(isDirect);
+    clearItemSubMainGroupOptions();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -758,21 +780,70 @@ export default function GoodsReceivedNoteForm() {
         buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false })
       );
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: itemPickerSp,
-        JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      setItemModalItems(rowRes || []);
+      if (isDirect) {
+        await fetchItemMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
+      } else {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: itemPickerSp,
+          JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      }
     } catch (err) {
       console.error("[GRN] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
+  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
+  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
+  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
+  // threw "Must declare the scalar variable ..."; that's gone).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const loginId = getUserSession().loginId;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
+        JSon: JSON.stringify([{
+          ...buildItemPickerJsonPayload(headerValues, loginId),
+          prmmaingroupid: Number(itemMainGroupFilter) || 0,
+          prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
+    } catch (err) {
+      console.error("[GRN] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemFilterLoading(false);
+    }
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleCellEvent = useCallback(
     async ({ rowId, colKey, rowData }) => {
@@ -1044,6 +1115,43 @@ export default function GoodsReceivedNoteForm() {
     [handleSaveAndPrint, isSaving, handleSave]
   );
 
+  // Direct mode only — PO Base items fetch immediately, no filter step.
+  const itemFilterBar = !itemPickerIsDirect ? null : (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="workspace-page workspace-page--fill grn-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
@@ -1194,9 +1302,11 @@ export default function GoodsReceivedNoteForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

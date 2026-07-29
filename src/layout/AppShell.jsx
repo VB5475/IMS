@@ -60,38 +60,8 @@ const NAV_SECTIONS = [
     label: "Home",
     items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
   },
-  {
-    label: "Master",
-    items: [
-      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
-      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
-      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
-      { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
-      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: false },
-      { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
-      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
-      { to: rbRoutePath(RB_CODES.ASSET_ITEM_MASTER), icon: LayoutList, label: "Asset Item Master", end: false },
-      { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
-      
-    ],
-  },
-  {
-    label: "DMS",
-    items: [
-      // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
-      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false },
-      { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false },
-      { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false },
-      { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
-    ],
-  },
+  
+ 
   {
     label: "Purchase",
     items: [
@@ -132,6 +102,38 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: LayoutDashboard, label: "Maintenance Dashboard", end: false },
       { to: rbRoutePath(RB_CODES.COMPLAINT_REGISTER), icon: MessageSquareWarning, label: "Complaint Register", end: false },
       { to: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL), icon: RefreshCw, label: "Maintenance Contract Renewal", end: false },
+    ],
+  },
+   {
+    label: "DMS",
+    items: [
+      // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
+      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false },
+      { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
+      { to: rbRoutePath(RB_CODES.DM_TT2DOCTYPE_MASTER), icon: ArrowLeftRight, label: "Transaction To Document Type Master", end: false },
+    ],
+  },
+  {
+    label: "Master",
+    items: [
+      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
+      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
+      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
+      { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
+      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: false },
+      { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
+      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
+      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
+      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
+      { to: rbRoutePath(RB_CODES.ASSET_ITEM_MASTER), icon: LayoutList, label: "Asset Item Master", end: false },
+      { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
     ],
   },
 

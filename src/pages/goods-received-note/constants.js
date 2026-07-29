@@ -118,6 +118,15 @@ export const GRN_CONFIG = {
 
   SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4grn",
 
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purgrnselonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
 
 
   // BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.PO_BASE, BASED_ON.INDENT_BASE], ## No need GRN BASED ON INDENT.

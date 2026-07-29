@@ -16,10 +16,12 @@
 // state map exists purely so each card's badge shows a live count.
 //
 // ⚠️ CONFIRMED live 2026-07-27 from a working payload sample — the save
-// payload sends TWO FLAT parallel arrays (prmStrAmountDetJSON /
-// prmStrUserDetailJSON), not nested employees-inside-amount objects. New
-// (unsaved) employee rows carry a blank `amountid` — the backend does the
-// band correlation itself, not the client.
+// payload sends TWO FLAT parallel arrays (prmStrAmtJSON / prmStrUserJSON,
+// re-confirmed 2026-07-28 — see constants.js note, which previously had this
+// wrong), not nested employees-inside-amount objects. New (unsaved) employee
+// rows carry a blank `amountid`; since 2026-07-28 each employee row also
+// carries `amountwssrno` (its owning band's 1-based position) as an explicit
+// correlation key, alongside the implicit array-order/amountid correlation.
 //
 // See ./constants.js for the full list of other MRD gaps/assumptions.
 
@@ -472,8 +474,17 @@ export default function DopMasterForm() {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
-    const bandsWithEmployees = amountBands.map((band) => ({
+    // srno here is the band's own 1-based position among this record's amount
+    // bands — NOT the employee row's own srno (50/100/150 step within a band,
+    // see DOP_SRNO_STEP). Sent back to the backend per-employee-row as
+    // amountwssrno so it can correlate a Employee Detail row to its Amount
+    // Detail band explicitly, instead of relying on array order + blank
+    // amountid (client instruction 2026-07-28 — not yet in the MRD; CONFIRM
+    // with DBA that a 1-based band position, not a live RB srno column, is
+    // what the save proc expects).
+    const bandsWithEmployees = amountBands.map((band, index) => ({
       band,
+      srno: index + 1,
       employees: employeeGridRefsRef.current[band.id]?.getRows?.() ?? [],
     }));
 
@@ -528,10 +539,22 @@ export default function DopMasterForm() {
     };
 
     // Two flat parallel arrays — confirmed live 2026-07-27. New employee rows
-    // carry a blank amountid; the backend does the band correlation itself.
-    const amountDetRows = amountBands.map((band) => buildRow(band, amountAllColumns, DOP_CONFIG.RB_AMOUNT_DETAIL));
-    const userDetRows = bandsWithEmployees.flatMap(({ employees }) =>
-      employees.map((emp) => buildRow(emp, userAllColumns, DOP_CONFIG.RB_USER_DETAIL))
+    // carry a blank amountid; both sides also carry amountwssrno (the band's
+    // own 1-based position — see bandsWithEmployees above): amountwssrno IS a
+    // live rb_wkf_dopamountdet column (confirmed live 2026-07-28 — it comes
+    // back from GetDetailColData and defaults to 0 via getColDefault if left
+    // unset, which is what was happening before this fix), so the amount
+    // band's own row needs its real srno, not just the employee rows that
+    // reference it.
+    const amountDetRows = bandsWithEmployees.map(({ band, srno }) => ({
+      ...buildRow(band, amountAllColumns, DOP_CONFIG.RB_AMOUNT_DETAIL),
+      amountwssrno: srno,
+    }));
+    const userDetRows = bandsWithEmployees.flatMap(({ employees, srno }) =>
+      employees.map((emp) => ({
+        ...buildRow(emp, userAllColumns, DOP_CONFIG.RB_USER_DETAIL),
+        amountwssrno: srno,
+      }))
     );
 
     const payload = withSaveContextFields(

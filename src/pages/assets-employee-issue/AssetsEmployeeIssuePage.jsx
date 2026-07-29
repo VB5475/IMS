@@ -67,7 +67,7 @@ export default function AssetsEmployeeIssuePage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AEI] list fetch failed:", err);
-      setError("Failed to load Assets Employee Issue records.");
+      setError(err?.message || "Failed to load Assets Employee Issue records.");
     } finally {
       setLoading(false);
     }

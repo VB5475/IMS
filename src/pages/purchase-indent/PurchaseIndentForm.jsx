@@ -16,8 +16,9 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, Filter as FilterIcon } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
+import SearchSelect from "../../components/ui/SearchSelect";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
@@ -123,9 +124,14 @@ export default function PurchaseIndentForm() {
     indentTypeOptions,
     departmentOptions,
     locationOptions,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
     fetchIndentTypes,
     clearIndentTypes,
     fetchLocations,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     isLoadingIndentTypes,
     columns,
     allColumns,
@@ -187,6 +193,12 @@ export default function PurchaseIndentForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Direct mode only) — items are only fetched
+  // once the user clicks Filter, not automatically when the modal opens.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -422,6 +434,11 @@ export default function PurchaseIndentForm() {
   );
 
   // ── Select Item ────────────────────────────────────────────────────
+  // Direct mode only (Indent has no Indent-wise variant — BasedOnID = 0 /
+  // prmFrmOption = 0 per MRD). Opening the modal loads the picker's grid
+  // columns and the Main Group filter options, but NOT items — items are
+  // only fetched once the user picks filters and clicks Filter (see
+  // handleApplyItemFilter below). Client instruction 2026-07-28.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
@@ -429,7 +446,7 @@ export default function PurchaseIndentForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { divisionid, configid, trandate } = headerValues;
+    const { divisionid, configid } = headerValues;
     const divisionID = divisionid ?? 0;
 
     setItemModalOpen(true);
@@ -437,9 +454,12 @@ export default function PurchaseIndentForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(false);
+    clearItemSubMainGroupOptions();
 
     try {
-      // Indent always uses Direct mode (BasedOnID = 0 / prmFrmOption = 0) per MRD
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: IND_CONFIG.SP_RB_META,
@@ -460,6 +480,42 @@ export default function PurchaseIndentForm() {
       });
       setItemModalColumns(gridColumns);
 
+      await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+    } catch (err) {
+      console.error("[Indent] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemModalLoading(false);
+    }
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const { divisionid, configid } = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: divisionid ?? 0, configId: configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Actual item fetch — deferred until the user clicks Filter. Main/Sub Main
+  // Group ARE now sent to SP_ITEM_PICKER — live-confirmed 2026-07-28 that
+  // fn_tbl_rb_purindtselitem accepts prmmaingroupid/prmsubmaingroupid
+  // (previously threw "Must declare the scalar variable ..."; that's gone).
+  // prmsubmaingroupid sends 0 when no sub group is picked (matches this
+  // app's usual "unfiltered" sentinel for id params).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const { divisionid, configid, trandate, expecteddate } = headerValues;
+    const divisionID = divisionid ?? 0;
+    const expectedDate = expecteddate ?? "";
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: IND_CONFIG.SP_ITEM_PICKER,
@@ -471,21 +527,25 @@ export default function PurchaseIndentForm() {
             prmtrandate: formatIndentTranDate(trandate),
             prmconfigid: Number(configid ?? 0),
             prmsupplierid: 0,
+            prmexpdeldate: expectedDate,
             prmtranbook: IND_CONFIG.TRAN_BOOK,
             prmfrmoption: 0,
+            prmmaingroupid: Number(itemMainGroupFilter) || 0,
+            prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
           },
         ]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
     } catch (err) {
-      console.error("[Indent] Item picker fetch failed:", err);
+      console.error("[Indent] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
-      setItemModalLoading(false);
+      setItemFilterLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -688,6 +748,42 @@ export default function PurchaseIndentForm() {
   };
   const combinedError = metaError || headerError;
 
+  const itemFilterBar = (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="workspace-page workspace-page--fill ind-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
@@ -795,9 +891,11 @@ export default function PurchaseIndentForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

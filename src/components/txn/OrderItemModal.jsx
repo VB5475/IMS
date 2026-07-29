@@ -29,6 +29,15 @@ export default function OrderItemModal({
   isLoading = false,
   error = null,
   onInsert,
+  // Optional pre-grid filter UI (e.g. Purchase Indent's Main/Sub Main Group
+  // dropdowns) — when provided, rendered above the grid. Every other caller
+  // omits this and gets the original always-fetch-on-open behavior unchanged.
+  filterBar = null,
+  // True until the caller has run its own "Filter" action at least once —
+  // suppresses the normal "no items found" empty state (which would be a
+  // false "nothing matches" claim before the user has actually searched)
+  // in favor of a neutral prompt to use the filters above.
+  awaitingFilter = false,
 }) {
   const gridRef = useRef(null);
   const cancelBtnRef = useRef(null);
@@ -58,7 +67,9 @@ export default function OrderItemModal({
   );
 
   const hasColumns = columns.length > 0;
-  const showGrid = !isLoading && !error && hasColumns;
+  const hasItems = normalizedItems.length > 0;
+  const showAwaitingFilterPrompt = !isLoading && !error && hasColumns && awaitingFilter && !hasItems;
+  const showGrid = !isLoading && !error && hasColumns && !showAwaitingFilterPrompt;
 
   const { handleInsertKeyDown, handleCancelKeyDown } = usePickerModalKeyboard({
     isOpen,
@@ -140,6 +151,8 @@ export default function OrderItemModal({
       footer={footer}
     >
       <div className="oim">
+        {filterBar}
+
         {isLoading && (
           <div className="oim-state">
             <Loader text="Loading items…" />
@@ -150,6 +163,13 @@ export default function OrderItemModal({
           <div className="oim-error" role="alert">
             <AlertCircle size={16} strokeWidth={2} />
             <span>{error}</span>
+          </div>
+        )}
+
+        {showAwaitingFilterPrompt && (
+          <div className="oim-empty">
+            <Package size={32} strokeWidth={1.5} />
+            <p>Pick a filter above, then click Filter to load items.</p>
           </div>
         )}
 

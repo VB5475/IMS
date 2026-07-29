@@ -3,11 +3,14 @@
 // Supplier share the exact same backend RB codes/SPs/layout (see
 // customer-master/constants.js); the only functional difference is the
 // prmentrytype discriminator ("C" here vs "S" for Supplier) sent on save.
+// (Consignee Detail grid removed — matches Supplier Master; see
+// SupplierMasterForm.jsx for the removal rationale. prmStrConsigneeJSON is
+// still sent as an empty array since the save proc's parameter contract
+// still expects it.)
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { AlertCircle, Save, Pencil, UserCheck, Plus, Trash2 } from "lucide-react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { AlertCircle, Save, Pencil, UserCheck } from "lucide-react";
 import Modal from "../../components/ui/Modal";
-import EntryGrid from "../../components/grid/EntryGrid";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
@@ -20,7 +23,7 @@ import {
   buildSaveRowFromColumns,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumns } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import {
@@ -41,9 +44,6 @@ import {
   controlTypeMap,
 } from "./constants";
 import "../supplier-master/SupplierMasterPage.css";
-
-let _cmTempId = -1;
-const nextTempId = () => _cmTempId--;
 
 function isTdsChecked(values) {
   const v = values?.tds;
@@ -76,7 +76,6 @@ function resolveLayoutRows(rows, fieldMap) {
 export default function CustomerMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
   headerColumns = [], headerFetching = false, headerError = null,
-  detailColumns = [], detailAllColumns = [], detailFetching = false, detailError = null,
   stateOptions = [], cityOptions = [], fetchStateOptions, fetchCityOptions, clearStates, clearCities,
   categoryOptions = [], accountGroupOptions = [], countryOptions = [], registrationTypeOptions = [],
   currencyOptions = [], transporterOptions = [], transporterDestinationOptions = [],
@@ -87,8 +86,6 @@ export default function CustomerMasterForm({
   const notify = useNotification();
 
   const [formErrors, setFormErrors] = useState([]);
-  const consigneeGridRef = useRef(null);
-  const queuedConsigneeRowsRef = useRef([]);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const session = getUserSession();
@@ -158,8 +155,6 @@ export default function CustomerMasterForm({
     setFormErrors([]);
     setRecordLoadError(null);
     setFormValues(buildEmptyFromColumns());
-    queuedConsigneeRowsRef.current = [];
-    consigneeGridRef.current?.clearRows?.();
     clearStates?.();
     clearCities?.();
   }, [isOpen, isAddMode, buildEmptyFromColumns, clearStates, clearCities]);
@@ -176,16 +171,11 @@ export default function CustomerMasterForm({
       sessionId: DEFAULT_SESSION_ID,
       idNumber: recordId,
     })
-      .then(({ master, headerValues, consigneeRows }) => {
+      .then(({ master, headerValues }) => {
         if (!master || !headerValues) { setRecordLoadError("Record not found."); return; }
         setFormValues({ ...buildEmptyFromColumns(), ...headerValues });
         if (headerValues.countryid) void fetchStateOptions?.(headerValues.countryid);
         if (headerValues.stateid) void fetchCityOptions?.(headerValues.stateid);
-        queuedConsigneeRowsRef.current = consigneeRows || [];
-        if (consigneeGridRef.current?.loadRows) {
-          consigneeGridRef.current.loadRows(queuedConsigneeRowsRef.current);
-          queuedConsigneeRowsRef.current = [];
-        }
       })
       .catch((err) => {
         console.error("[CM] loadEditRecord failed:", err);
@@ -193,13 +183,6 @@ export default function CustomerMasterForm({
       })
       .finally(() => setRecordLoading(false));
   }, [isOpen, isAddMode, recordId, fetchEditRecord, buildEmptyFromColumns, fetchStateOptions, fetchCityOptions]);
-
-  useEffect(() => {
-    if (detailColumns.length > 0 && consigneeGridRef.current && queuedConsigneeRowsRef.current.length > 0) {
-      consigneeGridRef.current.loadRows?.(queuedConsigneeRowsRef.current);
-      queuedConsigneeRowsRef.current = [];
-    }
-  }, [detailColumns]);
 
   // Country → State → City cascade + TDS gate reset
   const handleChange = useCallback((key, value) => {
@@ -282,61 +265,12 @@ export default function CustomerMasterForm({
     return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
   }
 
-  // ── Consignee grid — direct-entry, no item picker (rows are typed in) ────
-  const addConsigneeRow = useCallback(() => {
-    const row = { id: nextTempId() };
-    detailAllColumns.forEach(({ key, colDataType }) => {
-      row[key] = getColDefault(colDataType);
-    });
-    if (consigneeGridRef.current) consigneeGridRef.current.addRow(row);
-    else queuedConsigneeRowsRef.current.push(row);
-  }, [detailAllColumns]);
-
-  const handleDeleteConsigneeSelected = useCallback(() => {
-    if (!consigneeGridRef.current) return;
-    const selected = consigneeGridRef.current.getSelectedRows?.() ?? [];
-    if (selected.length === 0) return;
-    consigneeGridRef.current.removeRows?.(selected.map((r) => r.id));
-  }, []);
-
-  // Consignee grid's own Country → State → City cascade — same known
-  // simplification as Supplier Master's (see useSupplierMaster.js).
-  const prevConsigneeRowsRef = useRef([]);
-  const handleConsigneeRowsChange = useCallback((rows) => {
-    const prev = prevConsigneeRowsRef.current;
-    const prevById = new Map(prev.map((r) => [String(r.id), r]));
-    rows.forEach((row) => {
-      const before = prevById.get(String(row.id));
-      if (!before) return;
-      if (before.countryid !== row.countryid) {
-        if (row.countryid && row.countryid !== 0) void fetchStateOptions?.(row.countryid);
-        if (row.stateid || row.cityid) {
-          consigneeGridRef.current?.updateRow?.(row.id, { stateid: 0, cityid: 0 });
-        }
-      } else if (before.stateid !== row.stateid) {
-        if (row.stateid && row.stateid !== 0) void fetchCityOptions?.(row.stateid);
-        if (row.cityid) {
-          consigneeGridRef.current?.updateRow?.(row.id, { cityid: 0 });
-        }
-      }
-    });
-    prevConsigneeRowsRef.current = rows;
-  }, [fetchStateOptions, fetchCityOptions]);
-
-  const consigneeGridConfig = useMemo(() => ({
-    columns: detailColumns,
-    pagination: { pageSize: 50, pageSizeOptions: [25, 50, 100] },
-  }), [detailColumns]);
-
   // ── Save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setFormErrors([]);
     const headerErrors = validateApiColumns(formValues, visibleFields);
 
-    const consigneeRows = consigneeGridRef.current?.getRows?.() ?? [];
-    const consigneeErrors = validateGridRows(consigneeRows, detailColumns);
-
-    const allErrors = [...headerErrors, ...consigneeErrors];
+    const allErrors = [...headerErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -352,24 +286,15 @@ export default function CustomerMasterForm({
       prmentrytype: CM_CONFIG.ENTRY_TYPE,
     });
 
-    // autogenid: 0 for a newly-added row, the real backend row id for an
-    // existing consignee loaded on edit — same pattern as Supplier Master's
-    // save (see SupplierMasterForm.jsx for the full rationale).
-    const consigneeSaveRows = consigneeRows.map(({ id, ...rest }) => {
-      const rawId = Number(id);
-      const autogenid = Number.isFinite(rawId) && rawId > 0 ? rawId : 0;
-      return buildSaveRowFromColumns({ ...rest, autogenid }, detailAllColumns, {
-        loginid: session.loginId,
-        sessionid: DEFAULT_SESSION_ID,
-      });
-    });
-
+    // Consignee Detail grid was removed from the UI, but the save proc's
+    // parameter contract still expects prmStrConsigneeJSON — sending an
+    // empty array rather than omitting the key (matches Supplier Master).
     const payload = withSaveContextFields(
       buildSaveJsonFields({
         label: CM_CONFIG.FORM_TAG,
         mst: mstRow,
         extra: {
-          prmStrConsigneeJSON: JSON.stringify(consigneeSaveRows),
+          prmStrConsigneeJSON: JSON.stringify([]),
         },
       }),
       { divisionId: 0, isEdit: !isAddMode }
@@ -390,7 +315,7 @@ export default function CustomerMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [formValues, visibleFields, headerColumns, detailColumns, detailAllColumns, isAddMode, session, post, notify, onSaved]);
+  }, [formValues, visibleFields, headerColumns, isAddMode, session, post, notify, onSaved]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -410,8 +335,8 @@ export default function CustomerMasterForm({
 
   const handleCancelEdit = useCallback(() => setDiscardAction("cancel"), []);
 
-  const combinedError = headerError || detailError || recordLoadError;
-  const isLoading = headerFetching || detailFetching || recordLoading;
+  const combinedError = headerError || recordLoadError;
+  const isLoading = headerFetching || recordLoading;
 
   const footer = useMemo(() => {
     if (!isEditMode) {
@@ -500,37 +425,6 @@ export default function CustomerMasterForm({
                 </section>
               </div>
             </div>
-
-            <section className="sm-form-section sm-form-section--consignee">
-              <div className="sm-form-section__title sm-form-section__title--grid">
-                <span>Consignee Detail</span>
-                <div className="sm-form-section__title-actions">
-                  <button type="button" className="eg-tab-btn" onClick={addConsigneeRow} disabled={!isEditMode}>
-                    <Plus size={12} strokeWidth={2.5} /> Add Row
-                  </button>
-                  <button
-                    type="button"
-                    className="eg-tab-btn eg-tab-btn--danger"
-                    onClick={handleDeleteConsigneeSelected}
-                    disabled={!isEditMode}
-                  >
-                    <Trash2 size={12} strokeWidth={2} /> Delete
-                  </button>
-                </div>
-              </div>
-              <div className="sm-form-consignee-grid">
-                <EntryGrid
-                  ref={consigneeGridRef}
-                  config={consigneeGridConfig}
-                  title=""
-                  hideBottomPanel
-                  readOnly={!isEditMode}
-                  emptyMessage="No consignees yet. Click + Add Row above."
-                  onRowsChange={handleConsigneeRowsChange}
-                  existingRecordEdit={!isAddMode && isEditMode}
-                />
-              </div>
-            </section>
           </div>
         </>
       )}

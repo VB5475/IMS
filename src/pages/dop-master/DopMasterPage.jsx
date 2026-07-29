@@ -72,7 +72,7 @@ export default function DopMasterPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[DOP] list fetch failed:", err);
-      setError("Failed to load DOP Master records.");
+      setError(err?.message || "Failed to load DOP Master records.");
     } finally {
       setLoading(false);
     }

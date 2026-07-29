@@ -61,7 +61,7 @@ export default function AssetsDepartmentIssuePage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[ADI] list fetch failed:", err);
-      setError("Failed to load Assets Department Issue records.");
+      setError(err?.message || "Failed to load Assets Department Issue records.");
     } finally {
       setLoading(false);
     }

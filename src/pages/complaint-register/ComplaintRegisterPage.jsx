@@ -61,7 +61,7 @@ export default function ComplaintRegisterPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[MCR] list fetch failed:", err);
-      setError("Failed to load Complaint Register records.");
+      setError(err?.message || "Failed to load Complaint Register records.");
     } finally {
       setLoading(false);
     }

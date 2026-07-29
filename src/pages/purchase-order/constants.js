@@ -85,6 +85,15 @@ export const PO_CONFIG = {
   SP_INDT_DETAIL_FILL: "fn_tbl_rb_purpoindtdet",
   SP_GRID_EVENT: "fn_tbl_rb_purpodet_event",
 
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purposelonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE, BASED_ON.QUOTATION],
 
   SUPPLIER_GRID_COLUMNS: PURCHASE_SUPPLIER_GRID_COLUMNS,

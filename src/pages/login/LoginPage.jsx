@@ -1,16 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ShieldCheck,
   Lock,
-  CheckCircle2,
   AlertCircle,
   Eye,
   EyeOff,
   LogIn,
-  BarChart3,
-  Users,
-  FileStack,
 } from "lucide-react";
 import { useApi } from "../../api/useApi";
 import {
@@ -34,6 +29,8 @@ import Loader from "../../components/ui/Loader";
 import "./LoginPage.css";
 
 const BRAND_LOGO_SRC = "/test.png";
+const LOGIN_BG_VIDEO_SRC = "/media/login-bg.mp4";
+const LOGIN_BG_POSTER_SRC = "/media/login-bg-poster.jpg";
 
 function buildBootstrapParams(loginId) {
   return {
@@ -91,13 +88,19 @@ function LoginEnvSwitcher() {
   );
 }
 
-function LoginAmbient() {
+function LoginVideoBackground() {
   return (
-    <div className="login-ambient" aria-hidden="true">
-      <div className="login-ambient__orb login-ambient__orb--1" />
-      <div className="login-ambient__orb login-ambient__orb--2" />
-      <div className="login-ambient__orb login-ambient__orb--3" />
-      <div className="login-ambient__grid" />
+    <div className="login-video-bg" aria-hidden="true">
+      <video
+        className="login-video-bg__video"
+        src={LOGIN_BG_VIDEO_SRC}
+        poster={LOGIN_BG_POSTER_SRC}
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+      <div className="login-video-bg__overlay" />
     </div>
   );
 }
@@ -357,78 +360,24 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
-      <LoginAmbient />
-
-      <section className="login-hero">
-        <div className="login-hero__shine" aria-hidden="true" />
-        <div className="login-hero__content">
-          <div className="login-hero__brand">
-            <div className="login-hero__logo">
-              <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />
-            </div>
-            <div>
-              <h1>IMS Group</h1>
-              <p className="login-hero__tagline">Asset Management System</p>
-            </div>
-          </div>
-
-          <div className="login-hero__intro">
-            <h2>Run operations with clarity and control</h2>
-            <p>
-              Inventory, procurement, invoicing, and executive reporting — built for teams that need
-              speed without sacrificing compliance.
-            </p>
-          </div>
-
-          <div className="login-hero__metrics">
-            <div className="login-metric">
-              <BarChart3 size={18} />
-              <div>
-                <strong>Live dashboards</strong>
-                <span>Operational KPIs at a glance</span>
-              </div>
-            </div>
-            <div className="login-metric">
-              <FileStack size={18} />
-              <div>
-                <strong>Unified workflows</strong>
-                <span>Purchase to pay, end to end</span>
-              </div>
-            </div>
-            <div className="login-metric">
-              <Users size={18} />
-              <div>
-                <strong>Role governance</strong>
-                <span>Division &amp; department access</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="login-hero__trust">
-          <span>
-            <ShieldCheck size={14} /> Secure access
-          </span>
-          <span className="login-hero__dot" aria-hidden="true" />
-          <span>
-            <Lock size={14} /> Audit-ready
-          </span>
-          <span className="login-hero__dot" aria-hidden="true" />
-          <span>
-            <CheckCircle2 size={14} /> Enterprise SLA
-          </span>
-        </div>
-      </section>
+      <LoginVideoBackground />
 
       <section className="login-panel">
         <div className="login-panel__inner">
+          <div className="login-brand">
+            <div className="login-brand__logo">
+              <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />
+            </div>
+            <div>
+              <h1>IMS PORTAL</h1>
+              <p className="login-brand__tagline">Asset Management System</p>
+            </div>
+          </div>
+
           <div className="login-card-wrap">
             <div className="login-card">
               <LoginEnvSwitcher />
               <div className="login-card__header">
-                {/* <div className="login-card__logo">
-                  <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />
-                </div> */}
                 <h3>Sign in to workspace</h3>
                 <p>Select company and financial year, then enter your credentials.</p>
               </div>

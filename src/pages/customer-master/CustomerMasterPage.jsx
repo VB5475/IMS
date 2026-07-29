@@ -61,7 +61,6 @@ export default function CustomerMasterPage() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    detailColumns, detailAllColumns, detailFetching, detailError, fetchDetailMeta,
     stateOptions, cityOptions, fetchStateOptions, fetchCityOptions, clearStates, clearCities,
     categoryOptions, accountGroupOptions, countryOptions, registrationTypeOptions,
     currencyOptions, transporterOptions, transporterDestinationOptions,
@@ -87,8 +86,7 @@ export default function CustomerMasterPage() {
 
   useEffect(() => {
     fetchHeaderMeta();
-    fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta]);
+  }, [fetchHeaderMeta]);
 
   const fetchCustomerList = useCallback(async () => {
     try {
@@ -98,7 +96,7 @@ export default function CustomerMasterPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[CustomerMasterPage] list fetch failed:", err);
-      setError("Failed to load customers.");
+      setError(err?.message || "Failed to load customers.");
     } finally {
       setLoading(false);
     }
@@ -192,10 +190,6 @@ export default function CustomerMasterPage() {
         headerColumns={headerColumns}
         headerFetching={headerFetching}
         headerError={headerError}
-        detailColumns={detailColumns}
-        detailAllColumns={detailAllColumns}
-        detailFetching={detailFetching}
-        detailError={detailError}
         stateOptions={stateOptions}
         cityOptions={cityOptions}
         fetchStateOptions={fetchStateOptions}

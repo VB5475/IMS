@@ -67,7 +67,7 @@ export default function AssetsEmployeeTransferPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AET] list fetch failed:", err);
-      setError("Failed to load Assets Employee Transfer records.");
+      setError(err?.message || "Failed to load Assets Employee Transfer records.");
     } finally {
       setLoading(false);
     }

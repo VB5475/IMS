@@ -14,8 +14,36 @@ export function normalizeListRow(row) {
   return row;
 }
 
+/**
+ * True when a row is a bare {ErrCode, ErrMsg} envelope (a list SP that hit a
+ * SQL error, e.g. "Must declare the scalar variable ...", returns this shape
+ * as its one and only "row" instead of throwing an HTTP error) rather than
+ * real business data — a genuine data row never consists of only these two
+ * bookkeeping fields.
+ */
+function isErrorOnlyRow(row) {
+  if (!row || typeof row !== "object") return false;
+  const keys = Object.keys(row).map((k) => k.toLowerCase());
+  if (keys.length === 0 || !keys.includes("errcode")) return false;
+  return keys.every((k) => k === "errcode" || k === "errmsg");
+}
+
+/**
+ * @throws {Error} when the list SP returned an {ErrCode, ErrMsg} error
+ * envelope instead of rows — callers' existing try/catch around the fetch
+ * then reports the real backend message instead of silently rendering the
+ * error object as if it were a data row (columns "ErrCode"/"ErrMsg", complete
+ * with edit/delete actions).
+ */
 export function normalizeListRows(rows) {
-  return (rows || []).map(normalizeListRow);
+  const arr = rows || [];
+  if (arr.length === 1 && isErrorOnlyRow(arr[0])) {
+    const row = arr[0];
+    const errCode = row.ErrCode ?? row.errcode;
+    const message = String(row.ErrMsg ?? row.errmsg ?? "").trim();
+    throw new Error(message || `Request failed (ErrCode ${errCode}).`);
+  }
+  return arr.map(normalizeListRow);
 }
 
 /** Resolve primary key for list → edit navigation. */

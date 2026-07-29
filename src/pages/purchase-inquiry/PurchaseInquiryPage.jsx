@@ -74,7 +74,7 @@ export default function PurchaseInquiryPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseInquiryPage] list fetch failed:", err);
-      setError("Failed to load purchase inquiries.");
+      setError(err?.message || "Failed to load purchase inquiries.");
     } finally {
       setLoading(false);
     }

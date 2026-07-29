@@ -78,7 +78,7 @@ export default function AssetsWriteOffPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AWF] list fetch failed:", err);
-      setError("Failed to load Assets Write Off records.");
+      setError(err?.message || "Failed to load Assets Write Off records.");
     } finally {
       setLoading(false);
     }

@@ -79,7 +79,7 @@ export default function PurchaseVoucherPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseVoucherPage] list fetch failed:", err);
-      setError("Failed to load purchase vouchers.");
+      setError(err?.message || "Failed to load purchase vouchers.");
     } finally {
       setLoading(false);
     }

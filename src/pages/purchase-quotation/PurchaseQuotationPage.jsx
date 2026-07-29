@@ -82,7 +82,7 @@ export default function PurchaseQuotationPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseQuotationPage] list fetch failed:", err);
-      setError("Failed to load purchase quotations.");
+      setError(err?.message || "Failed to load purchase quotations.");
     } finally {
       setLoading(false);
     }

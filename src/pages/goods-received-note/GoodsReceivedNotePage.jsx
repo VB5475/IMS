@@ -81,7 +81,7 @@ export default function GoodsReceivedNotePage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[GoodsReceivedNotePage] list fetch failed:", err);
-      setError("Failed to load goods received notes.");
+      setError(err?.message || "Failed to load goods received notes.");
     } finally {
       setLoading(false);
     }
