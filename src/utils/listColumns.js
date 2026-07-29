@@ -17,15 +17,22 @@ export function resolveListRowId(row) {
   return id != null && id !== "" ? id : null;
 }
 
+function isIdNumberKey(key) {
+  return String(key).replace(/\s+/g, "").toLowerCase() === "idnumber";
+}
+
+/** Column keys for the list grid — idnumber is a row-id reference only, never a display column. */
 function extractListKeys(data, excludeSet) {
   if (!Array.isArray(data) || data.length === 0) return [];
 
-  const keys = Object.keys(data[0]).filter((key) => !excludeSet.has(key));
+  const isExcluded = (key) => excludeSet.has(key) || isIdNumberKey(key);
+
+  const keys = Object.keys(data[0]).filter((key) => !isExcluded(key));
   const seen = new Set(keys);
 
   for (let i = 1; i < data.length; i += 1) {
     Object.keys(data[i]).forEach((key) => {
-      if (!excludeSet.has(key) && !seen.has(key)) {
+      if (!isExcluded(key) && !seen.has(key)) {
         seen.add(key);
         keys.push(key);
       }

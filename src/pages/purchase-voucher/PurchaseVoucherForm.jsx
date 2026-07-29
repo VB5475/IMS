@@ -19,7 +19,8 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, Filter as FilterIcon } from "lucide-react";
+import SearchSelect from "../../components/ui/SearchSelect";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -40,22 +41,24 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, buildHeaderColMap, resolveHeaderApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
+import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PV_CONFIG,
-  PV_HEADER_FILTERS,
   PV_GRID_TABS,
   PV_FILTER_CASCADE_RESETS,
   PV_SUMMARY_FIELDS,
+  PV_SUMMARY_ROW_FILTER,
+  PV_SUMMARY_FIELD_NAMES,
   PV_MULTI_PASTE_COLUMNS,
   PV_REMARK_COLUMNS,
   PAGE_TITLE,
@@ -69,12 +72,22 @@ import "./PurchaseVoucherPage.css";
 let _pvTempId = -1;
 const nextTempId = () => _pvTempId--;
 
+// Same inline ISO→yyyy-MM-dd normalization used by usePurchaseVoucher.js's
+// mapMasterRowToHeaderValues, for the date-input-bound header fields.
+function toDateInputValue(value) {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().split("T")[0];
+}
+
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   return {
     trancode: headerValues.trancode ?? "",
     trandate: headerValues.trandate ?? "",
     divisionid: String(headerValues.divisionid ?? ""),
+    locationid: String(headerValues.locationid ?? ""),
     configid: String(headerValues.configid ?? ""),
     basedonid: String(headerValues.basedonid ?? "2"),
     supplierid: String(headerValues.supplierid ?? ""),
@@ -96,6 +109,15 @@ function mapPickerToItemRow(item, allColumns) {
     const lk = k.toLowerCase();
     if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
+  // "Put To Use" (RB_PurPVDet) is a per-line checkbox with no default from the
+  // picker SPs — getColDefault("int") leaves it at 0, which PV_SUMMARY_ROW_FILTER
+  // reads as "excluded from totals" (matches confirmed backend save behaviour).
+  // Left unset, every freshly-picked row is excluded and the summary panel always
+  // shows 0.00. Default new rows to put-to-use=1; user can still uncheck a row
+  // to exclude it from the totals.
+  if (Object.prototype.hasOwnProperty.call(row, "puttouse") && item?.puttouse == null) {
+    row.puttouse = 1;
+  }
   return row;
 }
 
@@ -125,10 +147,13 @@ export default function PurchaseVoucherForm() {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, pvTypeOptions, supplierOptions,
     costCenterOptions,
+    locationOptions, fetchLocationOptions, clearLocations,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,
     fetchCostCenters,
+    itemMainGroupOptions, itemSubMainGroupOptions,
+    fetchItemMainGroupOptions, fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fireCellEvent,
@@ -142,26 +167,21 @@ export default function PurchaseVoucherForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const session = getUserSession();
 
   const headerValuesRef = useRef({
     trancode: "",
-    trandate: todayISO,
+    trandate: getTodayDateInputValue(),
     divisionid: 0,
     configid: 0,
-    basedonid: "2",
+    basedonid: "",
     supplierid: 0,
     currencyid: 0,
     currencyrate: 0,
     billno: "",
-    billdate: null,
+    billdate: getTodayDateInputValue(),
     costcenterid: 0,
-    creditstartdate: todayISO,
+    creditstartdate: getTodayDateInputValue(),
     narration: "",
     remarks: "",
     tranmstgenid: 0,
@@ -172,14 +192,23 @@ export default function PurchaseVoucherForm() {
     funccode: PV_CONFIG.RB_MASTER,
   });
 
+  // trandate, billdate, and creditstartdate default to today on a new record;
+  // existing records keep their loaded dates. basedonid still has no default —
+  // client requirement 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: todayISO, basedonid: "2", creditstartdate: todayISO };
-  }, [loadedFilterValues, todayISO]);
+    return {
+      trandate: getTodayDateInputValue(),
+      basedonid: "",
+      billdate: getTodayDateInputValue(),
+      creditstartdate: getTodayDateInputValue(),
+    };
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
+  const [billExternalValues, setBillExternalValues] = useState(null);
   const [basedOnId, setBasedOnId] = useState("2");
   const [pasteNotice, setPasteNotice] = useState(null);
   const pasteNoticeTimerRef = useRef(null);
@@ -193,6 +222,13 @@ export default function PurchaseVoucherForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  // Select Item popup filters (Based On = Direct only) — items are only
+  // fetched once the user clicks Filter; GRN/PO-base branches are untouched.
+  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
+  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
+  const [itemFilterApplied, setItemFilterApplied] = useState(false);
+  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const [itemPickerIsDirect, setItemPickerIsDirect] = useState(false);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -277,6 +313,14 @@ export default function PurchaseVoucherForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
+      // seedOptionsFromMaster only seeds dropdowns the master-fill row embeds
+      // a display name for (divisionname, suppliername, ...) — the master
+      // fill has no locationname, so fetch location options for the loaded
+      // division directly, same as the divisionid cascade does on change.
+      if (headerValues.divisionid) {
+        fetchLocationOptions(headerValues.divisionid);
+      }
+
       if (headerValues.currencyname || headerValues.currencyrate) {
         setCurrencyExternalValues({
           currencyname: headerValues.currencyname ?? "",
@@ -300,7 +344,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, fetchLocationOptions]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -328,45 +372,87 @@ export default function PurchaseVoucherForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── syncedFilters — inject dynamic options ─────────────────────────
-  const syncedFilters = useMemo(() => {
-    const injectOptions = (filter) => {
-      switch (filter.FilterParameterID) {
-        case "divisionid": return { ...filter, staticOptions: divisionOptions };
-        case "configid": return { ...filter, staticOptions: pvTypeOptions };
-        case "supplierid": return { ...filter, staticOptions: supplierOptions };
-        case "costcenterid": return { ...filter, staticOptions: costCenterOptions };
-        default: return filter;
-      }
-    };
-
-    if (headerColumns.length === 0) return [];
-
-    const apiColMap = buildHeaderColMap(headerColumns);
-
-    return PV_HEADER_FILTERS
-      .filter((filter) =>
-        isTruthyApiFlag(resolveHeaderApiCol(filter, apiColMap)?.isvisible)
-      )
-      .map((filter) => {
-        const withOpts = injectOptions(filter);
-        const apiCol = resolveHeaderApiCol(filter, apiColMap);
-        const lockOnEditMode = isLockOnEditModeCol(apiCol);
-        const def = syncHeaderFilterWithApiCol(withOpts, apiCol, { lockOnEditMode });
-        def.FilterColCtrlType = apiCol.colctrltype;
-        return def;
-      });
-  }, [headerColumns, divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions]);
-
-  const syncedSummaryFields = useMemo(() => {
-    const colMap = {};
-    headerColumns.forEach((col) => { colMap[col.colname] = col; });
-    return PV_SUMMARY_FIELDS.map((f) => ({
-      ...f,
-      mstKey: f.SummaryParameterID,
-      label: colMap[f.SummaryParameterID]?.displayname ?? f.SummaryParameterID,
-    }));
+  // Visible RB header columns, RB-ordered. Source of truth for which fields
+  // exist as filters — no hand-maintained field list to fall out of sync
+  // with the RB (see PV_HEADER_FILTERS removal in constants.js / GRN fix).
+  // Summary-panel fields (mstbaseamount, tdsamount, ...) are excluded — RB
+  // marks them visible, but they're rendered in EnterpriseSummaryPanel and
+  // computed from grid rows, not real header inputs.
+  const visibleHeaderColumns = useMemo(() => {
+    return headerColumns
+      .filter((col) => isTruthyApiFlag(col.isvisible) && !PV_SUMMARY_FIELD_NAMES.has(col.colname))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno));
   }, [headerColumns]);
+
+  // Dropdown options we fetch ourselves, keyed by live RB colname.
+  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
+    divisionid:    divisionOptions,
+    configid:      pvTypeOptions,
+    supplierid:    supplierOptions,
+    costcenterid:  costCenterOptions,
+    locationid:    locationOptions,
+    basedonid:     PV_CONFIG.BASED_ON_OPTIONS,
+  }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions, locationOptions]);
+
+  // ── syncedFilters — built straight from the live RB column ──────────
+  const buildFilterDefFromApiCol = useCallback(
+    (col) => {
+      const lockOnEditMode = isLockOnEditModeCol(col);
+      const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
+      const base = {
+        FilterParameterID: col.colname,
+        FilterColName: col.colname,
+        FilterCaption: col.displayname ?? col.colname,
+        FilterColCtrlType: col.colctrltype ?? 0,
+        ...(staticOptions ? { staticOptions } : {}),
+      };
+      return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
+    },
+    [DROPDOWN_OPTIONS_BY_COL]
+  );
+
+  // "Select All (Put To Use)" (RB colname selectallputtouse) mirrors the grid's
+  // own puttouse column: all rows on → checked, none on → unchecked, a mix →
+  // indeterminate. Derived from gridRows, never independently user-set.
+  const puttouseHeaderState = useMemo(() => {
+    if (gridRows.length === 0) return { checked: 0, indeterminate: false };
+    const onCount = gridRows.filter((r) => Number(r.puttouse) !== 0).length;
+    return {
+      checked: onCount === gridRows.length ? 1 : 0,
+      indeterminate: onCount > 0 && onCount < gridRows.length,
+    };
+  }, [gridRows]);
+
+  // Keep the ref in sync too, so a save that reads headerValuesRef directly
+  // (buildSaveRowFromColumns) reflects the live grid aggregate, not whatever
+  // was last independently clicked.
+  useEffect(() => {
+    headerValuesRef.current.selectallputtouse = puttouseHeaderState.checked;
+  }, [puttouseHeaderState.checked]);
+
+  const syncedFilters = useMemo(() => {
+    const base = visibleHeaderColumns.map(buildFilterDefFromApiCol);
+    return base.map((f) =>
+      f.FilterColName === "selectallputtouse"
+        ? { ...f, indeterminate: puttouseHeaderState.indeterminate }
+        : f
+    );
+  }, [visibleHeaderColumns, buildFilterDefFromApiCol, puttouseHeaderState.indeterminate]);
+
+  // EnterpriseFilterPanel only accepts a single externalValues prop — merge the
+  // currency-cascade values, the GRN-selection BillNo/BillDate values, and the
+  // grid-derived Select-All-Put-To-Use checked state into one.
+  const combinedExternalValues = useMemo(() => ({
+    ...currencyExternalValues,
+    ...billExternalValues,
+    selectallputtouse: puttouseHeaderState.checked,
+  }), [currencyExternalValues, billExternalValues, puttouseHeaderState.checked]);
+
+  // Only fields RB marks visible on the master render — same rule as syncedFilters.
+  const syncedSummaryFields = useMemo(
+    () => syncMasterSummaryFields(PV_SUMMARY_FIELDS, headerColumns),
+    [headerColumns]
+  );
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -387,11 +473,16 @@ export default function PurchaseVoucherForm() {
     if (colName === "divisionid") {
       headerValuesRef.current.configid = 0;
       headerValuesRef.current.supplierid = 0;
+      headerValuesRef.current.locationid = 0;
       clearPvTypes();
+      clearLocations();
       itemGridRef.current?.clearRows?.();
       if (val && val !== "0") {
-        await fetchPVTypes(val);
-        await fetchCostCenters(val, headerValuesRef.current.trandate);
+        await Promise.all([
+          fetchPVTypes(val),
+          fetchCostCenters(val, headerValuesRef.current.trandate),
+          fetchLocationOptions(val),
+        ]);
         focusFieldAfterCascade(filterPanelRef, "configid");
       }
       return;
@@ -438,8 +529,22 @@ export default function PurchaseVoucherForm() {
     if (colName === "basedonid") {
       setBasedOnId(String(val));
       itemGridRef.current?.clearRows?.();
+      return;
     }
-  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters]);
+
+    // Header "Select All (Put To Use)" click — toggles every grid row's
+    // puttouse in one shot via local grid state only (updateAllRows never
+    // routes through fireCellEvent, matching the "don't recalc on puttouse"
+    // rule). The checkbox's own displayed value is otherwise fully derived
+    // from gridRows (see puttouseHeaderState) — this click is the one place
+    // it acts as an input rather than a pure read-out.
+    if (colName === "selectallputtouse") {
+      const next = Number(val) ? 1 : 0;
+      headerValuesRef.current.selectallputtouse = next;
+      itemGridRef.current?.updateAllRows?.({ puttouse: next });
+      return;
+    }
+  }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters, fetchLocationOptions, clearLocations]);
 
   // ── Multi-value paste — Sr. No replication (Direct mode only) ─────
   const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
@@ -481,6 +586,9 @@ export default function PurchaseVoucherForm() {
   }, [fireCellEvent]);
 
   // ── Select Item ────────────────────────────────────────────────────
+  // Three-way picker: 0=GRN Base, 1=PO Base, 2=Direct. Direct defers the item
+  // fetch until Filter is clicked — GRN/PO Base branches fetch immediately,
+  // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues);
@@ -488,20 +596,26 @@ export default function PurchaseVoucherForm() {
       setFormErrors(missingFields);
       return;
     }
-    const { divisionid, configid, trandate, basedonid, supplierid } = headerValues;
+    const { divisionid, configid, trandate, basedonid, supplierid, locationid } = headerValues;
     const divisionID = divisionid ?? 0;
+    const basedOnNum = Number(basedonid);
+    const isDirect = basedOnNum !== 0 && basedOnNum !== 1;
 
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemMainGroupFilter("");
+    setItemSubMainGroupFilter("");
+    setItemFilterApplied(!isDirect);
+    setItemPickerIsDirect(isDirect);
+    clearItemSubMainGroupOptions();
 
     try {
-      // Three-way picker: 0=GRN Base, 1=PO Base, 2=Direct
       let rbCode;
-      if (Number(basedonid) === 0) rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
-      else if (Number(basedonid) === 1) rbCode = PV_CONFIG.RB_ITEM_PICKER_PO;
+      if (basedOnNum === 0) rbCode = PV_CONFIG.RB_ITEM_PICKER_GRN;
+      else if (basedOnNum === 1) rbCode = PV_CONFIG.RB_ITEM_PICKER_PO;
       else rbCode = PV_CONFIG.RB_ITEM_PICKER_DIRECT;
 
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -520,14 +634,64 @@ export default function PurchaseVoucherForm() {
       const gridColumns = buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false });
       setItemModalColumns(gridColumns);
 
-      let spItemPicker;
-      if (Number(basedonid) === 0) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_GRN;
-      else if (Number(basedonid) === 1) spItemPicker = PV_CONFIG.SP_ITEM_PICKER_PO;
-      else spItemPicker = PV_CONFIG.SP_ITEM_PICKER_DIRECT;
+      if (isDirect) {
+        await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+      } else {
+        const spItemPicker = basedOnNum === 0 ? PV_CONFIG.SP_ITEM_PICKER_GRN : PV_CONFIG.SP_ITEM_PICKER_PO;
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: spItemPicker,
+          JSon: JSON.stringify([{
+            prmdivisionid: Number(divisionID),
+            prmyearid: getUserSession().yearId,
+            prmloginid: getUserSession().loginId,
+            prmtrandate: formatPVTranDate(trandate),
+            prmconfigid: Number(configid ?? 0),
+            prmsupplierid: Number(supplierid ?? 0),
+            prmlocationid: Number(locationid ?? 0),
+            prmtranbook: PV_CONFIG.TRAN_BOOK,
+            prmfrmoption: basedOnNum || 0,
+          }]),
+          p_ErrCode: -1, p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      }
+    } catch (err) {
+      console.error("[PV] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    } finally {
+      setItemModalLoading(false);
+    }
+  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
 
+  // Main Group changed → reload Sub Main Group options, reset its own selection.
+  const handleItemMainGroupFilterChange = useCallback((value) => {
+    setItemMainGroupFilter(value);
+    setItemSubMainGroupFilter("");
+    const headerValues = headerValuesRef.current;
+    if (value) {
+      fetchItemSubMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid, mainGroupId: value });
+    } else {
+      clearItemSubMainGroupOptions();
+    }
+  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+
+  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
+  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
+  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
+  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
+  // threw "Must declare the scalar variable ..."; that's gone).
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const { divisionid, configid, trandate, supplierid, locationid } = headerValues;
+    const divisionID = divisionid ?? 0;
+
+    setItemModalError(null);
+    setItemFilterLoading(true);
+    try {
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: spItemPicker,
+        ObjName: PV_CONFIG.SP_ITEM_PICKER_DIRECT,
         JSon: JSON.stringify([{
           prmdivisionid: Number(divisionID),
           prmyearid: getUserSession().yearId,
@@ -535,27 +699,64 @@ export default function PurchaseVoucherForm() {
           prmtrandate: formatPVTranDate(trandate),
           prmconfigid: Number(configid ?? 0),
           prmsupplierid: Number(supplierid ?? 0),
+          prmlocationid: Number(locationid ?? 0),
           prmtranbook: PV_CONFIG.TRAN_BOOK,
-          prmfrmoption: Number(basedonid) || 0,
+          prmfrmoption: 2,
+          prmmaingroupid: Number(itemMainGroupFilter) || 0,
+          prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
       setItemModalItems(rowRes || []);
+      setItemFilterApplied(true);
     } catch (err) {
-      console.error("[PV] Item picker fetch failed:", err);
+      console.error("[PV] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
-      setItemModalLoading(false);
+      setItemFilterLoading(false);
     }
-  }, [getLive]);
+  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
     setActiveTab("items");
     const activeCols = await ensureItemColumns();
     if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+
+    const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+    rows.forEach((row) => addItemRow(row));
+
+    // A picker-inserted row's Qty/Rate already carry real values (from the
+    // GRN/PO/Item Master source), but the grid's calculated columns
+    // (baseamount/expense/taxablevalue/cgst/sgst/igst) only ever populate via
+    // the server recalc SP a manual Qty/Rate blur triggers — never
+    // automatically on insert (confirmed live 2026-07-24: picker SPs return
+    // short-form fields like baseamt/tranamt, not the grid's own baseamount/
+    // tranamount columns, so those start zeroed until touched). Fire the same
+    // recalc for every newly-inserted row right away, via the same
+    // handleCellEvent path a real blur uses (errcode check + updateRow),
+    // so the summary panel is correct immediately without the user needing
+    // to click into and back out of a cell. "tranqty" is always a real
+    // event-column here regardless of RB flags (see usePurchaseVoucher.js's
+    // fallback list) — colKey only identifies the field to the SP, so any
+    // row content is fine to send under it.
+    await Promise.all(rows.map((row) => handleCellEvent({ rowId: row.id, colKey: "tranqty", rowData: row })));
+
+    // GRN Base (BasedOnID 0) picker rows carry the source GRN's BillNo/BillDate
+    // (fn_tbl_rb_purpvselgrndet) — PM: copy them onto the PV's own BillNo/BillDate
+    // master fields. Multiple items may span more than one GRN, so use the first
+    // selected item's bill details, per PM's clarified rule.
+    if (Number(basedOnId) === 0) {
+      const first = selectedItems[0];
+      const billno = first?.billno ?? "";
+      const billdate = toDateInputValue(first?.billdate);
+      if (billno || billdate) {
+        headerValuesRef.current.billno = billno;
+        headerValuesRef.current.billdate = billdate;
+        setBillExternalValues({ billno, billdate: billdate ?? "" });
+      }
+    }
+  }, [ensureItemColumns, allColumns, addItemRow, basedOnId, handleCellEvent]);
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -579,15 +780,15 @@ export default function PurchaseVoucherForm() {
   const buildDefaultHeaderValues = useCallback(() => {
     const resetSession = getUserSession();
     return {
-      trancode: "", trandate: todayISO, divisionid: 0, configid: 0,
-      basedonid: "2", supplierid: 0, currencyid: 0, currencyrate: 0,
-      billno: "", billdate: null,
-      costcenterid: 0, creditstartdate: todayISO,
+      trancode: "", trandate: getTodayDateInputValue(), divisionid: 0, configid: 0,
+      basedonid: "", supplierid: 0, currencyid: 0, currencyrate: 0,
+      billno: "", billdate: getTodayDateInputValue(),
+      costcenterid: 0, creditstartdate: getTodayDateInputValue(),
       narration: "", remarks: "", tranmstgenid: 0,
       companyid: resetSession.companyId, yearid: resetSession.yearId,
       loginid: resetSession.loginId, idnumber: 0, funccode: PV_CONFIG.RB_MASTER,
     };
-  }, [todayISO]);
+  }, []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [PV_CONFIG.STORAGE_HEADER_META, PV_CONFIG.STORAGE_ENTRY_META],
@@ -613,7 +814,15 @@ export default function PurchaseVoucherForm() {
     setLoadedFilterValues,
     setGridRows,
     extraClearFns: [clearPvTypes],
-    extraReset: () => setCurrencyExternalValues({ currencyname: "", currencyrate: "" }),
+    extraReset: () => {
+      setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+      // null (not blank strings) — billno/billdate are ordinary RB header
+      // fields already blank in the New-record initialValues; a blank merge
+      // isn't needed and, unlike currency, must never later stomp a freshly
+      // reloaded edit record's real BillNo/BillDate (see handleDiscardConfirm).
+      setBillExternalValues(null);
+      summaryRef.current?.resetOverrides?.();
+    },
   });
 
   const completeSuccessfulSave = useCallback(() => {
@@ -622,9 +831,11 @@ export default function PurchaseVoucherForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
-    const headerFieldNames = new Set(PV_HEADER_FILTERS.map((f) => f.FilterParameterID));
-    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible) && headerFieldNames.has(c.colname));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate, {
+    setFormErrors([]);
+    // Validate every RB-visible header field, not a hand-maintained subset —
+    // a field missing from a static list must never be silently skipped at
+    // save time just because nobody remembered to list it (see GRN fix).
+    const headerErrors = validateApiColumns(headerValuesRef.current, visibleHeaderColumns, {
       zeroValidFields: new Set(["basedonid"]),
     });
 
@@ -670,7 +881,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setIsSavingPV(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, visibleHeaderColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -683,6 +894,15 @@ export default function PurchaseVoucherForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
+    // Covers the edit-route branch of discardChanges() (re-fetches the record
+    // instead of going through resetFormToInitialState/extraReset, which is
+    // where the New-record reset clears this) — a stale Round Off override or
+    // GRN-picked BillNo/BillDate must not survive a Cancel either way. Cleared
+    // to null (not blank strings) so the merge is a no-op once discardChanges()
+    // reloads the record and remounts the filter panel with its real BillNo/
+    // BillDate — a blank-string merge would otherwise stomp the reloaded values.
+    summaryRef.current?.resetOverrides?.();
+    setBillExternalValues(null);
     discardChanges();
   }, [discardChanges]);
 
@@ -722,6 +942,43 @@ export default function PurchaseVoucherForm() {
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
 
+  // Direct mode only — GRN Base/PO Base items fetch immediately, no filter step.
+  const itemFilterBar = !itemPickerIsDirect ? null : (
+    <div className="oim-filter-bar">
+      <label className="oim-filter-bar__field">
+        <span>Item Main Group</span>
+        <SearchSelect
+          value={itemMainGroupFilter}
+          onChange={handleItemMainGroupFilterChange}
+          options={itemMainGroupOptions}
+          placeholder="All main groups"
+          ariaLabel="Item Main Group"
+        />
+      </label>
+      <label className="oim-filter-bar__field">
+        <span>Item Sub Main Group</span>
+        <SearchSelect
+          value={itemSubMainGroupFilter}
+          onChange={setItemSubMainGroupFilter}
+          options={itemSubMainGroupOptions}
+          placeholder="All sub main groups"
+          ariaLabel="Item Sub Main Group"
+          disabled={!itemMainGroupFilter}
+        />
+      </label>
+      <button
+        type="button"
+        className="oim-filter-bar__btn"
+        onClick={handleApplyItemFilter}
+        disabled={itemFilterLoading}
+        title="Load items for the selected filters"
+      >
+        <FilterIcon size={13} strokeWidth={2.5} />
+        {itemFilterLoading ? "Filtering…" : "Filter"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="workspace-page workspace-page--fill pv-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
@@ -748,7 +1005,7 @@ export default function PurchaseVoucherForm() {
             initialValues={filterInitialValues}
             cascadeResets={PV_FILTER_CASCADE_RESETS}
             onFilterChange={handleFilterChange}
-            externalValues={currencyExternalValues}
+            externalValues={combinedExternalValues}
             isSearching={filterBusy || recordLoading}
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
@@ -760,73 +1017,65 @@ export default function PurchaseVoucherForm() {
 
       {/* ── Single-tab grid section ───────────────────────────────────── */}
       <section className="pv-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {PV_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={PV_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
+              {pasteNotice && (
+                <span className="pv-paste-notice" role="status" aria-live="polite">
+                  ✓ {pasteNotice}
+                </span>
+              )}
+
               <button
-                key={t.id}
+                ref={selectItemBtnRef}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick items from list (Tab here after header fields)"
               >
-                {t.label}
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            {pasteNotice && (
-              <span className="pv-paste-notice" role="status" aria-live="polite">
-                ✓ {pasteNotice}
-              </span>
-            )}
-
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick items from list (Tab here after header fields)"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`pv-tab-pane${activeTab === "items" ? " pv-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={basedOnId === "2" ? PV_MULTI_PASTE_COLUMNS : null}
-            onMultiValuePaste={basedOnId === "2" ? handleMultiValuePaste : null}
-            remarkModalColumns={PV_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onRowsChange={setGridRows}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          multiValuePasteColumns={basedOnId === "2" ? PV_MULTI_PASTE_COLUMNS : null}
+          onMultiValuePaste={basedOnId === "2" ? handleMultiValuePaste : null}
+          remarkModalColumns={PV_REMARK_COLUMNS}
+        />
       </section>
 
-      <EnterpriseSummaryPanel ref={summaryRef} fields={syncedSummaryFields} rows={gridRows} />
+      <EnterpriseSummaryPanel
+        ref={summaryRef}
+        fields={syncedSummaryFields}
+        rows={gridRows}
+        masterValues={loadedMasterRow}
+        rowFilter={PV_SUMMARY_ROW_FILTER}
+      />
 
       <ActionBar
         alignEnd
@@ -845,9 +1094,11 @@ export default function PurchaseVoucherForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || itemFilterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={itemFilterBar}
+          awaitingFilter={!itemFilterApplied}
         />
       </Suspense>
     </div>

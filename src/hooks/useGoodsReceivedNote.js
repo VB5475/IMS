@@ -11,6 +11,7 @@ import {
   OBJ_TYPE,
 } from "../api/constants";
 import { GRN_CONFIG } from "../pages/goods-received-note/constants";
+import { BASED_ON } from "../constants/purchaseCommon";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -130,11 +131,15 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [transporterOptions, setTransporterOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
   const supplierRowsRef = useRef(new Map());
   const [isLoadingGrnTypes, setIsLoadingGrnTypes] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [isLoadingTransporters, setIsLoadingTransporters] = useState(false);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState(false);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
@@ -145,6 +150,76 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
 
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
+
+  // ── Select Item popup filters (Based On = Direct only) ────────────────
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: GRN_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: GRN_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[GRN] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: GRN_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: GRN_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[GRN] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   const fetchGrnTypes = useCallback(
     async (divisionId) => {
@@ -266,6 +341,47 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
         return [];
       } finally {
         setIsLoadingTransporters(false);
+      }
+    },
+    [get]
+  );
+
+  // Division-wise Location — same SP + cascade contract as Purchase Indent's fetchLocations.
+  const fetchLocationOptions = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setLocationOptions([]);
+        return [];
+      }
+
+      setIsLoadingLocations(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SP_LOCATION,
+          JSon: JSON.stringify([
+            {
+              prmcompanyid: getUserSession().companyId,
+              prmdivisionid: Number(divisionId),
+              prmlocationtypeid: 1,
+              prmloginid: getUserSession().loginId,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const opts = (res || []).map((r) => ({
+          value: String(r.locationid ?? r.locid),
+          label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid),
+        }));
+        setLocationOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[GRN] Location fetch failed:", err);
+        setLocationOptions([]);
+        return [];
+      } finally {
+        setIsLoadingLocations(false);
       }
     },
     [get]
@@ -399,11 +515,15 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       const needsSupplier = headerColumns.some(
         (c) => c.colname === "supplierid" && !isLockOnEditModeCol(c)
       );
+      const needsLocation = headerColumns.some(
+        (c) => c.colname === "locationid" && !isLockOnEditModeCol(c)
+      );
 
       const tasks = [];
       if (needsDivision) tasks.push(fetchDivisionOptions());
       if (needsConfig && divisionId) tasks.push(fetchGrnTypes(divisionId));
       if (needsSupplier && divisionId) tasks.push(fetchSupplierOptions(divisionId));
+      if (needsLocation && divisionId) tasks.push(fetchLocationOptions(divisionId));
       if (divisionId) tasks.push(fetchTransporterOptions(divisionId));
       if (divisionId && transporterId) {
         tasks.push(fetchDestinationOptions(divisionId, transporterId));
@@ -415,6 +535,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       fetchDivisionOptions,
       fetchGrnTypes,
       fetchSupplierOptions,
+      fetchLocationOptions,
       fetchTransporterOptions,
       fetchDestinationOptions,
     ]
@@ -527,12 +648,20 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
       const details = mapDetailRowsToGridRows(detRes || []);
       const indentDetails = indtRes || [];
 
+      // Direct-based GRNs have no indent linkage at all. The indent-detail
+      // fetch above joins purely by ItemID (see mapIndentRowsToChildRowsMap),
+      // not by any actual indent reference on this record — so it can
+      // spuriously match an unrelated indent that happens to contain the
+      // same item, even for a Direct GRN. Gate on basedonid explicitly
+      // rather than trusting an empty join result.
+      const isDirectBase = String(master?.basedonid ?? "") === BASED_ON.DIRECT.value;
+
       return {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details,
         indentDetails,
-        childRowsMap: mapIndentRowsToChildRowsMap(details, indentDetails),
+        childRowsMap: isDirectBase ? {} : mapIndentRowsToChildRowsMap(details, indentDetails),
       };
     },
     [get]
@@ -600,6 +729,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     setDestinationOptions([]);
   }, []);
   const clearDestinations = useCallback(() => setDestinationOptions([]), []);
+  const clearLocations = useCallback(() => setLocationOptions([]), []);
 
   return {
     headerColumns,
@@ -608,24 +738,34 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     headerError,
     fetchHeaderMeta,
     fetchUnlockedHeaderDropdowns,
+    fetchDivisionOptions,
     divisionOptions,
     grnTypeOptions,
     supplierOptions,
     transporterOptions,
     destinationOptions,
+    locationOptions,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
     fetchGrnTypes,
     fetchSupplierOptions,
     fetchTransporterOptions,
     fetchDestinationOptions,
+    fetchLocationOptions,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     getSupplierRow,
     clearGrnTypes,
     clearSuppliers,
     clearTransporters,
     clearDestinations,
+    clearLocations,
     isLoadingGrnTypes,
     isLoadingSuppliers,
     isLoadingTransporters,
     isLoadingDestinations,
+    isLoadingLocations,
     columns,
     allColumns,
     allIndentColumns,

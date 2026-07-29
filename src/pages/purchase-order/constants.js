@@ -30,10 +30,25 @@ export const PO_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  { SummaryParameterID: "mstroundoff", detKey: "roundoff" },
-  { SummaryParameterID: "mstnetbaseamount", detKey: "netbaseamount" },
+  // No per-line equivalent on rb_purpodet at all (verified live — detail grid
+  // has no roundoff column). Auto-calculated (business rule confirmed by PM
+  // 2026-07-24, same as PV): the adjustment that rounds the base+expense+tax
+  // total to the nearest whole number — still manually editable on top.
+  {
+    SummaryParameterID: "mstroundoff", detKey: "roundoff", editable: true,
+    roundToNearestFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst"],
+  },
+  // Net Base Amount = every other summary amount EXCEPT Taxable Value (same
+  // business rule as PV) — computed live from the other fields' own totals,
+  // not summed from detail rows (rb_purpodet has no netbaseamount column
+  // either — same "always 0" bug PV had).
+  {
+    SummaryParameterID: "mstnetbaseamount",
+    detKey: "netbaseamount",
+    deriveFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst", "mstroundoff"],
+  },
 ];
-export const PO_FILTER_INITIAL_VALUES = { basedonid: "0" };
+export const PO_FILTER_INITIAL_VALUES = { basedonid: "" };
 export const PO_FILTER_CASCADE_RESETS = { divisionid: ["configid"] };
 
 /** Item-grid column that opens the paste-friendly remark modal (EntryGrid remarkModalColumns). */
@@ -70,6 +85,15 @@ export const PO_CONFIG = {
   SP_INDT_DETAIL_FILL: "fn_tbl_rb_purpoindtdet",
   SP_GRID_EVENT: "fn_tbl_rb_purpodet_event",
 
+  // Select Item popup filters (Based On = Direct only) — same rollout as
+  // Purchase Indent (2026-07-28). Popup-filter SPs live-verified working.
+  // fn_tbl_rb_purposelonlyitem (SP_ITEM_PICKER_DIRECT) now accepts
+  // @prmmaingroupid/@prmsubmaingroupid — live-confirmed 2026-07-28 (used to
+  // throw "Must declare the scalar variable ...", that's gone). Wired in
+  // handleApplyItemFilter.
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
+
   BASED_ON_OPTIONS: [BASED_ON.DIRECT, BASED_ON.INDENT_WISE, BASED_ON.QUOTATION],
 
   SUPPLIER_GRID_COLUMNS: PURCHASE_SUPPLIER_GRID_COLUMNS,
@@ -80,7 +104,7 @@ export const PO_CONFIG = {
   STORAGE_HEADER_META: "poHeaderMeta",
   STORAGE_ENTRY_META: "poEntryMeta",
 
-  SP_PO_LIST: "fn_tbl_pur_pomst_list",
+  SP_PO_LIST: "fn_tbl_rb_purpomst_list",
   LIST_DIVISION_ID: 0,
 };
 

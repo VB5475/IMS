@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { XCircle, AlertTriangle, Info, CheckCircle2, X } from "lucide-react";
 import "./AlertPanel.css";
 
@@ -9,13 +9,10 @@ const VARIANTS = {
   success: { Icon: CheckCircle2,  summaryPrefix: "" },
 };
 
+// No auto-dismiss timer, by design (PM 2026-07-24) — validation alerts must stay
+// on screen until the user explicitly closes them or the next Save click
+// clears/replaces them (each page's save handler resets formErrors on click).
 export default function AlertPanel({ type = "error", title, errors = [], onDismiss }) {
-  useEffect(() => {
-    if (!errors || errors.length === 0 || !onDismiss) return;
-    const t = setTimeout(onDismiss, 10000);
-    return () => clearTimeout(t);
-  }, [errors, onDismiss]);
-
   if (!errors || errors.length === 0) return null;
 
   const { Icon, summaryPrefix } = VARIANTS[type] ?? VARIANTS.error;

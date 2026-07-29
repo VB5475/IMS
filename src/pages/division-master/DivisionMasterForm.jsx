@@ -76,6 +76,8 @@ export default function DivisionMasterForm({
   defsError = null,
   dropdownOptions = {},
   onRefreshDropdowns,
+  onRefreshHeadName,
+  onQuickAddHeadName,
   fetchEditRecord,
   seedOptionsFromMaster,
 }) {
@@ -177,6 +179,7 @@ export default function DivisionMasterForm({
 
   function renderControl(field) {
     const key = field.colname;
+    const isHeadName = key === "headnameid";
     return (
       <MasterFormField
         field={field}
@@ -187,6 +190,8 @@ export default function DivisionMasterForm({
         inputClassName="dv-form-input"
         valueClassName="dv-form-value"
         toggleClassName="dv-form-toggle"
+        onRefresh={isHeadName ? onRefreshHeadName : undefined}
+        quickAdd={isHeadName && onQuickAddHeadName ? { label: "User", onAdd: onQuickAddHeadName } : null}
       />
     );
   }

@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, Suspense, lazy } from "react";
+import { RefreshCw, Plus } from "lucide-react";
 import { controlTypeMap } from "../../data/dummyData";
 import SearchSelect from "../ui/SearchSelect";
 import {
@@ -44,6 +45,10 @@ function resolveDropdownLabel(options, value) {
 /**
  * Renders a single admin master form field driven by GET_DETAIL_COL_DATA metadata.
  * Validation alerts are opt-in via validateOnBlur (default false — admin forms validate on Save only).
+ * Dropdown fields (unlocked only) can opt into a trailing "refresh options" icon
+ * (onRefresh) and a "quick-add" icon that opens another master's form inline
+ * (quickAdd: { label, onAdd }) — onAdd may be omitted to render a disabled,
+ * explained button when no master module exists yet for that dropdown.
  */
 export default function MasterFormField({
   field,
@@ -62,6 +67,8 @@ export default function MasterFormField({
   customRender = null,
   validateOnBlur = false,
   autoComplete,
+  onRefresh = null,
+  quickAdd = null,
 }) {
   const notify = useNotification();
   const lastValidRef = useRef(value);
@@ -192,7 +199,7 @@ export default function MasterFormField({
   }
 
   if (isMasterDropdownField(field)) {
-    return (
+    const control = (
       <SearchSelect
         value={value != null && value !== "" ? String(value) : ""}
         onChange={(val) => onChange(Number(val) || 0)}
@@ -201,6 +208,39 @@ export default function MasterFormField({
         placeholder={placeholder ?? "Select..."}
         ariaLabel={label}
       />
+    );
+
+    if (!onRefresh && !quickAdd) return control;
+
+    return (
+      <div className="master-form-dropdown-row">
+        {control}
+        {onRefresh && (
+          <button
+            type="button"
+            className="master-form-icon-btn"
+            tabIndex={-1}
+            onClick={onRefresh}
+            title={`Refresh ${label} options`}
+            aria-label={`Refresh ${label} options`}
+          >
+            <RefreshCw size={12} strokeWidth={2.5} />
+          </button>
+        )}
+        {quickAdd && (
+          <button
+            type="button"
+            className="master-form-icon-btn"
+            tabIndex={-1}
+            onClick={quickAdd.onAdd}
+            disabled={!quickAdd.onAdd}
+            title={quickAdd.onAdd ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
+            aria-label={quickAdd.onAdd ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
+          >
+            <Plus size={12} strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
     );
   }
 

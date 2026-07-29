@@ -1,0 +1,89 @@
+/* Transaction To Document Type Master — direct-form overrides on top of the
+   reused division-wise-rights/DivisionWiseRightsPage.css (dwr-* classes). */
+
+/* .dwr-grids-slot is correctly height-bound by its flex-column parent, but a
+   *lone* .dwr-rights-grid child (this module has one grid, not the two-column
+   .dwr-grids layout UDR uses) has nothing telling it to respect that bound —
+   it just grows to fit all rows (~180 for a large department), pushing the
+   Save footer below the visible/clipped .dwr-panel instead of scrolling
+   internally. .tt2doctype-grid-body is the wrapper div between the slot and
+   the grid (holds the loading-dim class) — the 100% chain has to pass
+   through it too, a bare ">" child selector on .dwr-rights-grid alone
+   doesn't reach past it. */
+.tt2doctype-grid-body {
+  height: 100%;
+  min-height: 0;
+}
+
+.tt2doctype-grid-body > .dwr-rights-grid {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Select All — a real button, not a checkbox+label pill (easy to miss). */
+.tt2doctype-select-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--dwr-accent, #2563a8);
+  background: #fff;
+  color: var(--dwr-accent, #2563a8);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tt2doctype-select-all-btn:hover {
+  background: var(--dwr-accent, #2563a8);
+  color: #fff;
+}
+
+.tt2doctype-select-all-btn--active {
+  background: var(--dwr-accent, #2563a8);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .dwr-form-row {
+    flex-direction: column;
+  }
+
+  .dwr-form-label {
+    flex: none;
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    border-right: none;
+    border-bottom: 1px solid #b8cfe6;
+    padding: 8px 12px;
+  }
+
+  .dwr-form-control {
+    padding: 10px 12px;
+  }
+
+  .dwr-rights-grid__header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dwr-rights-grid__table th,
+  .dwr-rights-grid__table td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .dwr-rights-grid__division-name {
+    font-size: 11px;
+  }
+
+  .dwr-page-footer {
+    padding: 10px 12px;
+  }
+}

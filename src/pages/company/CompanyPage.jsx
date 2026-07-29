@@ -1,15 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Building, Plus, Pencil } from "lucide-react";
+import { Building } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useCompanyMaster } from "../../hooks/useCompanyMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createEditActionColumn } from "../../utils/listGridUtils";
 import CompanyForm from "./CompanyForm";
 import { CO_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./CompanyPage.css";
+
+function buildCompanyReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -50,12 +59,11 @@ export default function CompanyPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
     title:    "Company",
-    subtitle: "Browse companies or create a new company record.",
+    subtitle: "Browse and update company records.",
     showBack: true,
     backTo:   "/",
   });
@@ -78,14 +86,7 @@ export default function CompanyPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
-  const handleAddNew = useCallback(() => {
-    setModalMode("add");
-    setEditRecordId(null);
-    setModalOpen(true);
-  }, []);
-
   const handleEdit = useCallback((idNumber) => {
-    setModalMode("edit");
     setEditRecordId(idNumber);
     setModalOpen(true);
   }, []);
@@ -96,29 +97,16 @@ export default function CompanyPage() {
   }, [fetchList]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createEditActionColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="co-list__edit-btn"
-            title={`Edit ${row.name ?? row.Name ?? row.code ?? row.Code ?? ""}`}
-            aria-label={`Edit ${row.name ?? row.Name ?? row.code ?? row.Code ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.name ?? row.Name ?? row.code ?? row.Code ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -131,9 +119,11 @@ export default function CompanyPage() {
             <span>Company</span>
           </div>
           <div className="co-list-panel__toolbar">
-            <button type="button" className="co-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            <PrintReportButton
+              reportTitle="Company Report"
+              reportFileName="TODO_Company.rpt"
+              buildParams={buildCompanyReportParams}
+            />
             <label htmlFor="co-list-page-size" className="co-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -170,7 +160,7 @@ export default function CompanyPage() {
 
       <CompanyForm
         isOpen={modalOpen}
-        mode={modalMode}
+        mode="edit"
         recordId={editRecordId}
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}

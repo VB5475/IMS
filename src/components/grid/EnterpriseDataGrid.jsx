@@ -381,7 +381,8 @@ function EnterpriseDataGrid({
           aria-label={meta.ariaLabel ?? "Edit record"}
           onClick={(e) => {
             e.stopPropagation();
-            if (meta.navigateTo) navigate(meta.navigateTo, { state: meta.navigateState });
+            if (meta.onClick) meta.onClick();
+            else if (meta.navigateTo) navigate(meta.navigateTo, { state: meta.navigateState });
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -422,7 +423,8 @@ function EnterpriseDataGrid({
             aria-label={editMeta.ariaLabel ?? "Edit record"}
             onClick={(e) => {
               e.stopPropagation();
-              if (editMeta.navigateTo) navigate(editMeta.navigateTo, { state: editMeta.navigateState });
+              if (editMeta.onClick) editMeta.onClick();
+              else if (editMeta.navigateTo) navigate(editMeta.navigateTo, { state: editMeta.navigateState });
             }}
           >
             <Pencil size={13} strokeWidth={2} />

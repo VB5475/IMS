@@ -36,6 +36,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -145,15 +146,11 @@ export default function AssetsEmployeeIssueForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
+  // trandate/issuedate default to today on a new record; existing records keep their loaded date.
   const headerValuesRef = useRef(applyAeiHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
-    issuedate: todayISO,
+    trandate: getTodayDateInputValue(),
+    issuedate: getTodayDateInputValue(),
     fromdivisionid: 0,
     todivisionid: 0,
     fromlocationid: 0,
@@ -168,7 +165,7 @@ export default function AssetsEmployeeIssueForm() {
     tovendorid: 0,
     configid: 0,
     expecteddays: 0,
-    expecteddate: null,
+    expecteddate: getTodayDateInputValue(),
     includestockitems: 0,
     totalprocessrate: 0,
     frmtype: AEI_CONFIG.FRM_TYPE,
@@ -184,12 +181,13 @@ export default function AssetsEmployeeIssueForm() {
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: todayISO,
-      issuedate: todayISO,
+      trandate: getTodayDateInputValue(),
+      issuedate: getTodayDateInputValue(),
+      expecteddate: getTodayDateInputValue(),
       frmtype: String(AEI_CONFIG.FRM_TYPE),
       issuetypeid: String(AEI_CONFIG.ISSUE_TYPE_ID),
     };
-  }, [loadedFilterValues, todayISO]);
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -376,6 +374,7 @@ export default function AssetsEmployeeIssueForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -694,8 +693,8 @@ export default function AssetsEmployeeIssueForm() {
 
   const buildDefaultHeaderValues = useCallback(() => applyAeiHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
-    issuedate: todayISO,
+    trandate: getTodayDateInputValue(),
+    issuedate: getTodayDateInputValue(),
     fromdivisionid: 0,
     todivisionid: 0,
     fromlocationid: 0,
@@ -710,7 +709,7 @@ export default function AssetsEmployeeIssueForm() {
     tovendorid: 0,
     configid: 0,
     expecteddays: 0,
-    expecteddate: null,
+    expecteddate: getTodayDateInputValue(),
     includestockitems: 0,
     totalprocessrate: 0,
     frmtype: AEI_CONFIG.FRM_TYPE,
@@ -721,7 +720,7 @@ export default function AssetsEmployeeIssueForm() {
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: 0,
-  }), [todayISO]);
+  }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [AEI_CONFIG.STORAGE_HEADER_META, AEI_CONFIG.STORAGE_ENTRY_META],
@@ -750,6 +749,7 @@ export default function AssetsEmployeeIssueForm() {
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
@@ -903,65 +903,51 @@ export default function AssetsEmployeeIssueForm() {
       </section>
 
       <section className="aei-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {AEI_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={AEI_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
+                ref={selectItemBtnRef}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick issue items (Tab here after header fields)"
               >
-                {t.label}
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick issue items (Tab here after header fields)"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`aei-tab-pane${activeTab === "items" ? " aei-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            loading={isGridLoading || isFetching}
-            multiValuePasteColumns={AEI_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={AEI_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onRowsChange={setGridRows}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          loading={isGridLoading || isFetching}
+          multiValuePasteColumns={AEI_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={AEI_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar

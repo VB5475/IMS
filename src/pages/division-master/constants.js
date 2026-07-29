@@ -34,6 +34,8 @@ export const DV_CONFIG = {
   SP_LIST:          "fn_tbl_divisionmst_list", // ⚠️ CONFIRM with DBA
   LIST_DIVISION_ID: 15,                        // ⚠️ CONFIRM with DBA
 
+  DELETE_PROC_NAME: "pr_rb_divisionmst_delete",
+
   SAVE_ENDPOINT:       "/API/PurDivisionMst/Post_pr_RB_DivisionMST_Save",
   STORAGE_HEADER_META: "piHeaderMeta",
 };
@@ -41,6 +43,11 @@ export const DV_CONFIG = {
 /**
  * Two-column form layout — lowercase PG colnames (matches RB GetDetailColData).
  * Rows not returned by the RB are silently dropped by resolveLayoutRows.
+ *
+ * panno/gstno (colseqno 14/15, ismandatory=1) exist live in the RB but were
+ * missing from this layout — they never rendered, so their mandatory/maxlen
+ * rules were never enforced (validateApiColumns only checks resolved layout
+ * fields). Added 2026-07-21 per live RB payload.
  */
 export const DV_FORM_LAYOUT = {
   main: {
@@ -55,6 +62,7 @@ export const DV_FORM_LAYOUT = {
       ["cityid", "zipcode"],
       ["phone1", "phone2"],
       ["fax", "arnoforgst"],
+      ["panno", "gstno"],
       ["provisionalid"],
     ],
   },

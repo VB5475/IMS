@@ -105,8 +105,12 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [costCenterOptions, setCostCenterOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
 
   const [isLoadingPvTypes, setIsLoadingPvTypes] = useState(false);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   // ── Detail grid state ───────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
@@ -121,6 +125,76 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
   const supplierCurrencyMapRef = useRef({});
+
+  // ── Select Item popup filters (Based On = Direct only) ────────────────
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PV_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: PV_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   // ── fetchPVTypes — cascade from Division ───────────────────────────
   const fetchPVTypes = useCallback(async (divisionId) => {
@@ -170,6 +244,40 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       return null;
     }
   }, [get]);
+
+  // ── fetchLocationOptions — cascade from Division ───────────────────
+  // Division-wise Location — same SP + cascade contract as GRN/Purchase Indent's fetchLocations.
+  const fetchLocationOptions = useCallback(async (divisionId) => {
+    if (!divisionId || divisionId === "0") { setLocationOptions([]); return []; }
+    setIsLoadingLocations(true);
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SP_LOCATION,
+        JSon: JSON.stringify([{
+          prmcompanyid: getUserSession().companyId,
+          prmdivisionid: Number(divisionId),
+          prmlocationtypeid: 1,
+          prmloginid: getUserSession().loginId,
+        }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.locationid ?? r.locid),
+        label: r.locationname ?? r.locname ?? r.location ?? String(r.locationid ?? r.locid),
+      }));
+      setLocationOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Location fetch failed:", err);
+      setLocationOptions([]);
+      return [];
+    } finally {
+      setIsLoadingLocations(false);
+    }
+  }, [get]);
+
+  const clearLocations = useCallback(() => setLocationOptions([]), []);
 
   // ── fetchCostCenters ────────────────────────────────────────────────
   const fetchCostCenters = useCallback(async (divisionId, tranDate) => {
@@ -291,8 +399,18 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       rawDetailRbMetaRef.current = meta;
       rawDetailColumnsRef.current = apiColumns;
 
-      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"]);
-      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "gstperc"].forEach((k) => evtSet.add(k));
+      const evtSet = buildEventColumnSet(apiColumns, ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "expense", "gstperc"]);
+      // Force-add amount-driving columns regardless of API iseventreq flags —
+      // "expense" is a real, RB-editable field (confirmed live: rb_purpvdet,
+      // ctrltype textbox) that was missing here, so typing a value directly
+      // into it and leaving the cell never recalculated CGST/SGST/IGST/
+      // Taxable Value/Net Base Amount (client-confirmed gap, 2026-07-24).
+      ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "expense", "gstperc"].forEach((k) => evtSet.add(k));
+      // Put To Use must never call the qty/rate recalc SP (fn_tbl_rb_purpvdet_event) —
+      // toggling it is a pure local include/exclude-from-totals flag (PV_SUMMARY_ROW_FILTER),
+      // not a value the recalc SP needs to see. Explicit exclusion guards against RB
+      // later flipping iseventreq/iseventcol on puttouse and silently re-introducing this.
+      evtSet.delete("puttouse");
       setEventColumns(evtSet);
 
       setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
@@ -452,8 +570,12 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, pvTypeOptions, supplierOptions, currencyOptions,
     costCenterOptions,
+    locationOptions, isLoadingLocations,
+    fetchLocationOptions, clearLocations,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
+    itemMainGroupOptions, itemSubMainGroupOptions,
+    fetchItemMainGroupOptions, fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions,
     fetchSupplierInfo, getSupplierCurrency,
     fetchCostCenters,
     columns, allColumns, eventColumns, isFetching, metaError,

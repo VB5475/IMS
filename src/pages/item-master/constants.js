@@ -23,6 +23,8 @@ export const IM_CONFIG = {
   SP_LIST: "fn_tbl_mnt_itemmst_list",
   LIST_DIVISION_ID: 15,
 
+  DELETE_PROC_NAME: "pr_rb_puritemmst_delete",
+
   SAVE_ENDPOINT: "/API/PurItemMst/Post_RB_PurItemMst_Save",
   STORAGE_HEADER_META: "imitemheadermeta",
 };

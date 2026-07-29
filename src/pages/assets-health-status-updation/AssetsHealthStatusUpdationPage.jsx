@@ -9,6 +9,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AHS_CONFIG, ENTRY_FORM_LABEL, buildAhsListJsonPayload } from "./constants";
 import "./AssetsHealthStatusUpdationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAhsReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -53,7 +61,7 @@ export default function AssetsHealthStatusUpdationPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AHS] list fetch failed:", err);
-      setError("Failed to load Assets Health Status Updation records.");
+      setError(err?.message || "Failed to load Assets Health Status Updation records.");
     } finally {
       setLoading(false);
     }
@@ -81,6 +89,11 @@ export default function AssetsHealthStatusUpdationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Health Status Updation Report"
+              reportFileName="TODO_AssetsHealthStatusUpdation.rpt"
+              buildParams={buildAhsReportParams}
+            />
             <label htmlFor="ahs-list-page-size" className="ahs-list-panel__pagesize-label">
               Rows per page
             </label>

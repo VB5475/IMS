@@ -147,19 +147,7 @@
   overflow: hidden;
 }
 
-.ast-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.ast-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.ast-tab-pane .erp-grid-container {
+.ast-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

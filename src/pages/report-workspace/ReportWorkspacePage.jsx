@@ -9,9 +9,8 @@ import { toEnterpriseDataGridColumns } from "../../utils/gridUtils";
 import { AlertCircle, Search } from "lucide-react";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { API_BASE_URL_OLD } from "../../api/constants";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./ReportWorkspacePage.css";
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export default function ReportWorkspacePage() {
   const [hasFilters, setHasFilters] = useState(null);
@@ -82,7 +81,7 @@ export default function ReportWorkspacePage() {
             loading={isSearching}
             error={searchError}
             loaderText="Loading data…"
-            defaultPageSize={25}
+            defaultPageSize={DEFAULT_PAGE_SIZE}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             emptyMessage="No records match the current filters."
             searchable

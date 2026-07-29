@@ -6,6 +6,7 @@ import {
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
+import { parseApiErrMsg } from "../utils/apiResponse";
 import { SMGM_CONFIG } from "../pages/sub-main-group-master/constants";
 
 export function useSubMainGroupMaster() {
@@ -73,7 +74,7 @@ export function useSubMainGroupMaster() {
       setItemTypeOptions(
         (itemTypeData || []).map((r) => ({
           value: r.idnumber ?? 0,
-          label: String(r.itemtypecode ?? ""),
+          label: String(r.itemtypedesc ?? ""),
         })).filter((o) => o.value != null)
       );
       setFixedAssetAccOptions(
@@ -135,7 +136,21 @@ export function useSubMainGroupMaster() {
       prmParameters,
       prmFuncCode:  SMGM_CONFIG.RB_MASTER,
     });
-    const master = mstRes?.[0] ?? null;
+    const firstRow = mstRes?.[0] ?? null;
+    // GetMasterDataFill can return a { ErrCode, ErrMsg } row instead of throwing
+    // (e.g. a broken PG stored function surfaces as a normal 200 response with
+    // an error-shaped payload) — without this check that row gets spread into
+    // headerValues as if it were real column data, silently leaving every
+    // dropdown/field blank instead of showing an error.
+    const hasErrCode = firstRow && (
+      firstRow.ErrCode  !== undefined ||
+      firstRow.errCode  !== undefined ||
+      firstRow.p_ErrCode !== undefined
+    );
+    if (hasErrCode) {
+      throw new Error(parseApiErrMsg([firstRow]).message);
+    }
+    const master = firstRow;
     return {
       master,
       headerValues: master ? {

@@ -1,16 +1,29 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Users, Plus, Pencil } from "lucide-react";
+import { Users, Plus, RefreshCw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useUserMaster } from "../../hooks/useUserMaster";
+import { useUserGroup } from "../../hooks/useUserGroup";
+import { useDepartmentMaster } from "../../hooks/useDepartmentMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import UserMasterForm from "./UserMasterForm";
+import UserGroupForm from "../user-group/UserGroupForm";
+import DepartmentMasterForm from "../department-master/DepartmentMasterForm";
 import { UM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserMasterPage.css";
+
+function buildUserMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -42,8 +55,18 @@ export default function UserMasterPage() {
     fetchEditRecord,
     fetchListRows,
     refreshDropdownOptions,
+    refreshDropdownField,
     seedOptionsFromMaster,
   } = useUserMaster();
+
+  // Quick-add sources for the Group / Department dropdowns — each master
+  // module owns its own metadata; fetched lazily the first time its "+" is used.
+  const userGroup = useUserGroup();
+  const departmentMaster = useDepartmentMaster();
+  const [groupMetaLoaded, setGroupMetaLoaded] = useState(false);
+  const [deptMetaLoaded, setDeptMetaLoaded] = useState(false);
+  const [groupQuickAddOpen, setGroupQuickAddOpen] = useState(false);
+  const [deptQuickAddOpen, setDeptQuickAddOpen] = useState(false);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +107,32 @@ export default function UserMasterPage() {
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  const handleOpenGroupQuickAdd = useCallback(() => {
+    if (!groupMetaLoaded) {
+      userGroup.fetchHeaderMeta();
+      setGroupMetaLoaded(true);
+    }
+    setGroupQuickAddOpen(true);
+  }, [groupMetaLoaded, userGroup]);
+
+  const handleOpenDeptQuickAdd = useCallback(() => {
+    if (!deptMetaLoaded) {
+      departmentMaster.fetchHeaderMeta();
+      setDeptMetaLoaded(true);
+    }
+    setDeptQuickAddOpen(true);
+  }, [deptMetaLoaded, departmentMaster]);
+
+  const handleGroupQuickAddSaved = useCallback(() => {
+    setGroupQuickAddOpen(false);
+    refreshDropdownField("groupid");
+  }, [refreshDropdownField]);
+
+  const handleDeptQuickAddSaved = useCallback(() => {
+    setDeptQuickAddOpen(false);
+    refreshDropdownField("deptid");
+  }, [refreshDropdownField]);
 
   const handleAddNew = useCallback(() => {
     setModalMode("add");
@@ -135,29 +184,17 @@ export default function UserMasterPage() {
   }, [fetchList, handleCloseModal]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="um-list__edit-btn"
-            title={`Edit ${row.userid ?? row.username ?? ""}`}
-            aria-label={`Edit ${row.userid ?? row.username ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.userid ?? row.username ?? "",
+        getDeleteLabel: (row) => row.userid ?? row.username ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -170,9 +207,24 @@ export default function UserMasterPage() {
             <span>User Master</span>
           </div>
           <div className="um-list-panel__toolbar">
+            <button
+              type="button"
+              className="um-list-panel__refresh-btn"
+              onClick={fetchList}
+              disabled={loading}
+              title="Refresh list"
+              aria-label="Refresh list"
+            >
+              <RefreshCw size={13} strokeWidth={2.5} className={loading ? "spin" : ""} />
+            </button>
             <button type="button" className="um-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="User Master Report"
+              reportFileName="TODO_UserMaster.rpt"
+              buildParams={buildUserMasterReportParams}
+            />
             <label htmlFor="um-list-page-size" className="um-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -205,6 +257,8 @@ export default function UserMasterPage() {
           emptyMessage="No users found."
           searchable
           hideHeader
+          deleteProcName={UM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>
@@ -220,9 +274,42 @@ export default function UserMasterPage() {
         defsError={headerError}
         dropdownOptions={dropdownOptions}
         onRefreshDropdowns={refreshDropdownOptions}
+        onRefreshField={refreshDropdownField}
+        onQuickAddGroup={handleOpenGroupQuickAdd}
+        onQuickAddDepartment={handleOpenDeptQuickAdd}
         editPrefill={editPrefill}
         recordLoading={editLoading}
         recordLoadError={editLoadError}
+      />
+
+      <UserGroupForm
+        isOpen={groupQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setGroupQuickAddOpen(false)}
+        onSaved={handleGroupQuickAddSaved}
+        fieldDefs={userGroup.headerColumns}
+        allColumns={userGroup.allColumns}
+        defsLoading={userGroup.headerFetching}
+        defsError={userGroup.headerError}
+        dropdownOptions={userGroup.dropdownOptions}
+        fetchEditRecord={userGroup.fetchEditRecord}
+      />
+
+      <DepartmentMasterForm
+        isOpen={deptQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setDeptQuickAddOpen(false)}
+        onSaved={handleDeptQuickAddSaved}
+        fieldDefs={departmentMaster.headerColumns}
+        allColumns={departmentMaster.allColumns}
+        defsLoading={departmentMaster.headerFetching}
+        defsError={departmentMaster.headerError}
+        dropdownOptions={departmentMaster.dropdownOptions}
+        onRefreshDropdowns={departmentMaster.refreshDropdownOptions}
+        fetchEditRecord={departmentMaster.fetchEditRecord}
+        seedOptionsFromMaster={departmentMaster.seedOptionsFromMaster}
       />
     </div>
   );

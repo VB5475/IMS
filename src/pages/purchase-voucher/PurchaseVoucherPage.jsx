@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Receipt, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,6 +16,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { PV_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseVoucherPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildPurchaseVoucherReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -26,10 +34,10 @@ function buildListParams() {
       {
         prmcompanyid: session.companyId,
         prmdivisionid: PV_CONFIG.LIST_DIVISION_ID,
-        prmsupplierid: 0,
+        prmyearid: session.yearId,
         prmfromdate: `01-Jan-${year}`,
         prmtodate: `31-Dec-${year}`,
-        prmdepartmentid: 0,
+        prmloginid:      session.loginId,
       },
     ]),
     p_ErrCode: -1,
@@ -71,7 +79,7 @@ export default function PurchaseVoucherPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[PurchaseVoucherPage] list fetch failed:", err);
-      setError("Failed to load purchase vouchers.");
+      setError(err?.message || "Failed to load purchase vouchers.");
     } finally {
       setLoading(false);
     }
@@ -96,6 +104,11 @@ export default function PurchaseVoucherPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Purchase Voucher Report"
+              reportFileName="TODO_PurchaseVoucher.rpt"
+              buildParams={buildPurchaseVoucherReportParams}
+            />
             <label htmlFor="pv-list-page-size" className="pv-list-panel__pagesize-label">
               Rows per page
             </label>

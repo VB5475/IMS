@@ -12,7 +12,7 @@ function mapItemTypeOptions(rows) {
   return (rows ?? []).map((r) => {
     const value = r.idnumber ?? r.itemtypeid;
     if (value == null || value === "") return null;
-    return { value: String(value), label: String(r.idnumber) + " - " + String(r.itemtypecode ?? r.itemtypename ?? r.name ?? "") };
+    return { value: String(value), label: String(r.itemtypedesc ?? "") };
   }).filter(Boolean);
 }
 
@@ -275,9 +275,11 @@ export function useItemMaster() {
     fetchHeaderMeta,
     fetchEditRecord,
     fetchListRows,
+    fetchItemTypeOptions,
     fetchMainGroupOptions,
     fetchSubMainGroupOptions,
     fetchSubGroupLevelOptions,
+    fetchStaticDropdowns,
     seedOptionsFromMaster,
   };
 }

@@ -53,7 +53,7 @@ export default function MaintenanceContractRenewalPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[MACR] list fetch failed:", err);
-      setError("Failed to load Maintenance Contract Renewal records.");
+      setError(err?.message || "Failed to load Maintenance Contract Renewal records.");
     } finally {
       setLoading(false);
     }

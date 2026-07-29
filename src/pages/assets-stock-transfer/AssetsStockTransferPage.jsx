@@ -9,6 +9,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AST_CONFIG, ENTRY_FORM_LABEL, buildAstListJsonPayload } from "./constants";
 import "./AssetsStockTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAstReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -53,7 +61,7 @@ export default function AssetsStockTransferPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AST] list fetch failed:", err);
-      setError("Failed to load Assets Stock Transfer records.");
+      setError(err?.message || "Failed to load Assets Stock Transfer records.");
     } finally {
       setLoading(false);
     }
@@ -81,6 +89,11 @@ export default function AssetsStockTransferPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Stock Transfer Report"
+              reportFileName="TODO_AssetsStockTransfer.rpt"
+              buildParams={buildAstReportParams}
+            />
             <label htmlFor="ast-list-page-size" className="ast-list-panel__pagesize-label">
               Rows per page
             </label>

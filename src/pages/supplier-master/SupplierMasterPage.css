@@ -154,10 +154,6 @@
 .sm-form-section--transporter { --sm-panel-accent: #0d6e6e; }
 .sm-form-section--tds { --sm-panel-accent: #a0522d; }
 .sm-form-section--bank { --sm-panel-accent: #1e4a7a; }
-.sm-form-section--consignee {
-  --sm-panel-accent: var(--primary);
-  margin-top: 14px;
-}
 
 .sm-form-section__title {
   margin: 0;
@@ -181,16 +177,6 @@
   border-radius: 99px;
   background: var(--sm-panel-accent, var(--primary));
   flex-shrink: 0;
-}
-
-.sm-form-section__title--grid {
-  justify-content: space-between;
-}
-
-.sm-form-section__title-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .sm-form-section__body {
@@ -325,18 +311,6 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-}
-
-.sm-form-consignee-grid {
-  height: 340px;
-  display: flex;
-  flex-direction: column;
-}
-
-.sm-form-consignee-grid .erp-grid-container {
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
 }
 
 @media (max-width: 960px) {

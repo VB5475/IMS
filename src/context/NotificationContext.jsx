@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import NotificationBar from "../components/ui/NotificationBar";
+import AlertDialog from "../components/ui/AlertDialog";
 
 const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
 
-  // ── Non-blocking toast (success / error / warning / info) ─────────
+  // ── Non-blocking toast (warning / info only) ────────────────────────
   const [notification, setNotification] = useState(null);
   const timerRef = useRef(null);
 
@@ -23,12 +24,17 @@ export function NotificationProvider({ children }) {
     setNotification(null);
   }, []);
 
+  // ── Blocking success/error dialog (OK button, no auto-dismiss) ──────
+  const [alert, setAlert] = useState(null); // { type: "success" | "danger", message }
+
+  const dismissAlert = useCallback(() => setAlert(null), []);
+
   // ── Public API ─────────────────────────────────────────────────────
   const notify = {
-    /** Green toast — save success, auto-dismiss after 3 s */
-    success: (message) => show("success", message),
-    /** Red toast — API / catch errors, auto-dismiss after 3 s */
-    error:   (message) => show("error",   message),
+    /** Blocking success dialog — save success, dismissed via OK button */
+    success: (message) => setAlert({ type: "success", message }),
+    /** Blocking error dialog — API / catch errors, dismissed via OK button */
+    error:   (message) => setAlert({ type: "danger",  message }),
     /** Amber toast — soft warnings, auto-dismiss after 3 s */
     warning: (message) => show("warning", message),
     /** Blue toast — informational, auto-dismiss after 3 s */
@@ -45,6 +51,12 @@ export function NotificationProvider({ children }) {
           onDismiss={dismissToast}
         />
       )}
+      <AlertDialog
+        isOpen={alert != null}
+        type={alert?.type}
+        message={alert?.message}
+        onOk={dismissAlert}
+      />
     </NotificationContext.Provider>
   );
 }

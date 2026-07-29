@@ -196,28 +196,13 @@
   overflow: hidden;
 }
 
-.po-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.po-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.po-tab-pane .erp-grid-container {
+.po-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 
 .po-terms-pane {
-  flex: 1;
-  overflow: auto;
-  padding: 12px 16px;
   background: var(--surface);
 }
 

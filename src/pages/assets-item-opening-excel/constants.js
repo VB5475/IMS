@@ -26,6 +26,10 @@ export const AIME_CONFIG = {
   SP_LIST: "fn_tbl_rb_assetitmopnexl_list", // ⚠️ DBA CONFIRM
   LIST_DIVISION_ID: 0,
 
+  // ⚠️ DBA CONFIRM — no confirmed delete proc in the backend registry for this
+  // module; guessed from the RB_DETAIL naming convention pending DBA sign-off.
+  DELETE_PROC_NAME: "pr_rb_assetitmopnexl_delete",
+
   STORAGE_ENTRY_META: "aimeEntryMeta",
 };
 

@@ -1,10 +1,12 @@
 import { useEffect, useCallback } from "react";
 import { FORM_SHORTCUT_KEYS } from "../constants/formShortcuts";
 
-/** Skip shortcuts while a SearchSelect dropdown is open. */
+/** Skip shortcuts while a SearchSelect dropdown or the grid's remark modal is open. */
 export function shouldIgnoreKeyboardEvent(e) {
   return Boolean(
-    e.target.closest(".search-select--open") || e.target.closest(".search-select__dropdown")
+    e.target.closest(".search-select--open") ||
+    e.target.closest(".search-select__dropdown") ||
+    e.target.closest(".cell-remark-modal__textarea")
   );
 }
 

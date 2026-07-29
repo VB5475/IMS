@@ -1,5 +1,7 @@
-// useSupplierMaster.js — Header (master) meta, Consignee (detail) grid meta,
-// and dropdown option fetches for the Supplier Master module.
+// useSupplierMaster.js — Header (master) meta and dropdown option fetches for
+// the Supplier Master module. (Consignee Detail grid removed — see
+// SupplierMasterForm.jsx/Page.jsx history. SM_CONFIG.RB_DETAIL/SP_DETAIL_FILL
+// stay in constants.js since Customer Master's own hook still uses them.)
 
 import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
@@ -11,7 +13,6 @@ import {
   OBJ_TYPE,
 } from "../api/constants";
 import { SM_CONFIG } from "../pages/supplier-master/constants";
-import { fetchDropdownOptions, buildGridColumns } from "../utils/gridUtils";
 import { coerceRowByColumns } from "../utils/columnValidation";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
@@ -56,13 +57,6 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
   const [deducteeTypeOptions, setDeducteeTypeOptions] = useState([]);
   // NOP (nopid) has no working fn_tbl_* SP — see SM_CONFIG.SP_NOP DBA-CONFIRM note.
   const nopOptions = [];
-
-  // ── Detail (Consignee grid) ────────────────────────────────────────
-  const [detailColumns, setDetailColumns] = useState([]);
-  const [detailAllColumns, setDetailAllColumns] = useState([]);
-  const [detailRbMeta, setDetailRbMeta] = useState(null);
-  const [detailFetching, setDetailFetching] = useState(false);
-  const [detailError, setDetailError] = useState(null);
 
   // ── Cascading State/City — not covered by the generic GET_FILTER_DETAIL
   // mechanism since they need a parent Country/State id parameter.
@@ -248,75 +242,20 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
     fetchDeducteeTypeOptions,
   ]);
 
-  // ── Detail RB meta + columns (Consignee grid) — direct-entry, no picker ─
-  const fetchDetailMeta = useCallback(async () => {
-    setDetailFetching(true);
-    setDetailError(null);
-    try {
-      const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: SM_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmrbcode: SM_CONFIG.RB_DETAIL }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const tableRow = metaData?.[0];
-      if (!tableRow) throw new Error("No Consignee Detail RB metadata returned.");
-      const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
-      setDetailRbMeta(meta);
-      localStorage.setItem(SM_CONFIG.STORAGE_ENTRY_META, JSON.stringify(meta));
-
-      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: meta.RBID,
-        prmLoginID: getUserSession().loginId,
-      });
-      const apiColumns = colData || [];
-      setDetailAllColumns(
-        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
-      );
-
-      const dropdownOpts = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
-        funcCode: SM_CONFIG.RB_DETAIL,
-        divisionID: 0,
-      });
-      const gridColumns = buildGridColumns(apiColumns, dropdownOpts, {
-        filterable: false,
-        allEditable: true,
-      });
-      setDetailColumns(gridColumns);
-
-      return { meta, columns: gridColumns };
-    } catch (err) {
-      console.error("[SM] fetchDetailMeta failed:", err);
-      setDetailError(err?.message || "Failed to load Consignee Detail configuration.");
-      return { meta: null, columns: [] };
-    } finally {
-      setDetailFetching(false);
-    }
-  }, [get]);
-
-  // ── Edit load — master row + consignee rows in parallel ─────────────
+  // ── Edit load — master row only ──────────────────────────────────────
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const prmParameters = buildMasterDataFillParams({
         companyId, yearId, loginId, sessionId, idNumber,
       });
 
-      const [mstRes, detRes] = await Promise.all([
-        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-          prmProcedure: SM_CONFIG.SP_MASTER_FILL,
-          prmParameters,
-          prmFuncCode: SM_CONFIG.RB_MASTER,
-        }),
-        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
-          prmProcedure: SM_CONFIG.SP_DETAIL_FILL,
-          prmParameters,
-          prmFuncCode: SM_CONFIG.RB_DETAIL,
-        }),
-      ]);
+      const mstRes = await get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+        prmProcedure: SM_CONFIG.SP_MASTER_FILL,
+        prmParameters,
+        prmFuncCode: SM_CONFIG.RB_MASTER,
+      });
 
       const master = mstRes?.[0] ?? null;
-      const consigneeRows = detRes || [];
       const session = getUserSession();
 
       return {
@@ -329,20 +268,14 @@ export function useSupplierMaster(baseURL = API_BASE_URL) {
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode: master.funccode ?? SM_CONFIG.RB_MASTER,
         }, headerColumns) : null,
-        consigneeRows: consigneeRows.map((row, index) => ({
-          ...coerceRowByColumns(row, detailAllColumns),
-          id: String(row.compuniquekey ?? row.idnumber ?? `edit_${index}`),
-        })),
       };
     },
-    [get, headerColumns, detailAllColumns]
+    [get, headerColumns]
   );
 
   return {
     headerColumns, headerRbMeta, headerFetching, headerError,
     fetchHeaderMeta,
-    detailColumns, detailAllColumns, detailRbMeta, detailFetching, detailError,
-    fetchDetailMeta,
     stateOptions, cityOptions, isLoadingStates, isLoadingCities,
     fetchStateOptions, fetchCityOptions, clearStates, clearCities,
     categoryOptions, accountGroupOptions, countryOptions, registrationTypeOptions,

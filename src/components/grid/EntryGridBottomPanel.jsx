@@ -3,7 +3,7 @@
 import React from "react";
 import { Download, Copy, Save } from "lucide-react";
 
-export default function TxnEntryBottomPanel({ selectedCount, onExportExcel, onCopy, onSave }) {
+export default function TxnEntryBottomPanel({ selectedCount, exportDisabled = false, onExportExcel, onCopy, onSave }) {
   return (
     <div className="grid-bottom-panel">
       <div className="bottom-panel-left">
@@ -11,7 +11,8 @@ export default function TxnEntryBottomPanel({ selectedCount, onExportExcel, onCo
           type="button"
           className="toolbar-btn"
           onClick={onExportExcel}
-          title="Export to Excel"
+          disabled={exportDisabled}
+          title={exportDisabled ? "No rows to export" : "Export to Excel"}
         >
           <Download size={12} strokeWidth={2} />
           Export Excel

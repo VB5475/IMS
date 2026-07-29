@@ -41,6 +41,8 @@ export const AOP_CONFIG = {
   SP_LIST:          "fn_tbl_rb_astitemopemst_list",  // ⚠️ DBA CONFIRM
   LIST_DIVISION_ID: 0,                                // ⚠️ DBA CONFIRM (MRD says 15)
 
+  DELETE_PROC_NAME: "pr_rb_astitemopemst_delete",
+
   // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "aopHeaderMeta",
   STORAGE_ENTRY_META:  "aopEntryMeta",

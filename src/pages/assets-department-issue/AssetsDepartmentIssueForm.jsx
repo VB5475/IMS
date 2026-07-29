@@ -33,6 +33,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -128,15 +129,11 @@ export default function AssetsDepartmentIssueForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
+  // trandate/issuedate default to today on a new record; existing records keep their loaded date.
   const headerValuesRef = useRef(applyAdiHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
-    issuedate: todayISO,
+    trandate: getTodayDateInputValue(),
+    issuedate: getTodayDateInputValue(),
     fromdivisionid: 0,
     fromlocationid: 0,
     tolocationid: 0,
@@ -144,7 +141,7 @@ export default function AssetsDepartmentIssueForm() {
     todeptid: 0,
     configid: 0,
     expecteddays: 0,
-    expecteddate: null,
+    expecteddate: getTodayDateInputValue(),
     includestockitems: 0,
     remarks: "",
     frmtype: ADI_CONFIG.FRM_TYPE,
@@ -160,13 +157,14 @@ export default function AssetsDepartmentIssueForm() {
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: todayISO,
-      issuedate: todayISO,
+      trandate: getTodayDateInputValue(),
+      issuedate: getTodayDateInputValue(),
+      expecteddate: getTodayDateInputValue(),
       frmtype: String(ADI_CONFIG.FRM_TYPE),
       issuetypeid: String(ADI_CONFIG.ISSUE_TYPE_ID),
       includestockitems: 0,
     };
-  }, [loadedFilterValues, todayISO]);
+  }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
@@ -337,6 +335,7 @@ export default function AssetsDepartmentIssueForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -531,8 +530,8 @@ export default function AssetsDepartmentIssueForm() {
 
   const buildDefaultHeaderValues = useCallback(() => applyAdiHardcodedHeaderValues({
     trancode: "",
-    trandate: todayISO,
-    issuedate: todayISO,
+    trandate: getTodayDateInputValue(),
+    issuedate: getTodayDateInputValue(),
     fromdivisionid: 0,
     fromlocationid: 0,
     tolocationid: 0,
@@ -540,7 +539,7 @@ export default function AssetsDepartmentIssueForm() {
     todeptid: 0,
     configid: 0,
     expecteddays: 0,
-    expecteddate: null,
+    expecteddate: getTodayDateInputValue(),
     includestockitems: 0,
     remarks: "",
     frmtype: ADI_CONFIG.FRM_TYPE,
@@ -551,7 +550,7 @@ export default function AssetsDepartmentIssueForm() {
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: 0,
-  }), [todayISO]);
+  }), []);
 
   const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
     storageKeys: [ADI_CONFIG.STORAGE_HEADER_META, ADI_CONFIG.STORAGE_ENTRY_META],
@@ -578,6 +577,7 @@ export default function AssetsDepartmentIssueForm() {
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateAdiBusinessRules(headerValuesRef.current);
@@ -736,64 +736,50 @@ export default function AssetsDepartmentIssueForm() {
       </section>
 
       <section className="adi-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {ADI_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={ADI_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
+                ref={selectItemBtnRef}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title="Pick issue items"
               >
-                {t.label}
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              ref={selectItemBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleSelectItem}
-              disabled={!isEditMode}
-              title="Pick issue items"
-            >
-              <Package size={12} strokeWidth={2.5} />
-              Select Item
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`adi-tab-pane${activeTab === "items" ? " adi-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Select Item above."
-            onSelectionChange={setItemSelectionCount}
-            onCellEvent={handleCellEvent}
-            eventColumns={eventColumns}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            loading={isGridLoading || isFetching}
-            multiValuePasteColumns={ADI_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={ADI_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Select Item above."
+          onSelectionChange={setItemSelectionCount}
+          onCellEvent={handleCellEvent}
+          eventColumns={eventColumns}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          loading={isGridLoading || isFetching}
+          multiValuePasteColumns={ADI_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={ADI_REMARK_COLUMNS}
+        />
       </section>
 
       <ActionBar

@@ -20,7 +20,7 @@ import {
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
-import { QTN_CONFIG } from "../pages/purchase-quotation/constants";
+import { QTN_CONFIG, QTN_GRID_CONTROL_TYPE_OVERRIDES } from "../pages/purchase-quotation/constants";
 import {
   fetchAndBuildGridColumns,
   isTruthyApiFlag,
@@ -384,6 +384,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           divisionID,
           editOpts,
           currentColumns: columnsRef.current,
+          buildColumnOpts: { controlTypeOverrides: QTN_GRID_CONTROL_TYPE_OVERRIDES },
         });
         columnsRef.current = gridColumns;
         setColumns(gridColumns);

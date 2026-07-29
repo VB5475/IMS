@@ -23,6 +23,7 @@ import { controlTypeMap } from "../../data/dummyData";
 import { validateApiColumns, validateColumnValue } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { UDR_CONFIG } from "./constants";
+import "./DivisionWiseRightsPage.css";
 
 function buildSaveContext() {
   const session = getUserSession();

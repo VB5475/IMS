@@ -83,6 +83,20 @@ export function useDepartmentMaster() {
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
 
+  const fetchDeptHeadOptions = useCallback(async () => {
+    const userRes = await get(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: 2,
+      ObjName: DM_CONFIG.SP_USER_FETCH,
+      JSon: JSON.stringify([{}]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    }).catch(() => []);
+    const userRows = Array.isArray(userRes) ? userRes : (userRes ?? []);
+    const options = mapDeptHeadUserOptions(userRows);
+    setDropdownOptions((prev) => ({ ...prev, [DEPT_HEAD_KEY]: options }));
+    return options;
+  }, [get]);
+
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
     setHeaderError(null);
@@ -118,26 +132,14 @@ export function useDepartmentMaster() {
       setAllColumns(links.map((c) => ({ key: c.colname, colDataType: c.coldatatype ?? null })));
 
       // Phase 3 — manual SP call for DeptHead user list
-      const userRes = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: DM_CONFIG.SP_USER_FETCH,
-        JSon: JSON.stringify([{}]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      }).catch(() => []);
-      const userRows = Array.isArray(userRes) ? userRes : (userRes ?? userRes ?? []);
-      setDropdownOptions({ [DEPT_HEAD_KEY]: mapDeptHeadUserOptions(userRows) });
+      await fetchDeptHeadOptions();
     } catch (err) {
       console.error("[DM] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Department Master configuration.");
     } finally {
       setHeaderFetching(false);
     }
-  }, [get]);
-
-  const refreshDropdownOptions = useCallback(async () => {
-    // No cascaded dropdowns in Department Master — no-op for now
-  }, []);
+  }, [get, fetchDeptHeadOptions]);
 
   // PG returns lowercase column names directly — spread master as headerValues.
   // Override system context fields so the save SP always receives consistent values.
@@ -185,6 +187,10 @@ export function useDepartmentMaster() {
     });
   }, []);
 
+  // No cascaded dropdowns in Department Master — cascade-refresh is a no-op;
+  // fetchDeptHeadOptions is the real per-field refresh (manual refresh icon).
+  const refreshDropdownOptions = useCallback(async () => {}, []);
+
   return {
     headerColumns,
     allColumns,
@@ -194,6 +200,7 @@ export function useDepartmentMaster() {
     fetchHeaderMeta,
     fetchEditRecord,
     fetchListRows,
+    fetchDeptHeadOptions,
     refreshDropdownOptions,
     seedOptionsFromMaster,
   };

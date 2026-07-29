@@ -16,6 +16,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { UG_CONFIG } from "./constants";
+import "./UserGroupPage.css";
 
 // Fields rendered as checkbox despite colctrltype=1 (store numeric 0/1)
 // Populate after RB column data is confirmed with DBA.
@@ -152,6 +153,7 @@ export default function UserGroupForm({
 
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFormErrors([]);
     const fieldsToValidate = visibleFields.filter((f) => !CHECKBOX_OVERRIDES.has(f.colname));
     const errors = validateApiColumns(formValues, fieldsToValidate);
     if (errors.length > 0) { setFormErrors(errors); return; }

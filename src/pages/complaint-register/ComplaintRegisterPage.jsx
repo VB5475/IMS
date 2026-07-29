@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageSquareWarning, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -9,6 +10,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { MCR_CONFIG, ENTRY_FORM_LABEL, buildMcrListJsonPayload } from "./constants";
 import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildComplaintRegisterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -53,7 +61,7 @@ export default function ComplaintRegisterPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[MCR] list fetch failed:", err);
-      setError("Failed to load Complaint Register records.");
+      setError(err?.message || "Failed to load Complaint Register records.");
     } finally {
       setLoading(false);
     }
@@ -81,6 +89,11 @@ export default function ComplaintRegisterPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Complaint Register Report"
+              reportFileName="TODO_ComplaintRegister.rpt"
+              buildParams={buildComplaintRegisterReportParams}
+            />
             <label htmlFor="mcr-list-page-size" className="mcr-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -111,6 +124,7 @@ export default function ComplaintRegisterPage() {
           emptyMessage="No Complaint Register records found."
           hideHeader
           searchable
+          deleteProcName={MCR_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
         />

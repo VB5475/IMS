@@ -39,6 +39,8 @@ export const MCR_CONFIG = {
   SP_LIST: "fn_tbl_rb_mntcpnmst_list",
   LIST_FROM_DIVISION_ID: 15,
 
+  DELETE_PROC_NAME: "pr_rb_mntcomplainmst_delete",
+
   STORAGE_HEADER_META: "mcrHeaderMeta",
   STORAGE_ENTRY_META: "mcrEntryMeta",
 };

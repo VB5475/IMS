@@ -44,6 +44,8 @@ export const C2F_CONFIG = {
   SP_LIST:          "fn_tbl_rb_astcwip2famst_list",
   LIST_DIVISION_ID: 0,
 
+  DELETE_PROC_NAME: "pr_rb_astcwip2famst_delete",
+
   // localStorage keys for cached RB meta
   STORAGE_HEADER_META: "c2fHeaderMeta",
   STORAGE_ENTRY_META:  "c2fEntryMeta",

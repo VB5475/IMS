@@ -302,6 +302,7 @@ export default function AssetsItemOpeningForm() {
     if (headerColumns.length === 0) return [];
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible) && !AOP_SUMMARY_COL_NAMES.has(col.colname))
+      .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
         const staticOptions  = DROPDOWN_OPTIONS_BY_COL[col.colname];
@@ -444,6 +445,7 @@ export default function AssetsItemOpeningForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
@@ -591,62 +593,48 @@ export default function AssetsItemOpeningForm() {
 
       {/* ── Item grid section ─────────────────────────────────────────────── */}
       <section className="aop-grid-section">
-        <div className="grid-tabbar">
-          <div className="grid-tabbar__tabs">
-            {AOP_GRID_TABS.map((t) => (
+        <EntryGrid
+          ref={itemGridRef}
+          config={itemGridConfig}
+          tabs={AOP_GRID_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          headerControls={
+            <>
               <button
-                key={t.id}
+                ref={addRowBtnRef}
                 type="button"
-                className={`grid-tab ${activeTab === t.id ? "grid-tab--active" : ""}`}
-                onClick={() => setActiveTab(t.id)}
+                className="eg-tab-btn"
+                onClick={handleAddNewRow}
+                disabled={!isEditMode || isGridLoading}
+                title="Add a new item row"
               >
-                {t.label}
+                <PlusCircle size={12} strokeWidth={2.5} />
+                Add New
               </button>
-            ))}
-          </div>
 
-          <div className="grid-tabbar__controls">
-            <button
-              ref={addRowBtnRef}
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleAddNewRow}
-              disabled={!isEditMode || isGridLoading}
-              title="Add a new item row"
-            >
-              <PlusCircle size={12} strokeWidth={2.5} />
-              Add New
-            </button>
-
-            <button
-              type="button"
-              className="eg-tab-btn eg-tab-btn--danger"
-              onClick={handleDeleteSelected}
-              disabled={!isEditMode || itemSelectionCount === 0}
-              title="Delete selected rows"
-            >
-              <Trash2 size={12} strokeWidth={2} />
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div className={`aop-tab-pane${activeTab === "items" ? " aop-tab-pane--active" : ""}`}>
-          <EntryGrid
-            ref={itemGridRef}
-            config={itemGridConfig}
-            title=""
-            hideBottomPanel
-            emptyMessage="No items yet. Click Add New above."
-            onSelectionChange={setItemSelectionCount}
-            onRowsChange={setGridRows}
-            readOnly={isEditRoute && !isEditMode}
-            existingRecordEdit={isEditRoute && isEditMode}
-            multiValuePasteColumns={AOP_MULTI_PASTE_COLUMNS}
-            onMultiValuePaste={handleMultiValuePaste}
-            remarkModalColumns={AOP_REMARK_COLUMNS}
-          />
-        </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || itemSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
+          }
+          hideBottomPanel
+          emptyMessage="No items yet. Click Add New above."
+          onSelectionChange={setItemSelectionCount}
+          onRowsChange={setGridRows}
+          readOnly={isEditRoute && !isEditMode}
+          existingRecordEdit={isEditRoute && isEditMode}
+          multiValuePasteColumns={AOP_MULTI_PASTE_COLUMNS}
+          onMultiValuePaste={handleMultiValuePaste}
+          remarkModalColumns={AOP_REMARK_COLUMNS}
+        />
       </section>
 
       <EnterpriseSummaryPanel

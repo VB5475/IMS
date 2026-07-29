@@ -14,6 +14,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AET_CONFIG, ENTRY_FORM_LABEL, buildAetListJsonPayload } from "./constants";
 import "./AssetsEmployeeTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAetReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -59,7 +67,7 @@ export default function AssetsEmployeeTransferPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AET] list fetch failed:", err);
-      setError("Failed to load Assets Employee Transfer records.");
+      setError(err?.message || "Failed to load Assets Employee Transfer records.");
     } finally {
       setLoading(false);
     }
@@ -84,6 +92,11 @@ export default function AssetsEmployeeTransferPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Employee Transfer Report"
+              reportFileName="TODO_AssetsEmployeeTransfer.rpt"
+              buildParams={buildAetReportParams}
+            />
             <label htmlFor="aet-list-page-size" className="aet-list-panel__pagesize-label">
               Rows per page
             </label>

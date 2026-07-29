@@ -150,19 +150,7 @@
   overflow: hidden;
 }
 
-.c2f-tab-pane {
-  display: none;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.c2f-tab-pane--active {
-  display: flex;
-  flex-direction: column;
-}
-
-.c2f-tab-pane .erp-grid-container {
+.c2f-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

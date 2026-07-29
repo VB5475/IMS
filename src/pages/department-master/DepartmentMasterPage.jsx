@@ -1,15 +1,26 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Building2, Plus, Pencil } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDepartmentMaster } from "../../hooks/useDepartmentMaster";
+import { useUserMaster } from "../../hooks/useUserMaster";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
+import { createListActionsColumn } from "../../utils/listGridUtils";
 import DepartmentMasterForm from "./DepartmentMasterForm";
+import UserMasterForm from "../user-master/UserMasterForm";
 import { DM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DepartmentMasterPage.css";
+
+function buildDepartmentMasterReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
@@ -40,6 +51,7 @@ export default function DepartmentMasterPage() {
     headerError,
     fetchEditRecord,
     fetchListRows,
+    fetchDeptHeadOptions,
     refreshDropdownOptions,
     seedOptionsFromMaster,
   } = useDepartmentMaster();
@@ -52,6 +64,25 @@ export default function DepartmentMasterPage() {
   const [modalOpen,    setModalOpen]    = useState(false);
   const [modalMode,    setModalMode]    = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
+
+  // Quick-add source for the Department Head (User) dropdown — User Master
+  // owns its own metadata; fetched lazily the first time its "+" is used.
+  const userMaster = useUserMaster();
+  const [userMetaLoaded, setUserMetaLoaded] = useState(false);
+  const [userQuickAddOpen, setUserQuickAddOpen] = useState(false);
+
+  const handleOpenUserQuickAdd = useCallback(() => {
+    if (!userMetaLoaded) {
+      userMaster.fetchHeaderMeta();
+      setUserMetaLoaded(true);
+    }
+    setUserQuickAddOpen(true);
+  }, [userMetaLoaded, userMaster]);
+
+  const handleUserQuickAddSaved = useCallback(() => {
+    setUserQuickAddOpen(false);
+    fetchDeptHeadOptions();
+  }, [fetchDeptHeadOptions]);
 
   usePageHeader({
     title:    "Department Master",
@@ -96,29 +127,17 @@ export default function DepartmentMasterPage() {
   }, [fetchList]);
 
   const columns = useMemo(
-    () =>
-      buildListColumnsFromApi({
-        data,
-        fieldDefs,
+    () => [
+      ...buildListColumnsFromApi({ data, fieldDefs }),
+      createListActionsColumn({
         onEdit: (row) => {
           const id = resolveListRowId(row);
           if (id != null) handleEdit(id);
         },
-        renderEditCell: (row, onEdit) => (
-          <button
-            type="button"
-            className="dm-list__edit-btn"
-            title={`Edit ${row.deptname ?? row.DeptName ?? row.deptcode ?? ""}`}
-            aria-label={`Edit ${row.deptname ?? row.DeptName ?? row.deptcode ?? ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-        ),
+        getEditLabel: (row) => row.deptname ?? row.DeptName ?? row.deptcode ?? "",
+        getDeleteLabel: (row) => row.deptname ?? row.DeptName ?? row.deptcode ?? "",
       }),
+    ],
     [data, fieldDefs, handleEdit]
   );
 
@@ -134,6 +153,11 @@ export default function DepartmentMasterPage() {
             <button type="button" className="dm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <PrintReportButton
+              reportTitle="Department Master Report"
+              reportFileName="TODO_DepartmentMaster.rpt"
+              buildParams={buildDepartmentMasterReportParams}
+            />
             <label htmlFor="dm-list-page-size" className="dm-list-panel__pagesize-label">
               Rows per page
             </label>
@@ -164,6 +188,8 @@ export default function DepartmentMasterPage() {
           emptyMessage="No departments found."
           searchable
           hideHeader
+          deleteProcName={DM_CONFIG.DELETE_PROC_NAME}
+          onDeleteSuccess={fetchList}
           fill
         />
       </section>
@@ -180,8 +206,25 @@ export default function DepartmentMasterPage() {
         defsError={headerError}
         dropdownOptions={dropdownOptions}
         onRefreshDropdowns={refreshDropdownOptions}
+        onRefreshDeptHead={fetchDeptHeadOptions}
+        onQuickAddDeptHead={handleOpenUserQuickAdd}
         fetchEditRecord={fetchEditRecord}
         seedOptionsFromMaster={seedOptionsFromMaster}
+      />
+
+      <UserMasterForm
+        isOpen={userQuickAddOpen}
+        mode="add"
+        recordId={null}
+        onClose={() => setUserQuickAddOpen(false)}
+        onSaved={handleUserQuickAddSaved}
+        fieldDefs={userMaster.headerColumns}
+        allColumns={userMaster.allColumns}
+        defsLoading={userMaster.headerFetching}
+        defsError={userMaster.headerError}
+        dropdownOptions={userMaster.dropdownOptions}
+        onRefreshDropdowns={userMaster.refreshDropdownOptions}
+        onRefreshField={userMaster.refreshDropdownField}
       />
     </div>
   );

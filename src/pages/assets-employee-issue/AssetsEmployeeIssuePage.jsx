@@ -14,6 +14,14 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AEI_CONFIG, ENTRY_FORM_LABEL, buildAeiListJsonPayload } from "./constants";
 import "./AssetsEmployeeIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import PrintReportButton from "../../components/ui/PrintReportButton";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+
+function buildAeiReportParams() {
+  return [
+    buildCompanyReportParam(),
+  ];
+}
 
 function buildListParams() {
   return {
@@ -59,7 +67,7 @@ export default function AssetsEmployeeIssuePage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AEI] list fetch failed:", err);
-      setError("Failed to load Assets Employee Issue records.");
+      setError(err?.message || "Failed to load Assets Employee Issue records.");
     } finally {
       setLoading(false);
     }
@@ -84,6 +92,11 @@ export default function AssetsEmployeeIssuePage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <PrintReportButton
+              reportTitle="Assets Employee Issue Report"
+              reportFileName="TODO_AssetsEmployeeIssue.rpt"
+              buildParams={buildAeiReportParams}
+            />
             <label htmlFor="aei-list-page-size" className="aei-list-panel__pagesize-label">
               Rows per page
             </label>

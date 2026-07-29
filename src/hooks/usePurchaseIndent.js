@@ -8,7 +8,10 @@
 //
 // Indent-specific vs PO:
 //   fetchIndentTypes(divisionId)  — cascade: Division → Indent Type
-//   fetchLocations()              — Fn_Gen_FetchLocationMaster (add + edit unlock)
+//   fetchLocations(divisionId)    — cascade: Division → Location (fn_tbl_fetch_divwslocation
+//                                   is division-wise; prmdivisionid must be the selected
+//                                   division, not a static/omitted value — see handleFilterChange
+//                                   in PurchaseIndentForm.jsx and fetchUnlockedHeaderDropdowns below)
 //   No supplier, currency, amend, or 3rd detail table (simpler than PO)
 
 import { useState, useCallback, useRef } from "react";
@@ -114,6 +117,8 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   const [indentTypeOptions, setIndentTypeOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
+  const [itemMainGroupOptions, setItemMainGroupOptions] = useState([]);
+  const [itemSubMainGroupOptions, setItemSubMainGroupOptions] = useState([]);
 
   const [isLoadingIndentTypes, setIsLoadingIndentTypes] = useState(false);
 
@@ -130,14 +135,19 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
 
-  // ── fetchLocations ──────────────────────────────────────────────────
-  const fetchLocations = useCallback(async () => {
+  // ── fetchLocations — division-wise (SP_LOCATION = fn_tbl_fetch_divwslocation) ──
+  const fetchLocations = useCallback(async (divisionId) => {
     try {
       const session = getUserSession();
       const res = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: 2,
         ObjName: IND_CONFIG.SP_LOCATION,
-        JSon: JSON.stringify([{ prmcompanyid: session.companyId, prmloginid: session.loginId, prmlocationtype: "" }]),
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmlocationtypeid: 0,
+          prmloginid: session.loginId,
+        }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -153,6 +163,82 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       return [];
     }
   }, [get]);
+
+  // ── Select Item popup filters (Direct mode only) ─────────────────────
+  // prmitemtype live-verified as a no-op across 0/1/2/7 (identical rows
+  // returned each time) for this company/division — passing 0 (this app's
+  // usual "unspecified" sentinel) rather than a guessed real item-type id.
+  const fetchItemMainGroupOptions = useCallback(async ({ divisionId, configId }) => {
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: IND_CONFIG.SP_ITEM_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: IND_CONFIG.FORM_TAG,
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.maingroupid),
+        label: r.maingroup ?? String(r.maingroupid),
+      }));
+      setItemMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[Indent] Item Main Group fetch failed:", err);
+      setItemMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  // Sub Main Group response shape is unverified against real data (every
+  // main group tried returned [] live — see constants.js note); field-name
+  // guesses below are best-effort and should be checked once real rows exist.
+  const fetchItemSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
+    if (!mainGroupId) {
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: IND_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+        JSon: JSON.stringify([{
+          prmcompanyid: session.companyId,
+          prmdivisionid: Number(divisionId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmitemtype: 0,
+          prmconfigid: Number(configId) || 0,
+          prmfrmtype: IND_CONFIG.FORM_TAG,
+          prmmaingroupid: Number(mainGroupId),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = (res || []).map((r) => ({
+        value: String(r.submaingroupid ?? r.subgroupid ?? r.id),
+        label: r.submaingroup ?? r.subgroup ?? String(r.submaingroupid ?? r.subgroupid ?? r.id),
+      }));
+      setItemSubMainGroupOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[Indent] Item Sub Main Group fetch failed:", err);
+      setItemSubMainGroupOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearItemSubMainGroupOptions = useCallback(() => setItemSubMainGroupOptions([]), []);
 
   // ── fetchDepartments ────────────────────────────────────────────────
   const fetchDepartments = useCallback(async () => {
@@ -324,8 +410,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
             ObjName: IND_CONFIG.SP_LOCATION,
             JSon: JSON.stringify([{
               prmcompanyid: getUserSession().companyId,
+              prmdivisionid: 0,
+              prmlocationtypeid: 0,
               prmloginid: getUserSession().loginId,
-              prmlocationtype: "",
             }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
@@ -573,7 +660,7 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
       }
       if (needsCol("configid") && divisionId) tasks.push(fetchIndentTypes(divisionId));
       if (needsCol("deptid")) tasks.push(fetchDepartments());
-      if (needsCol("locationid")) tasks.push(fetchLocations());
+      if (needsCol("locationid")) tasks.push(fetchLocations(divisionId));
       await Promise.all(tasks);
     },
     [headerColumns, get, fetchIndentTypes, fetchDepartments, fetchLocations]
@@ -629,6 +716,8 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
     indentTypeOptions,
     departmentOptions,
     locationOptions,
+    itemMainGroupOptions,
+    itemSubMainGroupOptions,
     // loaders
     isLoadingIndentTypes,
     // cascade
@@ -636,6 +725,9 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
     clearIndentTypes,
     fetchDepartments,
     fetchLocations,
+    fetchItemMainGroupOptions,
+    fetchItemSubMainGroupOptions,
+    clearItemSubMainGroupOptions,
     // detail grid
     columns,
     allColumns,

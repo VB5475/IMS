@@ -14,6 +14,14 @@ export function selectInputText(el) {
 export function focusAndSelect(el) {
   if (!el) return false;
   el.focus();
+  // Native focus() scroll-into-view is unreliable across browsers once a
+  // grid has sticky/fixed-left columns (the sticky columns can make part of
+  // the row register as "already visible" even when the actual target cell
+  // is off-screen behind them) — confirmed live: Shift+Tab moved focus
+  // correctly but the grid's horizontal scroll didn't follow it. Explicit
+  // scrollIntoView with "nearest" fixes both Tab directions without
+  // over-scrolling cells that are already fully in view.
+  el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   selectInputText(el);
   return true;
 }

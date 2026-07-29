@@ -14,8 +14,36 @@ export function normalizeListRow(row) {
   return row;
 }
 
+/**
+ * True when a row is a bare {ErrCode, ErrMsg} envelope (a list SP that hit a
+ * SQL error, e.g. "Must declare the scalar variable ...", returns this shape
+ * as its one and only "row" instead of throwing an HTTP error) rather than
+ * real business data — a genuine data row never consists of only these two
+ * bookkeeping fields.
+ */
+function isErrorOnlyRow(row) {
+  if (!row || typeof row !== "object") return false;
+  const keys = Object.keys(row).map((k) => k.toLowerCase());
+  if (keys.length === 0 || !keys.includes("errcode")) return false;
+  return keys.every((k) => k === "errcode" || k === "errmsg");
+}
+
+/**
+ * @throws {Error} when the list SP returned an {ErrCode, ErrMsg} error
+ * envelope instead of rows — callers' existing try/catch around the fetch
+ * then reports the real backend message instead of silently rendering the
+ * error object as if it were a data row (columns "ErrCode"/"ErrMsg", complete
+ * with edit/delete actions).
+ */
 export function normalizeListRows(rows) {
-  return (rows || []).map(normalizeListRow);
+  const arr = rows || [];
+  if (arr.length === 1 && isErrorOnlyRow(arr[0])) {
+    const row = arr[0];
+    const errCode = row.ErrCode ?? row.errcode;
+    const message = String(row.ErrMsg ?? row.errmsg ?? "").trim();
+    throw new Error(message || `Request failed (ErrCode ${errCode}).`);
+  }
+  return arr.map(normalizeListRow);
 }
 
 /** Resolve primary key for list → edit navigation. */
@@ -43,6 +71,7 @@ export function resolveListRecordId(row) {
   );
 }
 
+/** Column keys for the list grid — idnumber is a row-id reference only, never a display column. */
 function extractListColumnKeys(rows) {
   if (!rows?.length) return [];
   const keys = Object.keys(rows[0]).filter((key) => !isIdNumberColumnKey(key));
@@ -175,12 +204,77 @@ export function buildListColumnsFromRows(rows, { includeActions = false } = {}) 
   return columns;
 }
 
+/** Standalone Delete-only column for list pages with no per-row edit action. */
+export function createDeleteActionColumn({
+  getDeleteLabel,
+  actionClassName = "list__edit-btn list__edit-btn--delete",
+} = {}) {
+  return {
+    key: "_action_delete",
+    label: "Delete",
+    isAction: true,
+    actionType: "delete",
+    width: "44px",
+    minWidth: 44,
+    align: "center",
+    filterable: false,
+    actionClassName,
+    getActionMeta: (row) => {
+      const id = resolveListRecordId(row);
+      const label = getDeleteLabel?.(row);
+      const title = label ? `Delete ${label}` : `Delete record ${id}`;
+      return { id, title, ariaLabel: title };
+    },
+  };
+}
+
+/** Standalone Edit-only column for list pages where delete is intentionally disabled (e.g. Company, Division Master). */
+export function createEditActionColumn({
+  navigate,
+  basePath,
+  onEdit,
+  getEditLabel,
+  actionClassName = "list__edit-btn",
+} = {}) {
+  return {
+    key: "_action_edit",
+    label: "Edit",
+    isAction: true,
+    actionType: "edit",
+    width: "44px",
+    minWidth: 44,
+    align: "center",
+    filterable: false,
+    actionClassName,
+    getActionMeta: (row) => {
+      const id = resolveListRecordId(row);
+      const label = getEditLabel?.(row);
+      const title = label ? `Edit ${label}` : `Edit record ${id}`;
+      if (onEdit) {
+        return { id, title, ariaLabel: title, onClick: () => onEdit(row) };
+      }
+      return {
+        id,
+        title,
+        ariaLabel: title,
+        navigateTo: `${basePath}/${id}/edit`,
+        navigateState: { record: row },
+      };
+    },
+  };
+}
+
 /**
  * Single combined Action column (Edit + Delete under one "Action" header) for module list pages.
+ * Edit either navigates to a route (`navigate`+`basePath`) or, for modal-based edit forms,
+ * invokes `onEdit(row)` directly (pass `onEdit` and omit `navigate`/`basePath`).
  */
 export function createListActionsColumn({
   navigate,
   basePath,
+  onEdit,
+  getEditLabel,
+  getDeleteLabel,
   editClassName = "list__edit-btn",
   deleteClassName = "list__edit-btn list__edit-btn--delete",
 }) {
@@ -197,21 +291,24 @@ export function createListActionsColumn({
     deleteClassName,
     getEditMeta: (row) => {
       const id = resolveListRecordId(row);
+      const label = getEditLabel?.(row);
+      const title = label ? `Edit ${label}` : `Edit record ${id}`;
+      if (onEdit) {
+        return { id, title, ariaLabel: title, onClick: () => onEdit(row) };
+      }
       return {
         id,
-        title: `Edit record ${id}`,
-        ariaLabel: `Edit record ${id}`,
+        title,
+        ariaLabel: title,
         navigateTo: `${basePath}/${id}/edit`,
         navigateState: { record: row },
       };
     },
     getDeleteMeta: (row) => {
       const id = resolveListRecordId(row);
-      return {
-        id,
-        title: `Delete record ${id}`,
-        ariaLabel: `Delete record ${id}`,
-      };
+      const label = getDeleteLabel?.(row);
+      const title = label ? `Delete ${label}` : `Delete record ${id}`;
+      return { id, title, ariaLabel: title };
     },
   };
 }
