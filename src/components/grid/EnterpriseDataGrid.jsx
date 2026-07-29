@@ -59,6 +59,7 @@ function orderColumnsWithActionsFirst(columns, selectable = false) {
  * defaultPageSize{number}          Initial rows per page (default: 10)
  * pageSizeOptions{number[]}        Rows-per-page choices (default: [5,10,20,50,99])
  * emptyMessage   {string}          Empty-state text (default: 'No records found.')
+ * bottomPanelExtras {ReactNode}    Extra controls rendered in the pagination bar
  *
  * Column shape
  * ────────────
@@ -90,6 +91,7 @@ function EnterpriseDataGrid({
   pageSize: pageSizeProp,
   onPageSizeChange,
   emptyMessage = "No records found.",
+  bottomPanelExtras = null,
   hideHeader = false,
   fill = false,
   variant = "",
@@ -468,6 +470,12 @@ function EnterpriseDataGrid({
 
   const rowIsClickable = onRowClick && !displayColumns.some((c) => c.isLink);
   const cellAlign = (col, colIndex) => col.align ?? (colIndex === 0 ? "left" : "center");
+  // Refreshes (filter changes) keep the current rows on screen behind a
+  // translucent overlay — swapping the table for the loader collapses the
+  // card height and flashes.
+  const overlayLoad = loading && !error && data.length > 0;
+  const blockingLoad = loading && !overlayLoad;
+  const showPagination = !blockingLoad && !error && filteredData.length > 0;
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
@@ -525,7 +533,7 @@ function EnterpriseDataGrid({
 
       {/* ── body ── */}
       <div className="ng-card-content">
-        {loading ? (
+        {blockingLoad ? (
           <Loader text={loaderText} />
         ) : error ? (
           <div className="ng-error">{error}</div>
@@ -673,34 +681,48 @@ function EnterpriseDataGrid({
               </table>
             </div>
 
-            {/* ── pagination bar ── */}
-            {filteredData.length > 0 && (
-              <div className="ng-bottom-panel">
-                <p className="ng-pagination-info">
-                  Showing <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> –{" "}
-                  <strong>{Math.min(currentPage * itemsPerPage, filteredData.length)}</strong> of{" "}
-                  <strong>{filteredData.length}</strong> entries
-                  {filteredData.length !== data.length && ` (filtered from ${data.length})`}
-                </p>
-                <div className="ng-pagination-controls">
-                  <button
-                    className="ng-page-btn"
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft size={16} /> Previous
-                  </button>
-                  <button
-                    className="ng-page-btn"
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    disabled={currentPage >= totalPages}
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
+          </>
+        )}
+
+        {overlayLoad && (
+          <div className="ng-refresh-overlay" aria-live="polite" aria-busy="true">
+            <Loader text={loaderText} />
+          </div>
+        )}
+
+        {/* ── pagination bar ── */}
+        {(showPagination || bottomPanelExtras) && (
+          <div className="ng-bottom-panel">
+            {showPagination && (
+              <p className="ng-pagination-info">
+                Showing <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> –{" "}
+                <strong>{Math.min(currentPage * itemsPerPage, filteredData.length)}</strong> of{" "}
+                <strong>{filteredData.length}</strong> entries
+                {filteredData.length !== data.length && ` (filtered from ${data.length})`}
+              </p>
+            )}
+            {bottomPanelExtras && (
+              <div className="ng-bottom-panel__extras">{bottomPanelExtras}</div>
+            )}
+            {showPagination && (
+              <div className="ng-pagination-controls">
+                <button
+                  className="ng-page-btn"
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <button
+                  className="ng-page-btn"
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next <ChevronRight size={16} />
+                </button>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

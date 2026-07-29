@@ -12,6 +12,7 @@ import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
 import Modal from "../ui/Modal";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
+import { DASHBOARD_ASSIGN_OPTIONS } from "../../pages/dashboard/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
 import { useStickerPrinter } from "../../hooks/useStickerPrinter";
@@ -91,7 +92,7 @@ function buildDivisionParams() {
   };
 }
 
-function buildReportBoardParams(divisionId, sessionId) {
+function buildReportBoardParams(divisionId, sessionId, filters = {}) {
   const session = getUserSession();
   return {
     ObjType: DASHBOARD_CONFIG.REPORT_OBJ_TYPE,
@@ -104,11 +105,84 @@ function buildReportBoardParams(divisionId, sessionId) {
         prmsessionid: resolveSessionId(sessionId),
         prmmasterid: DEFAULT_MASTER_ID,
         prmdivisionid: Number(divisionId) || 0,
+        prmmaingroupid: Number(filters.mainGroupId) || 0,
+        prmsubmaingroupid: Number(filters.subMainGroupId) || 0,
+        prmsearchtext: "",
+        prmOptionType: filters.assignStatus || DASHBOARD_CONFIG.DEFAULT_ASSIGN_STATUS,
       },
     ]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   };
+}
+
+function buildMainGroupParams(divisionId) {
+  const session = getUserSession();
+  return {
+    ObjType: 2,
+    ObjName: DASHBOARD_CONFIG.SP_MAIN_GROUP,
+    JSon: JSON.stringify([
+      {
+        prmcompanyid: Number(session.companyId) || 1,
+        prmdivisionid: Number(divisionId) || 0,
+        prmyearid: Number(session.yearId) || 1,
+        prmloginid: Number(session.loginId) || 1,
+      },
+    ]),
+    p_ErrCode: -1,
+    p_ErrMsg: "",
+  };
+}
+
+function buildSubMainGroupParams(divisionId, mainGroupId) {
+  const session = getUserSession();
+  return {
+    ObjType: 2,
+    ObjName: DASHBOARD_CONFIG.SP_SUB_MAIN_GROUP,
+    JSon: JSON.stringify([
+      {
+        prmcompanyid: Number(session.companyId) || 1,
+        prmdivisionid: Number(divisionId) || 0,
+        prmyearid: Number(session.yearId) || 1,
+        prmloginid: Number(session.loginId) || 1,
+        prmmaingroupid: Number(mainGroupId) || 0,
+      },
+    ]),
+    p_ErrCode: -1,
+    p_ErrMsg: "",
+  };
+}
+
+function mapMainGroupOptions(rows) {
+  const options = (rows || []).map((row) => ({
+    value: String(resolveValue(row, ["maingroupid", "MainGroupID", "idnumber"], "0")),
+    label: String(resolveValue(row, ["maingroup", "maingroupname", "MainGroupName", "groupname"], "")),
+  }));
+
+  const seen = new Set();
+  return options.filter((option) => {
+    if (!option.label || seen.has(option.value)) return false;
+    seen.add(option.value);
+    return true;
+  });
+}
+
+function mapSubMainGroupOptions(rows) {
+  const options = (rows || []).map((row) => ({
+    value: String(
+      resolveValue(row, ["submaingroupid", "subgroupid", "SubMainGroupID", "idnumber"], "0")
+    ),
+    label: String(
+      resolveValue(row, ["submaingroup", "subgroup", "submaingroupname", "SubMainGroupName"], "")
+    ),
+  }));
+
+  const seen = new Set();
+  return options.filter((option) => {
+    if (!option.label || seen.has(option.value)) return false;
+    seen.add(option.value);
+    return true;
+  });
 }
 
 function buildAstFormListParams(sessionId) {
@@ -178,6 +252,11 @@ export default function ReportBoardPanel({
   const [columnsLoading, setColumnsLoading] = useState(true);
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [selectedDivision, setSelectedDivision] = useState(storedCartRef.current.divisionId);
+  const [mainGroupOptions, setMainGroupOptions] = useState([]);
+  const [selectedMainGroup, setSelectedMainGroup] = useState("");
+  const [subMainGroupOptions, setSubMainGroupOptions] = useState([]);
+  const [selectedSubMainGroup, setSelectedSubMainGroup] = useState("");
+  const [assignStatus, setAssignStatus] = useState(DASHBOARD_CONFIG.DEFAULT_ASSIGN_STATUS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState(() =>
@@ -287,6 +366,55 @@ export default function ReportBoardPanel({
     }
   }, [get]);
 
+  const fetchMainGroups = useCallback(async (divisionId) => {
+    if (!divisionId) {
+      setMainGroupOptions([]);
+      setSelectedMainGroup("");
+      setSubMainGroupOptions([]);
+      setSelectedSubMainGroup("");
+      return [];
+    }
+    try {
+      const json = await get(ENDPOINTS.FN_FETCH_DATA, buildMainGroupParams(divisionId));
+      const options = mapMainGroupOptions(json);
+      setMainGroupOptions(options);
+      setSelectedMainGroup((current) =>
+        options.some((option) => option.value === current) ? current : ""
+      );
+      return options;
+    } catch (err) {
+      console.error("[ReportBoardPanel] main group fetch failed:", err);
+      setMainGroupOptions([]);
+      setSelectedMainGroup("");
+      return [];
+    }
+  }, [get]);
+
+  const fetchSubMainGroups = useCallback(async (divisionId, mainGroupId) => {
+    if (!divisionId || !mainGroupId) {
+      setSubMainGroupOptions([]);
+      setSelectedSubMainGroup("");
+      return [];
+    }
+    try {
+      const json = await get(
+        ENDPOINTS.FN_FETCH_DATA,
+        buildSubMainGroupParams(divisionId, mainGroupId)
+      );
+      const options = mapSubMainGroupOptions(json);
+      setSubMainGroupOptions(options);
+      setSelectedSubMainGroup((current) =>
+        options.some((option) => option.value === current) ? current : ""
+      );
+      return options;
+    } catch (err) {
+      console.error("[ReportBoardPanel] sub main group fetch failed:", err);
+      setSubMainGroupOptions([]);
+      setSelectedSubMainGroup("");
+      return [];
+    }
+  }, [get]);
+
   useEffect(() => {
     let active = true;
     (async () => {
@@ -305,8 +433,16 @@ export default function ReportBoardPanel({
     };
   }, [fetchDivisions, fetchReportColumns]);
 
+  useEffect(() => {
+    fetchMainGroups(selectedDivision);
+  }, [fetchMainGroups, selectedDivision]);
+
+  useEffect(() => {
+    fetchSubMainGroups(selectedDivision, selectedMainGroup);
+  }, [fetchSubMainGroups, selectedDivision, selectedMainGroup]);
+
   const fetchReportBoards = useCallback(
-    async (divisionId) => {
+    async (divisionId, filters) => {
       if (!divisionId) {
         setData([]);
         setLoading(false);
@@ -315,7 +451,10 @@ export default function ReportBoardPanel({
       try {
         setLoading(true);
         setError(null);
-        const json = await get(ENDPOINTS.FN_FETCH_DATA, buildReportBoardParams(divisionId, sessionId));
+        const json = await get(
+          ENDPOINTS.FN_FETCH_DATA,
+          buildReportBoardParams(divisionId, sessionId, filters)
+        );
         setData(Array.isArray(json) ? json : []);
       } catch (err) {
         console.error("[ReportBoardPanel] fetch failed:", err);
@@ -329,7 +468,11 @@ export default function ReportBoardPanel({
   );
 
   useEffect(() => {
-    fetchReportBoards(selectedDivision);
+    fetchReportBoards(selectedDivision, {
+      mainGroupId: selectedMainGroup,
+      subMainGroupId: selectedSubMainGroup,
+      assignStatus,
+    });
     const previousDivision = previousDivisionRef.current;
     if (previousDivision && previousDivision !== selectedDivision) {
       setSelectedRowKeys([]);
@@ -337,7 +480,29 @@ export default function ReportBoardPanel({
       setSelectedForm("");
     }
     previousDivisionRef.current = selectedDivision;
-  }, [fetchReportBoards, selectedDivision]);
+  }, [
+    assignStatus,
+    fetchReportBoards,
+    selectedDivision,
+    selectedMainGroup,
+    selectedSubMainGroup,
+  ]);
+
+  // Group resets happen in the change handlers, not in an effect, so a
+  // division switch triggers a single batched refetch instead of two.
+  const handleDivisionChange = useCallback((value) => {
+    setSelectedDivision(value);
+    setSelectedMainGroup("");
+    setSelectedSubMainGroup("");
+    setMainGroupOptions([]);
+    setSubMainGroupOptions([]);
+  }, []);
+
+  const handleMainGroupChange = useCallback((value) => {
+    setSelectedMainGroup(value);
+    setSelectedSubMainGroup("");
+    setSubMainGroupOptions([]);
+  }, []);
 
   const selectedRows = useMemo(() => {
     const keySet = new Set(selectedRowKeys.map(String));
@@ -530,6 +695,140 @@ export default function ReportBoardPanel({
     </div>
   );
 
+  const gridBottomControls = useMemo(
+    () => (
+      <>
+        <div
+          className={`rbp-panel__printer-status rbp-panel__printer-status--${printerStatusClass}`}
+          title={printerError || printerStatusLabel}
+        >
+          <span className="rbp-panel__printer-dot" aria-hidden="true" />
+          <span className="rbp-panel__printer-text">{printerStatusLabel}</span>
+          {!isPrinterReady && printerStatus !== "connecting" && (
+            <button
+              type="button"
+              className="rbp-panel__printer-retry"
+              onClick={reconnectPrinter}
+              title="Reconnect printer (bridge or QZ Tray)"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+        {printerStatus === "connected" && printers.length > 0 && (
+          <select
+            className="ng-select rbp-panel__pagesize-select rbp-panel__printer-select"
+            value={selectedPrinter}
+            onChange={(e) => selectPrinter(e.target.value)}
+            aria-label="Sticker printer"
+            title="Sticker printer"
+          >
+            {printers.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          className="ng-select rbp-panel__pagesize-select rbp-panel__sticker-size-select"
+          value={stickerSize}
+          onChange={(e) => setStickerSize(e.target.value)}
+          aria-label="Sticker size"
+          title="Must match your physical label roll (width × height mm)"
+        >
+          {Object.entries(STICKER_SIZES)
+            .sort(([, a], [, b]) => b.width * b.height - a.width * a.height)
+            .map(([key, size]) => (
+              <option key={key} value={key}>
+                {size.width}×{size.height} mm
+              </option>
+            ))}
+        </select>
+        <button
+          type="button"
+          className="rbp-panel__icon-btn rbp-panel__print-btn"
+          onClick={handlePrintStickers}
+          disabled={printingStickers || !isPrinterReady || selectedRowKeys.length === 0}
+          title={
+            printingStickers
+              ? "Printing stickers…"
+              : isPrinterReady
+                ? isBridgeConnected
+                  ? `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — TSC via Windows RAW`
+                  : `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — via QZ Tray`
+                : printMode === "none"
+                  ? "Print stickers — run: npm run print-bridge in project folder"
+                  : "Print stickers — select your TSC TA200 printer"
+          }
+          aria-label={
+            printingStickers
+              ? "Printing stickers"
+              : `Print stickers${selectedRowKeys.length ? `, ${selectedRowKeys.length} selected` : ""}`
+          }
+        >
+          <Printer size={14} strokeWidth={2} />
+        </button>
+        <button
+          type="button"
+          className="rbp-panel__icon-btn rbp-panel__qr-btn rbp-panel__qr-btn--secondary"
+          onClick={handleDownloadQrCodes}
+          disabled={downloadingQr || selectedRowKeys.length === 0}
+          title={
+            downloadingQr
+              ? "Generating QR codes PDF…"
+              : `Download QR codes PDF${selectedRowKeys.length ? ` (${selectedRowKeys.length} selected)` : ""}`
+          }
+          aria-label={
+            downloadingQr
+              ? "Generating QR codes PDF"
+              : `Download QR codes PDF${selectedRowKeys.length ? `, ${selectedRowKeys.length} selected` : ""}`
+          }
+        >
+          <QrCode size={14} strokeWidth={2} />
+        </button>
+        <label htmlFor="rbp-page-size" className="rbp-panel__pagesize-label">
+          Rows per page
+        </label>
+        <select
+          id="rbp-page-size"
+          className="ng-select rbp-panel__pagesize-select"
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
+          aria-label="Rows per page"
+        >
+          {pageSizeOptions.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </>
+    ),
+    [
+      downloadingQr,
+      handleDownloadQrCodes,
+      handlePrintStickers,
+      isBridgeConnected,
+      isPrinterReady,
+      pageSize,
+      pageSizeOptions,
+      printMode,
+      printerError,
+      printerStatus,
+      printerStatusClass,
+      printerStatusLabel,
+      printers,
+      printingStickers,
+      reconnectPrinter,
+      selectPrinter,
+      selectedPrinter,
+      selectedRowKeys.length,
+      setStickerSize,
+      stickerSize,
+    ]
+  );
+
   return (
     <>
       <section
@@ -562,7 +861,7 @@ export default function ReportBoardPanel({
               id="rbp-division"
               className="ng-select rbp-panel__pagesize-select rbp-panel__division-select"
               value={selectedDivision}
-              onChange={(e) => setSelectedDivision(e.target.value)}
+              onChange={(e) => handleDivisionChange(e.target.value)}
               aria-label="Division"
               disabled={divisionOptions.length === 0}
             >
@@ -576,111 +875,56 @@ export default function ReportBoardPanel({
                 ))
               )}
             </select>
-            <div
-              className={`rbp-panel__printer-status rbp-panel__printer-status--${printerStatusClass}`}
-              title={printerError || printerStatusLabel}
-            >
-              <span className="rbp-panel__printer-dot" aria-hidden="true" />
-              <span className="rbp-panel__printer-text">{printerStatusLabel}</span>
-              {!isPrinterReady && printerStatus !== "connecting" && (
-                <button
-                  type="button"
-                  className="rbp-panel__printer-retry"
-                  onClick={reconnectPrinter}
-                  title="Reconnect printer (bridge or QZ Tray)"
-                >
-                  Retry
-                </button>
-              )}
-            </div>
-            {printerStatus === "connected" && printers.length > 0 && (
-              <select
-                className="ng-select rbp-panel__pagesize-select rbp-panel__printer-select"
-                value={selectedPrinter}
-                onChange={(e) => selectPrinter(e.target.value)}
-                aria-label="Sticker printer"
-                title="Sticker printer"
-              >
-                {printers.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            )}
-            <select
-              className="ng-select rbp-panel__pagesize-select rbp-panel__sticker-size-select"
-              value={stickerSize}
-              onChange={(e) => setStickerSize(e.target.value)}
-              aria-label="Sticker size"
-              title="Must match your physical label roll (width × height mm)"
-            >
-              {Object.entries(STICKER_SIZES)
-                .sort(([, a], [, b]) => b.width * b.height - a.width * a.height)
-                .map(([key, size]) => (
-                  <option key={key} value={key}>
-                    {size.width}×{size.height} mm
-                  </option>
-                ))}
-            </select>
-            <button
-              type="button"
-              className="rbp-panel__icon-btn rbp-panel__print-btn"
-              onClick={handlePrintStickers}
-              disabled={printingStickers || !isPrinterReady || selectedRowKeys.length === 0}
-              title={
-                printingStickers
-                  ? "Printing stickers…"
-                  : isPrinterReady
-                    ? isBridgeConnected
-                      ? `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — TSC via Windows RAW`
-                      : `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — via QZ Tray`
-                    : printMode === "none"
-                      ? "Print stickers — run: npm run print-bridge in project folder"
-                      : "Print stickers — select your TSC TA200 printer"
-              }
-              aria-label={
-                printingStickers
-                  ? "Printing stickers"
-                  : `Print stickers${selectedRowKeys.length ? `, ${selectedRowKeys.length} selected` : ""}`
-              }
-            >
-              <Printer size={14} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              className="rbp-panel__icon-btn rbp-panel__qr-btn rbp-panel__qr-btn--secondary"
-              onClick={handleDownloadQrCodes}
-              disabled={downloadingQr || selectedRowKeys.length === 0}
-              title={
-                downloadingQr
-                  ? "Generating QR codes PDF…"
-                  : `Download QR codes PDF${selectedRowKeys.length ? ` (${selectedRowKeys.length} selected)` : ""}`
-              }
-              aria-label={
-                downloadingQr
-                  ? "Generating QR codes PDF"
-                  : `Download QR codes PDF${selectedRowKeys.length ? `, ${selectedRowKeys.length} selected` : ""}`
-              }
-            >
-              <QrCode size={14} strokeWidth={2} />
-            </button>
-            <label htmlFor="rbp-page-size" className="rbp-panel__pagesize-label">
-              Rows per page
+            <label htmlFor="rbp-main-group" className="rbp-panel__pagesize-label">
+              Main Group
             </label>
             <select
-              id="rbp-page-size"
-              className="ng-select rbp-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
+              id="rbp-main-group"
+              className="ng-select rbp-panel__pagesize-select rbp-panel__group-select"
+              value={selectedMainGroup}
+              onChange={(e) => handleMainGroupChange(e.target.value)}
+              aria-label="Main Group"
+              disabled={!selectedDivision || mainGroupOptions.length === 0}
             >
-              {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
+              <option value="">All</option>
+              {mainGroupOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
+            <label htmlFor="rbp-sub-main-group" className="rbp-panel__pagesize-label">
+              Sub Main Group
+            </label>
+            <select
+              id="rbp-sub-main-group"
+              className="ng-select rbp-panel__pagesize-select rbp-panel__group-select"
+              value={selectedSubMainGroup}
+              onChange={(e) => setSelectedSubMainGroup(e.target.value)}
+              aria-label="Sub Main Group"
+              disabled={!selectedMainGroup || subMainGroupOptions.length === 0}
+            >
+              <option value="">All</option>
+              {subMainGroupOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="rbp-panel__assign-radios" role="radiogroup" aria-label="Assignment status">
+              {DASHBOARD_ASSIGN_OPTIONS.map((option) => (
+                <label key={option.value} className="rbp-panel__assign-option">
+                  <input
+                    type="radio"
+                    name="rbp-assign-status"
+                    value={option.value}
+                    checked={assignStatus === option.value}
+                    onChange={() => setAssignStatus(option.value)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </header>
 
@@ -702,6 +946,7 @@ export default function ReportBoardPanel({
           selectedRowKeys={selectedRowKeys}
           onSelectionChange={handleSelectionChange}
           getRowKey={getReportRowKey}
+          bottomPanelExtras={gridBottomControls}
         />
       </section>
 
