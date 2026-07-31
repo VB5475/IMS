@@ -187,6 +187,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           prmdivisionid: Number(divisionId),
           prmlocationtypeid: 1,
           prmloginid: getUserSession().loginId,
+          prmfrmtype: PV_CONFIG.TRAN_BOOK,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });

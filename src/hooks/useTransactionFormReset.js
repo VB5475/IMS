@@ -53,7 +53,7 @@ export function useTransactionFormReset({
     setActiveTab("items");
     setIsGridLoading(false);
     setGridRows?.([]);
-    setItemSelectionCount(0);
+    setItemSelectionCount?.(0);
     setItemModalOpen?.(false);
     setItemModalItems?.([]);
     setItemModalColumns?.([]);

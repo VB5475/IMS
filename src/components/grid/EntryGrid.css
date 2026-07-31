@@ -171,6 +171,18 @@
   padding: 10px;
 }
 
+/* Inactive tabPanes / built-in body stay mounted but out of the layout, so
+   their grid state survives tab switches. display: contents keeps the visible
+   body wrapper layout-transparent. */
+.eg-grid-body {
+  display: contents;
+}
+
+.grid-tab-content--hidden,
+.eg-grid-body--hidden {
+  display: none;
+}
+
 .grid-bottom-panel,
 .grid-toolbar-left,
 .grid-toolbar-right {
