@@ -269,6 +269,16 @@ export function getRowDropdownDisplay(row, col) {
   return String(display);
 }
 
+/** A column's dropdown options normally come from a single per-COLUMN static
+ *  list (col.dropdownOptions). Some columns instead need a genuine per-ROW
+ *  cascade (e.g. Document Log's Sub Type, scoped to that row's own Document
+ *  Type value) — for those, col.rowOptionsKey names a row field holding that
+ *  row's own options array, which takes precedence when present. */
+export function resolveColumnDropdownOptions(col, row) {
+  const rowOpts = col?.rowOptionsKey && row ? row[col.rowOptionsKey] : null;
+  return rowOpts ?? col?.dropdownOptions;
+}
+
 /** Normalize dropdown option shapes from GET_FILTER_DETAIL or static lists. */
 export function normalizeDropdownOptions(dropdownOptions) {
   return (dropdownOptions || []).map((opt) => {
@@ -293,7 +303,7 @@ export function resolveDropdownLabel(col, row, rawValue) {
         : "";
   if (value === "" || value == null) return "";
 
-  const opts = normalizeDropdownOptions(col?.dropdownOptions);
+  const opts = normalizeDropdownOptions(resolveColumnDropdownOptions(col, row));
   const found = opts.find((o) => String(o.value) === String(value));
   if (found?.label) return found.label;
 

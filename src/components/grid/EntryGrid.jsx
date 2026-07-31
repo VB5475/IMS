@@ -54,6 +54,7 @@ import {
 import {
   mergeRowDropdownOptions,
   normalizeDropdownOptions,
+  resolveColumnDropdownOptions,
   resolveDropdownLabel,
   resolveRowCellValue,
   syncEditGridDropdownValues,
@@ -869,7 +870,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         );
 
       case 4: {
-        const baseOpts = normalizeDropdownOptions(col.dropdownOptions);
+        const baseOpts = normalizeDropdownOptions(resolveColumnDropdownOptions(col, row));
         const opts = mergeRowDropdownOptions(col, row, baseOpts);
         return (
           <Suspense fallback={gridCellLazyFallback}>

@@ -25,6 +25,7 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
@@ -197,11 +198,27 @@ export default function PurchaseIndentForm() {
   // Document Log button visibility — a 3rd, ADDITIVE gate on top of
   // dmConfigAllows above, from ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY
   // (per-trantype, not per-user like dmConfig). Defaults to "NO" (safe
-  // default-deny) until the fetch resolves or if it fails. Same recordId gate
-  // that used to block this button entirely was removed 2026-07-30 — Add
-  // mode is now allowed too, per explicit user direction.
+  // default-deny) until the fetch resolves or if it fails.
   const [docBtnVisible, setDocBtnVisible] = useState("NO");
-  const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES";
+  // isEditMode is declared here (hoisted up from its original spot further
+  // down, see "Edit-mode gate" below) purely so isDocumentLogEnabled can read
+  // it — the state itself is unchanged, still the single flag driven by
+  // clicking either "Add" (new record) or "Edit" (existing record), via
+  // enterEditModeWithFocus.
+  const [isEditMode, setIsEditMode] = useState(false);
+  // REVERSED 2026-07-31 (explicit user instruction, 2nd correction same day):
+  // gated on isEditRoute (existing-record-only) a moment ago — corrected to
+  // isEditMode instead: "before Add OR Edit mode active the button will be
+  // disabled." So the button is disabled while merely VIEWING a record (or
+  // before "Add" is clicked on a new one), and becomes active as soon as
+  // Add/Edit mode is entered — including on a brand-new, still-unsaved
+  // record (tranid=0), since documents can be staged against the temporary
+  // docGuid before the transaction itself is saved. NOTE: this REOPENS the
+  // "Add-mode linking gap" documented on linkDocsToTransaction below — an
+  // Add-mode session can now stage documents, but linking them still only
+  // fires on Edit-mode saves (no known tranid to link against after an Add
+  // save) — flagged there again, not silently resolved.
+  const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES" && isEditMode;
 
   const [docModalOpen, setDocModalOpen] = useState(false);
   const handleOpenDocuments = useCallback(() => {
@@ -256,6 +273,51 @@ export default function PurchaseIndentForm() {
     }
   }, [postSave]);
 
+  // Links any documents uploaded/saved against docGuid (before this
+  // transaction had a real TranID) to the now-real, just-saved tranid — per
+  // explicit user spec 2026-07-30: "on save GUID to be passed in save and at
+  // the end we need to store and pass that guid in relevant module to link."
+  // Live-confirmed body shape (real Indent values): {prmtrantypeid,
+  // prmguid, prmtranid, prmyearid, prmloginid, prmdivisionid} →
+  // {"ErrCode":"1","ErrMsg":"Document(s) saved with Transaction Successfully !"}.
+  // Best-effort: a failure here must never block the Indent's own save
+  // success (the transaction itself already saved fine by this point).
+  //
+  // KNOWN GAP — Add-mode only (REOPENED 2026-07-31, 2nd correction same day):
+  // isDocumentLogEnabled was briefly gated on isEditRoute, which made the
+  // Documents modal unreachable during Add mode and incidentally closed this
+  // gap — then corrected to gate on isEditMode instead ("before Add OR Edit
+  // mode active the button will be disabled"), which means a brand-new,
+  // still-unsaved record CAN now open Documents and stage files against the
+  // temporary docGuid. This function still only fires for EDIT saves, where
+  // recordId is already the real tranid — there is still no established way
+  // in this codebase to learn a newly-created Indent's tranid from an Add
+  // save's response (grepped every module, none exists), so documents staged
+  // during an Add-mode session are NOT currently linked once that Add save
+  // completes. Left unresolved rather than guessed — needs either a backend
+  // change (return the new ID) or a different flow.
+  const linkDocsToTransaction = useCallback(
+    async (realTranId) => {
+      if (!docGuid || !realTranId) return;
+      try {
+        const session = getUserSession();
+        const result = await postSave(DOC_LOG_CFG.UPDATE_ON_TRAN_SAVE_ENDPOINT, {
+          prmtrantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
+          prmguid: docGuid,
+          prmtranid: Number(realTranId) || 0,
+          prmyearid: session.yearId,
+          prmloginid: session.loginId,
+          prmdivisionid: Number(headerValuesRef.current?.divisionid) || 0,
+        });
+        const { success, message } = parseApiErrMsg(result);
+        if (!success) console.warn("[Indent] DM_Doc_UpdateOnTranSave failed:", message);
+      } catch (err) {
+        console.warn("[Indent] DM_Doc_UpdateOnTranSave failed:", err);
+      }
+    },
+    [postSave, docGuid]
+  );
+
   // Item picker modal
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [itemModalItems, setItemModalItems] = useState([]);
@@ -271,7 +333,8 @@ export default function PurchaseIndentForm() {
   });
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
-  const [isEditMode, setIsEditMode] = useState(false);
+  // isEditMode itself now lives up near dmConfig/docBtnVisible (see there) —
+  // declared early so isDocumentLogEnabled can read it.
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -739,6 +802,11 @@ export default function PurchaseIndentForm() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      // Link any documents uploaded/saved under docGuid to this now-saved
+      // transaction. Edit-mode only for now — recordId is the real tranid
+      // here; see linkDocsToTransaction's own comment for why Add-mode
+      // (where the new tranid isn't known client-side) isn't covered yet.
+      if (isEditRoute) linkDocsToTransaction(recordId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -747,7 +815,7 @@ export default function PurchaseIndentForm() {
     } finally {
       setIsSavingIndent(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, allColumns, columns, isEditRoute, recordId, linkDocsToTransaction, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -792,14 +860,17 @@ export default function PurchaseIndentForm() {
         Icon: FileText,
         variant: "secondary",
         onClick: handleOpenDocuments,
-        // recordId is no longer part of this gate — Add mode is allowed too
-        // (2026-07-30). Enabled only when dmConfig AND the per-trantype
-        // DM_HandleButtonVisibility flag both allow it.
+        // Enabled only when dmConfig AND the per-trantype
+        // DM_HandleButtonVisibility flag both allow it AND Add/Edit mode is
+        // actually active (2026-07-31, 2nd correction same day — gated on
+        // isEditMode, not isEditRoute, see isDocumentLogEnabled above).
         disabled: !isDocumentLogEnabled,
         showAlways: true,
-        title: isDocumentLogEnabled
-          ? FORM_SHORTCUT_TITLES.documents
-          : "Document rights are not enabled for your account.",
+        title: !isEditMode
+          ? "Click Add/Edit first to manage documents."
+          : isDocumentLogEnabled
+            ? FORM_SHORTCUT_TITLES.documents
+            : "Document rights are not enabled for your account.",
       },
       {
         key: "saveprint",
@@ -822,7 +893,7 @@ export default function PurchaseIndentForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleOpenDocuments, isDocumentLogEnabled, handleSaveAndPrint, isSavingIndent, handleSave]
+    [handleOpenDocuments, isDocumentLogEnabled, isEditMode, handleSaveAndPrint, isSavingIndent, handleSave]
   );
 
   const itemGridConfig = {

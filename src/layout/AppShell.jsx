@@ -253,6 +253,17 @@ export default function AppShell({ children }) {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
+  // Keep the accordion in sync with the ACTUAL route, not just the route at
+  // mount time. Without this, openSection only ever gets set once (its
+  // useState initializer above) or via a manual section-header click — so
+  // navigating away by any other means (logo → Dashboard, a nav link inside
+  // a different section, browser back/forward) left whatever section was
+  // already open still open instead of switching (or closing, for a route
+  // like Dashboard whose own "Home" section should take over).
+  useEffect(() => {
+    setOpenSection(findSectionForPath(location.pathname));
+  }, [location.pathname]);
+
   // Escape closes the mobile drawer, same convention as Modal/ConfirmDialog.
   useEffect(() => {
     if (!mobileNavOpen) return;
