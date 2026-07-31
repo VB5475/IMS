@@ -71,6 +71,22 @@ function toErrEntries(payload) {
 }
 
 /**
+ * True when a row is a bare {ErrCode, ErrMsg} envelope (an SP that hit a SQL
+ * error, or a "no data" sentinel like "There is no row at position 1", returns
+ * this shape as its one and only "row" instead of throwing an HTTP error)
+ * rather than real business data — a genuine data row never consists of only
+ * these two bookkeeping fields. Shared across list pages, fetch hooks, and
+ * grid rendering — don't re-copy this, several call sites used to each keep
+ * their own identical copy before this was consolidated.
+ */
+export function isErrorOnlyRow(row) {
+  if (!row || typeof row !== "object") return false;
+  const keys = Object.keys(row).map((k) => k.toLowerCase());
+  if (keys.length === 0 || !keys.includes("errcode")) return false;
+  return keys.every((k) => k === "errcode" || k === "errmsg");
+}
+
+/**
  * Parses IMS save/API responses:
  * { ErrMsg: [{ ErrCode: "1"|"-1", ErrMsg: "..." }] }
  * ErrCode 1 = success, -1 = error — always show the backend ErrMsg text.

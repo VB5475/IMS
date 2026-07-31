@@ -38,12 +38,6 @@
 //                  Amount summing this field's result comes out as a clean
 //                  whole number by default. Still just a default — `editable`
 //                  above still applies on top.
-//   rowFilter    — optional (row) => boolean; excludes rows the backend
-//                  itself excludes from its stored totals (e.g. PV rows
-//                  with puttouse=0 — confirmed live against a saved record
-//                  where such a row's tax figures were absent from the
-//                  master's mstcgst/mstsgst/etc). Omit to sum every row,
-//                  unchanged default behaviour for callers that don't need it.
 //
 // Ref API:
 //   getSummary()     → { [mstKey]: number, ... } — manual overrides included as numbers.
@@ -69,7 +63,7 @@ function fmt(val) {
 }
 
 const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
-  { fields = [], rows = [], masterValues = null, rowFilter = null },
+  { fields = [], rows = [], masterValues = null },
   ref
 ) {
   // Manual overrides for `editable` fields, keyed by mstKey. A key is only
@@ -79,7 +73,6 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
 
   const autoTotals = useMemo(() => {
     const totals = {};
-    const summableRows = rowFilter ? rows.filter(rowFilter) : rows;
     const roundingFields = [];
     const derivedFields = [];
 
@@ -104,7 +97,7 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
         totals[k] = isNaN(v) ? 0 : v;
         return;
       }
-      totals[k] = summableRows.reduce((acc, row) => {
+      totals[k] = rows.reduce((acc, row) => {
         const v = Number(row[detKey]);
         return acc + (isNaN(v) ? 0 : v);
       }, 0);
@@ -138,7 +131,7 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
     });
 
     return totals;
-  }, [fields, rows, masterValues, rowFilter, overrides]);
+  }, [fields, rows, masterValues, overrides]);
 
   // What's actually used for save/derived math: the manual override if the
   // user has typed one for that field, else the live auto-calculated total.

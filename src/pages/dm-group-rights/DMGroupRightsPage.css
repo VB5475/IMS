@@ -1,0 +1,298 @@
+/* DMS Group Rights — form-only page (modeled on Division Wise Rights) */
+
+.dmgr-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dmgr-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
+}
+
+.dmgr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  padding: 20px 22px 12px;
+  background: linear-gradient(180deg, #f8fafc 0%, var(--bg, #fff) 120px);
+}
+
+.dmgr-form-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  border: 1px solid #c5d5e8;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(30, 61, 122, 0.04),
+    0 4px 12px rgba(30, 61, 122, 0.06);
+}
+
+.dmgr-form-label {
+  flex: 0 0 160px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #e8f1fa 0%, #dbe8f5 100%);
+  color: var(--primary);
+  border-right: 1px solid #b8cfe6;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.dmgr-form-label--required::after {
+  content: " *";
+  color: #e53e3e;
+  font-size: 10px;
+}
+
+.dmgr-form-control {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+}
+
+.dmgr-form-radio {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 20px 8px 8px;
+  margin-left: auto;
+}
+
+.dmgr-form-radio label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dmgr-get-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 20px 8px auto;
+  padding: 0 16px;
+  height: 32px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dmgr-get-detail-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.dmgr-get-detail-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dmgr-grid {
+  flex: 1;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #d4e0ed;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 6px 16px rgba(30, 61, 122, 0.07);
+}
+
+.dmgr-grid__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #e8f2fc 0%, #f8fafc 100%);
+  border-bottom: 1px solid #d4e0ed;
+}
+
+.dmgr-grid__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--primary);
+}
+
+.dmgr-grid__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #d4e0ed;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dmgr-grid__select-all:hover {
+  background: #fff;
+  border-color: var(--primary);
+}
+
+.dmgr-grid__table-wrap {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+}
+
+.dmgr-grid__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.dmgr-grid__table th,
+.dmgr-grid__table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #edf2f7;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.dmgr-grid__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  box-shadow: 0 1px 0 #edf2f7;
+}
+
+.dmgr-grid__table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.dmgr-grid__table tbody tr:nth-child(even) {
+  background: #fafcfe;
+}
+
+.dmgr-grid__checkbox-col {
+  width: 70px;
+  text-align: center !important;
+}
+
+.dmgr-grid__checkbox-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.dmgr-grid__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dmgr-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 20px;
+  background: #f4f6f9;
+  border-top: 1px solid var(--border);
+}
+
+.master-modal-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.master-modal-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+}
+
+.master-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.master-modal-btn--save {
+  background: var(--primary);
+  color: #fff;
+}
+
+.master-modal-btn--save:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.master-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

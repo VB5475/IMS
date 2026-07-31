@@ -1,5 +1,6 @@
 import { formatListDate } from "./dateFormat";
 import { resolveRowFieldValue } from "./gridUtils";
+import { isErrorOnlyRow } from "./apiResponse";
 
 function isIdNumberColumnKey(key) {
   return String(key).replace(/\s+/g, "").toLowerCase() === "idnumber";
@@ -12,20 +13,6 @@ export function normalizeListRow(row) {
   if (row.idnumber != null || row.IDNumber != null || row.IDNUMBER != null) return row;
   if (id != null && id !== "") return { ...row, IDNUMBER: id };
   return row;
-}
-
-/**
- * True when a row is a bare {ErrCode, ErrMsg} envelope (a list SP that hit a
- * SQL error, e.g. "Must declare the scalar variable ...", returns this shape
- * as its one and only "row" instead of throwing an HTTP error) rather than
- * real business data — a genuine data row never consists of only these two
- * bookkeeping fields.
- */
-function isErrorOnlyRow(row) {
-  if (!row || typeof row !== "object") return false;
-  const keys = Object.keys(row).map((k) => k.toLowerCase());
-  if (keys.length === 0 || !keys.includes("errcode")) return false;
-  return keys.every((k) => k === "errcode" || k === "errmsg");
 }
 
 /**

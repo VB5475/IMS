@@ -72,7 +72,7 @@ import { parseNumberInput } from "../../utils/numberFormat";
 import { isDateColumnDef } from "../../utils/dateFormat";
 import RequiredFieldMark from "../ui/RequiredFieldMark";
 import { parseSerialNumbers } from "../../utils/parseSerialNumbers";
-import { isCheckboxColCtrlType } from "../../data/dummyData";
+import { isCheckboxColCtrlType, isButtonColCtrlType } from "../../data/dummyData";
 import { useNotification } from "../../context/NotificationContext";
 
 // ── Helper utils ───────────────────────────────────────────────────────
@@ -151,6 +151,15 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
     remarkModalColumns = null, // Set<string> | string[] — column keys that open a paste-friendly remark modal
     searchable = true, // false → hide built-in search bar
+    // (row) => boolean — rows for which this returns true render with a dimmed
+    // style and can't be checkbox-selected (e.g. an item-picker row that's
+    // already been inserted into the target grid once, per source key).
+    isRowDisabled = null,
+    disabledRowTitle = "Already added — cannot be selected again.",
+    // (row, col) => void — called when a ColCtrlType 10 "button" column
+    // (e.g. View/Upload) is clicked. The column itself comes from the RB's
+    // own metadata (real, visible column), not a synthetic addition.
+    onButtonClick = null,
   },
   ref
 ) {
@@ -464,14 +473,23 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, [pageSize, sortConfig]);
 
   // ── Selection ─────────────────────────────────────────────────────
+  // "Select all" only ever toggles rows isRowDisabled doesn't exclude —
+  // a disabled row must never end up in selectedIds via any path.
+  const selectablePageIds = useMemo(
+    () =>
+      displayRows
+        .filter((r) => !isRowDisabled?.(r))
+        .map((r) => String(r.id)),
+    [displayRows, isRowDisabled]
+  );
+
   const handleSelectAll = useCallback(() => {
-    const pageIds = displayRows.map((r) => String(r.id));
-    if (pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))) {
+    if (selectablePageIds.length > 0 && selectablePageIds.every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(pageIds));
+      setSelectedIds(new Set(selectablePageIds));
     }
-  }, [selectedIds, displayRows]);
+  }, [selectedIds, selectablePageIds]);
 
   const handleSelectRow = useCallback((id) => {
     const sid = String(id);
@@ -643,6 +661,22 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
+    // ── Button columns (ColCtrlType 10, e.g. View/Upload) — an action, not a
+    // data field. Clickable regardless of readOnly (a "View" action is valid
+    // in a read-only grid; onButtonClick decides what each one actually does).
+    if (isButtonColCtrlType(col.controlType)) {
+      return (
+        <button
+          type="button"
+          className="cell-action-btn"
+          onClick={() => onButtonClick?.(row, col)}
+          title={col.name}
+        >
+          {col.name}
+        </button>
+      );
+    }
+
     const value =
       col.controlType === 4 ? resolveRowCellValue(row, col) : (row[col.key] ?? "");
     const cellReadOnly = readOnly || !isColumnEditable(col, columnEditOpts);
@@ -1024,10 +1058,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                             className="row-checkbox"
                             title={disableSelection ? "Enter Add/Edit mode to select rows" : "Select / deselect all visible rows"}
                             aria-label="Select all rows"
-                            disabled={disableSelection}
+                            disabled={disableSelection || selectablePageIds.length === 0}
                             checked={
-                              displayRows.length > 0 &&
-                              displayRows.every((r) => selectedIds.has(String(r.id)))
+                              selectablePageIds.length > 0 &&
+                              selectablePageIds.every((id) => selectedIds.has(id))
                             }
                             onChange={handleSelectAll}
                             onClick={(e) => e.stopPropagation()}
@@ -1042,7 +1076,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                           >
                             <span className="field-caption">
                               <span>{col.name}</span>
-                              {isColumnMandatory(col) && <RequiredFieldMark />}
+                              {/* A button column (e.g. View/Upload) isn't a
+                                  fillable field — never mark it required,
+                                  regardless of the RB's raw ismandatory flag. */}
+                              {!isButtonColCtrlType(col.controlType) && isColumnMandatory(col) && <RequiredFieldMark />}
                             </span>
                             {sortConfig.key === col.key && (
                               <span className="sort-icon">
@@ -1068,10 +1105,15 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                     const hasChildren =
                       enableCollapsible && childRowsMap && childRowsMap[rowId]?.length > 0;
                     const isExpanded = hasChildren && expandedRows.has(rowId);
+                    const rowDisabled = Boolean(isRowDisabled?.(row));
+                    const checkboxDisabled = disableSelection || rowDisabled;
                     return (
                       <React.Fragment key={row.id}>
                         <tr
-                          className={selectedIds.has(rowId) ? "selected" : ""}
+                          className={[
+                            selectedIds.has(rowId) ? "selected" : "",
+                            rowDisabled ? "eg-row--disabled" : "",
+                          ].filter(Boolean).join(" ")}
                           data-eg-row-id={rowId}
                         >
                           {columns.map((col) => (
@@ -1081,7 +1123,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                               style={cellStyle(col, "body")}
                               onMouseDown={(e) => focusCellControl(e, col)}
                               onClick={() => {
-                                if (col.key === "cb" && !disableSelection) handleSelectRow(row.id);
+                                if (col.key === "cb" && !checkboxDisabled) handleSelectRow(row.id);
                               }}
                             >
                               <div className="cell-wrapper">
@@ -1112,8 +1154,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                                     <input
                                       type="checkbox"
                                       className="row-checkbox"
-                                      disabled={disableSelection}
-                                      title={disableSelection ? "Enter Add/Edit mode to select rows" : undefined}
+                                      disabled={checkboxDisabled}
+                                      title={
+                                        disableSelection
+                                          ? "Enter Add/Edit mode to select rows"
+                                          : rowDisabled
+                                            ? disabledRowTitle
+                                            : undefined
+                                      }
                                       checked={selectedIds.has(rowId)}
                                       onChange={() => handleSelectRow(row.id)}
                                       onClick={(e) => e.stopPropagation()}

@@ -20,6 +20,10 @@ export const DEFAULT_USER_SESSION = {
   isAdminUser: false,
   isDepartmentHead: false,
   isDivisionHead: false,
+  // Document Log permission flags (rb_dm_config, fetched once at login via
+  // ENDPOINTS.DM_CONFIG) — null until fetched, or if the fetch fails/errors,
+  // so any permission check reading this defaults to deny rather than crash.
+  dmConfig: null,
 };
 
 let currentSession = { ...DEFAULT_USER_SESSION };
@@ -105,6 +109,27 @@ function pickRow(row, ...keys) {
     }
   }
   return undefined;
+}
+
+/**
+ * Filters a Post_RB_DM_Config response down to exactly the 2 confirmed
+ * permission flags (user-confirmed 2026-07-30) — everything else the
+ * response carries (errcode/errmsg or anything else) is dropped, not just
+ * the housekeeping fields. Returns null if the row is missing or the call
+ * itself errored (errcode present and not 1) — callers should treat null
+ * as "no permissions known" (default-deny).
+ */
+export function extractDmConfigPermissions(res) {
+  const row = Array.isArray(res) ? res[0] : res;
+  if (!row || typeof row !== "object") return null;
+
+  const errcode = pickRow(row, "errcode", "ErrCode");
+  if (errcode != null && Number(errcode) !== 1) return null;
+
+  return {
+    isdmrequired: pickRow(row, "isdmrequired", "IsDMRequired") ?? null,
+    isdmdbbased: pickRow(row, "isdmdbbased", "IsDMDBBased") ?? null,
+  };
 }
 
 function toBoolFlag(value) {

@@ -19,6 +19,7 @@ export function shouldIgnoreKeyboardEvent(e) {
  * Alt+P  → Save & Print
  * Alt+L  → Select item / supplier list (active tab)
  * Alt+C  → Toggle collapsible row details
+ * F6     → Open Document Log modal (no Alt — plain function key)
  * Esc    → Cancel (edit mode only)
  */
 export function useEntryFormKeyboard({
@@ -33,6 +34,7 @@ export function useEntryFormKeyboard({
   onCancel,
   onSelectList,
   onToggleCollapsible,
+  onDocuments,
   keys = FORM_SHORTCUT_KEYS,
 } = {}) {
   useEffect(() => {
@@ -47,6 +49,14 @@ export function useEntryFormKeyboard({
         if (isEditMode && onCancel) {
           e.preventDefault();
           onCancel();
+        }
+        return;
+      }
+
+      if (key === "f6") {
+        if (onDocuments) {
+          e.preventDefault();
+          onDocuments();
         }
         return;
       }
@@ -109,6 +119,7 @@ export function useEntryFormKeyboard({
     onCancel,
     onSelectList,
     onToggleCollapsible,
+    onDocuments,
     keys.add,
     keys.save,
     keys.cancel,

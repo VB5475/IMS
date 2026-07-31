@@ -1,0 +1,187 @@
+// useDMGroupRights.js — DMS Group Rights (see pages/dm-group-rights/constants.js
+// for the full architecture notes). Mirrors useDivisionWiseRights.js's
+// single-RB-covers-header-and-grid pattern.
+
+import { useState, useCallback } from "react";
+import { useApi } from "../api/useApi";
+import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../api/constants";
+import { getUserSession } from "../session/userSession";
+import { mapRowToFieldValues } from "../utils/gridUtils";
+import { getCheckboxValue, normalizeDetailColLinks, resolveDetailColLinks } from "../utils/masterFormUtils";
+import { isErrorOnlyRow } from "../utils/apiResponse";
+import { DMGR_CONFIG as CFG } from "../pages/dm-group-rights/constants";
+
+function getColumnDefsFor(links, colnames) {
+  const byName = Object.fromEntries((links ?? []).map((c) => [c.ColName ?? c.colname, c]));
+  return colnames.map((name) => byName[name]).filter(Boolean);
+}
+
+function mapIdNameRows(rows, labelKeys) {
+  return (rows || [])
+    .map((r) => {
+      const value = r.idnumber ?? r.IDNumber ?? r.IdNumber;
+      if (value == null || value === "") return null;
+      let label;
+      for (const key of labelKeys) {
+        if (r[key] != null && r[key] !== "") { label = r[key]; break; }
+      }
+      const num = Number(value);
+      return { value: Number.isFinite(num) ? String(Math.round(num)) : String(value), label: String(label ?? value) };
+    })
+    .filter(Boolean);
+}
+
+/** Coerces checkbox columns + falls back to a display-name field for the
+ *  Document Type/SubType ids when the fetch row carries one (field name
+ *  unconfirmed — table is empty live, see constants.js note). */
+function mapGridRowFromApi(row, gridColumnDefs) {
+  const mapped = mapRowToFieldValues(row, gridColumnDefs);
+
+  gridColumnDefs.forEach((col) => {
+    const key = col.ColName ?? col.colname;
+    if (!key) return;
+    if ([CFG.GRID_UPLOAD_COL, CFG.GRID_VIEW_COL, CFG.GRID_DELETE_COL].includes(key)) {
+      mapped[key] = getCheckboxValue(mapped[key]);
+    }
+  });
+
+  mapped._doctypeLabel =
+    row.documenttypename ?? row.DocumentTypeName ?? row[CFG.GRID_DOCTYPE_COL] ?? "";
+  mapped._subtypeLabel =
+    row.documentsubtypename ?? row.DocumentSubTypeName ?? row[CFG.GRID_SUBTYPE_COL] ?? "";
+
+  return mapped;
+}
+
+export function useDMGroupRights() {
+  const { get } = useApi(API_BASE_URL);
+
+  const [allColumns, setAllColumns] = useState([]);
+  const [headerColumns, setHeaderColumns] = useState([]);
+  const [gridColumns, setGridColumns] = useState([]);
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [headerFetching, setHeaderFetching] = useState(false);
+  const [headerError, setHeaderError] = useState(null);
+
+  const fetchHeaderMeta = useCallback(async () => {
+    setHeaderFetching(true);
+    setHeaderError(null);
+    try {
+      const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: CFG.LIST_OBJ_TYPE,
+        ObjName: CFG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: CFG.RB_MASTER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const tableRow = resolveDetailColLinks(metaData)[0] ?? metaData?.[0];
+      const rbid = tableRow?.RBID ?? tableRow?.rbid;
+      if (!rbid) throw new Error("No Group Rights RB metadata returned.");
+
+      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: rbid,
+        prmLoginID: getUserSession().loginId,
+      });
+      const links = normalizeDetailColLinks(resolveDetailColLinks(colData));
+
+      setAllColumns(links);
+      setHeaderColumns(getColumnDefsFor(links, CFG.HEADER_COLS));
+      setGridColumns(getColumnDefsFor(links, CFG.GRID_ROW_COLS));
+
+      const [groupRes, deptRes] = await Promise.all([
+        get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: CFG.LIST_OBJ_TYPE,
+          ObjName: CFG.SP_GROUP_LIST,
+          JSon: JSON.stringify([{}]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        }),
+        get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: CFG.LIST_OBJ_TYPE,
+          ObjName: CFG.SP_DEPARTMENT_LIST,
+          JSon: JSON.stringify([{}]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        }),
+      ]);
+      setGroupOptions(mapIdNameRows(resolveDetailColLinks(groupRes), ["groupname", "GroupName"]));
+      setDepartmentOptions(mapIdNameRows(resolveDetailColLinks(deptRes), ["name", "Name"]));
+    } catch (err) {
+      console.error("[DMGroupRights] fetchHeaderMeta failed:", err);
+      setHeaderError(err?.message || "Failed to load Group Rights configuration.");
+    } finally {
+      setHeaderFetching(false);
+    }
+  }, [get]);
+
+  /** Swaps the Department dropdown's data source based on which of the
+   *  System Defined / User Define checkboxes is active — see constants.js.
+   *  `mode` is "system" | "user" | null (null restores the default,
+   *  unfiltered department catalog for when neither checkbox is checked). */
+  const refreshDepartmentOptions = useCallback(
+    async (mode) => {
+      const objName =
+        mode === "system"
+          ? CFG.SP_DEPARTMENT_LIST_SYSTEM_DEFINED
+          : mode === "user"
+          ? CFG.SP_DEPARTMENT_LIST_USER_DEFINED
+          : CFG.SP_DEPARTMENT_LIST;
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: CFG.LIST_OBJ_TYPE,
+          ObjName: objName,
+          JSon: JSON.stringify([{}]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const rows = resolveDetailColLinks(res) || [];
+        if (rows.length === 1 && isErrorOnlyRow(rows[0])) {
+          setDepartmentOptions([]);
+          return;
+        }
+        setDepartmentOptions(mapIdNameRows(rows, ["name", "Name"]));
+      } catch (err) {
+        console.error("[DMGroupRights] refreshDepartmentOptions failed:", err);
+        setDepartmentOptions([]);
+      }
+    },
+    [get]
+  );
+
+  /** "Get Detail" — Department+Group scoped (2-named-arg FUNCTION, confirmed
+   *  live, see constants.js). Both ids are required — the caller (form's
+   *  `canGetDetail`) already gates on both being selected. */
+  const fetchGridRows = useCallback(
+    async (departmentId, groupId, gridColumnDefs = gridColumns) => {
+      const normalizedDept = Number(departmentId) || 0;
+      const normalizedGroup = Number(groupId) || 0;
+      if (!normalizedDept || !normalizedGroup) return [];
+
+      const mstRes = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: CFG.SP_GET_DETAIL,
+        JSon: JSON.stringify([{ prmdepartmentid: normalizedDept, prmgroupid: normalizedGroup }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const rows = resolveDetailColLinks(mstRes);
+      if (rows.length === 1 && isErrorOnlyRow(rows[0])) return [];
+      return rows.map((row) => mapGridRowFromApi(row, gridColumnDefs));
+    },
+    [get, gridColumns]
+  );
+
+  return {
+    allColumns,
+    headerColumns,
+    gridColumns,
+    groupOptions,
+    departmentOptions,
+    headerFetching,
+    headerError,
+    fetchHeaderMeta,
+    fetchGridRows,
+    refreshDepartmentOptions,
+  };
+}

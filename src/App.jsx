@@ -118,7 +118,7 @@ const DMDepartmentMasterPage = lazy(() => import("./pages/dm-department-master/D
 const DocumentTypeMasterPage = lazy(() => import("./pages/document-type-master/DocumentTypeMasterPage"));
 const DocumentSubTypeMasterPage = lazy(() => import("./pages/document-subtype-master/DocumentSubTypeMasterPage"));
 const DMTT2DocTypeMasterPage = lazy(() => import("./pages/dm-tt2doctype-master/DMTT2DocTypeMasterPage"));
-const DMDocumentListPage = lazy(() => import("./pages/dm-document-list/DMDocumentListPage"));
+const DMGroupRightsPage = lazy(() => import("./pages/dm-group-rights/DMGroupRightsPage"));
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetsItemOpeningExcelPage = lazy(
   () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage")
@@ -349,7 +349,7 @@ const router = createBrowserRouter([
           rbLeaf({ rb: RB.DOCUMENT_TYPE_MASTER, element: <DocumentTypeMasterPage /> }),
           rbLeaf({ rb: RB.DOCUMENT_SUBTYPE_MASTER, element: <DocumentSubTypeMasterPage /> }),
           rbLeaf({ rb: RB.DM_TT2DOCTYPE_MASTER, element: <DMTT2DocTypeMasterPage /> }),
-          rbLeaf({ rb: RB.DM_DOCUMENT_LIST, element: <DMDocumentListPage /> }),
+          rbLeaf({ rb: RB.DM_GROUP_RIGHTS, element: <DMGroupRightsPage /> }),
           { path: "demo/trial-balance", element: <TrialBalanceDemoPage /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

@@ -16,7 +16,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, FileText } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -24,6 +24,7 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
@@ -184,6 +185,77 @@ export default function PurchaseIndentForm() {
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
 
+  // Document Log modal (F6) — scoped to this indent's record id, gated on
+  // the session's Document Log permission flags (set at login — see
+  // extractDmConfigPermissions in session/userSession.js). Read once here;
+  // dmConfig only changes on a fresh login, which remounts the whole tree.
+  // User-confirmed rule 2026-07-30: BOTH flags must be "Y" — isdmdbbased is
+  // only meaningful once isdmrequired is already "Y" (short-circuit AND).
+  const dmConfig = getUserSession().dmConfig;
+  const dmConfigAllows = dmConfig?.isdmrequired === "Y" && dmConfig?.isdmdbbased === "Y";
+
+  // Document Log button visibility — a 3rd, ADDITIVE gate on top of
+  // dmConfigAllows above, from ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY
+  // (per-trantype, not per-user like dmConfig). Defaults to "NO" (safe
+  // default-deny) until the fetch resolves or if it fails. Same recordId gate
+  // that used to block this button entirely was removed 2026-07-30 — Add
+  // mode is now allowed too, per explicit user direction.
+  const [docBtnVisible, setDocBtnVisible] = useState("NO");
+  const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES";
+
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const handleOpenDocuments = useCallback(() => {
+    if (!isDocumentLogEnabled) return;
+    setDocModalOpen(true);
+  }, [isDocumentLogEnabled]);
+
+  // Document-log GUID — issued so documents can be associated with this
+  // transaction before/regardless of it having been saved. Per-form state,
+  // not session (see ENDPOINTS.DM_HANDLE_GUID). Best-effort: a failure here
+  // must never block the page or the form. **Live-confirmed 2026-07-30**:
+  // the endpoint is deployed on IMS_LIVE, but expects LOWERCASE field names
+  // (prmguid/prmref_trantypeid/prmtranid) — the DM API doc's own example
+  // used mixed case (prmGUID/prmRef_TranTypeID/prmTranID), which 500s; only
+  // the lowercase shape actually works and returns a real GUID + success
+  // message. Confirmed via direct curl re-test the same day the doc's other
+  // endpoints went live — the doc's casing was simply wrong here, don't
+  // "fix" it back to match the doc without re-testing first.
+  const [docGuid, setDocGuid] = useState("");
+  // tranId: the real recordId in edit mode, 0 for a new/unsaved record —
+  // fires on every Indent page load (Add and Edit both), not just Add.
+  const fetchDocGuid = useCallback(async (tranId = 0) => {
+    try {
+      const res = await postSave(ENDPOINTS.DM_HANDLE_GUID, {
+        prmguid: "1",
+        prmref_trantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
+        prmtranid: Number(tranId) || 0,
+      });
+      const row = Array.isArray(res) ? res[0] : res;
+      const guid = row?.guid ?? row?.Guid ?? row?.GUID ?? row?.guId;
+      if (guid) setDocGuid(String(guid));
+    } catch (err) {
+      console.warn("[Indent] DM HandleGUID fetch failed:", err);
+    }
+  }, [postSave]);
+
+  // Live-confirmed 2026-07-30: plain JSON object body (not array, despite
+  // the reference screenshot) — same gotcha as DM_HANDLE_GUID. Response is
+  // an array of one row: [{ isdmbtnvisible: "YES"|"NO", ... }].
+  const fetchDocBtnVisible = useCallback(async () => {
+    try {
+      const res = await postSave(ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY, {
+        prmref_trantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
+        prmloginid: getUserSession().loginId,
+      });
+      const row = Array.isArray(res) ? res[0] : res;
+      const visible = row?.isdmbtnvisible ?? row?.IsDMBtnVisible;
+      setDocBtnVisible(visible === "YES" ? "YES" : "NO");
+    } catch (err) {
+      console.warn("[Indent] DM HandleButtonVisibility fetch failed:", err);
+      setDocBtnVisible("NO");
+    }
+  }, [postSave]);
+
   // Item picker modal
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [itemModalItems, setItemModalItems] = useState([]);
@@ -242,7 +314,12 @@ export default function PurchaseIndentForm() {
   useEffect(() => {
     fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
+    // Both Add and Edit — recordId is 0 for a new/unsaved record, the real
+    // id for an existing one (available immediately from the route param,
+    // no need to wait for loadEditRecord to finish).
+    fetchDocGuid(recordId);
+    fetchDocBtnVisible();
+  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute, recordId, fetchDocGuid, fetchDocBtnVisible]);
 
   // Phase 3 (new route only): pre-load grid columns after detail meta loads
   useEffect(() => {
@@ -611,7 +688,11 @@ export default function PurchaseIndentForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
-    extraClearFns: [clearIndentTypes],
+    extraClearFns: [clearIndentTypes, () => setDocGuid("")],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    extraReset: () => { if (isNewRoute) fetchDocGuid(); },
   });
 
   const completeSuccessfulSave = useCallback(() => {
@@ -689,7 +770,7 @@ export default function PurchaseIndentForm() {
   const filterBusy = headerFetching || isLoadingIndentTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docModalOpen,
     isEditMode,
     isSaving: isSavingIndent,
     addDisabled: filterBusy,
@@ -699,11 +780,27 @@ export default function PurchaseIndentForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: handleOpenDocuments,
   });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const indExtraButtons = useMemo(
     () => [
+      {
+        key: "documents",
+        label: "Documents",
+        Icon: FileText,
+        variant: "secondary",
+        onClick: handleOpenDocuments,
+        // recordId is no longer part of this gate — Add mode is allowed too
+        // (2026-07-30). Enabled only when dmConfig AND the per-trantype
+        // DM_HandleButtonVisibility flag both allow it.
+        disabled: !isDocumentLogEnabled,
+        showAlways: true,
+        title: isDocumentLogEnabled
+          ? FORM_SHORTCUT_TITLES.documents
+          : "Document rights are not enabled for your account.",
+      },
       {
         key: "saveprint",
         label: "Save & Print",
@@ -725,7 +822,7 @@ export default function PurchaseIndentForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSavingIndent, handleSave]
+    [handleOpenDocuments, isDocumentLogEnabled, handleSaveAndPrint, isSavingIndent, handleSave]
   );
 
   const itemGridConfig = {
@@ -862,6 +959,17 @@ export default function PurchaseIndentForm() {
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
           awaitingFilter={!groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          isOpen={docModalOpen}
+          onClose={() => setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={IND_CONFIG.DM_TRAN_TYPE_ID}
+          guid={docGuid}
         />
       </Suspense>
     </div>

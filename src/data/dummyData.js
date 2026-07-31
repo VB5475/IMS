@@ -1,6 +1,8 @@
 // dummyData.js — Backend response simulation
 // ColCtrlType / controlType codes from API metadata (GetDetailColData, GetFilters, etc.)
-// Label=0, TextBox=1, Date=2, Checkbox=3, Dropdown=4, Textarea=9, CheckboxAlt=11, Toggle=14
+// Label=0, TextBox=1, Date=2, Checkbox=3, Dropdown=4, Textarea=9, CheckboxAlt=11,
+// Button=10 (live-confirmed 2026-07-30 via rb_dm_tranwisedocs/rb_dm_tranwiseredocs's
+// viewdoc/uploaddoc columns), Toggle=14
 
 export const controlTypeMap = {
   LABEL: 0,
@@ -9,6 +11,7 @@ export const controlTypeMap = {
   CHECKBOX: 3,
   DROPDOWN: 4,
   TEXTAREA: 9,
+  BUTTON: 10,
   CHECKBOX_ALT: 11,
   TOGGLE: 14,
 };
@@ -47,6 +50,11 @@ export function isDateColCtrlType(colCtrlType) {
 /** ColCtrlType 1 → single-line text (numeric subtype from ColDataType). */
 export function isTextboxColCtrlType(colCtrlType) {
   return Number(colCtrlType) === controlTypeMap.TEXTBOX;
+}
+
+/** ColCtrlType 10 → action button (e.g. View/Upload columns), not a data field. */
+export function isButtonColCtrlType(colCtrlType) {
+  return Number(colCtrlType) === controlTypeMap.BUTTON;
 }
 
 export const gridMeta = {

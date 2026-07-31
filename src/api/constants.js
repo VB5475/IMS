@@ -43,6 +43,24 @@ export const ENDPOINTS = {
   TRAN_FORM_DELETE: "/API/TranFormDelete/Post_TranFormDelete",
   RB_MASTER_DETAIL_FORM_SAVE: "/RB_MasterDetailForm_Save",
   GENERATE_REPORT: "/API/Report/GenerateReport",
+  // Document Log permissions (fetched once at login, cached in user session —
+  // see extractDmConfigPermissions in session/userSession.js).
+  DM_CONFIG: "/API/DM_Config/Post_RB_DM_Config",
+  // Issues a GUID for a not-yet-saved transaction (so document uploads can be
+  // associated with it before a real TranID exists) — fetched on new-entry
+  // load, per-form state (not session). Live-confirmed 2026-07-30: exists on
+  // IMS_LIVE only (404 on IMS_PGLIVE), plain JSON object body (NOT an array),
+  // and — confirmed the same day IMS ERPWS - DM API.docx's other endpoints
+  // went live — LOWERCASE field names (prmguid/prmref_trantypeid/prmtranid),
+  // NOT the mixed-case the doc itself documented (prmGUID/prmRef_TranTypeID/
+  // prmTranID, which 500s). See PurchaseIndentForm.jsx's fetchDocGuid.
+  DM_HANDLE_GUID: "/API/DM_HandleGUID/Post_RB_DM_HandleGUID",
+  // Per-transaction-type Document Log button visibility flag (isdmbtnvisible).
+  // Live-confirmed 2026-07-30: IMS_LIVE only, plain JSON object body (the
+  // user's own Postman screenshot showed an array, but that 400s — object
+  // is what actually works, same gotcha as DM_HANDLE_GUID above). Response
+  // is an array of one row: [{ isdmbtnvisible: "YES"|"NO", errcode, errmsg }].
+  DM_HANDLE_BUTTON_VISIBILITY: "/API/DM_HandleButtonVisibility/Post_RB_DM_HandleButtonVisibility",
 };
 
 // ── Shared request defaults (used across pages) ────────────────────────

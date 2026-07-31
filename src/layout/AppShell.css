@@ -44,9 +44,109 @@
 
 .ent-sidebar__brand {
   display: flex;
-  align-items: flex-start;
+  /* Centered, not flex-start — the brand text is a single "IMS" line now
+     (no tagline), so top-aligning it against the 32px logo box left it
+     sitting noticeably above center (user-reported 2026-07-30). */
+  align-items: center;
   gap: 8px;
   min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.ent-sidebar__brand:hover .ent-sidebar__name {
+  color: #fff;
+}
+
+.ent-sidebar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  margin: 0 12px 12px;
+  padding: 0 10px 0 30px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.ent-sidebar__search svg:first-child {
+  position: absolute;
+  left: 10px;
+  pointer-events: none;
+}
+
+.ent-sidebar__search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--sidebar-text-active);
+  font-size: 12px;
+  width: 100%;
+}
+
+.ent-sidebar__search input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ent-sidebar__search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px;
+}
+
+.ent-sidebar__search-clear:hover {
+  color: #fff;
+}
+
+.ent-sidebar__search-empty {
+  padding: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+/* Collapsed icon-rail flyout — portal-rendered (see search-select.css's
+   --portal dropdown for the same fixed-position-via-getBoundingClientRect
+   pattern). Shows a section's full labeled item list on hover since the
+   rail itself has no room for labels or grouping. */
+.ent-sidebar__flyout {
+  min-width: 220px;
+  max-width: 300px;
+  background: var(--sidebar-bg);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  padding: 8px;
+}
+
+.ent-sidebar__flyout-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 4px 10px 8px;
+}
+
+.ent-sidebar__flyout .ent-sidebar__link {
+  border-radius: var(--radius-sm);
+  white-space: normal;
 }
 
 .ent-sidebar__logo {
@@ -166,6 +266,50 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.4);
+  transition: color var(--transition);
+}
+
+/* "You're in this general area" — lighter-weight signal than the individual
+   active link's full pill highlight (no background, just brighter text),
+   shown whenever the current route belongs to this section, regardless of
+   whether the section is expanded/collapsed or the sidebar is in icon-rail
+   mode (see project_sidebar_nav_ui memory for how these stay independent). */
+.ent-sidebar__section-label--active {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+/* Accordion header — same visual spacing as the plain label above, but
+   clickable, with a chevron showing this section's open/closed state.
+   Independent of the whole-sidebar icon-rail collapse. */
+.ent-sidebar__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 12px 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ent-sidebar__section-header:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ent-sidebar__section-header:hover .ent-sidebar__section-label {
+  color: inherit;
+}
+
+.ent-sidebar__section-header svg {
+  flex-shrink: 0;
+}
+
+/* Plain (non-interactive) label shown instead of the header while a search
+   is active — matched sections auto-expand, so toggling would be moot. */
+.ent-sidebar__section > .ent-sidebar__section-label {
+  display: block;
   padding: 0 12px 6px;
 }
 
@@ -197,17 +341,22 @@
   background: rgba(163, 201, 255, 0.12);
 }
 
+/* High-contrast "you are here" state — the previous #93baf1-on-var(--primary)
+   combo was too close in tone to the sidebar's own dark-navy background to
+   read as clearly active (user feedback 2026-07-30). White, bold text on a
+   distinctly brighter/more saturated blue than the sidebar gradient. */
 .ent-sidebar__link--active {
-  color: #93baf1;
-  background: var(--primary);
-  border-left: 3px solid #72b1fd;
+  color: #ffffff;
+  font-weight: 600;
+  background: linear-gradient(90deg, #2f6fdb 0%, #1e56b3 100%);
+  border-left: 3px solid #7fb2ff;
   padding-left: 9px;
-  box-shadow: 0 0 8px rgba(114, 177, 253, 0.25);
+  box-shadow: 0 2px 10px rgba(47, 111, 219, 0.45);
 }
 
 .ent-sidebar__link--active .ent-sidebar__link-icon {
   opacity: 1;
-  color: #72b1fd;
+  color: #ffffff;
 }
 
 .ent-shell--collapsed .ent-sidebar__link {

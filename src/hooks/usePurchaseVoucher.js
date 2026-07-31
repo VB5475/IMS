@@ -335,9 +335,11 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       // Taxable Value/Net Base Amount (client-confirmed gap, 2026-07-24).
       ["tranqty", "baseqty", "tranrate", "baserate", "unitconv", "discperc", "expense", "gstperc"].forEach((k) => evtSet.add(k));
       // Put To Use must never call the qty/rate recalc SP (fn_tbl_rb_purpvdet_event) —
-      // toggling it is a pure local include/exclude-from-totals flag (PV_SUMMARY_ROW_FILTER),
-      // not a value the recalc SP needs to see. Explicit exclusion guards against RB
-      // later flipping iseventreq/iseventcol on puttouse and silently re-introducing this.
+      // it's a pure local flag with no bearing on tax/amount calculation (and,
+      // since 2026-07-30, no longer affects the summary panel's totals either —
+      // see PV_SUMMARY_FIELDS in constants.js). Explicit exclusion guards
+      // against RB later flipping iseventreq/iseventcol on puttouse and
+      // silently re-introducing a recalc call for it.
       evtSet.delete("puttouse");
       setEventColumns(evtSet);
 

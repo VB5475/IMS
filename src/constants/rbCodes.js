@@ -39,10 +39,21 @@ export const RB_CODES = Object.freeze({
   // MRD_Template4DMS_DocumentTransactionToDocument.docx (Om, 24-Jun-2026,
   // clarified live with Om 2026-07-28 — see constants.js for the resolved gaps).
   DM_TT2DOCTYPE_MASTER: "rb_dm_tt2doctype",
-  // 5th DMS module — standalone Document List master, 2 independently
-  // RB-driven grids (Docs + Reference Documents), no header fields.
-  // MRD_Template4DMS_DocumentList.docx (Om, 29-Jul-2026).
+  // Document Log — transaction-level document logging, NOT a standalone
+  // master (scope corrected 2026-07-30). Surfaced via an F6 button + large
+  // modal inside transaction forms (Indent first; PO/PV/etc. later). Still
+  // 2 independently RB-driven grids (Docs + Reference Documents) under the
+  // hood — see components/txn/documentLogConfig.js.
   DM_DOCUMENT_LIST: "rb_dm_tranwisedocs",
+  // 6th DMS module — Group Rights: per-Group, per-Department Upload/View/
+  // Delete rights matrix, scoped to Document Type/SubType combinations.
+  // MRD_Template4DMS_Grouprights.docx (28-Jul-2026) — its own "Module
+  // Overview" section is stale boilerplate copied from the TT2DocType MRD
+  // ("Purpose: Create Department for DMS") and does NOT describe this
+  // feature; the real spec is Section 3/5.1 + the embedded screenshot.
+  // See src/pages/dm-group-rights/constants.js for the full architecture
+  // notes and confirmed/excluded fields.
+  DM_GROUP_RIGHTS: "rb_dm_groupright",
 
   // ── Purchase ────────────────────────────────────────────────────
   PURCHASE_INDENT: "rb_purindtmst",
@@ -112,7 +123,8 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.DOCUMENT_TYPE_MASTER]: "/admin/dms/document-type-master",
   [RB_CODES.DOCUMENT_SUBTYPE_MASTER]: "/admin/dms/document-subtype-master",
   [RB_CODES.DM_TT2DOCTYPE_MASTER]: "/admin/dms/tt2doctype-master",
-  [RB_CODES.DM_DOCUMENT_LIST]: "/admin/dms/document-list",
+  // DM_DOCUMENT_LIST has no route — it's a modal (see RB_CODES comment above).
+  [RB_CODES.DM_GROUP_RIGHTS]: "/admin/dms/group-rights",
 
   [RB_CODES.PURCHASE_INDENT]: "/purchase-indent",
   [RB_CODES.PURCHASE_INQUIRY]: "/purchase-inquiry",

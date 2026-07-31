@@ -99,10 +99,11 @@ export const PV_FILTER_CASCADE_RESETS = {
 };
 
 export const PV_SUMMARY_FIELDS = [
-  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows, excluding
-  // rows where puttouse = 0 (see PV_SUMMARY_ROW_FILTER below — verified
-  // against a live fn_tbl_rb_purpvdet response where a puttouse=0 row's
-  // tax figures were excluded from the master's stored totals) ──
+  // ── Tax breakdown (ColSeqNo 23-30) — sums from every detail row. Put To
+  // Use has NO effect on these totals (2026-07-30, explicit user
+  // instruction — reverses the 2026-07-23 rowFilter exclusion below; see
+  // project_pv_po_summary_panel_bugs memory for the original backend-
+  // verified reasoning this replaces) ──
   { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
   { SummaryParameterID: "mstexpense", detKey: "expense" },
   { SummaryParameterID: "msttaxablevalue", detKey: "taxablevalue" },
@@ -145,14 +146,6 @@ export const PV_SUMMARY_FIELDS = [
   { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount", fromMaster: true },
   { SummaryParameterID: "netpayable", detKey: "netpayable", fromMaster: true },
 ];
-
-// Excludes rows the backend itself excludes from the master's stored totals
-// (confirmed live: a detail row with puttouse=0 carried real tax figures
-// that were NOT reflected in mstbaseamount/msttaxablevalue/mstcgst/mstsgst
-// on the saved master). Passed as EnterpriseSummaryPanel's `rowFilter`.
-export function PV_SUMMARY_ROW_FILTER(row) {
-  return Number(row.puttouse) !== 0;
-}
 
 // RB marks these visible as header columns, but they're computed from grid
 // rows and rendered via EnterpriseSummaryPanel (see syncedSummaryFields), not
