@@ -45,7 +45,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
-import { getTodayDateInputValue } from "../../utils/dateFormat";
+import { dateToStoredValue, getTodayDateInputValue, isDateColumnDef } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
@@ -84,14 +84,21 @@ function mapHeaderValuesToFilterValues(headerValues) {
   };
 }
 
-function mapPickerToItemRow(item, allColumns) {
+// The item picker SP echoes the header params it was called with back on every
+// row — prmexpdeldate returns as "expecteddeliverydate", which is also the
+// detail RB's own date column — so overlaying it made each row inherit the
+// master's Expected Date. Grid date cells are seeded with today and kept out
+// of the overlay instead (getColDefault leaves date columns null).
+function mapPickerToItemRow(item, allColumns, dateColKeys = new Set()) {
   const row = { id: nextTempId() };
+  const today = dateToStoredValue(new Date());
   allColumns.forEach(({ key, colDataType }) => {
-    row[key] = getColDefault(colDataType);
+    row[key] = dateColKeys.has(key) ? today : getColDefault(colDataType);
   });
   Object.entries(item).forEach(([k, v]) => {
     const lk = k.toLowerCase();
-    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
+    if (lk === "id" || dateColKeys.has(lk)) return;
+    if (v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
@@ -616,7 +623,8 @@ export default function PurchaseIndentForm() {
       setActiveTab("items");
       const activeCols = await ensureItemColumns();
       if (!activeCols?.length) return;
-      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+      const dateColKeys = new Set(activeCols.filter(isDateColumnDef).map((col) => col.key));
+      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns, dateColKeys));
       rows.forEach((row) => addItemRow(row));
       // Fire the same qty/rate recalc a manual blur would trigger, so a
       // picker-inserted row's calculated amounts are correct immediately

@@ -132,7 +132,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     activeTab = null, // currently selected tab id (controlled by parent)
     onTabChange = null, // (tabId: string) => void
     headerControls = null, // ReactNode rendered on the right side of the tab bar
-    tabContentOverride = null, // ReactNode → replaces the grid body (used for other tabs)
+    tabContentOverride = null, // ReactNode → replaces the grid body (unmounts on tab switch)
+    // { [tabId]: ReactNode } → same slot as tabContentOverride, but every pane
+    // stays mounted for the grid's lifetime and only the active one is shown,
+    // so each pane keeps its own rows / selection / scroll across tab switches.
+    tabPanes = null,
     initialRows = null, // array → pre-populated rows (used in readOnly mode)
     onSelectionChange = null, // (count: number) => void — notifies parent of selection changes
     onRowsChange = null, // (rows: row[]) => void  — notifies parent when rows mutate
@@ -969,6 +973,18 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     });
   }, []);
 
+  // With tabPanes the built-in body is one of several always-mounted panes, so
+  // it gets a wrapper that can be hidden while another pane is active. Grids
+  // without tabPanes keep rendering the body straight into the container, so
+  // their layout is untouched.
+  const tabPaneEntries = tabPanes ? Object.entries(tabPanes) : [];
+  const activePaneId = tabPaneEntries.some(([id]) => id === activeTab) ? activeTab : null;
+  const BodyWrap = tabPaneEntries.length > 0 ? "div" : React.Fragment;
+  const bodyWrapProps =
+    tabPaneEntries.length > 0
+      ? { className: `eg-grid-body ${activePaneId ? "eg-grid-body--hidden" : ""}`.trim() }
+      : {};
+
   // ─────────────────────────────────────────────────────────────────
   return (
     <div
@@ -1023,10 +1039,19 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         </div>
       ) : null}
 
+      {tabPaneEntries.map(([id, pane]) => (
+        <div
+          key={id}
+          className={`grid-tab-content ${activePaneId === id ? "" : "grid-tab-content--hidden"}`.trim()}
+        >
+          {pane}
+        </div>
+      ))}
+
       {tabContentOverride ? (
         <div className="grid-tab-content">{tabContentOverride}</div>
       ) : (
-        <>
+        <BodyWrap {...bodyWrapProps}>
           {selectedIds.size > 0 && (
             <div className="selection-bar">
               <span>{selectedIds.size} row(s) selected</span>
@@ -1289,7 +1314,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               onSave={handleSave}
             />
           )}
-        </>
+        </BodyWrap>
       )}
 
       {remarkEditor && (

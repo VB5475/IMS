@@ -10,6 +10,11 @@
 //        Fixed controls: Approved filter | Delete
 //   3. ActionBar            — Add / Save / Cancel (Alt shortcuts)
 //
+// Transporter/Driver panels are passed as `tabPanes` so they stay mounted
+// across tab switches (same pattern as Purchase Inquiry). Their field values
+// live in each panel's state + headerValuesRef; remounting via filterResetKey
+// still resets them on discard / edit load.
+//
 // Item picker RB follows BasedOnID ('0' Direct | '1' PO | '3' Indent).
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
@@ -1203,8 +1208,8 @@ export default function GoodsReceivedNoteForm() {
               </>
             ) : null
           }
-          tabContentOverride={
-            activeTab === "transporter" ? (
+          tabPanes={{
+            transporter: (
               <EnterpriseFilterPanel
                 key={`transporter-${filterResetKey}`}
                 title="Transporter Detail"
@@ -1217,7 +1222,8 @@ export default function GoodsReceivedNoteForm() {
                 disabled={filterPanelLoading || !headerMetaReady}
                 fieldTones={transporterFieldTones}
               />
-            ) : activeTab === "driver" ? (
+            ),
+            driver: (
               <EnterpriseFilterPanel
                 key={`driver-${filterResetKey}`}
                 title="Driver Detail"
@@ -1229,8 +1235,8 @@ export default function GoodsReceivedNoteForm() {
                 disabled={filterPanelLoading || !headerMetaReady}
                 fieldTones={driverFieldTones}
               />
-            ) : null
-          }
+            ),
+          }}
           readOnly={isEditRoute && !isEditMode}
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}

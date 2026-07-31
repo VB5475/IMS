@@ -293,6 +293,7 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
               prmdivisionid: Number(divisionId),
               prmlocationtypeid: 1,
               prmloginid: getUserSession().loginId,
+              prmfrmtype: GRN_CONFIG.TRAN_BOOK,
             },
           ]),
           p_ErrCode: -1,

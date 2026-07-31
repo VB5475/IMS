@@ -321,7 +321,8 @@ export function useAstEmpIssue(baseURL = API_BASE_URL) {
       prmdivisionid: Number(divisionId) || 0,
       prmloginid: session.loginId,
       prmlocationtype: "",
-      prmfrmtype: String(AEI_CONFIG.FRM_TYPE),
+      // SP expects the form code ("EI"), not the master numeric FrmType (1).
+      prmfrmtype: AEI_CONFIG.FRM_TYPE_LABEL,
     }]);
   }, []);
 

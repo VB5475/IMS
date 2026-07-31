@@ -14,13 +14,10 @@
 //   3. CollapsibleGrid        — Indent Details
 //   4. PIActionBar            — Save / Cancel etc.
 //
-// The Items EntryGrid is always mounted; Suppliers/Terms share a single
-// tabContentOverride slot and fully unmount when the user leaves their tab
-// (e.g. via Items) or swaps between each other. Each needs a distinct `key`
-// so React doesn't reuse one grid's mounted instance/state for the other,
-// and each grid's row state is mirrored into a ref (persistedSupplierRowsRef /
-// persistedTermsRowsRef) and re-seeded via the `initialRows` prop so it
-// survives the unmount/remount around tab switches.
+// All three detail grids stay mounted for as long as the form is open: the
+// Items grid is the EntryGrid itself, and Suppliers/Terms are passed as
+// `tabPanes` so EntryGrid only hides the inactive ones. Each pane therefore
+// keeps its own rows, selection and scroll position across tab switches.
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -213,13 +210,6 @@ export default function PurchaseInquiryForm() {
   const queuedRowsRef = useRef([]);
   const queuedSupplierRowsRef = useRef([]);
   const queuedTermsRowsRef = useRef([]);
-  // Supplier/Terms grids live inside a single tabContentOverride slot and
-  // fully unmount whenever the user leaves their tab (e.g. via Items) — an
-  // EntryGrid's row state is internal to the component instance, so it's
-  // lost on unmount unless the parent keeps its own copy and re-seeds it via
-  // the `initialRows` prop on remount. Kept in sync via onRowsChange below.
-  const persistedSupplierRowsRef = useRef([]);
-  const persistedTermsRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -360,8 +350,6 @@ export default function PurchaseInquiryForm() {
     queuedRowsRef.current = [];
     queuedSupplierRowsRef.current = [];
     queuedTermsRowsRef.current = [];
-    persistedSupplierRowsRef.current = [];
-    persistedTermsRowsRef.current = [];
     gridColumnsLoadedRef.current = false;
     supplierColumnsLoadedRef.current = false;
     termsColumnsLoadedRef.current = false;
@@ -533,7 +521,6 @@ export default function PurchaseInquiryForm() {
       );
       if (activeSupplierCols?.length > 0) supplierColumnsLoadedRef.current = true;
       const syncedSupplierDetails = syncEditGridDropdownValues(supplierDetails, activeSupplierCols || []);
-      persistedSupplierRowsRef.current = syncedSupplierDetails;
       if (supplierGridRef.current?.loadRows) {
         supplierGridRef.current.loadRows(syncedSupplierDetails);
       } else {
@@ -546,7 +533,6 @@ export default function PurchaseInquiryForm() {
       );
       if (activeTermsCols?.length > 0) termsColumnsLoadedRef.current = true;
       const syncedTermsDetails = syncEditGridDropdownValues(termsDetails, activeTermsCols || []);
-      persistedTermsRowsRef.current = syncedTermsDetails;
       if (termsGridRef.current?.loadRows) {
         termsGridRef.current.loadRows(syncedTermsDetails);
       } else {
@@ -660,15 +646,6 @@ export default function PurchaseInquiryForm() {
   const addItemRow = useCallback((row) => {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
     else queuedRowsRef.current.push(row);
-  }, []);
-
-  // Mirror the Supplier/Terms grids' live row state into refs that survive
-  // their tab-switch unmounts — see persistedSupplierRowsRef comment above.
-  const handleSupplierRowsChange = useCallback((rows) => {
-    persistedSupplierRowsRef.current = rows;
-  }, []);
-  const handleTermsRowsChange = useCallback((rows) => {
-    persistedTermsRowsRef.current = rows;
   }, []);
 
   // ── syncedFilters ─────────────────────────────────────────────────
@@ -793,10 +770,8 @@ export default function PurchaseInquiryForm() {
         // clearing any previously-picked rows tied to the old division).
         supplierGridRef.current?.clearRows?.();
         setSupplierSelectionCount(0);
-        persistedSupplierRowsRef.current = [];
         termsGridRef.current?.clearRows?.();
         setTermsSelectionCount(0);
-        persistedTermsRowsRef.current = [];
         if (val && val !== "0") {
           await fetchInquiryTypes(val);
           fetchSupplierGridColumns(val);
@@ -1600,10 +1575,9 @@ export default function PurchaseInquiryForm() {
               </button>
             </>
           }
-          tabContentOverride={
-            activeTab === "suppliers" ? (
+          tabPanes={{
+            suppliers: (
               <EntryGrid
-                key="pi-supplier-grid"
                 ref={supplierGridRef}
                 config={supplierGridConfig}
                 title=""
@@ -1611,12 +1585,10 @@ export default function PurchaseInquiryForm() {
                 readOnly={isEditRoute && !isEditMode}
                 emptyMessage="No suppliers added. Click Select Supplier above."
                 onSelectionChange={setSupplierSelectionCount}
-                initialRows={persistedSupplierRowsRef.current}
-                onRowsChange={handleSupplierRowsChange}
               />
-            ) : activeTab === "terms" ? (
+            ),
+            terms: (
               <EntryGrid
-                key="pi-terms-grid"
                 ref={termsGridRef}
                 config={termsGridConfig}
                 title=""
@@ -1624,11 +1596,9 @@ export default function PurchaseInquiryForm() {
                 readOnly={isEditRoute && !isEditMode}
                 emptyMessage="No terms & conditions added. Click Select Terms above."
                 onSelectionChange={setTermsSelectionCount}
-                initialRows={persistedTermsRowsRef.current}
-                onRowsChange={handleTermsRowsChange}
               />
-            ) : null
-          }
+            ),
+          }}
           readOnly={isEditRoute && !isEditMode}
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
