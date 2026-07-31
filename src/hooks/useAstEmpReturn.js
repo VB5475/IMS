@@ -173,7 +173,8 @@ export function useAstEmpReturn(baseURL = API_BASE_URL) {
       prmdivisionid: Number(divisionId) || 0,
       prmloginid: session.loginId,
       prmlocationtype: "",
-      prmfrmtype: String(AER_CONFIG.FRM_TYPE),
+      // SP expects the form code ("ER"), not the master numeric FrmType (3).
+      prmfrmtype: AER_CONFIG.FRM_TYPE_LABEL,
     }]);
   }, []);
 

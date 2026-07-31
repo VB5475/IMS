@@ -20,7 +20,6 @@ export const AET_CONFIG = {
   ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER),
   DELETE_PROC_NAME: "pr_rb_astemptrfmst_delete",
   RB_DETAIL: "rb_astemptrfdet",
-  RB_ITEM_PICKER: "rb_astemptrfselonly",
 
   MODULE_CODE: "AIS",
   FORM_TAG: "rb_astemptrfmst",
@@ -153,6 +152,12 @@ export function buildAetItemPickerJsonPayload(headerValues, {
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AET_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
+    // Magroup / submagroup filters removed from UI — SP still expects the params.
+    prmmaingroupid: 0,
+    prmsubmaingroupid: 0,
+    prmsearchtext: "",
+    prmotherstr: "",
+    prmjson: "[]",
   };
 }
 

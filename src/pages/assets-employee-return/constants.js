@@ -131,6 +131,9 @@ export function buildAerItemPickerJsonPayload(
     prmtovendorid: 0,
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AER_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
+    // Magroup / submagroup filters not used in Select Item UI — SP still expects the params.
+    prmmaingroupid: 0,
+    prmsubmaingroupid: 0,
   };
 }
 
