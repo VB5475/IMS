@@ -314,3 +314,13 @@
   font-size: 15px !important;
   text-shadow: none !important;
 }
+
+/* modal.css's .modal-subtitle defaults to a semi-transparent white, meant
+   for the dark header this stylesheet forces to light above — left
+   unfixed, any default-variant Modal with a subtitle renders it nearly
+   invisible (white-on-near-white). Bug found 2026-07-30 via the Document
+   Log modal (the first default-variant Modal with a subtitle to actually
+   ship), fixed at the source so it can't recur on the next one. */
+.modal-subtitle {
+  color: var(--text-secondary) !important;
+}

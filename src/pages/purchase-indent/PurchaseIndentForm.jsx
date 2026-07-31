@@ -16,16 +16,18 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save, Filter as FilterIcon } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, FileText } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
-import SearchSelect from "../../components/ui/SearchSelect";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -124,14 +126,9 @@ export default function PurchaseIndentForm() {
     indentTypeOptions,
     departmentOptions,
     locationOptions,
-    itemMainGroupOptions,
-    itemSubMainGroupOptions,
     fetchIndentTypes,
     clearIndentTypes,
     fetchLocations,
-    fetchItemMainGroupOptions,
-    fetchItemSubMainGroupOptions,
-    clearItemSubMainGroupOptions,
     // fetchLocations,
     isLoadingIndentTypes,
     columns,
@@ -188,6 +185,77 @@ export default function PurchaseIndentForm() {
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
 
+  // Document Log modal (F6) — scoped to this indent's record id, gated on
+  // the session's Document Log permission flags (set at login — see
+  // extractDmConfigPermissions in session/userSession.js). Read once here;
+  // dmConfig only changes on a fresh login, which remounts the whole tree.
+  // User-confirmed rule 2026-07-30: BOTH flags must be "Y" — isdmdbbased is
+  // only meaningful once isdmrequired is already "Y" (short-circuit AND).
+  const dmConfig = getUserSession().dmConfig;
+  const dmConfigAllows = dmConfig?.isdmrequired === "Y" && dmConfig?.isdmdbbased === "Y";
+
+  // Document Log button visibility — a 3rd, ADDITIVE gate on top of
+  // dmConfigAllows above, from ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY
+  // (per-trantype, not per-user like dmConfig). Defaults to "NO" (safe
+  // default-deny) until the fetch resolves or if it fails. Same recordId gate
+  // that used to block this button entirely was removed 2026-07-30 — Add
+  // mode is now allowed too, per explicit user direction.
+  const [docBtnVisible, setDocBtnVisible] = useState("NO");
+  const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES";
+
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const handleOpenDocuments = useCallback(() => {
+    if (!isDocumentLogEnabled) return;
+    setDocModalOpen(true);
+  }, [isDocumentLogEnabled]);
+
+  // Document-log GUID — issued so documents can be associated with this
+  // transaction before/regardless of it having been saved. Per-form state,
+  // not session (see ENDPOINTS.DM_HANDLE_GUID). Best-effort: a failure here
+  // must never block the page or the form. **Live-confirmed 2026-07-30**:
+  // the endpoint is deployed on IMS_LIVE, but expects LOWERCASE field names
+  // (prmguid/prmref_trantypeid/prmtranid) — the DM API doc's own example
+  // used mixed case (prmGUID/prmRef_TranTypeID/prmTranID), which 500s; only
+  // the lowercase shape actually works and returns a real GUID + success
+  // message. Confirmed via direct curl re-test the same day the doc's other
+  // endpoints went live — the doc's casing was simply wrong here, don't
+  // "fix" it back to match the doc without re-testing first.
+  const [docGuid, setDocGuid] = useState("");
+  // tranId: the real recordId in edit mode, 0 for a new/unsaved record —
+  // fires on every Indent page load (Add and Edit both), not just Add.
+  const fetchDocGuid = useCallback(async (tranId = 0) => {
+    try {
+      const res = await postSave(ENDPOINTS.DM_HANDLE_GUID, {
+        prmguid: "1",
+        prmref_trantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
+        prmtranid: Number(tranId) || 0,
+      });
+      const row = Array.isArray(res) ? res[0] : res;
+      const guid = row?.guid ?? row?.Guid ?? row?.GUID ?? row?.guId;
+      if (guid) setDocGuid(String(guid));
+    } catch (err) {
+      console.warn("[Indent] DM HandleGUID fetch failed:", err);
+    }
+  }, [postSave]);
+
+  // Live-confirmed 2026-07-30: plain JSON object body (not array, despite
+  // the reference screenshot) — same gotcha as DM_HANDLE_GUID. Response is
+  // an array of one row: [{ isdmbtnvisible: "YES"|"NO", ... }].
+  const fetchDocBtnVisible = useCallback(async () => {
+    try {
+      const res = await postSave(ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY, {
+        prmref_trantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
+        prmloginid: getUserSession().loginId,
+      });
+      const row = Array.isArray(res) ? res[0] : res;
+      const visible = row?.isdmbtnvisible ?? row?.IsDMBtnVisible;
+      setDocBtnVisible(visible === "YES" ? "YES" : "NO");
+    } catch (err) {
+      console.warn("[Indent] DM HandleButtonVisibility fetch failed:", err);
+      setDocBtnVisible("NO");
+    }
+  }, [postSave]);
+
   // Item picker modal
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [itemModalItems, setItemModalItems] = useState([]);
@@ -196,10 +264,11 @@ export default function PurchaseIndentForm() {
   const [itemModalError, setItemModalError] = useState(null);
   // Select Item popup filters (Direct mode only) — items are only fetched
   // once the user clicks Filter, not automatically when the modal opens.
-  const [itemMainGroupFilter, setItemMainGroupFilter] = useState("");
-  const [itemSubMainGroupFilter, setItemSubMainGroupFilter] = useState("");
-  const [itemFilterApplied, setItemFilterApplied] = useState(false);
-  const [itemFilterLoading, setItemFilterLoading] = useState(false);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: IND_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: IND_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: IND_CONFIG.FORM_TAG,
+  });
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -245,7 +314,12 @@ export default function PurchaseIndentForm() {
   useEffect(() => {
     fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
+    // Both Add and Edit — recordId is 0 for a new/unsaved record, the real
+    // id for an existing one (available immediately from the route param,
+    // no need to wait for loadEditRecord to finish).
+    fetchDocGuid(recordId);
+    fetchDocBtnVisible();
+  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute, recordId, fetchDocGuid, fetchDocBtnVisible]);
 
   // Phase 3 (new route only): pre-load grid columns after detail meta loads
   useEffect(() => {
@@ -458,10 +532,7 @@ export default function PurchaseIndentForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
-    setItemMainGroupFilter("");
-    setItemSubMainGroupFilter("");
-    setItemFilterApplied(false);
-    clearItemSubMainGroupOptions();
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -484,33 +555,23 @@ export default function PurchaseIndentForm() {
       });
       setItemModalColumns(gridColumns);
 
-      await fetchItemMainGroupOptions({ divisionId: divisionID, configId: configid });
+      await groupFilter.fetchMainGroupOptions({ divisionId: divisionID, configId: configid });
     } catch (err) {
       console.error("[Indent] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, fetchItemMainGroupOptions, clearItemSubMainGroupOptions]);
-
-  // Main Group changed → reload Sub Main Group options, reset its own selection.
-  const handleItemMainGroupFilterChange = useCallback((value) => {
-    setItemMainGroupFilter(value);
-    setItemSubMainGroupFilter("");
-    const { divisionid, configid } = headerValuesRef.current;
-    if (value) {
-      fetchItemSubMainGroupOptions({ divisionId: divisionid ?? 0, configId: configid, mainGroupId: value });
-    } else {
-      clearItemSubMainGroupOptions();
-    }
-  }, [fetchItemSubMainGroupOptions, clearItemSubMainGroupOptions]);
+  }, [getLive, headerColumns, groupFilter]);
 
   // Actual item fetch — deferred until the user clicks Filter. Main/Sub Main
   // Group ARE now sent to SP_ITEM_PICKER — live-confirmed 2026-07-28 that
   // fn_tbl_rb_purindtselitem accepts prmmaingroupid/prmsubmaingroupid
   // (previously threw "Must declare the scalar variable ..."; that's gone).
   // prmsubmaingroupid sends 0 when no sub group is picked (matches this
-  // app's usual "unfiltered" sentinel for id params).
+  // app's usual "unfiltered" sentinel for id params). Only these 2 filter
+  // params are sent here (not the Assets modules' full 5-param signature) —
+  // preserved as-is, this shape was live-verified 2026-07-28.
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const { divisionid, configid, trandate, expecteddate } = headerValues;
@@ -518,38 +579,36 @@ export default function PurchaseIndentForm() {
     const expectedDate = expecteddate ?? "";
 
     setItemModalError(null);
-    setItemFilterLoading(true);
     try {
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: IND_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([
-          {
-            prmdivisionid: Number(divisionID),
-            prmyearid: getUserSession().yearId,
-            prmloginid: getUserSession().loginId,
-            prmtrandate: formatIndentTranDate(trandate),
-            prmconfigid: Number(configid ?? 0),
-            prmsupplierid: 0,
-            prmexpdeldate: expectedDate,
-            prmtranbook: IND_CONFIG.TRAN_BOOK,
-            prmfrmoption: 0,
-            prmmaingroupid: Number(itemMainGroupFilter) || 0,
-            prmsubmaingroupid: Number(itemSubMainGroupFilter) || 0,
-          },
-        ]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.applyFilter(async () => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: IND_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([
+            {
+              prmdivisionid: Number(divisionID),
+              prmyearid: getUserSession().yearId,
+              prmloginid: getUserSession().loginId,
+              prmtrandate: formatIndentTranDate(trandate),
+              prmconfigid: Number(configid ?? 0),
+              prmsupplierid: 0,
+              prmexpdeldate: expectedDate,
+              prmtranbook: IND_CONFIG.TRAN_BOOK,
+              prmfrmoption: 0,
+              prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
+              prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
       });
-      setItemModalItems(rowRes || []);
-      setItemFilterApplied(true);
     } catch (err) {
       console.error("[Indent] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
-    } finally {
-      setItemFilterLoading(false);
     }
-  }, [getLive, itemMainGroupFilter, itemSubMainGroupFilter, headerColumns]);
+  }, [getLive, groupFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -629,7 +688,11 @@ export default function PurchaseIndentForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
-    extraClearFns: [clearIndentTypes],
+    extraClearFns: [clearIndentTypes, () => setDocGuid("")],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    extraReset: () => { if (isNewRoute) fetchDocGuid(); },
   });
 
   const completeSuccessfulSave = useCallback(() => {
@@ -643,7 +706,7 @@ export default function PurchaseIndentForm() {
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors = validateGridRows(detailRows, columns);
+    const detailErrors = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
@@ -707,7 +770,7 @@ export default function PurchaseIndentForm() {
   const filterBusy = headerFetching || isLoadingIndentTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docModalOpen,
     isEditMode,
     isSaving: isSavingIndent,
     addDisabled: filterBusy,
@@ -717,11 +780,27 @@ export default function PurchaseIndentForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: handleOpenDocuments,
   });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const indExtraButtons = useMemo(
     () => [
+      {
+        key: "documents",
+        label: "Documents",
+        Icon: FileText,
+        variant: "secondary",
+        onClick: handleOpenDocuments,
+        // recordId is no longer part of this gate — Add mode is allowed too
+        // (2026-07-30). Enabled only when dmConfig AND the per-trantype
+        // DM_HandleButtonVisibility flag both allow it.
+        disabled: !isDocumentLogEnabled,
+        showAlways: true,
+        title: isDocumentLogEnabled
+          ? FORM_SHORTCUT_TITLES.documents
+          : "Document rights are not enabled for your account.",
+      },
       {
         key: "saveprint",
         label: "Save & Print",
@@ -743,7 +822,7 @@ export default function PurchaseIndentForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSavingIndent, handleSave]
+    [handleOpenDocuments, isDocumentLogEnabled, handleSaveAndPrint, isSavingIndent, handleSave]
   );
 
   const itemGridConfig = {
@@ -753,39 +832,19 @@ export default function PurchaseIndentForm() {
   const combinedError = metaError || headerError;
 
   const itemFilterBar = (
-    <div className="oim-filter-bar">
-      <label className="oim-filter-bar__field">
-        <span>Item Main Group</span>
-        <SearchSelect
-          value={itemMainGroupFilter}
-          onChange={handleItemMainGroupFilterChange}
-          options={itemMainGroupOptions}
-          placeholder="All main groups"
-          ariaLabel="Item Main Group"
-        />
-      </label>
-      <label className="oim-filter-bar__field">
-        <span>Item Sub Main Group</span>
-        <SearchSelect
-          value={itemSubMainGroupFilter}
-          onChange={setItemSubMainGroupFilter}
-          options={itemSubMainGroupOptions}
-          placeholder="All sub main groups"
-          ariaLabel="Item Sub Main Group"
-          disabled={!itemMainGroupFilter}
-        />
-      </label>
-      <button
-        type="button"
-        className="oim-filter-bar__btn"
-        onClick={handleApplyItemFilter}
-        disabled={itemFilterLoading}
-        title="Load items for the selected filters"
-      >
-        <FilterIcon size={13} strokeWidth={2.5} />
-        {itemFilterLoading ? "Filtering…" : "Filter"}
-      </button>
-    </div>
+    <ItemPickerGroupFilterBar
+      mainGroupOptions={groupFilter.mainGroupOptions}
+      subMainGroupOptions={groupFilter.subMainGroupOptions}
+      mainGroupValue={groupFilter.mainGroupFilter}
+      subMainGroupValue={groupFilter.subMainGroupFilter}
+      onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+        divisionId: headerValuesRef.current.divisionid,
+        configId: headerValuesRef.current.configid,
+      })}
+      onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+      onFilter={handleApplyItemFilter}
+      filterLoading={groupFilter.filterLoading}
+    />
   );
 
   return (
@@ -895,11 +954,22 @@ export default function PurchaseIndentForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading || itemFilterLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
-          awaitingFilter={!itemFilterApplied}
+          awaitingFilter={!groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          isOpen={docModalOpen}
+          onClose={() => setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={IND_CONFIG.DM_TRAN_TYPE_ID}
+          guid={docGuid}
         />
       </Suspense>
     </div>

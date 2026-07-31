@@ -715,7 +715,7 @@ export function useAstEmpTrf(baseURL = API_BASE_URL) {
       await Promise.all(tasks);
     } catch (err) {
       console.error("[AET] fetchHeaderMeta failed:", err);
-      setHeaderError(err?.message || "Failed to load Assets Employee Transfer configuration.");
+      setHeaderError(err?.message || "Failed to load Employee Location Transfer configuration.");
     } finally {
       setHeaderFetching(false);
     }

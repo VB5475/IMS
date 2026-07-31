@@ -43,7 +43,7 @@ export default function AssetsEmployeeTransferPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
-    title: "Assets Employee Transfer",
+    title: "Employee Location Transfer",
     subtitle: "Transfer employee-held assets between locations and departments.",
     showBack: true,
     backTo: "/",
@@ -67,7 +67,7 @@ export default function AssetsEmployeeTransferPage() {
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[AET] list fetch failed:", err);
-      setError(err?.message || "Failed to load Assets Employee Transfer records.");
+      setError(err?.message || "Failed to load Employee Location Transfer records.");
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export default function AssetsEmployeeTransferPage() {
         <header className="aet-list-panel__header">
           <div className="aet-list-panel__title">
             <ArrowLeftRight size={14} strokeWidth={2} />
-            <span>Assets Employee Transfer</span>
+            <span>Employee Location Transfer</span>
           </div>
           <div className="aet-list-panel__toolbar">
             <button type="button" className="aet-list-panel__add-btn" onClick={handleAddNew}>
@@ -93,7 +93,7 @@ export default function AssetsEmployeeTransferPage() {
               {ENTRY_FORM_LABEL}
             </button>
             <PrintReportButton
-              reportTitle="Assets Employee Transfer Report"
+              reportTitle="Employee Location Transfer Report"
               reportFileName="TODO_AssetsEmployeeTransfer.rpt"
               buildParams={buildAetReportParams}
             />
@@ -120,11 +120,11 @@ export default function AssetsEmployeeTransferPage() {
           data={data}
           loading={loading}
           error={error}
-          loaderText="Loading Assets Employee Transfer records…"
+          loaderText="Loading Employee Location Transfer records…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          emptyMessage="No Assets Employee Transfer records found."
+          emptyMessage="No Employee Location Transfer records found."
           hideHeader
           searchable
           deleteProcName={AET_CONFIG.DELETE_PROC_NAME}

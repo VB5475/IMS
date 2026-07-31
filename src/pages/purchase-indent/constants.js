@@ -35,6 +35,11 @@ export const IND_CONFIG = {
   TRAN_BOOK: "PURIND",
   FRM_TYPE: "IND",
 
+  // DM_HandleGUID's "ref tran type" param — confirmed live 2026-07-30 via
+  // fn_tbl_fetch_trantype(@prmdepartmentid=1): idnumber 5 = "Purchase Indent".
+  // Not a guess — the real DMS TranType master row for this module.
+  DM_TRAN_TYPE_ID: 5,
+
   SP_ITEM_PICKER: "fn_tbl_rb_purindtselitem",
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
   SP_LOCATION: "fn_gen_fetchastisslocationmaster",

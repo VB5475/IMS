@@ -63,7 +63,8 @@ export default function LocationMasterPage() {
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs, allColumns, headerFetching, headerError,
-    locationTypeOptions, premisesOptions,
+    locationTypeOptions, premisesOptions, divisionOptions,
+    parentLocationOptions, fetchParentLocationOptions, clearParentLocationOptions,
     fetchEditRecord,
   } = useLocationMaster();
 
@@ -184,6 +185,10 @@ export default function LocationMasterPage() {
         defsError={headerError}
         locationTypeOptions={locationTypeOptions}
         premisesOptions={premisesOptions}
+        divisionOptions={divisionOptions}
+        parentLocationOptions={parentLocationOptions}
+        fetchParentLocationOptions={fetchParentLocationOptions}
+        clearParentLocationOptions={clearParentLocationOptions}
         fetchEditRecord={fetchEditRecord}
       />
     </div>

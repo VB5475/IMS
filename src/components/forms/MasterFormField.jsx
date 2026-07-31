@@ -80,9 +80,6 @@ export default function MasterFormField({
     [columnMeta]
   );
 
-  const custom = customRender?.({ field, value, onChange, locked, columnMeta, label });
-  if (custom != null) return custom;
-
   const displayValue = formatColumnDisplayValue(value, { ...field, columnMeta });
 
   const revertOnInvalid = useCallback(
@@ -145,6 +142,14 @@ export default function MasterFormField({
     },
     [onChange, revertOnInvalid]
   );
+
+  // Must run after every hook above — Rules of Hooks requires this component
+  // to call the same hooks in the same order on every render, so this early
+  // return can't happen before revertOnInvalid/handleFocus/handleTextBlur/
+  // handleNumericBlur/handleDateBlur are declared (moved here 2026-07-29,
+  // see project_eslint_rollout memory).
+  const custom = customRender?.({ field, value, onChange, locked, columnMeta, label });
+  if (custom != null) return custom;
 
   if (locked) {
     if (maskWhenLocked && inputType === "password") {

@@ -329,7 +329,7 @@ export default function LoginPage() {
       ) ?? null;
       const year = years.find((row) => String(row.yearid) === yearId) ?? null;
 
-      login(authRow, { companyId, yearId, company, year });
+      await login(authRow, { companyId, yearId, company, year });
       navigate("/", { replace: true });
     } catch (err) {
       console.error("[LoginPage] authentication failed:", err);

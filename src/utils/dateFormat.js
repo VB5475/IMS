@@ -41,6 +41,7 @@ export function inputFormatToDayjs(format) {
 export function inputFormatToDatePicker(format) {
   if (!format || String(format).trim() === "") return DEFAULT_DATE_PICKER_FORMAT;
   const protectedFmt = String(format).replace(/MMM/g, "\u0001MMM\u0001");
+  // eslint-disable-next-line no-control-regex --  sentinel is deliberate (protects MMM during the mm->MM replace), not a stray control char
   return protectedFmt.replace(/mm/g, "MM").replace(/\u0001MMM\u0001/g, "MMM");
 }
 

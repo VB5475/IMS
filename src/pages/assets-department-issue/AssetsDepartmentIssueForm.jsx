@@ -8,7 +8,9 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstDepIssue } from "../../hooks/useAstDepIssue";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -177,6 +179,11 @@ export default function AssetsDepartmentIssueForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: ADI_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: ADI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: ADI_CONFIG.FORM_TAG,
+  });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -471,6 +478,7 @@ export default function AssetsDepartmentIssueForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -493,21 +501,40 @@ export default function AssetsDepartmentIssueForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ADI_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAdiItemPickerJsonPayload(headerValues)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.fetchMainGroupOptions({
+        divisionId: headerValues.fromdivisionid,
+        configId: headerValues.configid,
       });
-      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[ADI] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, groupFilter]);
+
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    setItemModalError(null);
+    try {
+      await groupFilter.applyFilter(async (groupParams) => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: ADI_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([{
+            ...buildAdiItemPickerJsonPayload(headerValues),
+            ...groupParams,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      });
+    } catch (err) {
+      console.error("[ADI] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    }
+  }, [getLive, groupFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
@@ -581,7 +608,7 @@ export default function AssetsDepartmentIssueForm() {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateAdiBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
     const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
@@ -799,9 +826,25 @@ export default function AssetsDepartmentIssueForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={
+            <ItemPickerGroupFilterBar
+              mainGroupOptions={groupFilter.mainGroupOptions}
+              subMainGroupOptions={groupFilter.subMainGroupOptions}
+              mainGroupValue={groupFilter.mainGroupFilter}
+              subMainGroupValue={groupFilter.subMainGroupFilter}
+              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+                divisionId: headerValuesRef.current.fromdivisionid,
+                configId: headerValuesRef.current.configid,
+              })}
+              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+              onFilter={handleApplyItemFilter}
+              filterLoading={groupFilter.filterLoading}
+            />
+          }
+          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>

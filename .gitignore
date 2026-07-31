@@ -19,3 +19,9 @@ npm-debug.log*
 # Internal developer docs — not for repo
 docs/
 dist.zip
+
+# Playwright E2E — generated artifacts, not source
+test-results/
+tests/e2e/report/
+playwright-report/
+blob-report/

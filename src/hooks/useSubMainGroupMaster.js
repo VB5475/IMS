@@ -66,7 +66,7 @@ export function useSubMainGroupMaster() {
         }).catch((err) => { console.warn("[SMGM] Fixed Asset A/C fetch failed:", err); return null; }),
       ]);
 
-      if (process.env.NODE_ENV !== "production") {
+      if (import.meta.env.DEV) {
         console.log("[SMGM] ItemType row sample:",      itemTypeData?.[0]);
         console.log("[SMGM] FixedAssetAcc row sample:", fixedAssetData?.[0]);
       }
@@ -102,7 +102,7 @@ export function useSubMainGroupMaster() {
         JSon:      JSON.stringify([{ prmItemTypeID: Number(itemTypeId) }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
-      if (process.env.NODE_ENV !== "production") {
+      if (import.meta.env.DEV) {
         console.log("[SMGM] MainGroup row sample:", data?.[0]);
       }
       setMainGroupOptions(

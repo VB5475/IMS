@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -24,7 +25,6 @@ import {
   DoorClosed,
   ArrowLeftRight,
   Package2,
-  LayoutList,
   Users,
   Shield,
   KeyRound,
@@ -47,6 +47,9 @@ import {
   ArrowLeft,
   LogOut,
   Menu,
+  X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -84,7 +87,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Assets Employee Transfer", end: false },
+      
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN), icon: RotateCcw, label: "Assets Employee Return", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Building2, label: "Assets Department Issue", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false },
@@ -94,7 +97,8 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false },
+      // { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false },
+      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false },
     ],
   },
   {
@@ -115,6 +119,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false },
       { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
       { to: rbRoutePath(RB_CODES.DM_TT2DOCTYPE_MASTER), icon: ArrowLeftRight, label: "Transaction To Document Type Master", end: false },
+      { to: rbRoutePath(RB_CODES.DM_GROUP_RIGHTS), icon: KeyRound, label: "Group Rights", end: false },
     ],
   },
   {
@@ -133,7 +138,6 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
       { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
       { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
-      { to: rbRoutePath(RB_CODES.ASSET_ITEM_MASTER), icon: LayoutList, label: "Asset Item Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
     ],
@@ -141,13 +145,103 @@ const NAV_SECTIONS = [
 
 ];
 
+// Mirrors react-router NavLink's own isActive semantics (exact match when
+// `end`, otherwise exact-or-descendant) so the parent section label can be
+// highlighted without needing NavLink's internal match — used purely for
+// the "you're in this general area" section-label signal, doesn't affect
+// which link itself renders as active.
+function isNavItemActive(pathname, to, end) {
+  if (end) return pathname === to;
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+/** Section containing the current route, so the accordion opens on the
+ *  user's own context by default instead of an arbitrary first section. */
+function findSectionForPath(pathname) {
+  const match = NAV_SECTIONS.find((section) =>
+    section.items.some(({ to, end }) => isNavItemActive(pathname, to, end))
+  );
+  return match ? match.label : NAV_SECTIONS[0]?.label ?? null;
+}
+
 export default function AppShell({ children }) {
+  // Standing constraint (/pm): the icon-only collapsed rail must keep working —
+  // any new sidebar UI (search, badges, etc.) has to hide/adapt under !collapsed
+  // rather than assuming the expanded layout, see navSearch below for the pattern.
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [navSearch, setNavSearch] = useState("");
   const location = useLocation();
+  // Single-open accordion — independent of the whole-sidebar icon-rail
+  // collapse above. Opening a section auto-closes whichever one was open;
+  // starts on the section containing the current route.
+  const [openSection, setOpenSection] = useState(() => findSectionForPath(location.pathname));
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
   const { userName, userId, logout } = useUser();
+
+  // Collapsed rail has no room for labels/search — reset any in-progress
+  // filter so re-expanding the sidebar always starts from the full nav tree.
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      if (next) setNavSearch("");
+      return next;
+    });
+  };
+
+  const isSearching = navSearch.trim().length > 0;
+
+  const filteredNavSections = useMemo(() => {
+    const query = navSearch.trim().toLowerCase();
+    if (!query) return NAV_SECTIONS;
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.label.toLowerCase().includes(query)),
+    })).filter((section) => section.items.length > 0);
+  }, [navSearch]);
+
+  const toggleSection = (label) => {
+    setOpenSection((prev) => (prev === label ? null : label));
+  };
+
+  // ── Collapsed icon-rail flyout ──────────────────────────────────────
+  // Mobile never uses icon-rail mode (handleOpenMobileNav below forces
+  // collapsed=false for the drawer), so hover is a safe assumption here —
+  // no touch/click fallback needed.
+  const [flyout, setFlyout] = useState(null); // { label, items, style } | null
+  const flyoutCloseTimer = useRef(null);
+
+  const cancelFlyoutClose = () => {
+    if (flyoutCloseTimer.current) {
+      clearTimeout(flyoutCloseTimer.current);
+      flyoutCloseTimer.current = null;
+    }
+  };
+
+  const scheduleFlyoutClose = () => {
+    cancelFlyoutClose();
+    flyoutCloseTimer.current = setTimeout(() => setFlyout(null), 150);
+  };
+
+  const openFlyout = (section, targetEl) => {
+    cancelFlyoutClose();
+    const rect = targetEl.getBoundingClientRect();
+    setFlyout({
+      label: section.label,
+      items: section.items,
+      style: { position: "fixed", top: `${rect.top}px`, left: `${rect.right + 8}px`, zIndex: 2147483647 },
+    });
+  };
+
+  // Collapsing back to expanded, or unmounting, shouldn't leave a stale flyout around.
+  useEffect(() => {
+    if (!collapsed) setFlyout(null);
+  }, [collapsed]);
+
+  useEffect(() => {
+    setFlyout(null);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -191,21 +285,25 @@ export default function AppShell({ children }) {
       )}
       <aside className="ent-sidebar">
         <div className="ent-sidebar__header">
-          <div className="ent-sidebar__brand">
+          <button
+            type="button"
+            className="ent-sidebar__brand"
+            onClick={() => navigate("/")}
+            title="Go to Dashboard"
+          >
             <div className="ent-sidebar__logo">
               <img src={BRAND_LOGO_SRC} alt="IMS logo" className="ent-sidebar__logo-image" />
             </div>
             {!collapsed && (
               <div>
-                <div className="ent-sidebar__name">IMS Group</div>
-                <div className="ent-sidebar__tag">Asset Management System</div>
+                <div className="ent-sidebar__name">IMS</div>
               </div>
             )}
-          </div>
+          </button>
           <button
             type="button"
             className="ent-sidebar__collapse"
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={toggleCollapsed}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
@@ -220,11 +318,104 @@ export default function AppShell({ children }) {
           </button>
         </div>
 
+        {!collapsed && (
+          <div className="ent-sidebar__search">
+            <Search size={13} strokeWidth={2} />
+            <input
+              type="text"
+              placeholder="Search navigation…"
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
+              aria-label="Search navigation"
+            />
+            {navSearch && (
+              <button
+                type="button"
+                className="ent-sidebar__search-clear"
+                onClick={() => setNavSearch("")}
+                aria-label="Clear search"
+              >
+                <X size={12} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
+        )}
+
         <nav className="ent-sidebar__nav">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.label} className="ent-sidebar__section">
-              {!collapsed && <div className="ent-sidebar__section-label">{section.label}</div>}
-              {section.items.map(({ to, icon: Icon, label, end }) => (
+          {filteredNavSections.map((section) => {
+            // Icon rail shows everything, accordion state is moot there. An
+            // active search auto-expands matched sections regardless of
+            // manual toggle, so results are never hidden by a folded
+            // section. Otherwise it's whatever the user last toggled.
+            const sectionOpen = collapsed || isSearching || openSection === section.label;
+            // "You're in this general area" signal — independent of accordion
+            // open/closed state and of icon-rail collapse, purely based on
+            // whether the current route belongs to this section.
+            const sectionActive = section.items.some(({ to, end }) =>
+              isNavItemActive(location.pathname, to, end)
+            );
+            const sectionLabelClass = `ent-sidebar__section-label ${sectionActive ? "ent-sidebar__section-label--active" : ""}`;
+            return (
+              <div
+                key={section.label}
+                className="ent-sidebar__section"
+                onMouseEnter={collapsed ? (e) => openFlyout(section, e.currentTarget) : undefined}
+                onMouseLeave={collapsed ? scheduleFlyoutClose : undefined}
+              >
+                {!collapsed && (
+                  isSearching ? (
+                    <div className={sectionLabelClass}>{section.label}</div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ent-sidebar__section-header"
+                      onClick={() => toggleSection(section.label)}
+                      aria-expanded={sectionOpen}
+                    >
+                      <span className={sectionLabelClass}>{section.label}</span>
+                      {sectionOpen ? (
+                        <ChevronDown size={12} strokeWidth={2.5} />
+                      ) : (
+                        <ChevronRight size={12} strokeWidth={2.5} />
+                      )}
+                    </button>
+                  )
+                )}
+                {sectionOpen &&
+                  section.items.map(({ to, icon: Icon, label, end }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={end}
+                      className={({ isActive }) =>
+                        `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
+                      }
+                      title={collapsed ? label : undefined}
+                    >
+                      <span className="ent-sidebar__link-icon">
+                        <Icon size={16} strokeWidth={1.5} />
+                      </span>
+                      {!collapsed && <span>{label}</span>}
+                    </NavLink>
+                  ))}
+              </div>
+            );
+          })}
+          {!collapsed && navSearch && filteredNavSections.length === 0 && (
+            <div className="ent-sidebar__search-empty">No matching modules.</div>
+          )}
+        </nav>
+
+        {collapsed && flyout &&
+          createPortal(
+            <div
+              className="ent-sidebar__flyout"
+              style={flyout.style}
+              onMouseEnter={cancelFlyoutClose}
+              onMouseLeave={scheduleFlyoutClose}
+            >
+              <div className="ent-sidebar__flyout-label">{flyout.label}</div>
+              {flyout.items.map(({ to, icon: Icon, label, end }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -232,17 +423,17 @@ export default function AppShell({ children }) {
                   className={({ isActive }) =>
                     `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
                   }
-                  title={collapsed ? label : undefined}
+                  onClick={() => setFlyout(null)}
                 >
                   <span className="ent-sidebar__link-icon">
                     <Icon size={16} strokeWidth={1.5} />
                   </span>
-                  {!collapsed && <span>{label}</span>}
+                  <span>{label}</span>
                 </NavLink>
               ))}
-            </div>
-          ))}
-        </nav>
+            </div>,
+            document.body
+          )}
 
         {!collapsed && (
           <div className="ent-sidebar__footer">

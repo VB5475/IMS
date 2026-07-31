@@ -38,6 +38,10 @@ export default function OrderItemModal({
   // false "nothing matches" claim before the user has actually searched)
   // in favor of a neutral prompt to use the filters above.
   awaitingFilter = false,
+  // (row) => boolean — passed straight through to EntryGrid. Used by e.g.
+  // Purchase Voucher's GRN-Base picker to grey out + block re-selecting a
+  // GRN detail line that's already been inserted into the PV's item grid.
+  isRowDisabled = null,
 }) {
   const gridRef = useRef(null);
   const cancelBtnRef = useRef(null);
@@ -212,6 +216,8 @@ export default function OrderItemModal({
                 hideBottomPanel
                 emptyMessage="No items found for the selected criteria."
                 onSelectionChange={setSelectedCount}
+                isRowDisabled={isRowDisabled}
+                disabledRowTitle="Already added to this voucher — cannot be selected again."
               />
             </Suspense>
           </div>

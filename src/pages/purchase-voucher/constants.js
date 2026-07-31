@@ -30,17 +30,22 @@ export const PV_CONFIG = {
   SUPPLIER_SP: "fn_tbl_fetchcustomersuppliertranws4web",
 
   // RB codes for item picker modal (3 modes based on BasedOnID)
-  RB_ITEM_PICKER_GRN: "rb_purpvselgrndet",    // BasedOn = '0' (GRN Base)
+  // 2026-07-29: user corrected the mapping — BasedOnID 0 = Direct, 2 = GRN
+  // Base (1 = PO Base, unchanged). Was previously 0=GRN/2=Direct; every
+  // branch keying off basedonid (handleSelectItem's rbCode/spItemPicker
+  // resolution, handleApplyItemFilter's hardcoded prmfrmoption, the GRN
+  // bill-copy check in handleInsertItems) was updated to match — see
+  // PurchaseVoucherForm.jsx.
+  RB_ITEM_PICKER_GRN: "rb_purpvselgrndet",    // BasedOn = '2' (GRN Base)
   RB_ITEM_PICKER_PO: "rb_purpvselpodet",     // BasedOn = '1' (PO Base)
-  RB_ITEM_PICKER_DIRECT: "rb_purpvselonlyitem",  // BasedOn = '2' (Direct)
+  RB_ITEM_PICKER_DIRECT: "rb_purpvselonlyitem",  // BasedOn = '0' (Direct)
 
   // SP / function names
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
-  SP_PV_TYPES: "fn_tbl_ddl_pur_configuration",
   SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
-  SP_ITEM_PICKER_GRN: "fn_tbl_rb_purpvselgrndet",    // BasedOn = '0' (GRN Base)
+  SP_ITEM_PICKER_GRN: "fn_tbl_rb_purpvselgrndet",    // BasedOn = '2' (GRN Base)
   SP_ITEM_PICKER_PO: "fn_tbl_rb_purpvselpodet",     // BasedOn = '1' (PO Base)
-  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purpvselonlyitem",  // BasedOn = '2' (Direct)
+  SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purpvselonlyitem",  // BasedOn = '0' (Direct)
   SP_SUPPLIER_INFO: "fn_tbl_fetchsuppliercurrencyinfo",
   SP_COST_CENTER: "fn_tbl_fas_fetchcostcenterac",
   SP_DEPT: "pr_fetch_departmentdata_ims",
@@ -75,9 +80,9 @@ export const PV_CONFIG = {
 
   // "Based On" dropdown — MRD: GRN Base | PO Base | Direct
   BASED_ON_OPTIONS: [
-    { value: "0", label: "GRN Base" },
-    { value: "1", label: "PO Base" },
-    { value: "2", label: "Direct" },
+    { value: "0", label: "Direct" },
+    // { value: "1", label: "PO Base" },
+    { value: "2", label: "GRN Base" },
   ],
 };
 
@@ -94,10 +99,11 @@ export const PV_FILTER_CASCADE_RESETS = {
 };
 
 export const PV_SUMMARY_FIELDS = [
-  // ── Tax breakdown (ColSeqNo 23-30) — sums from detail rows, excluding
-  // rows where puttouse = 0 (see PV_SUMMARY_ROW_FILTER below — verified
-  // against a live fn_tbl_rb_purpvdet response where a puttouse=0 row's
-  // tax figures were excluded from the master's stored totals) ──
+  // ── Tax breakdown (ColSeqNo 23-30) — sums from every detail row. Put To
+  // Use has NO effect on these totals (2026-07-30, explicit user
+  // instruction — reverses the 2026-07-23 rowFilter exclusion below; see
+  // project_pv_po_summary_panel_bugs memory for the original backend-
+  // verified reasoning this replaces) ──
   { SummaryParameterID: "mstbaseamount", detKey: "baseamount" },
   { SummaryParameterID: "mstexpense", detKey: "expense" },
   { SummaryParameterID: "msttaxablevalue", detKey: "taxablevalue" },
@@ -140,14 +146,6 @@ export const PV_SUMMARY_FIELDS = [
   { SummaryParameterID: "pendingtdsamount", detKey: "pendingtdsamount", fromMaster: true },
   { SummaryParameterID: "netpayable", detKey: "netpayable", fromMaster: true },
 ];
-
-// Excludes rows the backend itself excludes from the master's stored totals
-// (confirmed live: a detail row with puttouse=0 carried real tax figures
-// that were NOT reflected in mstbaseamount/msttaxablevalue/mstcgst/mstsgst
-// on the saved master). Passed as EnterpriseSummaryPanel's `rowFilter`.
-export function PV_SUMMARY_ROW_FILTER(row) {
-  return Number(row.puttouse) !== 0;
-}
 
 // RB marks these visible as header columns, but they're computed from grid
 // rows and rendered via EnterpriseSummaryPanel (see syncedSummaryFields), not

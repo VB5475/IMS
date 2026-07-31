@@ -215,7 +215,6 @@ export function buildColumnMeta(apiCol) {
     isCrossYearEntryAllow: isTruthyApiFlag(apiCol.iscrossyearentryallow ?? apiCol.IsCrossYearEntryAllow),
     isFutureDateAllow: isTruthyApiFlag(apiCol.isfuturedateallow ?? apiCol.IsFutureDateAllow),
   };
-  return meta;
 }
 
 /** Read column meta from a grid column def or raw API column. */
@@ -398,10 +397,20 @@ export function formatColumnDisplayValue(value, colOrMeta) {
 
 /**
  * Validate multiple rows against grid column definitions.
+ * @param {boolean} [opts.requireAtLeastOne] — 2026-07-29 requirement: the
+ *   primary item grid must have at least 1 row before save. Opt-in (default
+ *   false) since several modules also validate secondary/optional grids
+ *   (indent-children, supplier detail, terms detail) through this same
+ *   function, which are allowed to be empty — only each module's own
+ *   primary item-grid call site should pass this.
  * @returns {string[]} error messages
  */
-export function validateGridRows(rows, columns) {
+export function validateGridRows(rows, columns, opts = {}) {
+  const { requireAtLeastOne = false } = opts;
   const errors = [];
+  if (requireAtLeastOne && (rows || []).length === 0) {
+    errors.push("Please add at least one item row before saving.");
+  }
   const dataCols = (columns || []).filter((c) => c.key && c.key !== "cb");
 
   (rows || []).forEach((row, rowIdx) => {

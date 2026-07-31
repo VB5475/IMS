@@ -47,7 +47,7 @@
   padding: 0 5px;
   font-size: 11px;
   font-weight: 600;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-family);
   text-align: right;
   color: var(--text);
   background: var(--primary-lighter, #f0f4ff);

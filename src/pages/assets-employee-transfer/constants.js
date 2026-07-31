@@ -4,8 +4,8 @@ import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { isColumnMandatoryByName } from "../../utils/gridUtils";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
-export const PAGE_TITLE = "Assets Employee Transfer";
-export const PAGE_TITLE_NEW = "New Assets Employee Transfer";
+export const PAGE_TITLE = "Employee Location Transfer";
+export const PAGE_TITLE_NEW = "New Employee Location Transfer";
 
 // Values aligned to MRD_Template4EmpTransfer.docx (Richa, 23-Jun-2026).
 
@@ -53,6 +53,14 @@ export const AET_CONFIG = {
   SP_TO_VENDOR: "fn_gen_fetchtovendor",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_rb_astemptrfselonly",
+  // Select Item popup filters — Main Group / Sub Main Group cascading
+  // filter, same rollout as Purchase Indent/GRN (2026-07-28) and the rest
+  // of the Assets suite (2026-07-29). Deferred until "Filter" is clicked;
+  // SP_ITEM_PICKER call also gets prmsearchtext/prmotherstr/prmjson as
+  // safe empty defaults (no dedicated UI for those yet, added per RB
+  // signature widening — unconfirmed live whether they affect filtering).
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
   SP_MASTER_FILL: "fn_tbl_rb_astemptrfmst",
   SP_DETAIL_FILL: "fn_tbl_rb_astemptrfdet",

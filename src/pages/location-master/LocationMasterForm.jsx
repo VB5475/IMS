@@ -30,7 +30,8 @@ const CASCADE_FIELDS = ["loc_code", "location_name", "address1", "city", "state"
 export default function LocationMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
   fieldDefs = [], allColumns = [], defsLoading = false, defsError = null,
-  locationTypeOptions = [], premisesOptions = [],
+  locationTypeOptions = [], premisesOptions = [], divisionOptions = [],
+  parentLocationOptions = [], fetchParentLocationOptions, clearParentLocationOptions,
   fetchEditRecord,
 }) {
   const isAddMode = mode === "add";
@@ -55,6 +56,12 @@ export default function LocationMasterForm({
     });
     return {
       ...row,
+      // Live RB's real column is "companyidnumber" (not the "companyid" name
+      // most other modules use) — confirmed via GetDetailColData. Setting
+      // only "companyid" left the real column at its numeric default (0),
+      // which is what actually gets sent to the save SP. Kept "companyid"
+      // too since it's harmless and something else might reference it.
+      companyidnumber: session.companyId,
       companyid: session.companyId,
       yearid:    session.yearId,
       loginid:   session.loginId,
@@ -103,9 +110,25 @@ export default function LocationMasterForm({
 
   // Dropdown options lookup keyed by RB colname
   const optionsMap = useMemo(() => ({
+    divisionid: divisionOptions,
     locationtype: locationTypeOptions,
     [PREMISES_COL]: premisesOptions,
-  }), [locationTypeOptions, premisesOptions]);
+    parentlocationid: parentLocationOptions,
+  }), [divisionOptions, locationTypeOptions, premisesOptions, parentLocationOptions]);
+
+  // Parent Location cascades off Location Type — reload its options whenever
+  // Location Type's value changes, covering both an interactive Add-mode
+  // change AND the initial value arriving from an edit-mode record load.
+  useEffect(() => {
+    if (!isOpen) return;
+    const locationTypeId = formValues.locationtype;
+    if (locationTypeId) {
+      fetchParentLocationOptions?.(locationTypeId);
+    } else {
+      clearParentLocationOptions?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, formValues.locationtype]);
 
   // Returns true if this field should be non-interactive
   function isLocked(field) {
@@ -114,12 +137,18 @@ export default function LocationMasterForm({
     return LOCK_ON_EDIT.has(field.colname);
   }
 
-  // Field value change — cascade-clear downstream fields on Premises change
+  // Field value change — cascade-clear downstream fields on Premises change,
+  // and reset Parent Location whenever Location Type changes (its options
+  // depend entirely on the selected Location Type — an old value almost
+  // certainly won't belong to the new one's list).
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === PREMISES_COL) {
         CASCADE_FIELDS.forEach((f) => { next[f] = ""; });
+      }
+      if (key === "locationtype") {
+        next.parentlocationid = "";
       }
       return next;
     });

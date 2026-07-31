@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Plus, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -8,7 +8,9 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstCliAllo } from "../../hooks/useAstCliAllo";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -188,6 +190,11 @@ export default function AssetsClientAllocationForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: ACA_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: ACA_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: ACA_CONFIG.FORM_TAG,
+  });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -448,12 +455,6 @@ export default function AssetsClientAllocationForm() {
     }
   }, []);
 
-  const handleAddNewItem = useCallback(async () => {
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    addItemRow(buildGridRow({}, allColumns));
-  }, [ensureItemColumns, addItemRow, allColumns]);
-
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
@@ -467,6 +468,7 @@ export default function AssetsClientAllocationForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -489,21 +491,43 @@ export default function AssetsClientAllocationForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ACA_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAcaItemPickerJsonPayload(headerValues)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.fetchMainGroupOptions({
+        divisionId: headerValues.fromdivisionid,
+        configId: headerValues.configid,
       });
-      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[ACA] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, groupFilter]);
+
+  // Deferred until "Filter" is clicked — see useItemPickerGroupFilter for
+  // the shared prmmaingroupid/prmsubmaingroupid/prmsearchtext/prmotherstr/
+  // prmjson param-building + loading/applied bookkeeping.
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    setItemModalError(null);
+    try {
+      await groupFilter.applyFilter(async (groupParams) => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: ACA_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([{
+            ...buildAcaItemPickerJsonPayload(headerValues),
+            ...groupParams,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      });
+    } catch (err) {
+      console.error("[ACA] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    }
+  }, [getLive, groupFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
@@ -529,7 +553,7 @@ export default function AssetsClientAllocationForm() {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateAcaBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
     const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
@@ -725,17 +749,6 @@ export default function AssetsClientAllocationForm() {
           headerControls={
             <>
               <button
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleAddNewItem}
-                disabled={!isEditMode}
-                title="Add a blank item row"
-              >
-                <Plus size={12} strokeWidth={2.5} />
-                Add New
-              </button>
-
-              <button
                 ref={selectItemBtnRef}
                 type="button"
                 className="eg-tab-btn"
@@ -760,7 +773,7 @@ export default function AssetsClientAllocationForm() {
             </>
           }
           hideBottomPanel
-          emptyMessage="No items yet. Click Add New or Select Item above."
+          emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
@@ -790,9 +803,25 @@ export default function AssetsClientAllocationForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={
+            <ItemPickerGroupFilterBar
+              mainGroupOptions={groupFilter.mainGroupOptions}
+              subMainGroupOptions={groupFilter.subMainGroupOptions}
+              mainGroupValue={groupFilter.mainGroupFilter}
+              subMainGroupValue={groupFilter.subMainGroupFilter}
+              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+                divisionId: headerValuesRef.current.fromdivisionid,
+                configId: headerValuesRef.current.configid,
+              })}
+              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+              onFilter={handleApplyItemFilter}
+              filterLoading={groupFilter.filterLoading}
+            />
+          }
+          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>

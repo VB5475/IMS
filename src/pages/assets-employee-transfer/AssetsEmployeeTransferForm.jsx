@@ -10,7 +10,9 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstEmpTrf } from "../../hooks/useAstEmpTrf";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -201,6 +203,11 @@ export default function AssetsEmployeeTransferForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: AET_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: AET_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: AET_CONFIG.FORM_TAG,
+  });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -274,7 +281,7 @@ export default function AssetsEmployeeTransferForm() {
         idFields: ["astempissid"],
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Employee Transfer record not found.");
+      if (!master || !headerValues) throw new Error("Employee Location Transfer record not found.");
 
       headerValuesRef.current = applyAetHardcodedHeaderValues({
         ...headerValuesRef.current,
@@ -300,7 +307,7 @@ export default function AssetsEmployeeTransferForm() {
       }
     } catch (err) {
       console.error("[AET] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Employee Transfer record.");
+      setRecordLoadError(err?.message || "Failed to load Employee Location Transfer record.");
     } finally {
       setRecordLoading(false);
     }
@@ -631,6 +638,7 @@ export default function AssetsEmployeeTransferForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -653,21 +661,40 @@ export default function AssetsEmployeeTransferForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AET_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAetItemPickerJsonPayload(headerValues)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.fetchMainGroupOptions({
+        divisionId: headerValues.fromdivisionid,
+        configId: headerValues.configid,
       });
-      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[AET] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, groupFilter]);
+
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    setItemModalError(null);
+    try {
+      await groupFilter.applyFilter(async (groupParams) => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: AET_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([{
+            ...buildAetItemPickerJsonPayload(headerValues),
+            ...groupParams,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      });
+    } catch (err) {
+      console.error("[AET] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    }
+  }, [getLive, groupFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -752,7 +779,7 @@ export default function AssetsEmployeeTransferForm() {
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
@@ -888,7 +915,7 @@ export default function AssetsEmployeeTransferForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Employee Transfer Detail"
+            title="Employee Location Transfer Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -981,9 +1008,25 @@ export default function AssetsEmployeeTransferForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={
+            <ItemPickerGroupFilterBar
+              mainGroupOptions={groupFilter.mainGroupOptions}
+              subMainGroupOptions={groupFilter.subMainGroupOptions}
+              mainGroupValue={groupFilter.mainGroupFilter}
+              subMainGroupValue={groupFilter.subMainGroupFilter}
+              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+                divisionId: headerValuesRef.current.fromdivisionid,
+                configId: headerValuesRef.current.configid,
+              })}
+              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+              onFilter={handleApplyItemFilter}
+              filterLoading={groupFilter.filterLoading}
+            />
+          }
+          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>

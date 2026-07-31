@@ -16,6 +16,7 @@ export const FORM_SHORTCUT_TITLES = {
   savePrint: "Save & Print (Alt+P)",
   selectList: "Select from list (Alt+L)",
   toggleCollapsible: "Expand / collapse details (Alt+C)",
+  documents: "Document Log (F6)",
   close: "Close",
 };
 
