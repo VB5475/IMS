@@ -9,7 +9,10 @@ import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstEmpTrf } from "../../hooks/useAstEmpTrf";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -38,6 +41,7 @@ import { dateToStoredValue, getTodayDateInputValue, isDateColumnDef } from "../.
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AET_CONFIG,
@@ -111,12 +115,14 @@ export default function AssetsEmployeeTransferForm() {
   const [formErrors, setFormErrors] = useState([]);
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -193,7 +199,17 @@ export default function AssetsEmployeeTransferForm() {
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isFillingDetail, setIsFillingDetail] = useState(false);
+
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemModalItems, setItemModalItems] = useState([]);
+  const [itemModalColumns, setItemModalColumns] = useState([]);
+  const [itemModalLoading, setItemModalLoading] = useState(false);
+  const [itemModalError, setItemModalError] = useState(null);
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: AET_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: AET_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: AET_CONFIG.FORM_TAG,
+  });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -267,7 +283,7 @@ export default function AssetsEmployeeTransferForm() {
         idFields: ["astempissid"],
       });
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Employee Transfer record not found.");
+      if (!master || !headerValues) throw new Error("Employee Location Transfer record not found.");
 
       headerValuesRef.current = applyAetHardcodedHeaderValues({
         ...headerValuesRef.current,
@@ -293,7 +309,7 @@ export default function AssetsEmployeeTransferForm() {
       }
     } catch (err) {
       console.error("[AET] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Employee Transfer record.");
+      setRecordLoadError(err?.message || "Failed to load Employee Location Transfer record.");
     } finally {
       setRecordLoading(false);
     }
@@ -601,15 +617,17 @@ export default function AssetsEmployeeTransferForm() {
   }, [columns, allColumns, fetchGridColumns]);
 
   const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    const key = String(colKey).toLowerCase();
-    if (key === "qty" || key === "rate") {
-      const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-      const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-      const patch = { amount: qty * rate };
-      if ("Amount" in rowData) patch.Amount = qty * rate;
-      itemGridRef.current?.updateRow?.(rowId, patch);
-    }
-  }, []);
+    return trackCellEvent(async () => {
+      const key = String(colKey).toLowerCase();
+      if (key === "qty" || key === "rate") {
+        const qty = Number(rowData.qty ?? rowData.Qty) || 0;
+        const rate = Number(rowData.rate ?? rowData.Rate) || 0;
+        const patch = { amount: qty * rate };
+        if ("Amount" in rowData) patch.Amount = qty * rate;
+        itemGridRef.current?.updateRow?.(rowId, patch);
+      }
+    });
+  }, [trackCellEvent]);
 
   const handleFillDetail = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -619,10 +637,12 @@ export default function AssetsEmployeeTransferForm() {
       return;
     }
 
-    setFormErrors([]);
-    setActiveTab("items");
-    setIsFillingDetail(true);
-    setIsGridLoading(true);
+    setItemModalOpen(true);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalError(null);
+    setItemModalLoading(true);
+    groupFilter.resetFilter();
 
     try {
       const activeCols = await ensureItemColumns();
@@ -631,32 +651,51 @@ export default function AssetsEmployeeTransferForm() {
         return;
       }
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AET_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAetItemPickerJsonPayload(headerValues)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      await groupFilter.fetchMainGroupOptions({
+        divisionId: headerValues.fromdivisionid,
+        configId: headerValues.configid,
       });
-      const items = Array.isArray(rowRes) ? rowRes : [];
-      if (items.length === 0) {
-        itemGridRef.current?.clearRows?.();
-        notify.info("No items found for the selected header filters.");
-        return;
-      }
-
-      const dateColKeys = new Set(activeCols.filter(isDateColumnDef).map((col) => col.key));
-      itemGridRef.current?.clearRows?.();
-      items.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns, dateColKeys)));
-      notify.success(`${items.length} item${items.length === 1 ? "" : "s"} loaded into the grid.`);
     } catch (err) {
-      console.error("[AET] Fill Detail failed:", err);
-      notify.error(err?.message || "Failed to fill detail items.");
+      console.error("[AET] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
-      setIsFillingDetail(false);
-      setIsGridLoading(false);
+      setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, ensureItemColumns, allColumns, addItemRow, notify]);
+  }, [getLive, headerColumns, groupFilter]);
+
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    setItemModalError(null);
+    try {
+      await groupFilter.applyFilter(async (groupParams) => {
+        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: AET_CONFIG.SP_ITEM_PICKER,
+          JSon: JSON.stringify([{
+            ...buildAetItemPickerJsonPayload(headerValues),
+            ...groupParams,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        setItemModalItems(rowRes || []);
+      });
+    } catch (err) {
+      console.error("[AET] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    }
+  }, [getLive, groupFilter]);
+
+  const handleInsertItems = useCallback(
+    async (selectedItems) => {
+      if (!selectedItems?.length) return;
+      setActiveTab("items");
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    },
+    [ensureItemColumns, allColumns, addItemRow]
+  );
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleFillDetail();
@@ -714,10 +753,11 @@ export default function AssetsEmployeeTransferForm() {
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    await flushPendingCellEvents(itemGridSectionRef);
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
@@ -762,7 +802,7 @@ export default function AssetsEmployeeTransferForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -853,7 +893,7 @@ export default function AssetsEmployeeTransferForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Employee Transfer Detail"
+            title="Employee Location Transfer Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -867,7 +907,7 @@ export default function AssetsEmployeeTransferForm() {
         )}
       </section>
 
-      <section className="aei-grid-section">
+      <section className="aei-grid-section" ref={itemGridSectionRef}>
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
             {AET_GRID_TABS.map((t) => (
@@ -927,6 +967,34 @@ export default function AssetsEmployeeTransferForm() {
         cancelAccessKey="n"
         extraButtons={extraButtons}
       />
+
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={itemModalOpen}
+          onClose={() => setItemModalOpen(false)}
+          items={itemModalItems}
+          columns={itemModalColumns}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
+          error={itemModalError}
+          onInsert={handleInsertItems}
+          filterBar={
+            <ItemPickerGroupFilterBar
+              mainGroupOptions={groupFilter.mainGroupOptions}
+              subMainGroupOptions={groupFilter.subMainGroupOptions}
+              mainGroupValue={groupFilter.mainGroupFilter}
+              subMainGroupValue={groupFilter.subMainGroupFilter}
+              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+                divisionId: headerValuesRef.current.fromdivisionid,
+                configId: headerValuesRef.current.configid,
+              })}
+              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+              onFilter={handleApplyItemFilter}
+              filterLoading={groupFilter.filterLoading}
+            />
+          }
+          awaitingFilter={!groupFilter.filterApplied}
+        />
+      </Suspense>
     </div>
   );
 }

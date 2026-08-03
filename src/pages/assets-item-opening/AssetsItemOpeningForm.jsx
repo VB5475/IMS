@@ -179,7 +179,7 @@ export default function AssetsItemOpeningForm() {
           ? recordLoadError
           : `Entry #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/rb_astitemopemst",
+    backTo:   AOP_CONFIG.ROUTE_PATH,
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -449,7 +449,7 @@ export default function AssetsItemOpeningForm() {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors  = validateGridRows(detailRows, columns);
+    const detailErrors  = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) { setFormErrors(allErrors); return false; }

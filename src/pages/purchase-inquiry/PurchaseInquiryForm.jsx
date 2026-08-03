@@ -65,6 +65,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PI_CONFIG,
@@ -200,6 +201,7 @@ export default function PurchaseInquiryForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const supplierGridRef = useRef(null);
   const termsGridRef = useRef(null);
   const filterPanelRef = useRef(null);
@@ -210,6 +212,7 @@ export default function PurchaseInquiryForm() {
   const queuedRowsRef = useRef([]);
   const queuedSupplierRowsRef = useRef([]);
   const queuedTermsRowsRef = useRef([]);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -941,20 +944,21 @@ export default function PurchaseInquiryForm() {
   }, [getLive, groupFilter]);
 
   const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
+    ({ rowId, colKey, rowData }) =>
+      trackCellEvent(async () => {
+        const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+        if (!result || !itemGridRef.current) return;
+        const responseRow = result?.[0];
+        if (!responseRow) return;
+        const errCode = responseRow.errcode;
+        if (errCode !== 1 && errCode !== 1.0) {
+          console.warn("[PI] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+          return;
+        }
+        const { errcode, errmsg, ...updatedFields } = responseRow;
+        itemGridRef.current.updateRow?.(rowId, updatedFields);
+      }),
+    [fireCellEvent, trackCellEvent]
   );
 
   const handleInsertItems = useCallback(
@@ -1242,6 +1246,8 @@ export default function PurchaseInquiryForm() {
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      await flushPendingCellEvents(itemGridSectionRef);
+
       setFormErrors([]);
       const hv = headerValuesRef.current;
 
@@ -1344,6 +1350,7 @@ export default function PurchaseInquiryForm() {
       postSave,
       completeSuccessfulSave,
       isEditRoute,
+      flushPendingCellEvents,
     ]
   );
 
@@ -1503,7 +1510,7 @@ export default function PurchaseInquiryForm() {
         )}
       </section>
 
-      <section className="pi-grid-section">
+      <section className="pi-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}

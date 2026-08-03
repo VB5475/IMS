@@ -8,7 +8,7 @@
 //
 // Indent-specific vs PO:
 //   fetchIndentTypes(divisionId)  — cascade: Division → Indent Type
-//   fetchLocations(divisionId)    — fn_gen_fetchastisslocationmaster (add + edit unlock)
+//   fetchLocations(divisionId)    — fn_tbl_fetch_divwslocation  (add + edit unlock)
 //   No supplier, currency, amend, or 3rd detail table (simpler than PO)
 
 import { useState, useCallback, useRef } from "react";
@@ -144,8 +144,8 @@ export function usePurchaseIndent(baseURL = API_BASE_URL) {
         JSon: JSON.stringify([{
           prmcompanyid: session.companyId,
           prmdivisionid: Number(divisionId) || 0,
+          prmlocationtypeid: 1,
           prmloginid: session.loginId,
-          prmlocationtype: "",
           prmfrmtype: String(IND_CONFIG.FRM_TYPE),
         }]),
         p_ErrCode: -1,

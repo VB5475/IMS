@@ -279,7 +279,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     ref,
     () => ({
       addRow(blankRow) {
-        setRows((prev) => [...prev, blankRow]);
+        // Mutate rowsRef first — setState updaters are not sync, and Save/getRows
+        // must see the row immediately after imperative add/update.
+        const next = [...rowsRef.current, blankRow];
+        rowsRef.current = next;
+        setRows(next);
       },
       getRows() {
         return rowsRef.current;
@@ -288,23 +292,32 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         return rowsRef.current.filter((r) => selectedIds.has(String(r.id)));
       },
       updateRow(rowId, fields) {
-        setRows((prev) =>
-          prev.map((r) => (String(r.id) === String(rowId) ? { ...r, ...fields } : r))
+        // Mutate rowsRef first — setState updaters run later; awaiting a cell-event
+        // then calling getRows() must already see the new qty/amounts.
+        const next = rowsRef.current.map((r) =>
+          String(r.id) === String(rowId) ? { ...r, ...fields } : r
         );
+        rowsRef.current = next;
+        setRows(next);
       },
       updateAllRows(fields) {
-        setRows((prev) => prev.map((r) => ({ ...r, ...fields })));
+        const next = rowsRef.current.map((r) => ({ ...r, ...fields }));
+        rowsRef.current = next;
+        setRows(next);
       },
       removeRows(rowIds) {
         const removeSet = new Set(rowIds.map(String));
-        setRows((prev) => prev.filter((r) => !removeSet.has(String(r.id))));
+        const next = rowsRef.current.filter((r) => !removeSet.has(String(r.id)));
+        rowsRef.current = next;
+        setRows(next);
         setSelectedIds((prev) => {
-          const next = new Set(prev);
-          rowIds.forEach((id) => next.delete(String(id)));
-          return next;
+          const nextSel = new Set(prev);
+          rowIds.forEach((id) => nextSel.delete(String(id)));
+          return nextSel;
         });
       },
       clearRows() {
+        rowsRef.current = [];
         setRows([]);
         setSelectedIds(new Set());
         setExpandedRows(new Set());
@@ -314,7 +327,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           ...r,
           id: String(r.id ?? r.CompUniqueKey ?? r.IDNumber ?? `_row_${i}`),
         }));
-        setRows(syncRowsForDropdowns(withIds));
+        const synced = syncRowsForDropdowns(withIds);
+        rowsRef.current = synced;
+        setRows(synced);
         setSelectedIds(new Set());
         setExpandedRows(new Set());
       },
@@ -507,9 +522,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ── Cell change ───────────────────────────────────────────────────
   const handleCellChange = useCallback((rowId, colKey, value) => {
-    setRows((prev) =>
-      prev.map((r) => (String(r.id) === String(rowId) ? { ...r, [colKey]: value } : r))
+    const next = rowsRef.current.map((r) =>
+      String(r.id) === String(rowId) ? { ...r, [colKey]: value } : r
     );
+    rowsRef.current = next;
+    setRows(next);
   }, []);
 
   const validateAndCommitCell = useCallback(
