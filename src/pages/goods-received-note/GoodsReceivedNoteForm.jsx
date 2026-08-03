@@ -57,6 +57,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   GRN_CONFIG,
@@ -166,10 +167,12 @@ export default function GoodsReceivedNoteForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: getLive } = useApi(API_BASE_URL);
   const { post } = useApi(API_BASE_URL_IMS);
 
@@ -831,21 +834,26 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [getLive, groupFilter]);
 
+  // Fire-and-forget from EntryGrid's blur (it never awaits onCellEvent), but
+  // track the promise so handleSave can await it — otherwise Save immediately
+  // after editing an event column (without tabbing away) POSTs before the
+  // fire-event response updates the row.
   const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
+    ({ rowId, colKey, rowData }) =>
+      trackCellEvent(async () => {
+        const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+        if (!result || !itemGridRef.current) return;
+        const responseRow = result?.[0];
+        if (!responseRow) return;
+        const errCode = responseRow.errcode;
+        if (errCode !== 1 && errCode !== 1.0) {
+          console.warn("[GRN] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+          return;
+        }
+        const { errcode, errmsg, ...updatedFields } = responseRow;
+        itemGridRef.current.updateRow?.(rowId, updatedFields);
+      }),
+    [fireCellEvent, trackCellEvent]
   );
 
   const handleInsertItems = useCallback(
@@ -931,6 +939,10 @@ export default function GoodsReceivedNoteForm() {
 
   const handleSave = useCallback(
     async ({ skipPostSave = false } = {}) => {
+      // Force blur so EntryGrid fires any pending cell-event for the active cell,
+      // then await that recalculation before reading rows for the save payload.
+      await flushPendingCellEvents(itemGridSectionRef);
+
       setFormErrors([]);
       const hv = headerValuesRef.current;
 
@@ -1009,6 +1021,7 @@ export default function GoodsReceivedNoteForm() {
       post,
       completeSuccessfulSave,
       isEditRoute,
+      flushPendingCellEvents,
     ]
   );
 
@@ -1162,7 +1175,7 @@ export default function GoodsReceivedNoteForm() {
         )}
       </section>
 
-      <section className="grn-grid-section">
+      <section className="grn-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}

@@ -2,13 +2,16 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, History, QrCode } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import Modal from "../../components/ui/Modal";
+import HardwareQrScanner from "../../components/txn/HardwareQrScanner";
 import { useNotification } from "../../context/NotificationContext";
+import { parseQrItemPayload } from "../../utils/qrScanJson";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstEmpIssue } from "../../hooks/useAstEmpIssue";
@@ -42,6 +45,7 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   AEI_CONFIG,
@@ -53,6 +57,7 @@ import {
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
   buildAeiItemPickerJsonPayload,
+  normalizeAeiQrSearchJson,
   applyAeiHardcodedHeaderValues,
   buildAeiCascadeResets,
 } from "./constants";
@@ -103,6 +108,24 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
+function normQrKey(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+/** True if grid already has the same itemcode + assetsrno (or srno fallback). */
+function gridHasScannedItem(rows, itemcode, srno) {
+  const code = normQrKey(itemcode);
+  const serial = normQrKey(srno);
+  if (!code || !serial) return false;
+  return (rows || []).some((row) => {
+    const rowCode = normQrKey(row.itemcode ?? row.ItemCode);
+    const rowSrno = normQrKey(
+      row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo
+    );
+    return rowCode === code && rowSrno === serial;
+  });
+}
+
 export default function AssetsEmployeeIssueForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
@@ -114,12 +137,15 @@ export default function AssetsEmployeeIssueForm() {
   const [formErrors, setFormErrors] = useState([]);
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
+  const headerScanRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -203,6 +229,13 @@ export default function AssetsEmployeeIssueForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [scanQrOpen, setScanQrOpen] = useState(false);
+  const [scanQrLoading, setScanQrLoading] = useState(false);
+  const [scanQrError, setScanQrError] = useState(null);
+  const [lastQrItem, setLastQrItem] = useState(null);
+  const [scanHistory, setScanHistory] = useState([]);
+  const [headerScanValue, setHeaderScanValue] = useState("");
+  const scanHistoryIdRef = useRef(0);
   const groupFilter = useItemPickerGroupFilter({
     spMainGroup: AEI_CONFIG.SP_ITEM_MAIN_GROUP,
     spSubMainGroup: AEI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
@@ -615,15 +648,17 @@ export default function AssetsEmployeeIssueForm() {
   }, [columns, allColumns, fetchGridColumns]);
 
   const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    const key = String(colKey).toLowerCase();
-    if (key === "qty" || key === "rate") {
-      const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-      const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-      const patch = { amount: qty * rate };
-      if ("Amount" in rowData) patch.Amount = qty * rate;
-      itemGridRef.current?.updateRow?.(rowId, patch);
-    }
-  }, []);
+    return trackCellEvent(async () => {
+      const key = String(colKey).toLowerCase();
+      if (key === "qty" || key === "rate") {
+        const qty = Number(rowData.qty ?? rowData.Qty) || 0;
+        const rate = Number(rowData.rate ?? rowData.Rate) || 0;
+        const patch = { amount: qty * rate };
+        if ("Amount" in rowData) patch.Amount = qty * rate;
+        itemGridRef.current?.updateRow?.(rowId, patch);
+      }
+    });
+  }, [trackCellEvent]);
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -707,6 +742,269 @@ export default function AssetsEmployeeIssueForm() {
     [ensureItemColumns, allColumns, addItemRow]
   );
 
+  const openScanHistory = useCallback(() => {
+    setScanQrError(null);
+    setScanQrOpen(true);
+  }, []);
+
+  const closeScanQr = useCallback(() => {
+    if (scanQrLoading) return;
+    setScanQrOpen(false);
+    setScanQrError(null);
+  }, [scanQrLoading]);
+
+  const focusHeaderScanField = useCallback(() => {
+    if (!isEditMode) return;
+    setActiveTab("items");
+    requestAnimationFrame(() => {
+      headerScanRef.current?.focus();
+      headerScanRef.current?.select?.();
+    });
+  }, [isEditMode]);
+
+  const restoreHeaderScanFocus = useCallback(() => {
+    // Deferred so it runs after loading unlocks the field / toast paint.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!headerScanRef.current || headerScanRef.current.disabled) return;
+        headerScanRef.current.focus();
+      }, 0);
+    });
+  }, []);
+
+  const handleScanQrSubmit = useCallback(async (rawText) => {
+    console.log("[AEI QR] handleScanQrSubmit raw", rawText);
+    const { searchText, error } = normalizeAeiQrSearchJson(rawText);
+    console.log("[AEI QR] normalized", { searchText, error });
+    if (error) {
+      setScanQrError(scanQrOpen ? error : null);
+      notify.toastError(error);
+      restoreHeaderScanFocus();
+      return;
+    }
+
+    const headerValues = headerValuesRef.current;
+    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
+    if (missingFields.length > 0) {
+      setScanQrOpen(false);
+      setFormErrors(missingFields);
+      restoreHeaderScanFocus();
+      return;
+    }
+
+    setScanQrError(null);
+
+    let scannedMeta = {};
+    try { scannedMeta = JSON.parse(searchText); } catch { /* keep empty */ }
+    const existingRows = itemGridRef.current?.getRows?.() ?? [];
+    if (gridHasScannedItem(existingRows, scannedMeta.itemcode, scannedMeta.srno)) {
+      const msg = "Item is already added";
+      setScanQrError(scanQrOpen ? msg : null);
+      notify.toastError(msg);
+      setHeaderScanValue("");
+      restoreHeaderScanFocus();
+      return;
+    }
+
+    setScanQrLoading(true);
+    try {
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) {
+        notify.toastError("Item grid columns could not be loaded.");
+        return;
+      }
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: AEI_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([{
+          ...buildAeiItemPickerJsonPayload(headerValues, {
+            maGroupId: 0,
+            subMaGroupId: 0,
+            searchText,
+          }),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+
+      const rows = rowRes || [];
+      console.log("[AEI QR] picker response rows", rows.length, rows);
+      if (rows.length === 0) {
+        const msg = "No item found for this QR JSON.";
+        setScanQrError(scanQrOpen ? msg : null);
+        notify.toastError(msg);
+        return;
+      }
+
+      const gridRowsNow = itemGridRef.current?.getRows?.() ?? [];
+      const mappedRows = rows
+        .map((item) => mapPickerToItemRow(item, allColumns))
+        .filter((row) => !gridHasScannedItem(
+          gridRowsNow,
+          row.itemcode ?? row.ItemCode,
+          row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo
+        ));
+
+      if (mappedRows.length === 0) {
+        const msg = "Item is already added";
+        setScanQrError(scanQrOpen ? msg : null);
+        notify.toastError(msg);
+        setHeaderScanValue("");
+        return;
+      }
+
+      setActiveTab("items");
+      mappedRows.forEach((row) => addItemRow(row));
+
+      const last = rows[rows.length - 1] || {};
+      const itemName = String(
+        last.itemname ?? last.ItemName ?? last.itemdesc ?? last.ItemDesc
+        ?? last.description ?? last.Description ?? last.itemcode ?? last.ItemCode
+        ?? scannedMeta.itemcode ?? "Item"
+      ).trim();
+      const qrItem = {
+        id: ++scanHistoryIdRef.current,
+        itemcode: String(
+          last.itemcode ?? last.ItemCode ?? scannedMeta.itemcode ?? ""
+        ).trim(),
+        srno: String(
+          last.assetsrno ?? last.Assetsrno ?? last.srno ?? last.SrNo ?? scannedMeta.srno ?? ""
+        ).trim(),
+        itemname: itemName,
+        rowIds: mappedRows.map((r) => r.id),
+      };
+      setLastQrItem(qrItem);
+      setScanHistory((prev) => [qrItem, ...prev]);
+      setHeaderScanValue("");
+
+      if (scanQrOpen) {
+        setScanQrOpen(false);
+        setScanQrError(null);
+      }
+      notify.toastSuccess(
+        mappedRows.length === 1
+          ? `Added: ${itemName}`
+          : `Added ${mappedRows.length} items · ${itemName}`
+      );
+    } catch (err) {
+      console.error("[AEI] Scan QR item fetch failed:", err);
+      const msg = err?.message || "Failed to fetch item for QR JSON.";
+      setScanQrError(scanQrOpen ? msg : null);
+      notify.toastError(msg);
+    } finally {
+      setScanQrLoading(false);
+      restoreHeaderScanFocus();
+    }
+  }, [
+    scanQrOpen, headerColumns, ensureItemColumns, getLive,
+    allColumns, addItemRow, notify, restoreHeaderScanFocus,
+  ]);
+
+  const commitHeaderScan = useCallback((raw) => {
+    const value = String(raw ?? "").trim();
+    console.log("[AEI QR] header scan commit", { value, length: value.length });
+    if (!value) return;
+    setHeaderScanValue("");
+    const parsed = parseQrItemPayload(value);
+    if (parsed) {
+      handleScanQrSubmit(JSON.stringify(parsed));
+      return;
+    }
+    handleScanQrSubmit(value);
+  }, [handleScanQrSubmit]);
+
+  const handleHeaderScanKeyDown = useCallback((e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isEditMode || scanQrLoading) return;
+    commitHeaderScan(headerScanValue);
+  }, [isEditMode, scanQrLoading, commitHeaderScan, headerScanValue]);
+
+  const handleHeaderScanPaste = useCallback((e) => {
+    if (!isEditMode || scanQrLoading) return;
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (!String(text).trim()) return;
+    e.preventDefault();
+    commitHeaderScan(text);
+  }, [isEditMode, scanQrLoading, commitHeaderScan]);
+
+  const handleRemoveScanHistory = useCallback((entry) => {
+    if (!entry) return;
+
+    if (entry.rowIds?.length) {
+      itemGridRef.current?.removeRows?.(entry.rowIds);
+    } else {
+      const code = String(entry.itemcode ?? "").trim().toLowerCase();
+      const serial = String(entry.srno ?? "").trim().toLowerCase();
+      const gridRows = itemGridRef.current?.getRows?.() ?? [];
+      const matchIds = gridRows
+        .filter((row) => {
+          const rowCode = String(row.itemcode ?? row.ItemCode ?? "").trim().toLowerCase();
+          const rowSrno = String(
+            row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo ?? ""
+          ).trim().toLowerCase();
+          return rowCode === code && rowSrno === serial;
+        })
+        .map((row) => row.id);
+      if (matchIds.length) itemGridRef.current?.removeRows?.(matchIds);
+    }
+
+    setScanHistory((prev) => prev.filter((h) => h.id !== entry.id));
+    setLastQrItem((current) => {
+      if (!current || current.id !== entry.id) return current;
+      const next = scanHistory.filter((h) => h.id !== entry.id);
+      return next[0] ?? null;
+    });
+  }, [scanHistory]);
+
+  const syncScanHistoryWithGridRows = useCallback((rows) => {
+    const livingIds = new Set((rows || []).map((r) => r.id));
+
+    setScanHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const next = prev.filter((h) => {
+        if (h.rowIds?.length) {
+          return h.rowIds.some((id) => livingIds.has(id));
+        }
+        const code = String(h.itemcode ?? "").trim().toLowerCase();
+        const serial = String(h.srno ?? "").trim().toLowerCase();
+        if (!code && !serial) return false;
+        return (rows || []).some((row) => {
+          const rowCode = String(row.itemcode ?? row.ItemCode ?? "").trim().toLowerCase();
+          const rowSrno = String(
+            row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo ?? ""
+          ).trim().toLowerCase();
+          return rowCode === code && rowSrno === serial;
+        });
+      });
+      return next.length === prev.length ? prev : next;
+    });
+
+    setLastQrItem((current) => {
+      if (!current) return current;
+      if (current.rowIds?.length) {
+        return current.rowIds.some((id) => livingIds.has(id)) ? current : null;
+      }
+      const code = String(current.itemcode ?? "").trim().toLowerCase();
+      const serial = String(current.srno ?? "").trim().toLowerCase();
+      const stillThere = (rows || []).some((row) => {
+        const rowCode = String(row.itemcode ?? row.ItemCode ?? "").trim().toLowerCase();
+        const rowSrno = String(
+          row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo ?? ""
+        ).trim().toLowerCase();
+        return rowCode === code && rowSrno === serial;
+      });
+      return stillThere ? current : null;
+    });
+  }, []);
+
+  const handleGridRowsChange = useCallback((rows) => {
+    setGridRows(rows);
+    syncScanHistoryWithGridRows(rows);
+  }, [syncScanHistoryWithGridRows]);
+
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
   }, [activeTab, handleSelectItem]);
@@ -776,6 +1074,7 @@ export default function AssetsEmployeeIssueForm() {
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    await flushPendingCellEvents(itemGridSectionRef);
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
@@ -824,7 +1123,7 @@ export default function AssetsEmployeeIssueForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -858,7 +1157,7 @@ export default function AssetsEmployeeIssueForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || scanQrOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -867,6 +1166,7 @@ export default function AssetsEmployeeIssueForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onScanQr: focusHeaderScanField,
   });
 
   const extraButtons = useMemo(() => [
@@ -929,7 +1229,7 @@ export default function AssetsEmployeeIssueForm() {
         )}
       </section>
 
-      <section className="aei-grid-section">
+      <section className="aei-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}
@@ -938,6 +1238,55 @@ export default function AssetsEmployeeIssueForm() {
           onTabChange={setActiveTab}
           headerControls={
             <>
+              <label
+                className={`aei-qr-search${!isEditMode ? " aei-qr-search--disabled" : ""}${scanQrLoading ? " aei-qr-search--busy" : ""}`}
+                title={FORM_SHORTCUT_TITLES.scanQr}
+              >
+                <span className="aei-qr-search__icon" aria-hidden="true">
+                  <QrCode size={16} strokeWidth={2.4} />
+                </span>
+                <input
+                  id="aei-header-qr-scan"
+                  ref={headerScanRef}
+                  type="text"
+                  className="aei-qr-search__input"
+                  value={headerScanValue}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    console.log("[AEI QR] header scan onChange", { value, length: value.length });
+                    setHeaderScanValue(value);
+                  }}
+                  onKeyDown={handleHeaderScanKeyDown}
+                  onPaste={handleHeaderScanPaste}
+                  placeholder={scanQrLoading ? "Fetching…" : "Scan QR code…"}
+                  disabled={!isEditMode}
+                  readOnly={scanQrLoading}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Scan QR with hardware scanner"
+                />
+                <kbd className="aei-qr-search__kbd">Ctrl+Q</kbd>
+              </label>
+
+              {lastQrItem?.itemcode || lastQrItem?.srno ? (
+                <span className="aei-last-qr" title="Last scanned item">
+                  <span className="aei-last-qr__label">Last scan</span>
+                  {lastQrItem.itemcode ? (
+                    <span className="aei-last-qr__pair">
+                      <span className="aei-last-qr__key">Item</span>
+                      <strong>{lastQrItem.itemcode}</strong>
+                    </span>
+                  ) : null}
+                  {lastQrItem.srno ? (
+                    <span className="aei-last-qr__pair">
+                      <span className="aei-last-qr__key">Sr No</span>
+                      <strong>{lastQrItem.srno}</strong>
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+
               <button
                 ref={selectItemBtnRef}
                 type="button"
@@ -948,6 +1297,20 @@ export default function AssetsEmployeeIssueForm() {
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
+              </button>
+
+              <button
+                type="button"
+                className="eg-tab-btn"
+                onClick={openScanHistory}
+                disabled={!isEditMode || scanQrLoading}
+                title={FORM_SHORTCUT_TITLES.scanHistory}
+              >
+                <History size={12} strokeWidth={2.5} />
+                Scan History
+                {scanHistory.length > 0 ? (
+                  <span className="aei-scan-history-count">{scanHistory.length}</span>
+                ) : null}
               </button>
 
               <button
@@ -965,7 +1328,7 @@ export default function AssetsEmployeeIssueForm() {
           hideBottomPanel
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
-          onRowsChange={setGridRows}
+          onRowsChange={handleGridRowsChange}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
@@ -1015,6 +1378,55 @@ export default function AssetsEmployeeIssueForm() {
           awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
+
+      <Modal
+        isOpen={scanQrOpen}
+        onClose={closeScanQr}
+        title="Scan History"
+        subtitle="Manual entry and scanned items"
+        icon={<History size={16} strokeWidth={2.25} />}
+        size="sm"
+        variant="enterprise"
+        dialogClassName="aei-scan-qr-modal"
+        initialFocusSelector="#hw-qr-itemcode"
+        footer={
+          <div className="aei-scan-qr__footer">
+            <button
+              type="button"
+              className="aei-scan-qr__btn aei-scan-qr__btn--cancel"
+              onClick={closeScanQr}
+              disabled={scanQrLoading}
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        <div className="aei-scan-qr">
+          <HardwareQrScanner
+            disabled={scanQrLoading}
+            history={scanHistory}
+            onRemoveHistory={handleRemoveScanHistory}
+            onScan={handleScanQrSubmit}
+            hint="Enter Item Code and Sr No manually. Hardware scanning uses the search box in the item grid header (Ctrl+Q)."
+          />
+          {(scanQrError || scanQrLoading) ? (
+            <div className="aei-scan-qr__status">
+              {scanQrError ? (
+                <div className="aei-scan-qr__error" role="alert">
+                  <AlertCircle size={14} strokeWidth={2} />
+                  <span>{scanQrError}</span>
+                </div>
+              ) : null}
+              {scanQrLoading ? (
+                <div className="aei-scan-qr__loading" role="status">
+                  Fetching item…
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </Modal>
     </div>
   );
 }

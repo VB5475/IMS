@@ -507,7 +507,7 @@ export default function ComplaintRegisterForm() {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateMcrBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
     const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
