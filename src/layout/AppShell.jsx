@@ -41,6 +41,8 @@ import {
   Truck,
   UserCheck,
   Scale,
+  Wrench,
+  Settings,
   PanelLeftClose,
   PanelLeft,
   Search,
@@ -62,12 +64,14 @@ const BRAND_LOGO_SRC = "/test.png";
 const NAV_SECTIONS = [
   {
     label: "Home",
+    icon: LayoutDashboard,
     items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
   },
-  
- 
+
+
   {
     label: "Purchase",
+    icon: ShoppingCart,
     items: [
       { to: rbRoutePath(RB_CODES.PURCHASE_INDENT), icon: ShoppingCart, label: "Purchase Indent", end: false },
       { to: rbRoutePath(RB_CODES.PURCHASE_INQUIRY), icon: ClipboardList, label: "Purchase Inquiry", end: false },
@@ -81,6 +85,7 @@ const NAV_SECTIONS = [
   },
   {
     label: "Assets",
+    icon: Package,
     items: [
       { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Layers, label: "CWIP To FA", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false },
@@ -103,6 +108,7 @@ const NAV_SECTIONS = [
   },
   {
     label: "Maintenance",
+    icon: Wrench,
     items: [
       { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: LayoutDashboard, label: "Maintenance Dashboard", end: false },
       { to: rbRoutePath(RB_CODES.COMPLAINT_REGISTER), icon: MessageSquareWarning, label: "Complaint Register", end: false },
@@ -112,6 +118,7 @@ const NAV_SECTIONS = [
   },
    {
     label: "DMS",
+    icon: FileStack,
     items: [
       // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
       { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false },
@@ -124,22 +131,39 @@ const NAV_SECTIONS = [
   },
   {
     label: "Master",
+    icon: Settings,
     items: [
-      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
-      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
+      // end: true — Company's own route ("/admin/company") is a leaf with no
+      // sub-routes, but it's also a literal path-prefix of Location Master
+      // ("/admin/company/location-master") and Division Master
+      // ("/admin/company/division-master"). With end:false (prefix match),
+      // Company's nav link + section label lit up as "active" on those other
+      // modules' pages too. end:true forces an exact-path match instead.
+      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true },
+      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
       { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
-      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
+      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
       { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
-      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: false },
+      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
+      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
       { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
-      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
+      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
+      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
+      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
     ],
   },
 
@@ -227,10 +251,22 @@ export default function AppShell({ children }) {
   const openFlyout = (section, targetEl) => {
     cancelFlyoutClose();
     const rect = targetEl.getBoundingClientRect();
+    // Long sections (e.g. Master, ~16 items) can run past the bottom of the
+    // viewport with no way to reach the remaining items — cap the panel to
+    // the space actually available below the hover point and let it scroll.
+    const viewportMargin = 12;
+    const maxHeight = Math.max(120, window.innerHeight - rect.top - viewportMargin);
     setFlyout({
       label: section.label,
       items: section.items,
-      style: { position: "fixed", top: `${rect.top}px`, left: `${rect.right + 8}px`, zIndex: 2147483647 },
+      style: {
+        position: "fixed",
+        top: `${rect.top}px`,
+        left: `${rect.right + 8}px`,
+        maxHeight: `${maxHeight}px`,
+        overflowY: "auto",
+        zIndex: 2147483647,
+      },
     });
   };
 
@@ -354,11 +390,10 @@ export default function AppShell({ children }) {
 
         <nav className="ent-sidebar__nav">
           {filteredNavSections.map((section) => {
-            // Icon rail shows everything, accordion state is moot there. An
-            // active search auto-expands matched sections regardless of
-            // manual toggle, so results are never hidden by a folded
-            // section. Otherwise it's whatever the user last toggled.
-            const sectionOpen = collapsed || isSearching || openSection === section.label;
+            // Only meaningful when expanded — the collapsed rail renders one
+            // icon per SECTION (not per item) below, since hovering it opens
+            // the flyout with the full item list instead.
+            const sectionOpen = isSearching || openSection === section.label;
             // "You're in this general area" signal — independent of accordion
             // open/closed state and of icon-rail collapse, purely based on
             // whether the current route belongs to this section.
@@ -392,7 +427,15 @@ export default function AppShell({ children }) {
                     </button>
                   )
                 )}
-                {sectionOpen &&
+                {collapsed ? (
+                  <div
+                    className={`ent-sidebar__rail-icon ${sectionActive ? "ent-sidebar__rail-icon--active" : ""}`}
+                    title={section.label}
+                  >
+                    <section.icon size={18} strokeWidth={1.75} />
+                  </div>
+                ) : (
+                  sectionOpen &&
                   section.items.map(({ to, icon: Icon, label, end }) => (
                     <NavLink
                       key={to}
@@ -401,14 +444,14 @@ export default function AppShell({ children }) {
                       className={({ isActive }) =>
                         `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
                       }
-                      title={collapsed ? label : undefined}
                     >
                       <span className="ent-sidebar__link-icon">
                         <Icon size={16} strokeWidth={1.5} />
                       </span>
-                      {!collapsed && <span>{label}</span>}
+                      <span>{label}</span>
                     </NavLink>
-                  ))}
+                  ))
+                )}
               </div>
             );
           })}

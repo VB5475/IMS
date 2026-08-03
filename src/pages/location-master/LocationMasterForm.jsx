@@ -3,7 +3,7 @@ import { MapPin, Save, Pencil, AlertCircle } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import SearchSelect from "../../components/ui/SearchSelect";
+import MasterFormField from "../../components/forms/MasterFormField";
 import {
   API_BASE_URL_IMS,
   DEFAULT_SESSION_ID,
@@ -14,15 +14,14 @@ import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumns } from "../../utils/columnValidation";
+import { getMasterFieldLabel } from "../../utils/masterFormUtils";
+import { isLockOnEditModeCol } from "../../utils/gridUtils";
 import { useNotification } from "../../context/NotificationContext";
 import { LM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./LocationMasterPage.css";
 
 // Visible dropdown colname for Premises (live RB colname, confirmed via GetDetailColData)
 const PREMISES_COL = "parentidnumber";
-
-// Fields locked during edit mode (use RB colnames — all lowercase)
-const LOCK_ON_EDIT = new Set(["locationtype", "parentidnumber", "loc_code", "location_name"]);
 
 // Fields cleared when Premises (parentidnumber) changes
 const CASCADE_FIELDS = ["loc_code", "location_name", "address1", "city", "state", "country", "zipcode"];
@@ -130,11 +129,20 @@ export default function LocationMasterForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, formValues.locationtype]);
 
-  // Returns true if this field should be non-interactive
+  // Returns true if this field should be non-interactive.
+  // View mode (not yet clicked "Edit"): whole form locked.
+  // Add mode: always editable.
+  // Edit mode: locked purely by the RB's own IsLockOnEditModeAllow flag
+  // (isLockOnEditModeCol — the same helper EntryGrid itself uses for this
+  // exact flag), not IsEditAllow and not a hardcoded field list. Location
+  // Master's live RB sets IsEditAllow=false on mandatory fields (divisionid,
+  // loc_code, location_name) for reasons unrelated to this form's own edit
+  // lock, so IsEditAllow is intentionally NOT consulted here — confirmed
+  // with the user 2026-08-03, scoped to Location Master only.
   function isLocked(field) {
+    if (isAddMode) return false;
     if (!isEditMode) return true;
-    if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.colname);
+    return isLockOnEditModeCol(field);
   }
 
   // Field value change — cascade-clear downstream fields on Premises change,
@@ -154,63 +162,35 @@ export default function LocationMasterForm({
     });
   }, []);
 
-  // Render the right control based on colctrltype from API
+  // Render the right control for this field — control type, locked/editable
+  // display, and per-type validation (dropdown/toggle/checkbox/date/numeric/
+  // text) all come from the shared MasterFormField, driven entirely by the
+  // RB's own ColCtrlType/ColDataType/range/length metadata — same component
+  // every other master form (Division, Company, Account, ...) uses, so this
+  // module renders and validates whatever the RB defines instead of a fixed
+  // set of control types.
   function renderControl(field) {
-    const key    = field.colname;
-    const locked = isLocked(field);
-
-    // colctrltype 4 — Dropdown
-    if (field.colctrltype === 4) {
-      return (
-        <SearchSelect
-          value={formValues[key] != null ? String(formValues[key]) : ""}
-          onChange={(val) => handleChange(key, Number(val) || 0)}
-          options={optionsMap[key] || []}
-          placeholder="Select..."
-          disabled={locked}
-        />
-      );
-    }
-
-    // colctrltype 2 — Textarea
-    if (field.colctrltype === 2) {
-      return (
-        <textarea
-          className="lm-form-textarea"
-          value={formValues[key] || ""}
-          onChange={(e) => handleChange(key, e.target.value)}
-          placeholder={`Enter ${field.displayname || key}...`}
-          readOnly={locked}
-          tabIndex={locked ? -1 : undefined}
-          rows={2}
-        />
-      );
-    }
-
-    // colctrltype 1 — TextBox (default)
+    const key = field.colname;
     return (
-      <input
-        className="lm-form-input"
-        type="text"
-        value={formValues[key] || ""}
-        onChange={(e) => handleChange(key, e.target.value)}
-        placeholder={`Enter ${field.displayname || key}...`}
-        readOnly={locked}
-        tabIndex={locked ? -1 : undefined}
+      <MasterFormField
+        field={field}
+        value={formValues[key]}
+        onChange={(val) => handleChange(key, val)}
+        locked={isLocked(field)}
+        options={optionsMap[key] || []}
+        inputClassName="lm-form-input"
+        textareaClassName="lm-form-textarea"
+        valueClassName="lm-form-value"
       />
     );
   }
 
-  // Save — validation from ismandatory, save row seeded from all RB columns
+  // Save — validation driven entirely by RB column metadata (mandatory,
+  // dropdown-zero-is-empty, length/range/date rules all handled inside
+  // validateApiColumns), save row seeded from all RB columns
   const handleSave = useCallback(async () => {
     setFormErrors([]);
-    const normalizedValues = Object.fromEntries(
-      visibleFields.map((f) => [
-        f.colname,
-        f.colctrltype === 4 && formValues[f.colname] === 0 ? "" : formValues[f.colname],
-      ])
-    );
-    const errors = validateApiColumns(normalizedValues, visibleFields);
+    const errors = validateApiColumns(formValues, visibleFields);
     if (errors.length > 0) { setFormErrors(errors); return; }
 
     setSaveError(null);
@@ -335,7 +315,7 @@ export default function LocationMasterForm({
               rows.push(
                 <div key={field.colname} className="lm-form-row">
                   <span className={`lm-form-label${field.ismandatory ? " lm-form-label--required" : ""}`}>
-                    {field.displayname || field.colname}
+                    {getMasterFieldLabel(field)}
                   </span>
                   <div className="lm-form-control">
                     {renderControl(field)}
