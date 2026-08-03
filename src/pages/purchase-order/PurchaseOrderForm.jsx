@@ -52,6 +52,7 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PO_CONFIG,
@@ -131,11 +132,13 @@ export default function PurchaseOrderForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const summaryRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -613,20 +616,21 @@ export default function PurchaseOrderForm() {
 
   // ── Cell event — qty / rate recalculation ─────────────────────────
   const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[PO] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
+    ({ rowId, colKey, rowData }) =>
+      trackCellEvent(async () => {
+        const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+        if (!result || !itemGridRef.current) return;
+        const responseRow = result?.[0];
+        if (!responseRow) return;
+        const errCode = responseRow.errcode;
+        if (errCode !== 1 && errCode !== 1.0) {
+          console.warn("[PO] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+          return;
+        }
+        const { errcode, errmsg, ...updatedFields } = responseRow;
+        itemGridRef.current.updateRow?.(rowId, updatedFields);
+      }),
+    [fireCellEvent, trackCellEvent]
   );
 
   // ── Select Item ────────────────────────────────────────────────────
@@ -914,6 +918,8 @@ export default function PurchaseOrderForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    await flushPendingCellEvents(itemGridSectionRef);
+
     setFormErrors([]);
     const hv = headerValuesRef.current;
 
@@ -976,7 +982,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave, postSave]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave, postSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -1143,7 +1149,7 @@ export default function PurchaseOrderForm() {
       </section>
 
       {/* ── 3-tab grid section ───────────────────────────────────────── */}
-      <section className="po-grid-section">
+      <section className="po-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}

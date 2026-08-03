@@ -53,6 +53,7 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   C2F_CONFIG,
@@ -156,6 +157,7 @@ export default function CWIPToFAForm() {
   const navigate    = useNavigate();
 
   const itemGridRef          = useRef(null);
+  const itemGridSectionRef   = useRef(null);
   const summaryRef           = useRef(null);
   const filterPanelRef       = useRef(null);
   const selectItemBtnRef     = useRef(null);
@@ -163,6 +165,7 @@ export default function CWIPToFAForm() {
   const queuedRowsRef        = useRef([]);
   const { get: getLive }     = useApi(API_BASE_URL);
   const { post: postSave }   = useApi(API_BASE_URL_IMS);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -263,7 +266,7 @@ export default function CWIPToFAForm() {
           ? recordLoadError
           : `C2F #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/rb_astcwip2famst",
+    backTo:   C2F_CONFIG.ROUTE_PATH,
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -487,7 +490,7 @@ export default function CWIPToFAForm() {
   }, [columns, allColumns, fetchGridColumns]);
 
   // ── Cell event — server-driven via SP_GRID_EVENT (none configured for CWIP today) ──
-  const handleCellEvent = useCallback(async ({ rowId, colKey, rowData }) => {
+  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => trackCellEvent(async () => {
     if (!C2F_CONFIG.SP_GRID_EVENT) return;
     const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
     if (!result || !itemGridRef.current) return;
@@ -500,7 +503,7 @@ export default function CWIPToFAForm() {
     }
     const { errcode, errmsg, ...updatedFields } = responseRow;
     itemGridRef.current.updateRow?.(rowId, updatedFields);
-  }, [fireCellEvent]);
+  }), [fireCellEvent, trackCellEvent]);
 
   // ── Select Item ────────────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
@@ -648,12 +651,14 @@ export default function CWIPToFAForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    await flushPendingCellEvents(itemGridSectionRef);
+
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
 
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors  = validateGridRows(detailRows, columns);
+    const detailErrors  = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {
@@ -695,7 +700,7 @@ export default function CWIPToFAForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, allColumns, columns, isEditRoute, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -805,7 +810,7 @@ export default function CWIPToFAForm() {
       </section>
 
       {/* ── Single-tab grid section ──────────────────────────────────────────── */}
-      <section className="c2f-grid-section">
+      <section className="c2f-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}

@@ -234,7 +234,7 @@ export default function AssetsDepreciationForm() {
           ? recordLoadError
           : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   "/rb_astdepcamst",
+    backTo:   DPC_CONFIG.ROUTE_PATH,
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -571,7 +571,7 @@ export default function AssetsDepreciationForm() {
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors  = validateGridRows(detailRows, columns);
+    const detailErrors  = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
     const allErrors = [...headerErrors, ...detailErrors];
     if (allErrors.length > 0) {

@@ -30,6 +30,7 @@ import {
   useMntCallReporting,
   resolveDashboardRowId,
 } from "../../hooks/useMntCallReporting";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import {
   MNT_REPORTING_CONFIG,
   MNT_REPORTING_GRID_TABS,
@@ -110,8 +111,10 @@ export default function CallReportingForm({
 
   const newPartsGridRef = useRef(null);
   const oldPartsGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const queuedNewPartsRef = useRef([]);
   const queuedOldPartsRef = useRef([]);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 
   const [formValues, setFormValues] = useState(() =>
     buildMasterFormEmpty([], buildSaveContext())
@@ -313,15 +316,17 @@ export default function CallReportingForm({
   }
 
   const handleCellEvent = useCallback(({ rowId, colKey, rowData, gridRef }) => {
-    const key = String(colKey).toLowerCase();
-    if (key !== "qty" && key !== "rate") return;
-    const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-    const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-    const amount = qty * rate;
-    const patch = { amount };
-    if ("Amount" in (rowData || {})) patch.Amount = amount;
-    gridRef?.current?.updateRow?.(rowId, patch);
-  }, []);
+    return trackCellEvent(async () => {
+      const key = String(colKey).toLowerCase();
+      if (key !== "qty" && key !== "rate") return;
+      const qty = Number(rowData.qty ?? rowData.Qty) || 0;
+      const rate = Number(rowData.rate ?? rowData.Rate) || 0;
+      const amount = qty * rate;
+      const patch = { amount };
+      if ("Amount" in (rowData || {})) patch.Amount = amount;
+      gridRef?.current?.updateRow?.(rowId, patch);
+    });
+  }, [trackCellEvent]);
 
   const handleSelectItem = useCallback(async () => {
     if (gridsReadonly) return;
@@ -385,6 +390,8 @@ export default function CallReportingForm({
   }, [activeTab, gridsReadonly]);
 
   const handleSave = useCallback(async () => {
+    await flushPendingCellEvents(itemGridSectionRef);
+
     const validationErrors = validateMasterFormFields(visibleFields, formValues, {
       skipMandatoryFor: new Set(
         visibleFields
@@ -439,6 +446,7 @@ export default function CallReportingForm({
     notify,
     onSaved,
     post,
+    flushPendingCellEvents,
   ]);
 
   const handleClose = useCallback(() => {
@@ -524,7 +532,7 @@ export default function CallReportingForm({
             </div>
           </div>
 
-          <section className="mntcr-grid-section">
+          <section className="mntcr-grid-section" ref={itemGridSectionRef}>
             <div className="grid-tabbar">
               <div className="grid-tabbar__tabs">
                 {MNT_REPORTING_GRID_TABS.map((t) => (

@@ -42,7 +42,7 @@ export const IND_CONFIG = {
 
   SP_ITEM_PICKER: "fn_tbl_rb_purindtselitem",
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
-  SP_LOCATION: "fn_gen_fetchastisslocationmaster",
+  SP_LOCATION: "fn_tbl_fetch_divwslocation",
 
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",

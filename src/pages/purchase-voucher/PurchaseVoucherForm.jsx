@@ -51,6 +51,7 @@ import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/tx
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
@@ -135,15 +136,12 @@ export default function PurchaseVoucherForm() {
 
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
-  // Tracks the in-flight promise of the most recent cell-event recalculation
-  // (Qty/Rate/Disc%/etc.) — see handleCellEvent/handleSave for why this
-  // needs to be awaited before Save reads the grid/summary state.
-  const pendingCellEventRef = useRef(null);
   const summaryRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -578,15 +576,11 @@ export default function PurchaseVoucherForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  // ── Cell event — qty / rate recalculation ─────────────────────────
   // Fire-and-forget from EntryGrid's own perspective (its blur handler never
-  // awaits onCellEvent), but the resulting promise is tracked in
-  // pendingCellEventRef so handleSave can await it — otherwise clicking Save
-  // immediately after editing an event column (without tabbing/clicking
-  // elsewhere first) reads the grid/summary BEFORE this recalculation's
-  // response has applied, silently saving stale amounts. See handleSave.
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    const promise = (async () => {
+  // awaits onCellEvent), but trackCellEvent lets handleSave await the
+  // recalculation before reading grid/summary state.
+  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) =>
+    trackCellEvent(async () => {
       const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
       if (!result || !itemGridRef.current) return;
       const responseRow = result?.[0];
@@ -598,31 +592,12 @@ export default function PurchaseVoucherForm() {
       }
       const { errcode, errmsg, ...updatedFields } = responseRow;
       itemGridRef.current.updateRow?.(rowId, updatedFields);
-      // updateRow() only SCHEDULES the state update — EntryGrid's own
-      // rows-changed effect (which also notifies this form's gridRows state,
-      // feeding EnterpriseSummaryPanel) applies it on a later tick, not
-      // synchronously. Poll briefly for it to land rather than guessing a
-      // fixed delay — resolves in ~1 tick almost always, bounded at 600ms.
-      const [firstKey] = Object.keys(updatedFields);
-      if (firstKey !== undefined) {
-        for (let i = 0; i < 40; i++) {
-          const latestRow = itemGridRef.current
-            .getRows?.()
-            ?.find((r) => String(r.id) === String(rowId));
-          if (latestRow && String(latestRow[firstKey]) === String(updatedFields[firstKey])) break;
-          await new Promise((resolve) => setTimeout(resolve, 15));
-        }
-        // One more tick for the resulting parent (gridRows) + summary-panel
-        // re-render to complete, since that's a second, cascading update
-        // triggered BY the one just confirmed above, not the same one.
-        await new Promise((resolve) => setTimeout(resolve, 30));
-      }
-    })();
-    pendingCellEventRef.current = promise;
-    promise.finally(() => {
-      if (pendingCellEventRef.current === promise) pendingCellEventRef.current = null;
-    });
-  }, [fireCellEvent]);
+      // rowsRef is synced in updateRow, but EnterpriseSummaryPanel still
+      // depends on the parent gridRows effect — give it one tick to catch up
+      // so getSummary() on Save reflects the new amounts.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }),
+  [fireCellEvent, trackCellEvent]);
 
   // ── Select Item ────────────────────────────────────────────────────
   // Three-way picker: 0=GRN Base, 1=PO Base, 2=Direct. Direct defers the item
@@ -876,28 +851,13 @@ export default function PurchaseVoucherForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
-    setFormErrors([]);
-
     // Flush a still-focused item-grid cell before reading final row/summary
     // state. If the user typed a new Qty/Rate/Disc%/etc. and clicked Save
     // directly — without tabbing or clicking elsewhere first — that cell's
-    // blur (and the recalculation it triggers) may not have happened yet;
-    // forcing it now, then awaiting any in-flight recalculation, guarantees
-    // the summary panel and save payload reflect the value actually typed,
-    // not a stale pre-edit amount (confirmed live 2026-07-30: without this,
-    // the save payload's mstbaseamount/etc. silently kept the OLD amount
-    // even though the raw cell value and its recalc call were correct).
-    const active = document.activeElement;
-    if (active && itemGridSectionRef.current?.contains(active) && typeof active.blur === "function") {
-      active.blur();
-    }
-    if (pendingCellEventRef.current) {
-      // handleCellEvent's own promise already waits out the state-propagation
-      // delay (EntryGrid's rows effect -> gridRows -> summary panel) before
-      // resolving — see its own comment for why a plain await here wasn't
-      // enough on its own.
-      await pendingCellEventRef.current;
-    }
+    // blur (and the recalculation it triggers) may not have happened yet.
+    await flushPendingCellEvents(itemGridSectionRef);
+
+    setFormErrors([]);
 
     // Validate every RB-visible header field, not a hand-maintained subset —
     // a field missing from a static list must never be silently skipped at
@@ -948,7 +908,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setIsSavingPV(false);
     }
-  }, [headerColumns, visibleHeaderColumns, allColumns, columns, isEditRoute, completeSuccessfulSave]);
+  }, [headerColumns, visibleHeaderColumns, allColumns, columns, isEditRoute, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });

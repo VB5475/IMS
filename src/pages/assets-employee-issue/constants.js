@@ -2,6 +2,7 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { parseQrItemPayload } from "../../utils/qrScanJson";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Employee Issue";
@@ -53,12 +54,9 @@ export const AEI_CONFIG = {
   SP_TO_VENDOR: "fn_gen_fetchtovendor",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_Rb_astempissselonly",
-  // Select Item popup filters — Main Group / Sub Main Group cascading
-  // filter, same rollout as Purchase Indent/GRN (2026-07-28) and the rest
-  // of the Assets suite (2026-07-29). Deferred until "Filter" is clicked;
-  // SP_ITEM_PICKER call also gets prmsearchtext/prmotherstr/prmjson as
-  // safe empty defaults (no dedicated UI for those yet, added per RB
-  // signature widening — unconfirmed live whether they affect filtering).
+  // Select Item popup filters — Main Group / Sub Main Group cascading.
+  // Scan QR (paste JSON for now) uses the same SP with magroup/sub = 0 and
+  // prmsearchtext = stringified { itemcode, srno }.
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
@@ -127,11 +125,29 @@ function pickHeaderInt(headerValues, ...keys) {
   return Number(raw) || 0;
 }
 
+/**
+ * Parse pasted/scanned QR JSON for Select Item (prmsearchtext).
+ * Accepts any key casing (ItemCode, SrNo, …) and normalizes to
+ * { "itemcode": "...", "srno": "..." }.
+ */
+export function normalizeAeiQrSearchJson(rawText) {
+  const trimmed = String(rawText ?? "").trim();
+  if (!trimmed) return { error: "Enter both Item Code and Sr No." };
+  const parsed = parseQrItemPayload(trimmed);
+  if (!parsed) {
+    return { error: "Invalid JSON. Expected itemcode and srno (any key casing)." };
+  }
+  return { searchText: JSON.stringify(parsed) };
+}
+
 /** FN_FETCH_DATA JSON for fn_tbl_Rb_astempissselonly item picker rows. */
 export function buildAeiItemPickerJsonPayload(headerValues, {
   companyId,
   loginId,
   yearId,
+  maGroupId = 0,
+  subMaGroupId = 0,
+  searchText = "",
 } = {}) {
   const session = getUserSession();
   return {
@@ -153,6 +169,11 @@ export function buildAeiItemPickerJsonPayload(headerValues, {
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AEI_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
+    prmmaingroupid: Number(maGroupId) || 0,
+    prmsubmaingroupid: Number(subMaGroupId) || 0,
+    prmsearchtext: searchText ?? "",
+    prmotherstr: "",
+    prmjson: "[]",
   };
 }
 

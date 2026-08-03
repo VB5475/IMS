@@ -50,6 +50,7 @@ import { dateToStoredValue, getTodayDateInputValue, isDateColumnDef } from "../.
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   IND_CONFIG,
@@ -118,10 +119,12 @@ export default function PurchaseIndentForm() {
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
@@ -565,20 +568,21 @@ export default function PurchaseIndentForm() {
 
   // ── Cell event — Qty / Rate recalculation ─────────────────────────
   const handleCellEvent = useCallback(
-    async ({ rowId, colKey, rowData }) => {
-      const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
-      if (!result || !itemGridRef.current) return;
-      const responseRow = result?.[0];
-      if (!responseRow) return;
-      const errCode = responseRow.errcode;
-      if (errCode !== 1 && errCode !== 1.0) {
-        console.warn("[Indent] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
-        return;
-      }
-      const { errcode, errmsg, ...updatedFields } = responseRow;
-      itemGridRef.current.updateRow?.(rowId, updatedFields);
-    },
-    [fireCellEvent]
+    ({ rowId, colKey, rowData }) =>
+      trackCellEvent(async () => {
+        const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
+        if (!result || !itemGridRef.current) return;
+        const responseRow = result?.[0];
+        if (!responseRow) return;
+        const errCode = responseRow.errcode;
+        if (errCode !== 1 && errCode !== 1.0) {
+          console.warn("[Indent] Cell-event error:", responseRow.errmsg ?? `ErrCode ${errCode}`);
+          return;
+        }
+        const { errcode, errmsg, ...updatedFields } = responseRow;
+        itemGridRef.current.updateRow?.(rowId, updatedFields);
+      }),
+    [fireCellEvent, trackCellEvent]
   );
 
   // ── Select Item ────────────────────────────────────────────────────
@@ -772,6 +776,8 @@ export default function PurchaseIndentForm() {
   }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+    await flushPendingCellEvents(itemGridSectionRef);
+
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
@@ -823,7 +829,7 @@ export default function PurchaseIndentForm() {
     } finally {
       setIsSavingIndent(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, recordId, linkDocsToTransaction, completeSuccessfulSave]);
+  }, [headerColumns, allColumns, columns, isEditRoute, recordId, linkDocsToTransaction, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -970,7 +976,7 @@ export default function PurchaseIndentForm() {
       </section>
 
       {/* ── Single-tab grid section ───────────────────────────────────── */}
-      <section className="ind-grid-section">
+      <section className="ind-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}

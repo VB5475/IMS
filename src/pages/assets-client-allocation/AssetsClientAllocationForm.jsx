@@ -39,6 +39,7 @@ import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   ACA_CONFIG,
@@ -125,12 +126,14 @@ export default function AssetsClientAllocationForm() {
   const [formErrors, setFormErrors] = useState([]);
 
   const itemGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -444,16 +447,18 @@ export default function AssetsClientAllocationForm() {
   }, [columns, allColumns, fetchGridColumns]);
 
   const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    const key = String(colKey).toLowerCase();
-    if (key === "qty" || key === "rate") {
-      const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-      const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-      const amount = qty * rate;
-      const patch = { amount };
-      if ("Amount" in rowData) patch.Amount = amount;
-      itemGridRef.current?.updateRow?.(rowId, patch);
-    }
-  }, []);
+    return trackCellEvent(async () => {
+      const key = String(colKey).toLowerCase();
+      if (key === "qty" || key === "rate") {
+        const qty = Number(rowData.qty ?? rowData.Qty) || 0;
+        const rate = Number(rowData.rate ?? rowData.Rate) || 0;
+        const amount = qty * rate;
+        const patch = { amount };
+        if ("Amount" in rowData) patch.Amount = amount;
+        itemGridRef.current?.updateRow?.(rowId, patch);
+      }
+    });
+  }, [trackCellEvent]);
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -549,6 +554,7 @@ export default function AssetsClientAllocationForm() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    await flushPendingCellEvents(itemGridSectionRef);
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
@@ -601,7 +607,7 @@ export default function AssetsClientAllocationForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
@@ -739,7 +745,7 @@ export default function AssetsClientAllocationForm() {
         )}
       </section>
 
-      <section className="aca-grid-section">
+      <section className="aca-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}

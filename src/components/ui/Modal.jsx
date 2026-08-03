@@ -47,6 +47,8 @@ export default function Modal({
   dialogClassName = "",
   footer = null,
   closeOnOverlayClick = false,
+  /** Optional CSS selector for the element to focus on open (defaults to first focusable). */
+  initialFocusSelector = "",
   children,
 }) {
   const dialogRef = useRef(null);
@@ -101,13 +103,17 @@ export default function Modal({
     document.body.style.overflow = "hidden";
     const t = setTimeout(() => {
       if (!dialogRef.current) return;
-      dialogRef.current.querySelector(FOCUSABLE)?.focus();
+      const preferred = initialFocusSelector
+        ? dialogRef.current.querySelector(initialFocusSelector)
+        : null;
+      const target = preferred || dialogRef.current.querySelector(FOCUSABLE);
+      target?.focus?.();
     }, 80);
     return () => {
       clearTimeout(t);
       document.body.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, initialFocusSelector]);
 
   if (!isOpen) return null;
 

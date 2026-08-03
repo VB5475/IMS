@@ -35,6 +35,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   MACNG_CONFIG,
@@ -134,6 +135,7 @@ export default function MaintenanceNewContractForm() {
 
   const itemGridRef = useRef(null);
   const termsGridRef = useRef(null);
+  const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
@@ -142,6 +144,7 @@ export default function MaintenanceNewContractForm() {
   const queuedTermsRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
+  const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -656,21 +659,25 @@ export default function MaintenanceNewContractForm() {
   }, [activeTab]);
 
   const handleCellEvent = useCallback(({ rowId, colKey, rowData, gridRef }) => {
-    const key = String(colKey).toLowerCase();
-    if (key !== "qty" && key !== "rate") return;
-    const qty = Number(rowData?.qty ?? rowData?.Qty) || 0;
-    const rate = Number(rowData?.rate ?? rowData?.Rate) || 0;
-    const amount = qty * rate;
-    const patch = { amount };
-    if ("Amount" in (rowData || {})) patch.Amount = amount;
-    gridRef?.current?.updateRow?.(rowId, patch);
-  }, []);
+    return trackCellEvent(async () => {
+      const key = String(colKey).toLowerCase();
+      if (key !== "qty" && key !== "rate") return;
+      const qty = Number(rowData?.qty ?? rowData?.Qty) || 0;
+      const rate = Number(rowData?.rate ?? rowData?.Rate) || 0;
+      const amount = qty * rate;
+      const patch = { amount };
+      if ("Amount" in (rowData || {})) patch.Amount = amount;
+      gridRef?.current?.updateRow?.(rowId, patch);
+    });
+  }, [trackCellEvent]);
 
   const handleSave = useCallback(async () => {
+    await flushPendingCellEvents(itemGridSectionRef);
+
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
     const businessErrors = validateMacngBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
     const termsErrors = validateGridRows(termsGridRef.current?.getRows?.() ?? [], termsColumns);
     const allErrors = [...headerErrors, ...businessErrors, ...detailErrors, ...termsErrors];
     if (allErrors.length > 0) {
@@ -738,6 +745,7 @@ export default function MaintenanceNewContractForm() {
     isEditRoute,
     notify,
     postSave,
+    flushPendingCellEvents,
   ]);
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -886,7 +894,7 @@ export default function MaintenanceNewContractForm() {
         )}
       </section>
 
-      <section className="macng-grid-section">
+      <section className="macng-grid-section" ref={itemGridSectionRef}>
         <div className="grid-tabbar">
           <div className="grid-tabbar__tabs">
             {MACNG_GRID_TABS.map((t) => (

@@ -39,6 +39,10 @@ export function NotificationProvider({ children }) {
     warning: (message) => show("warning", message),
     /** Blue toast — informational, auto-dismiss after 3 s */
     info:    (message) => show("info",    message),
+    /** Green toast — non-blocking success, auto-dismiss after 3 s */
+    toastSuccess: (message) => show("success", message),
+    /** Red toast — non-blocking error, auto-dismiss after 3 s */
+    toastError:   (message) => show("error",   message),
   };
 
   return (
