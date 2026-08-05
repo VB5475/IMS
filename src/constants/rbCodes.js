@@ -12,6 +12,11 @@ export const RB_CODES = Object.freeze({
   USER_MASTER: "rb_genusermst",
   USER_GROUP: "rb_genusergroupmst",
   DIVISION_WISE_RIGHTS: "rb_divisionwsright",
+  // Per-Group rights matrix: Group + Module + Type pick a function list, then
+  // two grids grant Insert/Update/Delete/View on transaction forms and
+  // Approval on reports. MRD_Template4UserWsGroupRights.docx (Om, 19-Jun-2026)
+  // — see src/pages/user-wise-group-rights/constants.js for the open items.
+  USER_WISE_GROUP_RIGHTS: "rb_userwsgrprights",
   ITEM_MASTER: "rb_puritemmst",
   DEPARTMENT_MASTER: "rb_departmentmst",
   COMPANY: "rb_companymst",
@@ -103,6 +108,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.USER_MASTER]: "/admin/user-master",
   [RB_CODES.USER_GROUP]: "/admin/user-group",
   [RB_CODES.DIVISION_WISE_RIGHTS]: "/admin/division-wise-rights",
+  [RB_CODES.USER_WISE_GROUP_RIGHTS]: "/admin/user-wise-group-rights",
   [RB_CODES.ITEM_MASTER]: "/admin/item-master",
   [RB_CODES.DEPARTMENT_MASTER]: "/admin/department-master",
   [RB_CODES.COMPANY]: "/admin/company",
