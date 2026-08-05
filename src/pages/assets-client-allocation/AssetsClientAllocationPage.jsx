@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Handshake, Plus } from "lucide-react";
+import { Handshake } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -9,10 +9,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { ACA_CONFIG, ENTRY_FORM_LABEL, buildAcaListJsonPayload } from "./constants";
 import "./AssetsClientAllocationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAcaReportParams() {
   return [
@@ -31,7 +29,6 @@ function buildListParams() {
 }
 
 export default function AssetsClientAllocationPage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -82,40 +79,21 @@ export default function AssetsClientAllocationPage() {
   return (
     <div className="workspace-page aca-list-page">
       <section className="aca-list-panel aca-list-panel--fill">
-        <header className="aca-list-panel__header">
-          <div className="aca-list-panel__title">
-            <Handshake size={14} strokeWidth={2} />
-            <span>Assets Client Allocation</span>
-          </div>
-          <div className="aca-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="aca-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Assets Client Allocation Report"
-              reportFileName="TODO_AssetsClientAllocation.rpt"
-              buildParams={buildAcaReportParams}
-            />
-            <label htmlFor="aca-list-page-size" className="aca-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="aca-list-page-size"
-              className="ng-select aca-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Handshake}
+          title="Assets Client Allocation"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Client Allocation Report",
+            reportFileName: "TODO_AssetsClientAllocation.rpt",
+            buildParams: buildAcaReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

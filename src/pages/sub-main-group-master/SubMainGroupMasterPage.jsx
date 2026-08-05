@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Layers, Plus } from "lucide-react";
+import { Layers } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -14,7 +12,7 @@ import { SMGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubMainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildSubMainGroupReportParams() {
   return [buildCompanyReportParam()];
@@ -72,7 +70,6 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function SubMainGroupMasterPage() {
-  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -138,37 +135,21 @@ export default function SubMainGroupMasterPage() {
   return (
     <div className="workspace-page smgm-list-page">
       <section className="smgm-list-panel smgm-list-panel--fill">
-        <header className="smgm-list-panel__header">
-          <div className="smgm-list-panel__title">
-            <Layers size={14} strokeWidth={2} />
-            <span>Sub Main Group Master</span>
-          </div>
-          <div className="smgm-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="smgm-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Sub Main Group Master Report"
-              reportFileName="RptSubMainGroupList_PG.rpt"
-              buildParams={buildSubMainGroupReportParams}
-            />
-            <label htmlFor="smgm-list-page-size" className="smgm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="smgm-list-page-size"
-              className="ng-select smgm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Layers}
+          title="Sub Main Group Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Sub Main Group Master Report",
+            reportFileName: "RptSubMainGroupList_PG.rpt",
+            buildParams: buildSubMainGroupReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

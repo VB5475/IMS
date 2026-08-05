@@ -5,10 +5,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Plus } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -18,7 +16,7 @@ import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildPurchaseOrderReportParams() {
   return [
@@ -48,7 +46,6 @@ function buildListParams() {
 }
 
 export default function PurchaseOrderPage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -99,42 +96,21 @@ export default function PurchaseOrderPage() {
   return (
     <div className="workspace-page po-list-page">
       <section className="po-list-panel po-list-panel--compact po-list-panel--fill">
-        <header className="po-list-panel__header">
-          <div className="po-list-panel__title">
-            <ShoppingCart size={14} strokeWidth={2} />
-            <span>Purchase Orders</span>
-          </div>
-          <div className="po-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="po-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchOrders} loading={loading} />
-            <PrintReportButton
-              reportTitle="Purchase Order Report"
-              reportFileName="TODO_PurchaseOrder.rpt"
-              buildParams={buildPurchaseOrderReportParams}
-            />
-            <label htmlFor="po-list-page-size" className="po-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="po-list-page-size"
-              className="ng-select po-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ShoppingCart}
+          title="Purchase Orders"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchOrders}
+          refreshing={loading}
+          print={{
+            reportTitle: "Purchase Order Report",
+            reportFileName: "TODO_PurchaseOrder.rpt",
+            buildParams: buildPurchaseOrderReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

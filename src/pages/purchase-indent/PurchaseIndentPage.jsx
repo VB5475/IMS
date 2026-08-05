@@ -5,10 +5,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -18,7 +16,7 @@ import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildPurchaseIndentReportParams() {
   return [
@@ -48,7 +46,6 @@ function buildListParams() {
 }
 
 export default function PurchaseIndentPage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -99,42 +96,21 @@ export default function PurchaseIndentPage() {
   return (
     <div className="workspace-page ind-list-page">
       <section className="ind-list-panel ind-list-panel--fill">
-        <header className="ind-list-panel__header">
-          <div className="ind-list-panel__title">
-            <ClipboardList size={14} strokeWidth={2} />
-            <span>Purchase Indents</span>
-          </div>
-          <div className="ind-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchIndents} loading={loading} />
-            <PrintReportButton
-              reportTitle="Purchase Indent Report"
-              reportFileName="TODO_PurchaseIndent.rpt"
-              buildParams={buildPurchaseIndentReportParams}
-            />
-            <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="ind-list-page-size"
-              className="ng-select ind-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ClipboardList}
+          title="Purchase Indents"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchIndents}
+          refreshing={loading}
+          print={{
+            reportTitle: "Purchase Indent Report",
+            reportFileName: "TODO_PurchaseIndent.rpt",
+            buildParams: buildPurchaseIndentReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

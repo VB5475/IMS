@@ -98,38 +98,21 @@ export default function TransporterMasterPage() {
   return (
     <div className="workspace-page tm-list-page">
       <section className="tm-list-panel tm-list-panel--fill">
-        <header className="tm-list-panel__header">
-          <div className="tm-list-panel__title">
-            <Truck size={14} strokeWidth={2} />
-            <span>Transporter Master</span>
-          </div>
-          <div className="tm-list-panel__toolbar">
-            <button type="button" className="tm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Transporter Master Report"
-              reportFileName="TODO_TransporterMaster.rpt"
-              buildParams={buildTransporterMasterReportParams}
-            />
-            <label htmlFor="tm-list-page-size" className="tm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="tm-list-page-size"
-              className="ng-select tm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Truck}
+          title="Transporter Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Transporter Master Report",
+            reportFileName: "TODO_TransporterMaster.rpt",
+            buildParams: buildTransporterMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

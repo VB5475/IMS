@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -13,7 +11,7 @@ import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildGoodsReceivedNoteReportParams() {
   return [
@@ -50,7 +48,6 @@ function buildListParams() {
 }
 
 export default function GoodsReceivedNotePage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -101,42 +98,21 @@ export default function GoodsReceivedNotePage() {
   return (
     <div className="workspace-page grn-list-page">
       <section className="grn-list-panel grn-list-panel--compact grn-list-panel--fill">
-        <header className="grn-list-panel__header">
-          <div className="grn-list-panel__title">
-            <ClipboardList size={14} strokeWidth={2} />
-            <span>Goods Received Notes</span>
-          </div>
-          <div className="grn-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="grn-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchGrnList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Goods Received Note Report"
-              reportFileName="TODO_GoodsReceivedNote.rpt"
-              buildParams={buildGoodsReceivedNoteReportParams}
-            />
-            <label htmlFor="grn-list-page-size" className="grn-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="grn-list-page-size"
-              className="ng-select grn-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ClipboardList}
+          title="Goods Received Notes"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchGrnList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Goods Received Note Report",
+            reportFileName: "TODO_GoodsReceivedNote.rpt",
+            buildParams: buildGoodsReceivedNoteReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

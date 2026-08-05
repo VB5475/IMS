@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Building2, Plus } from "lucide-react";
+import { Building2 } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDepartmentMaster } from "../../hooks/useDepartmentMaster";
@@ -16,7 +14,7 @@ import { DM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DepartmentMasterPage.css";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDepartmentMasterReportParams() {
   return [
@@ -44,7 +42,6 @@ function buildListParams() {
 }
 
 export default function DepartmentMasterPage() {
-  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -147,39 +144,20 @@ export default function DepartmentMasterPage() {
   return (
     <div className="workspace-page dm-list-page">
       <section className="dm-list-panel dm-list-panel--fill">
-        <header className="dm-list-panel__header">
-          <div className="dm-list-panel__title">
-            <Building2 size={14} strokeWidth={2} />
-            <span>Department Master</span>
-          </div>
-          <div className="dm-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="dm-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} /> Add New
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Department Master Report"
-              reportFileName="TODO_DepartmentMaster.rpt"
-              buildParams={buildDepartmentMasterReportParams}
-            />
-            <label htmlFor="dm-list-page-size" className="dm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="dm-list-page-size"
-              className="ng-select dm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Building2}
+          title="Department Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Department Master Report",
+            reportFileName: "TODO_DepartmentMaster.rpt",
+            buildParams: buildDepartmentMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

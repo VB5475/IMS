@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus, Pencil } from "lucide-react";
+import { Layers, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -14,10 +14,8 @@ import { createListActionsColumn } from "../../utils/listGridUtils";
 import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDpcReportParams() {
   return [
@@ -101,7 +99,6 @@ function buildColumnsFromData(data, navigate) {
 }
 
 export default function AssetsDepreciationPage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -140,38 +137,21 @@ export default function AssetsDepreciationPage() {
   return (
     <div className="workspace-page dpc-list-page">
       <section className="dpc-list-panel dpc-list-panel--fill">
-        <header className="dpc-list-panel__header">
-          <div className="dpc-list-panel__title">
-            <Layers size={14} strokeWidth={2} />
-            <span>Company Act Depreciation</span>
-          </div>
-          <div className="dpc-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="dpc-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Company Act Depreciation Report"
-              reportFileName="TODO_AssetsDepreciation.rpt"
-              buildParams={buildDpcReportParams}
-            />
-            <label htmlFor="dpc-list-page-size" className="dpc-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="dpc-list-page-size"
-              className="ng-select dpc-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Layers}
+          title="Company Act Depreciation"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Company Act Depreciation Report",
+            reportFileName: "TODO_AssetsDepreciation.rpt",
+            buildParams: buildDpcReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

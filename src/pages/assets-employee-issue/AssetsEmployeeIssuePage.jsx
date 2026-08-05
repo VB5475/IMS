@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserRound, Plus } from "lucide-react";
+import { UserRound } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import {
@@ -14,10 +14,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AEI_CONFIG, ENTRY_FORM_LABEL, buildAeiListJsonPayload } from "./constants";
 import "./AssetsEmployeeIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAeiReportParams() {
   return [
@@ -36,7 +34,6 @@ function buildListParams() {
 }
 
 export default function AssetsEmployeeIssuePage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -85,40 +82,21 @@ export default function AssetsEmployeeIssuePage() {
   return (
     <div className="workspace-page aei-list-page">
       <section className="aei-list-panel aei-list-panel--fill">
-        <header className="aei-list-panel__header">
-          <div className="aei-list-panel__title">
-            <UserRound size={14} strokeWidth={2} />
-            <span>Assets Employee Issue</span>
-          </div>
-          <div className="aei-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="aei-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Assets Employee Issue Report"
-              reportFileName="TODO_AssetsEmployeeIssue.rpt"
-              buildParams={buildAeiReportParams}
-            />
-            <label htmlFor="aei-list-page-size" className="aei-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="aei-list-page-size"
-              className="ng-select aei-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={UserRound}
+          title="Assets Employee Issue"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Employee Issue Report",
+            reportFileName: "TODO_AssetsEmployeeIssue.rpt",
+            buildParams: buildAeiReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

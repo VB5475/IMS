@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { MapPin, Plus } from "lucide-react";
+import { MapPin } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -14,7 +12,7 @@ import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./LocationMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildLocationMasterReportParams() {
   return [
@@ -59,7 +57,6 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function LocationMasterPage() {
-  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
@@ -127,38 +124,21 @@ export default function LocationMasterPage() {
   return (
     <div className="workspace-page lm-list-page">
       <section className="lm-list-panel lm-list-panel--fill">
-        <header className="lm-list-panel__header">
-          <div className="lm-list-panel__title">
-            <MapPin size={14} strokeWidth={2} />
-            <span>Location Master</span>
-          </div>
-          <div className="lm-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="lm-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Location Master Report"
-              reportFileName="TODO_LocationMaster.rpt"
-              buildParams={buildLocationMasterReportParams}
-            />
-            <label htmlFor="lm-list-page-size" className="lm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="lm-list-page-size"
-              className="ng-select lm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={MapPin}
+          title="Location Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Location Master Report",
+            reportFileName: "TODO_LocationMaster.rpt",
+            buildParams: buildLocationMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

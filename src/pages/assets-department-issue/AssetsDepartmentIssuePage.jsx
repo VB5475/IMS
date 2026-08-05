@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Plus } from "lucide-react";
+import { Building2 } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -9,10 +9,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { ADI_CONFIG, ENTRY_FORM_LABEL, buildAdiListJsonPayload } from "./constants";
 import "./AssetsDepartmentIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAdiReportParams() {
   return [
@@ -31,7 +29,6 @@ function buildListParams() {
 }
 
 export default function AssetsDepartmentIssuePage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -79,40 +76,21 @@ export default function AssetsDepartmentIssuePage() {
   return (
     <div className="workspace-page adi-list-page">
       <section className="adi-list-panel adi-list-panel--fill">
-        <header className="adi-list-panel__header">
-          <div className="adi-list-panel__title">
-            <Building2 size={14} strokeWidth={2} />
-            <span>Assets Department Issue</span>
-          </div>
-          <div className="adi-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="adi-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Assets Department Issue Report"
-              reportFileName="TODO_AssetsDepartmentIssue.rpt"
-              buildParams={buildAdiReportParams}
-            />
-            <label htmlFor="adi-list-page-size" className="adi-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="adi-list-page-size"
-              className="ng-select adi-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Building2}
+          title="Assets Department Issue"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Department Issue Report",
+            reportFileName: "TODO_AssetsDepartmentIssue.rpt",
+            buildParams: buildAdiReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

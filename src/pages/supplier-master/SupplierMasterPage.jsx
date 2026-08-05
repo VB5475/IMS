@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Truck, Plus } from "lucide-react";
+import { Truck } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,7 +13,7 @@ import "./SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildSupplierMasterReportParams() {
   return [
@@ -59,7 +57,6 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function SupplierMasterPage() {
-  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -131,42 +128,21 @@ export default function SupplierMasterPage() {
   return (
     <div className="workspace-page sm-list-page">
       <section className="sm-list-panel sm-list-panel--compact sm-list-panel--fill">
-        <header className="sm-list-panel__header">
-          <div className="sm-list-panel__title">
-            <Truck size={14} strokeWidth={2} />
-            <span>Suppliers</span>
-          </div>
-          <div className="sm-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="sm-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchSupplierList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Supplier Master Report"
-              reportFileName="TODO_SupplierMaster.rpt"
-              buildParams={buildSupplierMasterReportParams}
-            />
-            <label htmlFor="sm-list-page-size" className="sm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="sm-list-page-size"
-              className="ng-select sm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Truck}
+          title="Suppliers"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchSupplierList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Supplier Master Report",
+            reportFileName: "TODO_SupplierMaster.rpt",
+            buildParams: buildSupplierMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

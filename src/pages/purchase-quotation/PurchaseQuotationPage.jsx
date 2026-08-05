@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -13,7 +11,7 @@ import { QTN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseQuotationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildPurchaseQuotationReportParams() {
   return [
@@ -51,7 +49,6 @@ function buildListParams() {
 }
 
 export default function PurchaseQuotationPage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -102,42 +99,21 @@ export default function PurchaseQuotationPage() {
   return (
     <div className="workspace-page pq-list-page">
       <section className="pq-list-panel pq-list-panel--compact pq-list-panel--fill">
-        <header className="pq-list-panel__header">
-          <div className="pq-list-panel__title">
-            <ClipboardList size={14} strokeWidth={2} />
-            <span>Purchase Quotations</span>
-          </div>
-          <div className="pq-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="pq-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchQuotations} loading={loading} />
-            <PrintReportButton
-              reportTitle="Purchase Quotation Report"
-              reportFileName="TODO_PurchaseQuotation.rpt"
-              buildParams={buildPurchaseQuotationReportParams}
-            />
-            <label htmlFor="pq-list-page-size" className="pq-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="pq-list-page-size"
-              className="ng-select pq-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ClipboardList}
+          title="Purchase Quotations"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchQuotations}
+          refreshing={loading}
+          print={{
+            reportTitle: "Purchase Quotation Report",
+            reportFileName: "TODO_PurchaseQuotation.rpt",
+            buildParams: buildPurchaseQuotationReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

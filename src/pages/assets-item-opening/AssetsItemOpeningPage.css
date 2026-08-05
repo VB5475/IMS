@@ -25,66 +25,6 @@
   height: 100%;
 }
 
-.aop-list-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  height: 40px;
-  flex-shrink: 0;
-  padding: 0 16px;
-  background: #f4f6f9;
-  border-bottom: 1px solid var(--border);
-}
-
-.aop-list-panel__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-
-.aop-list-panel__toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.aop-list-panel__add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius);
-  background: var(--primary);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.aop-list-panel__add-btn:hover { filter: brightness(1.05); }
-
-.aop-list-panel__pagesize-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.aop-list-panel__pagesize-select {
-  height: 26px;
-  min-width: 56px;
-  padding: 0 24px 0 8px;
-}
-
 .aop-list-panel .ng-card {
   border: none;
   border-radius: 0;

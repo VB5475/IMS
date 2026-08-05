@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { BookUser, Plus } from "lucide-react";
+import { BookUser } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -14,7 +12,7 @@ import { AM_CONFIG } from "./constants";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountMasterPage.css";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAccountMasterReportParams() {
   return [
@@ -33,7 +31,6 @@ function buildListParams() {
 }
 
 export default function AccountMasterPage() {
-  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -163,41 +160,20 @@ export default function AccountMasterPage() {
   return (
     <div className="workspace-page am-list-page">
       <section className="am-list-panel am-list-panel--fill">
-        <header className="am-list-panel__header">
-          <div className="am-list-panel__title">
-            <BookUser size={14} strokeWidth={2} />
-            <span>Account Master</span>
-          </div>
-          <div className="am-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="am-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} /> Add New
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Account Master Report"
-              reportFileName="TODO_AccountMaster.rpt"
-              buildParams={buildAccountMasterReportParams}
-            />
-            <label htmlFor="am-list-page-size" className="am-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="am-list-page-size"
-              className="ng-select am-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={BookUser}
+          title="Account Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Account Master Report",
+            reportFileName: "TODO_AccountMaster.rpt",
+            buildParams: buildAccountMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

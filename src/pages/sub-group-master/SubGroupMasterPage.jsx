@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Package, Plus } from "lucide-react";
+import { Package } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -13,7 +11,7 @@ import SubGroupMasterForm from "./SubGroupMasterForm";
 import { SGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 // Sub Group Master's report takes no parameters — unlike Main Group / Sub
 // Main Group, which scope by Company (buildCompanyReportParam).
@@ -78,7 +76,6 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function SubGroupMasterPage() {
-  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -143,37 +140,21 @@ export default function SubGroupMasterPage() {
   return (
     <div className="workspace-page sgm-list-page">
       <section className="sgm-list-panel sgm-list-panel--fill">
-        <header className="sgm-list-panel__header">
-          <div className="sgm-list-panel__title">
-            <Package size={14} strokeWidth={2} />
-            <span>Sub Group Master</span>
-          </div>
-          <div className="sgm-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="sgm-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Sub Group Master Report"
-              reportFileName="RptSubGroupMaster_PG.rpt"
-              buildParams={buildSubGroupReportParams}
-            />
-            <label htmlFor="sgm-list-page-size" className="sgm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="sgm-list-page-size"
-              className="ng-select sgm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Package}
+          title="Sub Group Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Sub Group Master Report",
+            reportFileName: "RptSubGroupMaster_PG.rpt",
+            buildParams: buildSubGroupReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

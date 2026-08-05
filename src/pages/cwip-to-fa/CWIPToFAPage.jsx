@@ -4,10 +4,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus, Pencil } from "lucide-react";
+import { Layers, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -17,7 +15,7 @@ import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
-import { useModuleRights } from "../../hooks/useModuleRights";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildCWIPToFAReportParams() {
   return [
@@ -99,7 +97,6 @@ function buildColumnsFromData(data, navigate) {
 }
 
 export default function CWIPToFAPage() {
-  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -138,38 +135,21 @@ export default function CWIPToFAPage() {
   return (
     <div className="workspace-page c2f-list-page">
       <section className="c2f-list-panel c2f-list-panel--fill">
-        <header className="c2f-list-panel__header">
-          <div className="c2f-list-panel__title">
-            <Layers size={14} strokeWidth={2} />
-            <span>CWIP To FA</span>
-          </div>
-          <div className="c2f-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="c2f-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} />
-                {ENTRY_FORM_LABEL}
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="CWIP To FA Report"
-              reportFileName="TODO_CWIPToFA.rpt"
-              buildParams={buildCWIPToFAReportParams}
-            />
-            <label htmlFor="c2f-list-page-size" className="c2f-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="c2f-list-page-size"
-              className="ng-select c2f-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Layers}
+          title="CWIP To FA"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "CWIP To FA Report",
+            reportFileName: "TODO_CWIPToFA.rpt",
+            buildParams: buildCWIPToFAReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

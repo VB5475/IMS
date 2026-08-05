@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Users, Plus, RefreshCw } from "lucide-react";
+import { Users } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -18,7 +18,6 @@ import { UM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserMasterPage.css";
-import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildUserMasterReportParams() {
   return [
@@ -46,7 +45,6 @@ function buildListParams() {
 }
 
 export default function UserMasterPage() {
-  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -203,50 +201,20 @@ export default function UserMasterPage() {
   return (
     <div className="workspace-page um-list-page">
       <section className="um-list-panel um-list-panel--fill">
-        <header className="um-list-panel__header">
-          <div className="um-list-panel__title">
-            <Users size={14} strokeWidth={2} />
-            <span>User Master</span>
-          </div>
-          <div className="um-list-panel__toolbar">
-            <button
-              type="button"
-              className="um-list-panel__refresh-btn"
-              onClick={fetchList}
-              disabled={loading}
-              title="Refresh list"
-              aria-label="Refresh list"
-            >
-              <RefreshCw size={13} strokeWidth={2.5} className={loading ? "spin" : ""} />
-            </button>
-            {canInsert && (
-              <button type="button" className="um-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} /> Add New
-              </button>
-            )}
-            <PrintReportButton
-              reportTitle="User Master Report"
-              reportFileName="TODO_UserMaster.rpt"
-              buildParams={buildUserMasterReportParams}
-            />
-            <label htmlFor="um-list-page-size" className="um-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="um-list-page-size"
-              className="ng-select um-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Users}
+          title="User Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "User Master Report",
+            reportFileName: "TODO_UserMaster.rpt",
+            buildParams: buildUserMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

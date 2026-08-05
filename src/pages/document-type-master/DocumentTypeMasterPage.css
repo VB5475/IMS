@@ -21,66 +21,6 @@
   min-height: 0;
 }
 
-.doctype-list-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  height: 44px;
-  flex-shrink: 0;
-  padding: 0 16px;
-  background: #f4f6f9;
-  border-bottom: 1px solid var(--border);
-}
-
-.doctype-list-panel__title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-
-.doctype-list-panel__toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.doctype-list-panel__add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius);
-  background: var(--primary);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.doctype-list-panel__add-btn:hover {
-  filter: brightness(1.05);
-}
-
-.doctype-list-panel__pagesize-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.doctype-list-panel__pagesize-select {
-  height: 26px;
-  min-width: 56px;
-}
-
 /* ── Form modal ── */
 
 .doctype-form-scroll {
