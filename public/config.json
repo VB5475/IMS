@@ -1,0 +1,5 @@
+{
+  "apiMode": "ALL",
+  "_apiModeOptions": ["IMS_LIVE", "IMS_PGLIVE", "ALL"],
+  "_note": "IMS_LIVE / IMS_PGLIVE pin the app to that backend and hide the environment switcher. ALL shows the switcher and lets the user pick. Edit this file on the server and reload — no rebuild needed."
+}

@@ -15,6 +15,7 @@ import {
   OBJ_TYPE,
   BASE_PROJECT_OPTIONS,
   PROD_BASE_PROJECT,
+  ENV_SWITCHER_ENABLED,
   switchBaseProject,
 } from "../../api/constants";
 import { useUser } from "../../context/UserContext";
@@ -65,6 +66,7 @@ function findFinancialYearForDate(yearRows, date = new Date()) {
 }
 
 function LoginEnvSwitcher() {
+  if (!ENV_SWITCHER_ENABLED) return null;
   return (
     <div className="login-env-switcher">
       <div className="login-env-switcher__group" role="group" aria-label="API environment">

@@ -1,0 +1,314 @@
+/* User Wise Group Rights — form-only page (modeled on DMS Group Rights) */
+
+.uwgr-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.uwgr-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
+}
+
+.uwgr-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 20px 12px;
+  background: linear-gradient(180deg, #f8fafc 0%, var(--bg, #fff) 120px);
+}
+
+/* ── Header filter bar ───────────────────────────────────────────── */
+
+.uwgr-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border: 1px solid #c5d5e8;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(30, 61, 122, 0.04),
+    0 4px 12px rgba(30, 61, 122, 0.06);
+}
+
+.uwgr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 190px;
+  min-width: 170px;
+}
+
+.uwgr-field__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  user-select: none;
+}
+
+.uwgr-field__label--required::after {
+  content: " *";
+  color: #e53e3e;
+}
+
+.uwgr-field__control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.uwgr-field__control > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.uwgr-search-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 18px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.uwgr-search-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.uwgr-search-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Rights grids ────────────────────────────────────────────────── */
+
+.uwgr-grid {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  border: 1px solid #d4e0ed;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 6px 16px rgba(30, 61, 122, 0.07);
+}
+
+.uwgr-grid__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #e8f2fc 0%, #f8fafc 100%);
+  border-bottom: 1px solid #d4e0ed;
+}
+
+.uwgr-grid__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--primary);
+}
+
+.uwgr-grid__toggles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.uwgr-grid__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #d4e0ed;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.uwgr-grid__toggle:hover {
+  background: #fff;
+  border-color: var(--primary);
+}
+
+.uwgr-grid__toggle input[type="checkbox"] {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.uwgr-grid__table-wrap {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+}
+
+.uwgr-grid__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.uwgr-grid__table th,
+.uwgr-grid__table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid #edf2f7;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.uwgr-grid__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  box-shadow: 0 1px 0 #edf2f7;
+}
+
+.uwgr-grid__table tbody tr:nth-child(even) {
+  background: #fafcfe;
+}
+
+.uwgr-grid__table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.uwgr-grid__checkbox-col {
+  width: 110px;
+  text-align: center !important;
+}
+
+.uwgr-grid__checkbox-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.uwgr-grid__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+
+.uwgr-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 20px;
+  background: #f4f6f9;
+  border-top: 1px solid var(--border);
+}
+
+.master-modal-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.master-modal-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+}
+
+.master-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.master-modal-btn--save {
+  background: var(--primary);
+  color: #fff;
+}
+
+.master-modal-btn--save:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.master-modal-btn--cancel {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border-dark, #c3c6d0);
+}
+
+.master-modal-btn--cancel:hover:not(:disabled) {
+  background: #f0f4f8;
+}
+
+.master-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

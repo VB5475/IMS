@@ -5,15 +5,21 @@
 // The re-exports below keep existing hook/component import paths unchanged.
 
 // ── Base URLs ──────────────────────────────────────────────────────────
-const PROJECT_STORAGE_KEY = "ims_base_project";
-export const BASE_PROJECT_OPTIONS = ["IMS_LIVE", "IMS_PGLIVE"];
-export const PROD_BASE_PROJECT =
-  localStorage.getItem(PROJECT_STORAGE_KEY) || "IMS_LIVE";
+// Resolved once, at module scope — public/config.json decides whether the
+// backend is pinned or user-selectable, so loadRuntimeConfig() has to have
+// resolved before this module is imported (src/main.jsx guarantees that).
+import {
+  BASE_PROJECTS,
+  getBaseProject,
+  isEnvSwitcherEnabled,
+  setBaseProject,
+} from "../config/runtimeConfig";
 
-export function switchBaseProject(name) {
-  localStorage.setItem(PROJECT_STORAGE_KEY, name);
-  window.location.reload();
-}
+export const BASE_PROJECT_OPTIONS = BASE_PROJECTS;
+export const PROD_BASE_PROJECT = getBaseProject();
+/** False when config.json pins a single backend — hides the env switcher UI. */
+export const ENV_SWITCHER_ENABLED = isEnvSwitcherEnabled();
+export const switchBaseProject = setBaseProject;
 
 const BASE_DOMAIN = "http://122.179.135.100:8095/" + PROD_BASE_PROJECT;
 export const API_BASE_URL = BASE_DOMAIN + "/webservice/WsIMS.asmx";
