@@ -18,6 +18,7 @@ import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildPurchaseIndentReportParams() {
   return [
@@ -35,7 +36,7 @@ function buildListParams() {
       {
         prmcompanyid: session.companyId,
         prmdivisionid: IND_CONFIG.LIST_DIVISION_ID,
-         prmyearid:    session.yearId,
+        prmyearid: session.yearId,
         prmfromdate: `01-Jan-${year}`,
         prmtodate: `31-Dec-${year}`,
         prmloginid: session.loginId,
@@ -47,6 +48,7 @@ function buildListParams() {
 }
 
 export default function PurchaseIndentPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -103,10 +105,12 @@ export default function PurchaseIndentPage() {
             <span>Purchase Indents</span>
           </div>
           <div className="ind-list-panel__toolbar">
-            <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="ind-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchIndents} loading={loading} />
             <PrintReportButton
               reportTitle="Purchase Indent Report"

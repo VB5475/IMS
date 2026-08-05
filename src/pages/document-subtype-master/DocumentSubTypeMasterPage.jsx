@@ -14,6 +14,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import DocumentSubTypeMasterForm from "./DocumentSubTypeMasterForm";
 import { DOCSUBTYPE_CONFIG } from "./constants";
 import "./DocumentSubTypeMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildDocSubTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -30,6 +31,7 @@ function buildListParams() {
 }
 
 export default function DocumentSubTypeMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta, headerColumns: fieldDefs, headerFetching, headerError,
     departmentOptions, documentTypeOptions, fetchDocumentTypeOptions,
@@ -138,9 +140,11 @@ export default function DocumentSubTypeMasterPage() {
             <span>Document SubType Master</span>
           </div>
           <div className="docsubtype-list-panel__toolbar">
-            <button type="button" className="docsubtype-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="docsubtype-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="DMS Document SubType Master Report"

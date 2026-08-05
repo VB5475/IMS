@@ -12,6 +12,7 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./constants";
 import "./AssetsReturnableGatePassOutPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildGatePassReportParams() {
   return [buildCompanyReportParam()];
@@ -28,6 +29,7 @@ function buildListParams() {
 }
 
 export default function AssetsReturnableGatePassOutPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -84,10 +86,12 @@ export default function AssetsReturnableGatePassOutPage() {
             <span>Assets Returnable Gate Pass Out</span>
           </div>
           <div className="argo-list-panel__toolbar">
-            <button type="button" className="argo-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="argo-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Returnable Gate Pass Out Report"

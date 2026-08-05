@@ -12,6 +12,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildAhsReportParams() {
   return [
@@ -30,6 +31,7 @@ function buildListParams() {
 }
 
 export default function AssetsHealthStatusUpdationPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -86,10 +88,12 @@ export default function AssetsHealthStatusUpdationPage() {
             <span>Assets Health Status Updation</span>
           </div>
           <div className="ahs-list-panel__toolbar">
-            <button type="button" className="ahs-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="ahs-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Assets Health Status Updation Report"

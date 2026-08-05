@@ -13,6 +13,7 @@ import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildGoodsReceivedNoteReportParams() {
   return [
@@ -49,6 +50,7 @@ function buildListParams() {
 }
 
 export default function GoodsReceivedNotePage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -105,10 +107,12 @@ export default function GoodsReceivedNotePage() {
             <span>Goods Received Notes</span>
           </div>
           <div className="grn-list-panel__toolbar">
-            <button type="button" className="grn-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="grn-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchGrnList} loading={loading} />
             <PrintReportButton
               reportTitle="Goods Received Note Report"

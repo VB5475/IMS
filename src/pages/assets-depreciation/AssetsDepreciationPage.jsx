@@ -17,6 +17,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildDpcReportParams() {
   return [
@@ -25,15 +26,15 @@ function buildDpcReportParams() {
 }
 
 const MONTH_ABBR = [
-  "Jan","Feb","Mar","Apr","May","Jun",
-  "Jul","Aug","Sep","Oct","Nov","Dec",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 function formatListDate(value) {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -43,16 +44,16 @@ function buildListParams() {
     ObjType: DPC_CONFIG.LIST_OBJ_TYPE,
     ObjName: DPC_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  session.companyId,
+      prmcompanyid: session.companyId,
       prmdivisionid: DPC_CONFIG.LIST_DIVISION_ID,
-      prmloginid:    session.loginId,
-      prmyearid:     session.yearId,
-      prmfromdate:   `01-Jan-${year}`,
-      prmtodate:     `31-Dec-${year}`,
-      prmaccountid:  0,
+      prmloginid: session.loginId,
+      prmyearid: session.yearId,
+      prmfromdate: `01-Jan-${year}`,
+      prmtodate: `31-Dec-${year}`,
+      prmaccountid: 0,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -68,13 +69,13 @@ function buildColumnsFromData(data, navigate) {
   return [
     ...keys.map((key) => ({
       key,
-      label:      toLabel(key),
+      label: toLabel(key),
       filterable: true,
-      align:      "left",
+      align: "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
     {
-      key:   "_actions",
+      key: "_actions",
       label: "Edit",
       width: "60px",
       align: "center",
@@ -100,19 +101,20 @@ function buildColumnsFromData(data, navigate) {
 }
 
 export default function AssetsDepreciationPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
-  const { get }  = useApi(API_BASE_URL);
+  const { get } = useApi(API_BASE_URL);
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
-    title:    "Company Act Depreciation",
+    title: "Company Act Depreciation",
     subtitle: "Create and manage asset depreciation entries.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);
@@ -144,10 +146,12 @@ export default function AssetsDepreciationPage() {
             <span>Company Act Depreciation</span>
           </div>
           <div className="dpc-list-panel__toolbar">
-            <button type="button" className="dpc-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="dpc-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Company Act Depreciation Report"

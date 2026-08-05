@@ -12,6 +12,7 @@ import { MCR_CONFIG, ENTRY_FORM_LABEL, buildMcrListJsonPayload } from "./constan
 import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildComplaintRegisterReportParams() {
   return [
@@ -30,6 +31,7 @@ function buildListParams() {
 }
 
 export default function ComplaintRegisterPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -86,10 +88,12 @@ export default function ComplaintRegisterPage() {
             <span>Complaint Register</span>
           </div>
           <div className="mcr-list-panel__toolbar">
-            <button type="button" className="mcr-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="mcr-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Complaint Register Report"

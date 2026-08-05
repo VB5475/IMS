@@ -13,6 +13,7 @@ import { PI_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseInquiryPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildPurchaseInquiryReportParams() {
   return [
@@ -42,6 +43,7 @@ function buildListParams() {
 }
 
 export default function PurchaseInquiryPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -98,10 +100,12 @@ export default function PurchaseInquiryPage() {
             <span>Purchase Inquiries</span>
           </div>
           <div className="pi-list-panel__toolbar">
-            <button type="button" className="pi-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="pi-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchInquiries} loading={loading} />
             <PrintReportButton
               reportTitle="Purchase Inquiry Report"

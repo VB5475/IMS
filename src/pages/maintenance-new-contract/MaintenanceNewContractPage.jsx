@@ -10,6 +10,7 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { MACNG_CONFIG, ENTRY_FORM_LABEL, buildMacngListJsonPayload } from "./constants";
 import "./MaintenanceNewContractPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildListParams() {
   return {
@@ -22,6 +23,7 @@ function buildListParams() {
 }
 
 export default function MaintenanceNewContractPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
   const [data, setData] = useState([]);
@@ -78,10 +80,12 @@ export default function MaintenanceNewContractPage() {
             <span>Maintenance Contract (New)</span>
           </div>
           <div className="macng-list-panel__toolbar">
-            <button type="button" className="macng-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="macng-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <label htmlFor="macng-list-page-size" className="macng-list-panel__pagesize-label">
               Rows per page

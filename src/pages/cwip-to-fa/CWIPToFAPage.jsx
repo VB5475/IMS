@@ -17,6 +17,7 @@ import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildCWIPToFAReportParams() {
   return [
@@ -25,15 +26,15 @@ function buildCWIPToFAReportParams() {
 }
 
 const MONTH_ABBR = [
-  "Jan","Feb","Mar","Apr","May","Jun",
-  "Jul","Aug","Sep","Oct","Nov","Dec",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 function formatListDate(value) {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -43,17 +44,17 @@ function buildListParams() {
     ObjType: C2F_CONFIG.LIST_OBJ_TYPE,
     ObjName: C2F_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  session.companyId,
+      prmcompanyid: session.companyId,
       prmdivisionid: C2F_CONFIG.LIST_DIVISION_ID,
       prmlocationid: 0,
-      prmloginid:    session.loginId,
-      prmyearid:     session.yearId,
-      prmfromdate:   `01-Jan-${year}`,
-      prmtodate:     `31-Dec-${year}`,
+      prmloginid: session.loginId,
+      prmyearid: session.yearId,
+      prmfromdate: `01-Jan-${year}`,
+      prmtodate: `31-Dec-${year}`,
       prmconvtypeid: 0,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -69,13 +70,13 @@ function buildColumnsFromData(data, navigate) {
   return [
     ...keys.map((key) => ({
       key,
-      label:      toLabel(key),
+      label: toLabel(key),
       filterable: true,
-      align:      "left",
+      align: "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
     {
-      key:   "_actions",
+      key: "_actions",
       label: "Edit",
       width: "60px",
       align: "center",
@@ -98,19 +99,20 @@ function buildColumnsFromData(data, navigate) {
 }
 
 export default function CWIPToFAPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
-  const { get }  = useApi(API_BASE_URL);
+  const { get } = useApi(API_BASE_URL);
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
-    title:    "CWIP To FA",
+    title: "CWIP To FA",
     subtitle: "Capital Work In Progress to Fixed Assets conversions.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);
@@ -142,10 +144,12 @@ export default function CWIPToFAPage() {
             <span>CWIP To FA</span>
           </div>
           <div className="c2f-list-panel__toolbar">
-            <button type="button" className="c2f-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="c2f-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="CWIP To FA Report"

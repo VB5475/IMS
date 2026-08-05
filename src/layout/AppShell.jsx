@@ -64,6 +64,7 @@ import {
   switchBaseProject,
 } from "../api/constants";
 import { RB_CODES, rbRoutePath } from "../constants/rbCodes";
+import { getRightsForPath } from "../session/moduleRights";
 import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
@@ -208,7 +209,7 @@ export default function AppShell({ children }) {
   const [openSection, setOpenSection] = useState(() => findSectionForPath(location.pathname));
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
-  const { userName, userId, logout } = useUser();
+  const { userName, userId, logout, menuRights } = useUser();
 
   // Collapsed rail has no room for labels/search — reset any in-progress
   // filter so re-expanding the sidebar always starts from the full nav tree.
@@ -222,14 +223,25 @@ export default function AppShell({ children }) {
 
   const isSearching = navSearch.trim().length > 0;
 
+  // Modules the login may not view drop out of the tree entirely, and any
+  // section left with no items disappears with them. Entries whose target is
+  // not an RB module route (Dashboard) resolve to no RB code and stay.
+  const visibleNavSections = useMemo(() => {
+    void menuRights;
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => getRightsForPath(item.to).canView),
+    })).filter((section) => section.items.length > 0);
+  }, [menuRights]);
+
   const filteredNavSections = useMemo(() => {
     const query = navSearch.trim().toLowerCase();
-    if (!query) return NAV_SECTIONS;
-    return NAV_SECTIONS.map((section) => ({
+    if (!query) return visibleNavSections;
+    return visibleNavSections.map((section) => ({
       ...section,
       items: section.items.filter((item) => item.label.toLowerCase().includes(query)),
     })).filter((section) => section.items.length > 0);
-  }, [navSearch]);
+  }, [navSearch, visibleNavSections]);
 
   const toggleSection = (label) => {
     setOpenSection((prev) => (prev === label ? null : label));

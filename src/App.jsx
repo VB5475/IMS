@@ -1,15 +1,24 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect, useRef } from "react";
 import {
   Navigate,
   Outlet,
   RouterProvider,
   createBrowserRouter,
+  useLocation,
+  useMatches,
 } from "react-router-dom";
 import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
-import { RB_CODES as RB, rbRouteSegment as rs } from "./constants/rbCodes";
+import { useNotification } from "./context/NotificationContext";
+import {
+  RB_CODES as RB,
+  rbRouteSegment as rs,
+  findRbByPath,
+  findRbFromMatches,
+} from "./constants/rbCodes";
+import { getModuleRights } from "./session/moduleRights";
 
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
 const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
@@ -140,7 +149,7 @@ function AppLayout() {
   return (
     <AppShell>
       <Suspense fallback={<Loader text="Loading page…" />}>
-        <Outlet />
+        <RequireModuleAccess />
       </Suspense>
     </AppShell>
   );
@@ -151,6 +160,54 @@ function RequireAuth() {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  return <Outlet />;
+}
+
+/** Which right a URL needs — the `new` / `edit` children of an rbModule route. */
+function routeActionFor(pathname) {
+  const last = pathname.split("/").filter(Boolean).pop();
+  if (last === "new") return "insert";
+  if (last === "edit") return "update";
+  return "view";
+}
+
+const DENIED_MESSAGE = {
+  view: "You do not have permission to open that page.",
+  insert: "You do not have permission to create records in that module.",
+  update: "You do not have permission to edit records in that module.",
+};
+
+/**
+ * Enforces module rights on the URL itself, so hiding a nav entry or an Add
+ * button cannot be bypassed by typing the address. Unlisted modules are
+ * unrestricted — see session/moduleRights.js.
+ */
+function RequireModuleAccess() {
+  const matches = useMatches();
+  const { pathname } = useLocation();
+  const notify = useNotification();
+  const notifiedFor = useRef(null);
+
+  const rights = getModuleRights(findRbFromMatches(matches) ?? findRbByPath(pathname));
+  const action = routeActionFor(pathname);
+  const allowed =
+    rights.canView
+    && (action === "insert" ? rights.canInsert : true)
+    && (action === "update" ? rights.canUpdate : true);
+
+  useEffect(() => {
+    if (allowed) {
+      notifiedFor.current = null;
+      return;
+    }
+    // Guarded by pathname because `notify` is a fresh object on every
+    // NotificationProvider render, which would otherwise re-fire the toast.
+    if (notifiedFor.current === pathname) return;
+    notifiedFor.current = pathname;
+    notify.warning(DENIED_MESSAGE[action]);
+  }, [allowed, action, pathname, notify]);
+
+  if (!allowed) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 

@@ -18,10 +18,9 @@
 //   Module → fn_tbl_fetch_rb_userwsgrprights_modulename
 //   Type   → fn_tbl_fetch_rb_userwsgrprights_typedata
 //
-// Both grid functions take (prmgroupid, prmgroupcode) — the MRD writes them
-// as @prmGroupID/@prmGroupcode, but the wire names are lowercase, and
-// "Groupcode" carries the selected Group's NAME, not a separate code column
-// (both confirmed 2026-08-04). See buildGridParams at the bottom.
+// Both grid functions take prmgroupid only (2026-08-05). The MRD also lists
+// @prmGroupcode, and it was previously sent carrying the Group's name, but the
+// functions do not use it. See buildGridParams at the bottom.
 //
 // Row shape — confirmed 2026-08-04 against both grid functions, which return
 // the SAME columns as each other (that uniformity is what lets both grids
@@ -69,9 +68,9 @@ export const UWGR_CONFIG = {
   SP_MODULE_LIST: "fn_tbl_fetch_rb_userwsgrprights_modulename",
   SP_TYPE_LIST: "fn_tbl_fetch_rb_userwsgrprights_typedata",
 
-  /** Grid 1 — transaction/form rights. (prmgroupid, prmgroupcode) */
+  /** Grid 1 — transaction/form rights. (prmgroupid) */
   SP_FUNCTION_GRID: "fn_tbl_fetch_rb_userwsgrprights_Functiongrid",
-  /** Grid 2 — report approval rights. (prmgroupid, prmgroupcode) */
+  /** Grid 2 — report approval rights. (prmgroupid) */
   SP_APPROVAL_GRID: "fn_tbl_fetch_rb_userwsgrprights_Appovalgrid",
 
   // Real gateway path (2026-08-05) — the MRD's
@@ -112,10 +111,9 @@ export const UWGR_REPORT_RIGHTS = Object.freeze([
   { key: "approval", column: "allowapproval", toggleLabel: "Approval", columnLabel: "Allow Approval" },
 ]);
 
-/** Grid function parameters. `prmgroupcode` carries the Group's name. */
-export function buildGridParams({ groupId, groupName }) {
+/** Grid function parameters — both grids are keyed on the Group id alone. */
+export function buildGridParams({ groupId }) {
   return {
     prmgroupid: Number(groupId) || 0,
-    prmgroupcode: groupName == null ? "" : String(groupName),
   };
 }

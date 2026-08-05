@@ -7,8 +7,9 @@ import {
   initUserSession,
   setUserSession,
 } from "../session/userSession";
+import { extractMenuRights, MENU_RIGHTS_SP } from "../session/moduleRights";
 import { useApi } from "../api/useApi";
-import { ENDPOINTS, API_BASE_URL_IMS } from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE } from "../api/constants";
 
 initUserSession();
 
@@ -17,28 +18,54 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [user, setUser] = useState(() => getUserSession());
   const { post } = useApi(API_BASE_URL_IMS);
+  const { get } = useApi(API_BASE_URL);
 
   const login = useCallback(async (authRow, { companyId, yearId, company, year }) => {
     const next = buildSessionFromAuthRow(authRow, { companyId, yearId, company, year });
     setUserSession(next);
     setUser(next);
 
-    // Document Log permissions — best-effort, one extra call right after
-    // auth succeeds. A failure here must not block login itself; dmConfig
-    // just stays null (permission checks default-deny on that).
-    try {
-      const dmConfigRes = await post(ENDPOINTS.DM_CONFIG, { prmyearid: next.yearId, prmloginid: next.loginId });
-      const dmConfig = extractDmConfigPermissions(dmConfigRes);
-      if (dmConfig) {
-        const withPermissions = setUserSession({ dmConfig });
-        setUser(withPermissions);
-        return withPermissions;
-      }
-    } catch (err) {
-      console.warn("[UserContext] DM Config fetch failed:", err);
-    }
-    return next;
-  }, [post]);
+    // Two best-effort permission calls right after auth succeeds, in parallel.
+    // Neither may block login: dmConfig stays null on failure (checks reading
+    // it default-deny) and menuRights stays empty (which fails open).
+    const dmConfigPromise = post(ENDPOINTS.DM_CONFIG, {
+      prmyearid: next.yearId,
+      prmloginid: next.loginId,
+    })
+      .then(extractDmConfigPermissions)
+      .catch((err) => {
+        console.warn("[UserContext] DM Config fetch failed:", err);
+        return null;
+      });
+
+    const menuRightsPromise = get(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: OBJ_TYPE.FUNCTION,
+      ObjName: MENU_RIGHTS_SP,
+      JSon: JSON.stringify([
+        {
+          prmloginid: next.loginId,
+          prmcompanyid: next.companyId,
+          prmyearid: next.yearId,
+        },
+      ]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    })
+      .then(extractMenuRights)
+      .catch((err) => {
+        console.warn("[UserContext] Menu rights fetch failed:", err);
+        return [];
+      });
+
+    const [dmConfig, menuRights] = await Promise.all([dmConfigPromise, menuRightsPromise]);
+
+    const withPermissions = setUserSession({
+      ...(dmConfig ? { dmConfig } : {}),
+      menuRights,
+    });
+    setUser(withPermissions);
+    return withPermissions;
+  }, [post, get]);
 
   const logout = useCallback(() => {
     const next = clearUserSession();
@@ -56,6 +83,9 @@ export function UserProvider({ children }) {
       yearId: user.yearId,
       company: user.company,
       year: user.year,
+      // Identity changes when rights are (re)fetched — consumers that gate UI
+      // on module rights depend on this to recompute.
+      menuRights: user.menuRights,
       login,
       logout,
     }),

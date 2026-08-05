@@ -14,6 +14,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import DMDepartmentMasterForm from "./DMDepartmentMasterForm";
 import { DMDEPT_CONFIG } from "./constants";
 import "./DMDepartmentMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildDMDeptReportParams() {
   return [buildCompanyReportParam()];
@@ -30,6 +31,7 @@ function buildListParams() {
 }
 
 export default function DMDepartmentMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta, headerColumns: fieldDefs, headerFetching, headerError,
     fetchEditRecord, fetchListRows,
@@ -137,9 +139,11 @@ export default function DMDepartmentMasterPage() {
             <span>Department Master</span>
           </div>
           <div className="dmdept-list-panel__toolbar">
-            <button type="button" className="dmdept-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="dmdept-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="DMS Department Master Report"

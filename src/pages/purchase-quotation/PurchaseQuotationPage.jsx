@@ -13,6 +13,7 @@ import { QTN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseQuotationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildPurchaseQuotationReportParams() {
   return [
@@ -50,6 +51,7 @@ function buildListParams() {
 }
 
 export default function PurchaseQuotationPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -106,10 +108,12 @@ export default function PurchaseQuotationPage() {
             <span>Purchase Quotations</span>
           </div>
           <div className="pq-list-panel__toolbar">
-            <button type="button" className="pq-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="pq-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchQuotations} loading={loading} />
             <PrintReportButton
               reportTitle="Purchase Quotation Report"

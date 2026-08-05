@@ -16,6 +16,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildAimeReportParams() {
   return [
@@ -72,6 +73,7 @@ function buildColumnsFromData(data) {
 }
 
 export default function AssetsItemOpeningExcelPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -119,10 +121,12 @@ export default function AssetsItemOpeningExcelPage() {
             <span>Asset Item Opening Excel</span>
           </div>
           <div className="aop-list-panel__toolbar">
-            <button type="button" className="aop-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="aop-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Asset Item Opening Excel Report"

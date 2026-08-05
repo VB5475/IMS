@@ -21,6 +21,7 @@ import { IM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ItemMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 // prmisactive is always "1" (active only) — confirmed business rule, not a
 // live filter value: this list page has no Active/Inactive toggle to read from.
@@ -50,6 +51,7 @@ function buildListParams() {
 }
 
 export default function ItemMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -317,9 +319,11 @@ export default function ItemMasterPage() {
             <span>Item Master</span>
           </div>
           <div className="im-list-panel__toolbar">
-            <button type="button" className="im-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="im-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Item Master Report"

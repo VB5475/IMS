@@ -149,18 +149,14 @@ export default function UserWiseGroupRightsForm({
   }, [effectiveHeaderColumns]);
 
   const selectedGroupId = headerValues[UWGR_CONFIG.HEADER_GROUP_COL];
-  const groupName = useMemo(
-    () => groupOptions.find((opt) => String(opt.value) === String(selectedGroupId))?.label ?? "",
-    [groupOptions, selectedGroupId]
-  );
 
   const loadGrids = useCallback(
-    async (groupId, name) => {
+    async (groupId) => {
       if (!Number(groupId)) return;
       setGridsLoading(true);
       setGridsError(null);
       try {
-        const { transaction, report } = await onSearch({ groupId, groupName: name });
+        const { transaction, report } = await onSearch({ groupId });
         setTransactionRows(transaction);
         setReportRows(report);
         setHasSearched(true);
@@ -191,10 +187,10 @@ export default function UserWiseGroupRightsForm({
         return;
       }
       if (colName === UWGR_CONFIG.HEADER_MODULE_COL && Number(selectedGroupId)) {
-        loadGrids(selectedGroupId, groupName);
+        loadGrids(selectedGroupId);
       }
     },
-    [selectedGroupId, groupName, loadGrids]
+    [selectedGroupId, loadGrids]
   );
 
   const functionNameOptions = useMemo(() => {
@@ -293,7 +289,7 @@ export default function UserWiseGroupRightsForm({
         return;
       }
       notify.success(message || "Group rights saved successfully.");
-      await loadGrids(selectedGroupId, groupName);
+      await loadGrids(selectedGroupId);
     } catch (err) {
       console.error("[UserWiseGroupRights Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
@@ -306,7 +302,6 @@ export default function UserWiseGroupRightsForm({
     transactionRows,
     reportRows,
     selectedGroupId,
-    groupName,
     buildSaveRows,
     post,
     notify,
@@ -382,7 +377,7 @@ export default function UserWiseGroupRightsForm({
             <button
               type="button"
               className="uwgr-search-btn"
-              onClick={() => loadGrids(selectedGroupId, groupName)}
+              onClick={() => loadGrids(selectedGroupId)}
               disabled={!Number(selectedGroupId) || gridsLoading}
             >
               <Search size={13} strokeWidth={2} />

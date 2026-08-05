@@ -18,6 +18,7 @@ import { UM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildUserMasterReportParams() {
   return [
@@ -45,6 +46,7 @@ function buildListParams() {
 }
 
 export default function UserMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -217,9 +219,11 @@ export default function UserMasterPage() {
             >
               <RefreshCw size={13} strokeWidth={2.5} className={loading ? "spin" : ""} />
             </button>
-            <button type="button" className="um-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="um-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <PrintReportButton
               reportTitle="User Master Report"
               reportFileName="TODO_UserMaster.rpt"

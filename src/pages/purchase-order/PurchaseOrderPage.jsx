@@ -18,6 +18,7 @@ import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildPurchaseOrderReportParams() {
   return [
@@ -33,12 +34,12 @@ function buildListParams() {
     ObjName: PO_CONFIG.SP_PO_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:    session.companyId,
-        prmdivisionid:   PO_CONFIG.LIST_DIVISION_ID,
+        prmcompanyid: session.companyId,
+        prmdivisionid: PO_CONFIG.LIST_DIVISION_ID,
         prmyearid: session.yearId,
-        prmfromdate:     `01-Jan-${year}`,
-        prmtodate:       `31-Dec-${year}`,
-        prmloginid:      session.loginId,
+        prmfromdate: `01-Jan-${year}`,
+        prmtodate: `31-Dec-${year}`,
+        prmloginid: session.loginId,
       },
     ]),
     p_ErrCode: -1,
@@ -47,6 +48,7 @@ function buildListParams() {
 }
 
 export default function PurchaseOrderPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -103,10 +105,12 @@ export default function PurchaseOrderPage() {
             <span>Purchase Orders</span>
           </div>
           <div className="po-list-panel__toolbar">
-            <button type="button" className="po-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="po-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchOrders} loading={loading} />
             <PrintReportButton
               reportTitle="Purchase Order Report"

@@ -14,6 +14,7 @@ import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./LocationMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildLocationMasterReportParams() {
   return [
@@ -29,7 +30,7 @@ function buildListParams() {
       prmcompanyid: getUserSession().companyId,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -58,6 +59,7 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function LocationMasterPage() {
+  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
@@ -69,20 +71,20 @@ export default function LocationMasterPage() {
     fetchEditRecord,
   } = useLocationMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Location Master",
+    title: "Location Master",
     subtitle: "Browse locations or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -131,10 +133,12 @@ export default function LocationMasterPage() {
             <span>Location Master</span>
           </div>
           <div className="lm-list-panel__toolbar">
-            <button type="button" className="lm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="lm-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Location Master Report"

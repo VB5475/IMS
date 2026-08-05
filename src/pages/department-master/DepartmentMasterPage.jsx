@@ -16,6 +16,7 @@ import { DM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DepartmentMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildDepartmentMasterReportParams() {
   return [
@@ -31,18 +32,19 @@ function buildListParams() {
     ObjName: DM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid:  session.companyId,
+        prmcompanyid: session.companyId,
         prmdivisionid: DM_CONFIG.LIST_DIVISION_ID,
-        prmfromdate:   today,
-        prmtodate:     today,
+        prmfromdate: today,
+        prmtodate: today,
       },
     ]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
 export default function DepartmentMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -57,13 +59,13 @@ export default function DepartmentMasterPage() {
     seedOptionsFromMaster,
   } = useDepartmentMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   // Quick-add source for the Department Head (User) dropdown — User Master
@@ -86,10 +88,10 @@ export default function DepartmentMasterPage() {
   }, [fetchDeptHeadOptions]);
 
   usePageHeader({
-    title:    "Department Master",
+    title: "Department Master",
     subtitle: "Browse departments or create a new department record.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -151,9 +153,11 @@ export default function DepartmentMasterPage() {
             <span>Department Master</span>
           </div>
           <div className="dm-list-panel__toolbar">
-            <button type="button" className="dm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="dm-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Department Master Report"

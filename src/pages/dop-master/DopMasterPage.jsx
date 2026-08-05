@@ -17,6 +17,7 @@ import { DOP_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./DopMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildDopMasterReportParams() {
   return [buildCompanyReportParam()];
@@ -40,6 +41,7 @@ function buildListParams() {
 }
 
 export default function DopMasterPage() {
+  const { canInsert } = useModuleRights();
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
 
@@ -94,10 +96,12 @@ export default function DopMasterPage() {
             <span>DOP Master</span>
           </div>
           <div className="dop-list-panel__toolbar">
-            <button type="button" className="dop-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="dop-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="DOP Master Report"

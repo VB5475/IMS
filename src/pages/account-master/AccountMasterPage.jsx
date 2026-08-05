@@ -14,6 +14,7 @@ import { AM_CONFIG } from "./constants";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildAccountMasterReportParams() {
   return [
@@ -32,6 +33,7 @@ function buildListParams() {
 }
 
 export default function AccountMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -167,9 +169,11 @@ export default function AccountMasterPage() {
             <span>Account Master</span>
           </div>
           <div className="am-list-panel__toolbar">
-            <button type="button" className="am-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="am-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Account Master Report"

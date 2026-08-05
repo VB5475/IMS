@@ -14,15 +14,16 @@ import { SMGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubMainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildSubMainGroupReportParams() {
   return [buildCompanyReportParam()];
 }
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function todayFormatted() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -32,13 +33,13 @@ function buildListParams() {
     ObjType: SMGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SMGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  session.companyId,
+      prmcompanyid: session.companyId,
       prmdivisionid: SMGM_CONFIG.LIST_DIVISION_ID,
-      prmfromdate:   today,
-      prmtodate:     today,
+      prmfromdate: today,
+      prmtodate: today,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -46,7 +47,7 @@ const HIDDEN_COLS = new Set(["IDNumber", "idnumber", "SystemConfigured", "system
 
 const LABEL_MAP = {
   ISAutoCodeGen: "Auto Code Gen",
-  RegName:       "Reg Name",
+  RegName: "Reg Name",
 };
 
 function toLabel(key) {
@@ -71,6 +72,7 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function SubMainGroupMasterPage() {
+  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -80,20 +82,20 @@ export default function SubMainGroupMasterPage() {
     fetchMainGroupByItemType, fetchEditRecord, seedOptionsFromMaster,
   } = useSubMainGroupMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Sub Main Group Master",
+    title: "Sub Main Group Master",
     subtitle: "Browse sub main groups or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -142,9 +144,11 @@ export default function SubMainGroupMasterPage() {
             <span>Sub Main Group Master</span>
           </div>
           <div className="smgm-list-panel__toolbar">
-            <button type="button" className="smgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="smgm-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Sub Main Group Master Report"

@@ -15,6 +15,7 @@ import "./SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildSupplierMasterReportParams() {
   return [
@@ -24,7 +25,7 @@ function buildSupplierMasterReportParams() {
 
 function buildListParams() {
   const session = getUserSession();
-   const today = formatTranDate(new Date(), { invalidValue: "" });
+  const today = formatTranDate(new Date(), { invalidValue: "" });
   return {
     ObjType: SM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SM_CONFIG.SP_LIST,
@@ -58,6 +59,7 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function SupplierMasterPage() {
+  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -135,10 +137,12 @@ export default function SupplierMasterPage() {
             <span>Suppliers</span>
           </div>
           <div className="sm-list-panel__toolbar">
-            <button type="button" className="sm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="sm-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} />
+                {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchSupplierList} loading={loading} />
             <PrintReportButton
               reportTitle="Supplier Master Report"

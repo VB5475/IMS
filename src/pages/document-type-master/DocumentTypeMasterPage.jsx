@@ -14,6 +14,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import DocumentTypeMasterForm from "./DocumentTypeMasterForm";
 import { DOCTYPE_CONFIG } from "./constants";
 import "./DocumentTypeMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildDocTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -30,6 +31,7 @@ function buildListParams() {
 }
 
 export default function DocumentTypeMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta, headerColumns: fieldDefs, headerFetching, headerError,
     departmentOptions, fetchEditRecord, fetchListRows,
@@ -137,9 +139,11 @@ export default function DocumentTypeMasterPage() {
             <span>Document Type Master</span>
           </div>
           <div className="doctype-list-panel__toolbar">
-            <button type="button" className="doctype-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="doctype-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="DMS Document Type Master Report"

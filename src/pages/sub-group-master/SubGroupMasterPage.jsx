@@ -13,6 +13,7 @@ import SubGroupMasterForm from "./SubGroupMasterForm";
 import { SGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 // Sub Group Master's report takes no parameters — unlike Main Group / Sub
 // Main Group, which scope by Company (buildCompanyReportParam).
@@ -20,10 +21,10 @@ function buildSubGroupReportParams() {
   return [];
 }
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function todayFormatted() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -33,25 +34,25 @@ function buildListParams() {
     ObjType: SGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  session.companyId,
+      prmcompanyid: session.companyId,
       prmdivisionid: SGM_CONFIG.LIST_DIVISION_ID,
-      prmfromdate:   today,
-      prmtodate:     today,
+      prmfromdate: today,
+      prmtodate: today,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
 const HIDDEN_COLS = new Set(["idnumber", "systemconfigured"]);
 
 const LABEL_MAP = {
-  code:          "Code",
-  name:          "Name",
-  shortname:     "Short Name",
-  shortcode:     "Short Code",
+  code: "Code",
+  name: "Name",
+  shortname: "Short Name",
+  shortcode: "Short Code",
   isautocodegen: "Auto Code Gen",
-  regname:       "Reg Name",
+  regname: "Reg Name",
 };
 
 function toLabel(key) {
@@ -64,9 +65,9 @@ function buildColumnsFromData(data, onEdit) {
   return [
     ...keys.map((key) => ({
       key,
-      label:      toLabel(key),
+      label: toLabel(key),
       filterable: true,
-      align:      "left",
+      align: "left",
     })),
     createListActionsColumn({
       onEdit: (row) => { if (row.idnumber) onEdit(row.idnumber); },
@@ -77,6 +78,7 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function SubGroupMasterPage() {
+  const { canInsert } = useModuleRights();
   const { get } = useApi(API_BASE_URL);
 
   const {
@@ -85,20 +87,20 @@ export default function SubGroupMasterPage() {
     fetchEditRecord,
   } = useSubGroupMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Sub Group Master",
+    title: "Sub Group Master",
     subtitle: "Browse sub groups or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -147,9 +149,11 @@ export default function SubGroupMasterPage() {
             <span>Sub Group Master</span>
           </div>
           <div className="sgm-list-panel__toolbar">
-            <button type="button" className="sgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
-            </button>
+            {canInsert && (
+              <button type="button" className="sgm-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Sub Group Master Report"
