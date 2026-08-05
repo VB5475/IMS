@@ -119,6 +119,9 @@ const DocumentTypeMasterPage = lazy(() => import("./pages/document-type-master/D
 const DocumentSubTypeMasterPage = lazy(() => import("./pages/document-subtype-master/DocumentSubTypeMasterPage"));
 const DMTT2DocTypeMasterPage = lazy(() => import("./pages/dm-tt2doctype-master/DMTT2DocTypeMasterPage"));
 const DMGroupRightsPage = lazy(() => import("./pages/dm-group-rights/DMGroupRightsPage"));
+const UserWiseGroupRightsPage = lazy(
+  () => import("./pages/user-wise-group-rights/UserWiseGroupRightsPage")
+);
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
 const AssetsItemOpeningExcelPage = lazy(
   () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage")
@@ -335,6 +338,7 @@ const router = createBrowserRouter([
           rbLeaf({ rb: RB.USER_MASTER, element: <UserMasterPage /> }),
           rbLeaf({ rb: RB.USER_GROUP, element: <UserGroupPage /> }),
           rbLeaf({ rb: RB.DIVISION_WISE_RIGHTS, element: <DivisionWiseRightsPage /> }),
+          rbLeaf({ rb: RB.USER_WISE_GROUP_RIGHTS, element: <UserWiseGroupRightsPage /> }),
           rbLeaf({ rb: RB.ITEM_MASTER, element: <ItemMasterPage /> }),
           rbLeaf({ rb: RB.DEPARTMENT_MASTER, element: <DepartmentMasterPage /> }),
           rbLeaf({ rb: RB.COMPANY, element: <CompanyPage /> }),

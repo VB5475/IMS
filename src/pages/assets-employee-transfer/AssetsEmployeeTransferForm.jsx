@@ -9,10 +9,7 @@ import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
-const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstEmpTrf } from "../../hooks/useAstEmpTrf";
-import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -200,16 +197,7 @@ export default function AssetsEmployeeTransferForm() {
   const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [itemModalOpen, setItemModalOpen] = useState(false);
-  const [itemModalItems, setItemModalItems] = useState([]);
-  const [itemModalColumns, setItemModalColumns] = useState([]);
-  const [itemModalLoading, setItemModalLoading] = useState(false);
-  const [itemModalError, setItemModalError] = useState(null);
-  const groupFilter = useItemPickerGroupFilter({
-    spMainGroup: AET_CONFIG.SP_ITEM_MAIN_GROUP,
-    spSubMainGroup: AET_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
-    formTag: AET_CONFIG.FORM_TAG,
-  });
+  const [isFillingDetail, setIsFillingDetail] = useState(false);
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -637,12 +625,10 @@ export default function AssetsEmployeeTransferForm() {
       return;
     }
 
-    setItemModalOpen(true);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalError(null);
-    setItemModalLoading(true);
-    groupFilter.resetFilter();
+    setFormErrors([]);
+    setActiveTab("items");
+    setIsFillingDetail(true);
+    setIsGridLoading(true);
 
     try {
       const activeCols = await ensureItemColumns();
@@ -651,51 +637,32 @@ export default function AssetsEmployeeTransferForm() {
         return;
       }
 
-      await groupFilter.fetchMainGroupOptions({
-        divisionId: headerValues.fromdivisionid,
-        configId: headerValues.configid,
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: AET_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildAetItemPickerJsonPayload(headerValues)]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
+      const items = Array.isArray(rowRes) ? rowRes : [];
+      if (items.length === 0) {
+        itemGridRef.current?.clearRows?.();
+        notify.info("No items found for the selected header filters.");
+        return;
+      }
+
+      const dateColKeys = new Set(activeCols.filter(isDateColumnDef).map((col) => col.key));
+      itemGridRef.current?.clearRows?.();
+      items.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns, dateColKeys)));
+      notify.success(`${items.length} item${items.length === 1 ? "" : "s"} loaded into the grid.`);
     } catch (err) {
-      console.error("[AET] Item picker fetch failed:", err);
-      setItemModalError(err?.message || "Failed to fetch items.");
+      console.error("[AET] Fill Detail failed:", err);
+      notify.error(err?.message || "Failed to fill detail items.");
     } finally {
-      setItemModalLoading(false);
+      setIsFillingDetail(false);
+      setIsGridLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
-
-  const handleApplyItemFilter = useCallback(async () => {
-    const headerValues = headerValuesRef.current;
-    setItemModalError(null);
-    try {
-      await groupFilter.applyFilter(async (groupParams) => {
-        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: AET_CONFIG.SP_ITEM_PICKER,
-          JSon: JSON.stringify([{
-            ...buildAetItemPickerJsonPayload(headerValues),
-            ...groupParams,
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        setItemModalItems(rowRes || []);
-      });
-    } catch (err) {
-      console.error("[AET] Item filter fetch failed:", err);
-      setItemModalError(err?.message || "Failed to fetch items.");
-    }
-  }, [getLive, groupFilter]);
-
-  const handleInsertItems = useCallback(
-    async (selectedItems) => {
-      if (!selectedItems?.length) return;
-      setActiveTab("items");
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) return;
-      selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-    },
-    [ensureItemColumns, allColumns, addItemRow]
-  );
+  }, [getLive, headerColumns, ensureItemColumns, allColumns, addItemRow, notify]);
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleFillDetail();
@@ -967,34 +934,6 @@ export default function AssetsEmployeeTransferForm() {
         cancelAccessKey="n"
         extraButtons={extraButtons}
       />
-
-      <Suspense fallback={null}>
-        <OrderItemModal
-          isOpen={itemModalOpen}
-          onClose={() => setItemModalOpen(false)}
-          items={itemModalItems}
-          columns={itemModalColumns}
-          isLoading={itemModalLoading || groupFilter.filterLoading}
-          error={itemModalError}
-          onInsert={handleInsertItems}
-          filterBar={
-            <ItemPickerGroupFilterBar
-              mainGroupOptions={groupFilter.mainGroupOptions}
-              subMainGroupOptions={groupFilter.subMainGroupOptions}
-              mainGroupValue={groupFilter.mainGroupFilter}
-              subMainGroupValue={groupFilter.subMainGroupFilter}
-              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
-                divisionId: headerValuesRef.current.fromdivisionid,
-                configId: headerValuesRef.current.configid,
-              })}
-              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
-              onFilter={handleApplyItemFilter}
-              filterLoading={groupFilter.filterLoading}
-            />
-          }
-          awaitingFilter={!groupFilter.filterApplied}
-        />
-      </Suspense>
     </div>
   );
 }

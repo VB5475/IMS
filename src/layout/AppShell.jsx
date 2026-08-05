@@ -53,7 +53,12 @@ import {
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
-import { PROD_BASE_PROJECT, BASE_PROJECT_OPTIONS, switchBaseProject } from "../api/constants";
+import {
+  PROD_BASE_PROJECT,
+  BASE_PROJECT_OPTIONS,
+  ENV_SWITCHER_ENABLED,
+  switchBaseProject,
+} from "../api/constants";
 import { RB_CODES, rbRoutePath } from "../constants/rbCodes";
 import "./AppShell.css";
 
@@ -128,6 +133,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
       { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
       { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: KeyRound, label: "User Wise Group Rights", end: false },
       { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
       { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
       { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: false },
@@ -473,24 +479,28 @@ export default function AppShell({ children }) {
             </div> */}
           </div>
           <div className="ent-topbar__actions">
-            <div className="ent-env-switcher" role="group" aria-label="API environment">
-              {BASE_PROJECT_OPTIONS.map((opt) => {
-                const isActive = opt === PROD_BASE_PROJECT;
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    className={`ent-env-switcher__btn${isActive ? " ent-env-switcher__btn--active" : ""}${opt === "IMS_PGLIVE" ? " ent-env-switcher__btn--pg" : ""}`}
-                    title={isActive ? `Active: ${opt}` : `Switch to ${opt}`}
-                    onClick={() => { if (!isActive) switchBaseProject(opt); }}
-                    aria-pressed={isActive}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="ent-topbar__divider" />
+            {ENV_SWITCHER_ENABLED && (
+              <>
+                <div className="ent-env-switcher" role="group" aria-label="API environment">
+                  {BASE_PROJECT_OPTIONS.map((opt) => {
+                    const isActive = opt === PROD_BASE_PROJECT;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`ent-env-switcher__btn${isActive ? " ent-env-switcher__btn--active" : ""}${opt === "IMS_PGLIVE" ? " ent-env-switcher__btn--pg" : ""}`}
+                        title={isActive ? `Active: ${opt}` : `Switch to ${opt}`}
+                        onClick={() => { if (!isActive) switchBaseProject(opt); }}
+                        aria-pressed={isActive}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="ent-topbar__divider" />
+              </>
+            )}
             <div className="ent-topbar__profile-menu">
               <div className="ent-topbar__profile">
                 <div className="ent-topbar__profile-text">
