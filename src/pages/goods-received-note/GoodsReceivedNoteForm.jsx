@@ -52,7 +52,7 @@ import {
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -65,7 +65,6 @@ import {
   GRN_REMARK_COLUMNS,
   GRN_TRANSPORTER_FIELD_NAMES,
   GRN_DRIVER_FIELD_NAMES,
-  GRN_GRID_TABS,
   APPROVED_OPTS,
   GRN_FILTER_CASCADE_RESETS,
   GRN_FILTER_INITIAL_VALUES,
@@ -164,6 +163,7 @@ export default function GoodsReceivedNoteForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -272,9 +272,8 @@ export default function GoodsReceivedNoteForm() {
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
-  const activeSelectionCount = activeTab === "items" ? itemSelectionCount : 0;
+  const activeSelectionCount = itemSelectionCount;
   const [approvedFilter, setApprovedFilter] = useState("all");
   const [isGridLoading, setIsGridLoading] = useState(false);
 
@@ -330,13 +329,11 @@ export default function GoodsReceivedNoteForm() {
   }, []);
 
   const focusSelectItemButton = useCallback(() => {
-    setActiveTab("items");
     selectItemBtnRef.current?.focus();
   }, []);
 
   const enterEditModeWithFocus = useCallback(() => {
     setIsEditMode(true);
-    setActiveTab("items");
     window.requestAnimationFrame(() => {
       window.setTimeout(() => {
         if (!focusFirstEditableFilterField()) focusSelectItemButton();
@@ -392,12 +389,12 @@ export default function GoodsReceivedNoteForm() {
     clearTransporters();
     clearIndentDetailMeta();
 
-    setActiveTab("items");
     setApprovedFilter("all");
     setIsGridLoading(false);
     setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
     clearItemGridState();
     setFilterResetKey((k) => k + 1);
+    setFieldErrors({});
     exitEditMode();
   }, [
     clearGrnTypes,
@@ -578,33 +575,21 @@ export default function GoodsReceivedNoteForm() {
     [DROPDOWN_OPTIONS_BY_COL]
   );
 
-  // Visible RB columns, RB-ordered, partitioned by which of GRN's three tabs
-  // they belong to. Tab membership is the one thing the RB can't tell us —
-  // see GRN_TRANSPORTER_FIELD_NAMES/GRN_DRIVER_FIELD_NAMES in constants.js.
+  // Visible RB columns, RB-ordered. Transporter/Driver were removed from the
+  // UI (2026-08-05, user: "not needed") — excluded here at the source so
+  // neither the single remaining panel nor Save-time validation ever sees
+  // them again (a field with no UI to fill it in must never stay mandatory).
   const visibleHeaderColumns = useMemo(() => {
     return headerColumns
       .filter((col) => isTruthyApiFlag(col.isvisible))
+      .filter(
+        (col) => !GRN_TRANSPORTER_FIELD_NAMES.has(col.colname) && !GRN_DRIVER_FIELD_NAMES.has(col.colname)
+      )
       .sort((a, b) => Number(a.colseqno) - Number(b.colseqno));
   }, [headerColumns]);
 
   const syncedHeaderFilters = useMemo(() => {
-    return visibleHeaderColumns
-      .filter(
-        (col) => !GRN_TRANSPORTER_FIELD_NAMES.has(col.colname) && !GRN_DRIVER_FIELD_NAMES.has(col.colname)
-      )
-      .map(buildFilterDefFromApiCol);
-  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
-
-  const syncedTransporterFilters = useMemo(() => {
-    return visibleHeaderColumns
-      .filter((col) => GRN_TRANSPORTER_FIELD_NAMES.has(col.colname))
-      .map(buildFilterDefFromApiCol);
-  }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
-
-  const syncedDriverFilters = useMemo(() => {
-    return visibleHeaderColumns
-      .filter((col) => GRN_DRIVER_FIELD_NAMES.has(col.colname))
-      .map(buildFilterDefFromApiCol);
+    return visibleHeaderColumns.map(buildFilterDefFromApiCol);
   }, [visibleHeaderColumns, buildFilterDefFromApiCol]);
 
   const buildFieldTones = useCallback(
@@ -627,14 +612,6 @@ export default function GoodsReceivedNoteForm() {
     () => buildFieldTones(syncedHeaderFilters),
     [syncedHeaderFilters, buildFieldTones]
   );
-  const transporterFieldTones = useMemo(
-    () => buildFieldTones(syncedTransporterFilters),
-    [syncedTransporterFilters, buildFieldTones]
-  );
-  const driverFieldTones = useMemo(
-    () => buildFieldTones(syncedDriverFilters),
-    [syncedDriverFilters, buildFieldTones]
-  );
 
   const handleFilterChange = useCallback(
     async (colName, val) => {
@@ -643,6 +620,12 @@ export default function GoodsReceivedNoteForm() {
       }
 
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+      setFieldErrors((prev) => {
+        if (!prev[colName]) return prev;
+        const next = { ...prev };
+        delete next[colName];
+        return next;
+      });
 
       if (colName === "supplierid") {
         void refreshItemGridMeta(headerValuesRef.current.divisionid);
@@ -859,7 +842,6 @@ export default function GoodsReceivedNoteForm() {
   const handleInsertItems = useCallback(
     async (selectedItems) => {
       if (!selectedItems?.length) return;
-      setActiveTab("items");
 
       const isIndentBase = Number(headerValuesRef.current?.basedonid) === 3;
 
@@ -949,9 +931,10 @@ export default function GoodsReceivedNoteForm() {
       // Validate every RB-visible header field, not a hand-maintained subset —
       // a field missing from a static list (like locationid was) must never be
       // silently skipped at save time just because nobody remembered to list it.
-      const headerErrors = validateApiColumns(hv, visibleHeaderColumns, {
+      const headerErrorMap = validateApiColumnsByField(hv, visibleHeaderColumns, {
         zeroValidFields: new Set(["basedonid"]),
       });
+      setFieldErrors(headerErrorMap);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
       const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
@@ -959,7 +942,9 @@ export default function GoodsReceivedNoteForm() {
       const indentChildRows = Object.values(childRowsMap).flat();
       const indentErrors = validateGridRows(indentChildRows, childColumns);
 
-      const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
+      const headerBannerMsg =
+        Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
+      const allErrors = [...headerBannerMsg, ...detailErrors, ...indentErrors];
       if (allErrors.length > 0) {
         setFormErrors(allErrors);
         return false;
@@ -1052,8 +1037,8 @@ export default function GoodsReceivedNoteForm() {
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
   const handleSelectListShortcut = useCallback(() => {
-    if (activeTab === "items") handleSelectItem();
-  }, [activeTab, handleSelectItem]);
+    handleSelectItem();
+  }, [handleSelectItem]);
 
   const handleToggleCollapsible = useCallback(() => {
     itemGridRef.current?.toggleFocusedRowCollapsible?.();
@@ -1169,6 +1154,7 @@ export default function GoodsReceivedNoteForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterPanelLoading || !headerMetaReady}
             fieldTones={headerFieldTones}
+            fieldErrors={fieldErrors}
             externalValues={currencyExternalValues}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
@@ -1179,78 +1165,44 @@ export default function GoodsReceivedNoteForm() {
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}
-          tabs={GRN_GRID_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          searchable={activeTab === "items"}
+          searchable
           hideBottomPanel
           headerControls={
-            activeTab === "items" ? (
-              <>
-                <button
-                  ref={selectItemBtnRef}
-                  type="button"
-                  className="eg-tab-btn"
-                  onClick={handleSelectItem}
-                  disabled={!isEditMode}
-                  title={FORM_SHORTCUT_TITLES.selectList}
-                >
-                  <Package size={12} strokeWidth={2.5} />
-                  Select Item
-                </button>
+            <>
+              <button
+                ref={selectItemBtnRef}
+                type="button"
+                className="eg-tab-btn"
+                onClick={handleSelectItem}
+                disabled={!isEditMode}
+                title={FORM_SHORTCUT_TITLES.selectList}
+              >
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
+              </button>
 
-                <div className="grn-tab-filter">
-                  <span className="grn-tab-filter__label">Approved</span>
-                  <SearchSelect
-                    value={approvedFilter}
-                    onChange={setApprovedFilter}
-                    options={APPROVED_OPTS}
-                    compact
-                    ariaLabel="Approved filter"
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="eg-tab-btn eg-tab-btn--danger"
-                  onClick={handleDeleteSelected}
-                  disabled={!isEditMode || activeSelectionCount === 0}
-                  title="Delete selected rows"
-                >
-                  <Trash2 size={12} strokeWidth={2} />
-                  Delete
-                </button>
-              </>
-            ) : null
+              <div className="grn-tab-filter">
+                <span className="grn-tab-filter__label">Approved</span>
+                <SearchSelect
+                  value={approvedFilter}
+                  onChange={setApprovedFilter}
+                  options={APPROVED_OPTS}
+                  compact
+                  ariaLabel="Approved filter"
+                />
+              </div>
+              <button
+                type="button"
+                className="eg-tab-btn eg-tab-btn--danger"
+                onClick={handleDeleteSelected}
+                disabled={!isEditMode || activeSelectionCount === 0}
+                title="Delete selected rows"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+                Delete
+              </button>
+            </>
           }
-          tabPanes={{
-            transporter: (
-              <EnterpriseFilterPanel
-                key={`transporter-${filterResetKey}`}
-                title="Transporter Detail"
-                staticFilters={syncedTransporterFilters}
-                initialValues={filterInitialValues}
-                cascadeResets={{ transporterid: ["destinationid"] }}
-                onFilterChange={handleFilterChange}
-                isSearching={filterPanelLoading}
-                isMetaLoading={!headerMetaReady || recordLoading}
-                disabled={filterPanelLoading || !headerMetaReady}
-                fieldTones={transporterFieldTones}
-              />
-            ),
-            driver: (
-              <EnterpriseFilterPanel
-                key={`driver-${filterResetKey}`}
-                title="Driver Detail"
-                staticFilters={syncedDriverFilters}
-                initialValues={filterInitialValues}
-                onFilterChange={handleFilterChange}
-                isSearching={filterPanelLoading}
-                isMetaLoading={!headerMetaReady || recordLoading}
-                disabled={filterPanelLoading || !headerMetaReady}
-                fieldTones={driverFieldTones}
-              />
-            ),
-          }}
           readOnly={isEditRoute && !isEditMode}
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}

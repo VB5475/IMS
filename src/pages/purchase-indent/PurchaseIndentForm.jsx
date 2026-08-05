@@ -41,7 +41,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -116,6 +116,7 @@ export default function PurchaseIndentForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -527,6 +528,12 @@ export default function PurchaseIndentForm() {
   const handleFilterChange = useCallback(
     async (colName, val) => {
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+      setFieldErrors((prev) => {
+        if (!prev[colName]) return prev;
+        const next = { ...prev };
+        delete next[colName];
+        return next;
+      });
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
@@ -767,7 +774,10 @@ export default function PurchaseIndentForm() {
     // Back to a blank new-entry state (post-save, or Cancel on a new record)
     // — re-issue a fresh GUID for whatever the user enters next, same as the
     // initial mount fetch. No-op on an edit route (isNewRoute is false there).
-    extraReset: () => { if (isNewRoute) fetchDocGuid(); },
+    extraReset: () => {
+      if (isNewRoute) fetchDocGuid();
+      setFieldErrors({});
+    },
   });
 
   const completeSuccessfulSave = useCallback(() => {
@@ -780,12 +790,15 @@ export default function PurchaseIndentForm() {
 
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const headerErrorMap = validateApiColumnsByField(headerValuesRef.current, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
-    const allErrors = [...headerErrors, ...detailErrors];
+    const headerBannerMsg =
+      Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
+    const allErrors = [...headerBannerMsg, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -970,6 +983,7 @@ export default function PurchaseIndentForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}

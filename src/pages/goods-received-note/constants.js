@@ -204,15 +204,8 @@ export const GRN_DRIVER_FIELD_NAMES = new Set([
 
 
 
-export const GRN_GRID_TABS = [
-
-  { id: "items", label: "Item Grid" },
-
-  { id: "transporter", label: "Transporter" },
-
-  { id: "driver", label: "Driver" },
-
-];
+// GRN_GRID_TABS removed 2026-08-05 (user: "Remove Transport and Driver Tabs.
+// not needed.") — GRN is back to a single Item Grid, no tab-bar.
 
 
 

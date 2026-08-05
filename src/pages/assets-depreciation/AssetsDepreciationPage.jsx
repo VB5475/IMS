@@ -87,7 +87,7 @@ function buildColumnsFromData(data, navigate) {
           onClick={(e) => {
             e.stopPropagation();
             navigate(
-              `/rb_astdepcamst/${row.astdepid ?? row.idnumber}/edit`,
+              `${DPC_CONFIG.ROUTE_PATH}/${row.astdepid ?? row.idnumber}/edit`,
               { state: { record: row } }
             );
           }}

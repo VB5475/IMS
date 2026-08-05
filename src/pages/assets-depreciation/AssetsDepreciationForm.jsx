@@ -41,7 +41,7 @@ import {
   isTruthyApiFlag,
   syncHeaderFilterWithApiCol,
 } from "../../utils/gridUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -137,6 +137,7 @@ export default function AssetsDepreciationForm() {
   const listRecord  = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate    = useNavigate();
 
   const itemGridRef          = useRef(null);
@@ -392,6 +393,12 @@ export default function AssetsDepreciationForm() {
 
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
 
     if (colName === "divisionid") {
       requestGridClear("Division", async () => {
@@ -559,6 +566,7 @@ export default function AssetsDepreciationForm() {
     setLoadedFilterValues,
     setGridRows,
     extraClearFns: [clearAssetsAccOptions, clearDpcStorage],
+    extraReset: () => setFieldErrors({}),
   });
 
   const completeSuccessfulSave = useCallback(() => {
@@ -569,11 +577,14 @@ export default function AssetsDepreciationForm() {
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors  = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const headerErrorMap = validateApiColumnsByField(headerValuesRef.current, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    const headerBannerMsg =
+      Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors  = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
-    const allErrors = [...headerErrors, ...detailErrors];
+    const allErrors = [...headerBannerMsg, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -717,6 +728,7 @@ export default function AssetsDepreciationForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}

@@ -30,7 +30,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -100,6 +100,7 @@ export default function AssetsReturnableGatePassInForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
@@ -381,6 +382,12 @@ export default function AssetsReturnableGatePassInForm() {
       ...headerValuesRef.current,
       [colName]: val,
     });
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
     const hv = headerValuesRef.current;
     const col = String(colName).toLowerCase();
 
@@ -570,16 +577,20 @@ export default function AssetsReturnableGatePassInForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
+    extraClearFns: [() => setFieldErrors({})],
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     await flushPendingCellEvents(itemGridSectionRef);
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const headerErrorMap = validateApiColumnsByField(headerValuesRef.current, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    const headerBannerMsg =
+      Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const businessErrors = validateArgiBusinessRules(headerValuesRef.current);
     const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
-    const allErrors = [...headerErrors, ...businessErrors, ...detailErrors];
+    const allErrors = [...headerBannerMsg, ...businessErrors, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -727,6 +738,7 @@ export default function AssetsReturnableGatePassInForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}

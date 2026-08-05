@@ -43,7 +43,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -132,6 +132,7 @@ export default function PurchaseVoucherForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -475,6 +476,12 @@ export default function PurchaseVoucherForm() {
   // ── Filter change / cascade ────────────────────────────────────────
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
 
     if (colName === "divisionid") {
       headerValuesRef.current.configid = 0;
@@ -842,6 +849,7 @@ export default function PurchaseVoucherForm() {
       // reloaded edit record's real BillNo/BillDate (see handleDiscardConfirm).
       setBillExternalValues(null);
       summaryRef.current?.resetOverrides?.();
+      setFieldErrors({});
     },
   });
 
@@ -862,14 +870,17 @@ export default function PurchaseVoucherForm() {
     // Validate every RB-visible header field, not a hand-maintained subset —
     // a field missing from a static list must never be silently skipped at
     // save time just because nobody remembered to list it (see GRN fix).
-    const headerErrors = validateApiColumns(headerValuesRef.current, visibleHeaderColumns, {
+    const headerErrorMap = validateApiColumnsByField(headerValuesRef.current, visibleHeaderColumns, {
       zeroValidFields: new Set(["basedonid"]),
     });
+    setFieldErrors(headerErrorMap);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
 
-    const allErrors = [...headerErrors, ...detailErrors];
+    const headerBannerMsg =
+      Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
+    const allErrors = [...headerBannerMsg, ...detailErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -1017,6 +1028,7 @@ export default function PurchaseVoucherForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}

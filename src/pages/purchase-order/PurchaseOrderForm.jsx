@@ -42,7 +42,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -129,6 +129,7 @@ export default function PurchaseOrderForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [itemCellErrors, setItemCellErrors] = useState(null);
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -886,6 +887,7 @@ export default function PurchaseOrderForm() {
       setChildColumns([]);
       summaryRef.current?.resetOverrides?.();
       setFieldErrors({});
+      setItemCellErrors(null);
     },
   });
 
@@ -911,7 +913,12 @@ export default function PurchaseOrderForm() {
     setFieldErrors(headerErrorMap);
 
     const itemRows = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
+    const { errors: detailErrors, cellErrors: nextItemCellErrors } = validateGridRowsDetailed(
+      itemRows,
+      columns,
+      { requireAtLeastOne: true }
+    );
+    setItemCellErrors(nextItemCellErrors);
 
     const indentChildRows = Object.values(childRowsMap).flat();
     const indentErrors = validateGridRows(indentChildRows, childColumns);
@@ -1176,7 +1183,15 @@ export default function PurchaseOrderForm() {
           }
           emptyMessage="No items yet. Click Entry Form or Select Item above."
           onSelectionChange={setItemSelectionCount}
-          onRowsChange={setGridRows}
+          onRowsChange={(rows) => {
+            setGridRows(rows);
+            // Clear the whole cell-error map on any edit rather than tracking
+            // which cell changed — Save re-validates and re-marks whatever's
+            // still invalid, same "clear on edit" spirit as the field-level
+            // work without needing a per-cell edit callback from EntryGrid.
+            setItemCellErrors((prev) => (prev && prev.size > 0 ? null : prev));
+          }}
+          cellErrors={itemCellErrors}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
           enableCollapsible={Object.keys(childRowsMap).length > 0}

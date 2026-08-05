@@ -396,7 +396,10 @@ export function formatColumnDisplayValue(value, colOrMeta) {
 }
 
 /**
- * Validate multiple rows against grid column definitions.
+ * Same validation as validateGridRows, plus a `cellErrors` map (key
+ * `"${row.id}:${col.key}"` → message) so a grid can mark the exact invalid
+ * cell — lets EntryGrid render a per-cell indicator (and native title
+ * tooltip) instead of only the flat top-banner message list.
  * @param {boolean} [opts.requireAtLeastOne] — 2026-07-29 requirement: the
  *   primary item grid must have at least 1 row before save. Opt-in (default
  *   false) since several modules also validate secondary/optional grids
@@ -406,11 +409,12 @@ export function formatColumnDisplayValue(value, colOrMeta) {
  * @param {string} [opts.emptyMessage] — overrides the default "item row"
  *   wording when requireAtLeastOne is used on a non-item grid (e.g. Purchase
  *   Inquiry's supplier grid, 2026-08-03).
- * @returns {string[]} error messages
+ * @returns {{ errors: string[], cellErrors: Map<string, string> }}
  */
-export function validateGridRows(rows, columns, opts = {}) {
+export function validateGridRowsDetailed(rows, columns, opts = {}) {
   const { requireAtLeastOne = false, emptyMessage = "Please add at least one item row before saving." } = opts;
   const errors = [];
+  const cellErrors = new Map();
   if (requireAtLeastOne && (rows || []).length === 0) {
     errors.push(emptyMessage);
   }
@@ -421,11 +425,20 @@ export function validateGridRows(rows, columns, opts = {}) {
       const result = validateColumnValue(row[col.key], col);
       if (!result.valid) {
         errors.push(`Row ${rowIdx + 1} — ${result.message}`);
+        if (row.id != null) cellErrors.set(`${row.id}:${col.key}`, result.message);
       }
     });
   });
 
-  return errors;
+  return { errors, cellErrors };
+}
+
+/**
+ * Validate multiple rows against grid column definitions.
+ * @returns {string[]} error messages
+ */
+export function validateGridRows(rows, columns, opts = {}) {
+  return validateGridRowsDetailed(rows, columns, opts).errors;
 }
 
 /**
