@@ -140,7 +140,7 @@ export function getColDefault(colDataType) {
 }
 
 /** Current timestamp in the app's stored-date format (matches dateToStoredValue's "T" shape). */
-function nowStoredValue() {
+export function nowStoredValue() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -166,7 +166,10 @@ export function buildSaveRowFromColumns(rest, columnDefs, extraFields = {}) {
   });
   const rowKeysLower = new Set(Object.keys(row).map((k) => k.toLowerCase()));
   Object.entries(rest).forEach(([k, v]) => {
-    if (k === "id" || k in row || rowKeysLower.has(k.toLowerCase())) return;
+    // Leading underscore = internal-only UI state (e.g. _isUploaded,
+    // _docSubTypeOptions, _pgId elsewhere in this app), never a real column —
+    // must never leak into a save payload.
+    if (k === "id" || k.startsWith("_") || k in row || rowKeysLower.has(k.toLowerCase())) return;
     row[k] = v;
   });
   return { ...row, ...extraFields };

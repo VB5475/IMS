@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -81,6 +82,7 @@ export default function MaintenanceContractRenewalPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <label htmlFor="macr-list-page-size" className="macr-list-panel__pagesize-label">
               Rows per page
             </label>

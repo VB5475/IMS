@@ -42,6 +42,17 @@
   gap: 8px;
 }
 
+/* Collapsed rail is only 64px wide — the brand logo (32px) and the toggle
+   button (26px) can't sit side-by-side without overlapping/clipping. Stack
+   them instead. */
+.ent-shell--collapsed .ent-sidebar__header {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 16px 0 12px;
+}
+
 .ent-sidebar__brand {
   display: flex;
   /* Centered, not flex-start — the brand text is a single "IMS" line now
@@ -133,6 +144,27 @@
   border-radius: var(--radius);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
   padding: 8px;
+  /* max-height + overflowY are set inline per-open (openFlyout) from the
+     actual space available below the hover point — this is just the
+     fallback/scrollbar styling. */
+  overflow-y: auto;
+}
+
+.ent-sidebar__flyout::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ent-sidebar__flyout::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ent-sidebar__flyout::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.ent-sidebar__flyout::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .ent-sidebar__flyout-label {
@@ -368,6 +400,33 @@
 .ent-shell--collapsed .ent-sidebar__link--active {
   border-left: none;
   box-shadow: none;
+}
+
+/* Collapsed rail — one icon per SECTION (not per item). Hovering it opens
+   the .ent-sidebar__flyout with the section's full item list. */
+.ent-sidebar__rail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  margin-bottom: 4px;
+  color: var(--sidebar-text);
+  opacity: 0.85;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.ent-sidebar__rail-icon:hover {
+  color: var(--sidebar-text-active);
+  background: rgba(163, 201, 255, 0.12);
+  opacity: 1;
+}
+
+.ent-sidebar__rail-icon--active {
+  color: #ffffff;
+  opacity: 1;
+  background: linear-gradient(90deg, #2f6fdb 0%, #1e56b3 100%);
+  box-shadow: 0 2px 10px rgba(47, 111, 219, 0.45);
 }
 
 .ent-sidebar__footer {

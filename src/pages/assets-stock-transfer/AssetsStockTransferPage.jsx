@@ -10,6 +10,7 @@ import { AST_CONFIG, ENTRY_FORM_LABEL, buildAstListJsonPayload } from "./constan
 import "./AssetsStockTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
 function buildAstReportParams() {
@@ -89,6 +90,7 @@ export default function AssetsStockTransferPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Assets Stock Transfer Report"
               reportFileName="TODO_AssetsStockTransfer.rpt"

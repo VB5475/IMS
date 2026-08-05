@@ -15,6 +15,7 @@ import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
 function buildDpcReportParams() {
@@ -86,7 +87,7 @@ function buildColumnsFromData(data, navigate) {
           onClick={(e) => {
             e.stopPropagation();
             navigate(
-              `/rb_astdepcamst/${row.astdepid ?? row.idnumber}/edit`,
+              `${DPC_CONFIG.ROUTE_PATH}/${row.astdepid ?? row.idnumber}/edit`,
               { state: { record: row } }
             );
           }}
@@ -147,6 +148,7 @@ export default function AssetsDepreciationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Company Act Depreciation Report"
               reportFileName="TODO_AssetsDepreciation.rpt"

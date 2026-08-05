@@ -14,7 +14,7 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import {
   IM_CONFIG,
@@ -83,6 +83,8 @@ export default function ItemMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   const buildEmptyFromColumns = useCallback(() => {
@@ -103,6 +105,8 @@ export default function ItemMasterForm({
     setIsEditMode(isAddMode);
     setSaveError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     if (isAddMode) {
       setFormValues(buildEmptyFromColumns());
     } else if (editPrefill?.headerValues) {
@@ -139,6 +143,12 @@ export default function ItemMasterForm({
 
   const handleChange = useCallback(
     (key, value) => {
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       setFormValues((prev) => {
         const next = { ...prev, [key]: value };
         if (key === "itemtypeid") {
@@ -203,9 +213,10 @@ export default function ItemMasterForm({
     return { onRefresh: null, quickAdd: null };
   }
 
-  function renderControl(field) {
+  function buildControl(field) {
     const key = field.colname;
     const locked = isLocked(field);
+    const error = fieldErrors[key];
 
     // Itemcode — always auto-generated, shown as display text
     if (key === "itemcode") {
@@ -216,7 +227,7 @@ export default function ItemMasterForm({
       );
     }
 
-    // Checkbox override — stored as numeric 0/1
+    // Checkbox override — stored as numeric 0/1 (never validated, see handleSave)
     if (CHECKBOX_OVERRIDES.has(key)) {
       return (
         <div className="im-form-control--checkbox">
@@ -241,6 +252,7 @@ export default function ItemMasterForm({
           onChange={(val) => handleChange(key, Number(val) || 0)}
           disabled={locked}
           placeholder={`Select ${getLabel(field)}…`}
+          className={error ? "im-form-dropdown--error" : undefined}
         />
       );
 
@@ -282,7 +294,7 @@ export default function ItemMasterForm({
     // Default — text input
     return (
       <input
-        className="im-form-input"
+        className={`im-form-input${error ? " im-form-input--error" : ""}`}
         type="text"
         value={formValues[key] ?? ""}
         onChange={(e) => handleChange(key, e.target.value)}
@@ -293,13 +305,30 @@ export default function ItemMasterForm({
     );
   }
 
+  function renderControl(field) {
+    const error = fieldErrors[field.colname];
+    const control = buildControl(field);
+    if (!error) return control;
+    return (
+      <>
+        {control}
+        <div className="master-form-field-error">{error}</div>
+      </>
+    );
+  }
+
   const handleSave = useCallback(async () => {
     setFormErrors([]);
+    setFieldValidationFailed(false);
     const fieldsToValidate = visibleFields.filter(
       (f) => f.colname !== "itemcode" && !CHECKBOX_OVERRIDES.has(f.colname)
     );
-    const errors = validateApiColumns(formValues, fieldsToValidate);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    const fieldErrorMap = validateApiColumnsByField(formValues, fieldsToValidate);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      return;
+    }
 
     setSaveError(null);
     setIsSaving(true);
@@ -412,7 +441,11 @@ export default function ItemMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
 
           <div className="im-form-scroll">
             <div className="im-form">

@@ -9,7 +9,6 @@
 // Additional PO-specific calls:
 //   fetchPoTypes(divisionId)          — cascade: Division → PO Type
 //   fetchSupplierInfo(supplierId)     — derive CurrencyRate + CrDays from selected Supplier
-//   fetchExistingPOs()                — Amend dropdown: list of existing POs
 //
 // Cascade: Division → PO Type
 
@@ -118,11 +117,9 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
   const [poTypeOptions, setPoTypeOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
-  const [existingPOs, setExistingPOs] = useState([]);
 
   const [isLoadingPoTypes, setIsLoadingPoTypes] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
-  const [isLoadingExistingPOs, setIsLoadingExistingPOs] = useState(false);
 
   // ── Detail grid state ───────────────────────────────────────────────
   const [columns, setColumns] = useState([]);
@@ -247,38 +244,6 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     },
     [get]
   );
-
-  // ── fetchExistingPOs — Amend dropdown ──────────────────────────────
-  const fetchExistingPOs = useCallback(async () => {
-    setIsLoadingExistingPOs(true);
-    try {
-      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: PO_CONFIG.SP_EXISTING_POS,
-        JSon: JSON.stringify([
-          {
-            prmLoginID: getUserSession().loginId,
-            prmCompanyID: getUserSession().companyId,
-            prmYearID: getUserSession().yearId,
-          },
-        ]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const opts = (res || []).map((r) => ({
-        value: String(r.idnumber ?? r.poid ?? r.tranid),
-        label: r.trancode ?? r.pono ?? String(r.idnumber),
-      }));
-      setExistingPOs(opts);
-      return opts;
-    } catch (err) {
-      console.warn("[PO] Existing POs fetch failed:", err);
-      setExistingPOs([]);
-      return [];
-    } finally {
-      setIsLoadingExistingPOs(false);
-    }
-  }, [get]);
 
   // ── fetchHeaderMeta ─────────────────────────────────────────────────
   const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
@@ -758,17 +723,14 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
     poTypeOptions,
     supplierOptions,
     departmentOptions,
-    existingPOs,
     // loaders
     isLoadingPoTypes,
     isLoadingSuppliers,
-    isLoadingExistingPOs,
     // cascade / derive
     fetchPoTypes,
     clearPoTypes,
     fetchSupplierInfo,
     getSupplierCurrency,
-    fetchExistingPOs,
     fetchDepartments,
     fetchUniqueId,
     // detail grid

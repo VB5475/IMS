@@ -54,6 +54,7 @@ import {
 import {
   mergeRowDropdownOptions,
   normalizeDropdownOptions,
+  resolveColumnDropdownOptions,
   resolveDropdownLabel,
   resolveRowCellValue,
   syncEditGridDropdownValues,
@@ -164,6 +165,12 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     // (e.g. View/Upload) is clicked. The column itself comes from the RB's
     // own metadata (real, visible column), not a synthetic addition.
     onButtonClick = null,
+    // Map<string, string> of "${row.id}:${col.key}" → message — marks a cell
+    // invalid (inset red border + corner triangle + native title tooltip)
+    // without affecting row height. Build via validateGridRowsDetailed's
+    // `cellErrors`. Opt-in — omitted by every existing caller, so behavior is
+    // unchanged unless passed.
+    cellErrors = null,
   },
   ref
 ) {
@@ -890,7 +897,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         );
 
       case 4: {
-        const baseOpts = normalizeDropdownOptions(col.dropdownOptions);
+        const baseOpts = normalizeDropdownOptions(resolveColumnDropdownOptions(col, row));
         const opts = mergeRowDropdownOptions(col, row, baseOpts);
         return (
           <Suspense fallback={gridCellLazyFallback}>
@@ -1158,17 +1165,22 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                           ].filter(Boolean).join(" ")}
                           data-eg-row-id={rowId}
                         >
-                          {columns.map((col) => (
-                            <td
-                              key={`${row.id}-${col.id}`}
-                              className={cellClass(col)}
-                              style={cellStyle(col, "body")}
-                              onMouseDown={(e) => focusCellControl(e, col)}
-                              onClick={() => {
-                                if (col.key === "cb" && !checkboxDisabled) handleSelectRow(row.id);
-                              }}
-                            >
-                              <div className="cell-wrapper">
+                          {columns.map((col) => {
+                            const cellErrorMsg = cellErrors?.get(`${row.id}:${col.key}`);
+                            return (
+                              <td
+                                key={`${row.id}-${col.id}`}
+                                className={cellClass(col)}
+                                style={cellStyle(col, "body")}
+                                onMouseDown={(e) => focusCellControl(e, col)}
+                                onClick={() => {
+                                  if (col.key === "cb" && !checkboxDisabled) handleSelectRow(row.id);
+                                }}
+                              >
+                                <div
+                                  className={`cell-wrapper${cellErrorMsg ? " cell-wrapper--error" : ""}`}
+                                  title={cellErrorMsg || undefined}
+                                >
                                 {col.key === "cb" ? (
                                   <div className="cell-checkbox">
                                     {hasChildren && (
@@ -1213,9 +1225,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                                 ) : (
                                   renderCell(row, col)
                                 )}
-                              </div>
-                            </td>
-                          ))}
+                                </div>
+                              </td>
+                            );
+                          })}
                         </tr>
 
                         {isExpanded && (

@@ -14,12 +14,13 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import {
   getMasterFieldLabel,
   isMasterCheckboxField,
   isMasterFieldLocked,
+  isMasterFieldVisible,
   isMasterToggleField,
 } from "../../utils/masterFormUtils";
 import {
@@ -65,13 +66,13 @@ function buildFieldMap(fieldDefs) {
 
 function resolveField(fieldMap, layoutName) {
   if (!layoutName) return null;
-  return fieldMap[layoutName] ?? fieldMap[layoutName.toLowerCase()] ?? null;
+  const field = fieldMap[layoutName] ?? fieldMap[layoutName.toLowerCase()] ?? null;
+  if (!field || !isMasterFieldVisible(field)) return null;
+  return field;
 }
 
-function resolveLayoutRows(rows, fieldMap) {
-  return rows
-    .map((row) => row.map((name) => resolveField(fieldMap, name)).filter(Boolean))
-    .filter((row) => row.length > 0);
+function resolveLayoutFields(fields, fieldMap) {
+  return fields.map((name) => resolveField(fieldMap, name)).filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +104,8 @@ export default function CompanyForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   // fieldMap keyed by lowercase colname (PG)
@@ -110,27 +113,16 @@ export default function CompanyForm({
 
   // Layout resolved with case-insensitive lookup (CO_FORM_LAYOUT uses PascalCase)
   const layout = useMemo(() => ({
-    mainRows: resolveLayoutRows(CO_FORM_LAYOUT.left.main.rows, fieldMap),
-    contactRows: resolveLayoutRows(CO_FORM_LAYOUT.left.contact.rows, fieldMap),
-    responsibleRows: resolveLayoutRows(CO_FORM_LAYOUT.right.responsible.rows, fieldMap),
+    mainFields: resolveLayoutFields(CO_FORM_LAYOUT.main.fields, fieldMap),
+    contactFields: resolveLayoutFields(CO_FORM_LAYOUT.contact.fields, fieldMap),
+    responsibleFields: resolveLayoutFields(CO_FORM_LAYOUT.responsible.fields, fieldMap),
   }), [fieldMap]);
 
   // Ordered list of visible fields for validation (from layout definition)
-  const visibleFields = useMemo(() => {
-    const seen = new Set();
-    const fields = [];
-    const collect = (rows) => {
-      rows.forEach((row) => {
-        row.forEach((f) => {
-          if (!seen.has(f.colname)) { seen.add(f.colname); fields.push(f); }
-        });
-      });
-    };
-    collect(layout.mainRows);
-    collect(layout.contactRows);
-    collect(layout.responsibleRows);
-    return fields;
-  }, [layout]);
+  const visibleFields = useMemo(
+    () => [...layout.mainFields, ...layout.contactFields, ...layout.responsibleFields],
+    [layout]
+  );
 
   // Build empty row seeded from ALL RB columns + context fields (all lowercase)
   const buildEmptyFromColumns = useCallback(() => {
@@ -154,6 +146,8 @@ export default function CompanyForm({
     setIsEditMode(isAddMode);
     setSaveError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setRecordLoadError(null);
     setFormValues(buildEmptyFromColumns());
   }, [isOpen, isAddMode, buildEmptyFromColumns]);
@@ -181,6 +175,12 @@ export default function CompanyForm({
   }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster, buildEmptyFromColumns]);
 
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       // Reset dependent dropdowns to default
@@ -210,6 +210,7 @@ export default function CompanyForm({
         inputClassName="co-form-input"
         valueClassName="co-form-value"
         toggleClassName="co-form-toggle"
+        error={fieldErrors[key]}
       />
     );
   }
@@ -231,24 +232,22 @@ export default function CompanyForm({
     );
   }
 
-  function renderLayoutRow(rowFields, rowKey) {
-    if (rowFields.length === 1) {
-      return <div key={rowKey} className="co-form-row">{renderFieldCell(rowFields[0])}</div>;
-    }
-    return (
-      <div key={rowKey} className="co-form-row co-form-row--split">
-        {rowFields.map((field) => renderFieldCell(field))}
-      </div>
-    );
-  }
-
-  function renderPanelBody(rows, keyPrefix) {
-    return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
+  // Uniform 5-per-row grid — fields auto-flow and wrap to a new row every 5
+  // items (see .co-form-section__body), instead of hand-curated 1-or-2-field
+  // rows. Section body itself IS the grid; no per-row wrapper needed.
+  function renderPanelBody(fields) {
+    return fields.map((field) => renderFieldCell(field));
   }
 
   const handleSave = useCallback(async () => {
-    const errors = validateApiColumns(formValues, visibleFields);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateApiColumnsByField(formValues, visibleFields);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
+      return;
+    }
 
     setFormErrors([]);
     setSaveError(null);
@@ -354,34 +353,34 @@ export default function CompanyForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="co-form-scroll">
             <div className="co-form-layout">
-              <div className="co-form-layout__left">
-                <section className="co-form-section co-form-section--main">
-                  <div className="co-form-section__body">
-                    {renderPanelBody(layout.mainRows, "main")}
-                  </div>
-                </section>
-                <section className="co-form-section co-form-section--contact">
-                  <h3 className="co-form-section__title">
-                    {CO_FORM_LAYOUT.left.contact.title}
-                  </h3>
-                  <div className="co-form-section__body">
-                    {renderPanelBody(layout.contactRows, "contact")}
-                  </div>
-                </section>
-              </div>
-              <div className="co-form-layout__right">
-                <section className="co-form-section co-form-section--responsible">
-                  <h3 className="co-form-section__title">
-                    {CO_FORM_LAYOUT.right.responsible.title}
-                  </h3>
-                  <div className="co-form-section__body">
-                    {renderPanelBody(layout.responsibleRows, "responsible")}
-                  </div>
-                </section>
-              </div>
+              <section className="co-form-section co-form-section--main">
+                <div className="co-form-section__body">
+                  {renderPanelBody(layout.mainFields)}
+                </div>
+              </section>
+              <section className="co-form-section co-form-section--contact">
+                <h3 className="co-form-section__title">
+                  {CO_FORM_LAYOUT.contact.title}
+                </h3>
+                <div className="co-form-section__body">
+                  {renderPanelBody(layout.contactFields)}
+                </div>
+              </section>
+              <section className="co-form-section co-form-section--responsible">
+                <h3 className="co-form-section__title">
+                  {CO_FORM_LAYOUT.responsible.title}
+                </h3>
+                <div className="co-form-section__body">
+                  {renderPanelBody(layout.responsibleFields)}
+                </div>
+              </section>
             </div>
           </div>
           {saveError && (

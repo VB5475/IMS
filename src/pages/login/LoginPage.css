@@ -47,28 +47,30 @@
   }
 }
 
-/* ── Sign-in panel — full-bleed, form centered ── */
+/* ── Sign-in panel — full-bleed, form centered ──
+   The panel itself never scrolls — it's sized to exactly fill the device
+   viewport (100dvh, inherited from .login-page). Everything (logo, card
+   header, submit button, footer) stays fixed on screen; only the field
+   list inside the card (.login-form__fields below) becomes independently
+   scrollable, and only when it genuinely doesn't fit a short viewport. */
 .login-panel {
   position: relative;
   z-index: 1;
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* When the card is taller than the viewport (small phones), fall back to
-     top-aligned + scrollable instead of centering it off-screen with no way
-     to scroll up to the cut-off top — "safe" keeps centering everywhere it
-     fits. Declared after the plain value so browsers without "safe" support
-     just keep plain centering. */
-  justify-content: safe center;
-  overflow-y: auto;
-  padding: 32px 20px;
+  overflow: hidden;
+  padding: clamp(12px, 4vh, 32px) 20px;
 }
 
 .login-panel__inner {
   width: 100%;
   max-width: 440px;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -78,7 +80,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: clamp(24px, 4vh, 36px);
+  flex-shrink: 0;
+  margin-bottom: clamp(12px, 3vh, 36px);
 }
 
 .login-brand__logo {
@@ -121,12 +124,25 @@
 .login-card-wrap {
   position: relative;
   width: 100%;
+  /* Absorbs exactly the vertical space left over after the fixed-size brand
+     header and footer — the card centers within it when short, and shrinks
+     it (handing overflow to .login-form__fields' internal scroll) when the
+     viewport is too short for everything to fit. */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .login-card {
   position: relative;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   border-radius: 16px;
-  padding: clamp(22px, 6vw, 32px) clamp(18px, 5vw, 28px) clamp(16px, 4vw, 24px);
+  padding: clamp(16px, 5vw, 32px) clamp(18px, 5vw, 28px) clamp(14px, 4vw, 24px);
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow:
@@ -146,6 +162,7 @@
 
 .login-env-switcher {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   margin-bottom: 12px;
 }
@@ -200,7 +217,8 @@
 }
 
 .login-card__header {
-  margin-bottom: 24px;
+  flex-shrink: 0;
+  margin-bottom: clamp(12px, 3vh, 24px);
 }
 
 .login-card__logo {
@@ -232,12 +250,13 @@
 }
 
 .login-card__loader {
-  min-height: 260px;
+  min-height: min(260px, 30vh);
   display: grid;
   place-items: center;
 }
 
 .login-error {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -265,7 +284,24 @@
 .login-form {
   display: flex;
   flex-direction: column;
+  /* Shrinks to whatever height .login-card-wrap actually has left; when the
+     fields + submit button together don't fit, .login-form__fields (not
+     this element, not the page) is what scrolls. */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.login-form__fields {
+  display: flex;
+  flex-direction: column;
   gap: 15px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Small breathing room so the scrollbar/last field isn't flush against
+     the submit button when it's actually scrolling. */
+  padding: 2px 2px 4px;
+  margin: -2px -2px 0;
 }
 
 .login-field span,
@@ -360,12 +396,13 @@
 
 .login-submit {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
   height: 42px;
-  margin-top: 4px;
+  margin-top: 14px;
   border: none;
   border-radius: 10px;
   font-size: 12px;
@@ -394,18 +431,20 @@
 
 .login-card__notice {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin: 20px 0 0;
-  padding-top: 16px;
+  margin: clamp(10px, 2.5vh, 20px) 0 0;
+  padding-top: clamp(8px, 2vh, 16px);
   font-size: 11px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
 }
 
 .login-footer {
-  margin-top: 22px;
+  flex-shrink: 0;
+  margin-top: clamp(10px, 2.5vh, 22px);
   text-align: center;
   font-size: 11px;
   font-weight: 600;
@@ -436,5 +475,77 @@
 @media (prefers-reduced-motion: reduce) {
   .login-submit:hover:not(:disabled) {
     transform: none;
+  }
+}
+
+/* ── Compact mode — short mobile viewports (e.g. iPhone SE, ~667px tall).
+   Tightens spacing everywhere so all 5 fields + the submit button fit
+   without needing .login-form__fields' internal scroll on typical small
+   phones; the scroll fallback still exists below this for anything shorter
+   still (landscape phones, split-screen, etc). ── */
+@media (max-height: 700px) {
+  .login-panel {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .login-brand {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .login-brand__logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .login-brand h1 {
+    font-size: 18px;
+  }
+
+  .login-card {
+    padding-top: 14px;
+    padding-bottom: 12px;
+  }
+
+  .login-card__header {
+    margin-bottom: 10px;
+  }
+
+  .login-card__header h3 {
+    font-size: 18px;
+    margin-bottom: 3px;
+  }
+
+  .login-card__header p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .login-form__fields {
+    gap: 9px;
+  }
+
+  .login-field span,
+  .login-field label {
+    margin-bottom: 3px;
+  }
+
+  .login-field__control {
+    height: 38px;
+  }
+
+  .login-submit {
+    height: 38px;
+    margin-top: 10px;
+  }
+
+  .login-card__notice {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .login-footer {
+    margin-top: 8px;
   }
 }

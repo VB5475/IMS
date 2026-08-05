@@ -396,20 +396,27 @@ export function formatColumnDisplayValue(value, colOrMeta) {
 }
 
 /**
- * Validate multiple rows against grid column definitions.
+ * Same validation as validateGridRows, plus a `cellErrors` map (key
+ * `"${row.id}:${col.key}"` → message) so a grid can mark the exact invalid
+ * cell — lets EntryGrid render a per-cell indicator (and native title
+ * tooltip) instead of only the flat top-banner message list.
  * @param {boolean} [opts.requireAtLeastOne] — 2026-07-29 requirement: the
  *   primary item grid must have at least 1 row before save. Opt-in (default
  *   false) since several modules also validate secondary/optional grids
  *   (indent-children, supplier detail, terms detail) through this same
  *   function, which are allowed to be empty — only each module's own
  *   primary item-grid call site should pass this.
- * @returns {string[]} error messages
+ * @param {string} [opts.emptyMessage] — overrides the default "item row"
+ *   wording when requireAtLeastOne is used on a non-item grid (e.g. Purchase
+ *   Inquiry's supplier grid, 2026-08-03).
+ * @returns {{ errors: string[], cellErrors: Map<string, string> }}
  */
-export function validateGridRows(rows, columns, opts = {}) {
-  const { requireAtLeastOne = false } = opts;
+export function validateGridRowsDetailed(rows, columns, opts = {}) {
+  const { requireAtLeastOne = false, emptyMessage = "Please add at least one item row before saving." } = opts;
   const errors = [];
+  const cellErrors = new Map();
   if (requireAtLeastOne && (rows || []).length === 0) {
-    errors.push("Please add at least one item row before saving.");
+    errors.push(emptyMessage);
   }
   const dataCols = (columns || []).filter((c) => c.key && c.key !== "cb");
 
@@ -418,11 +425,42 @@ export function validateGridRows(rows, columns, opts = {}) {
       const result = validateColumnValue(row[col.key], col);
       if (!result.valid) {
         errors.push(`Row ${rowIdx + 1} — ${result.message}`);
+        if (row.id != null) cellErrors.set(`${row.id}:${col.key}`, result.message);
       }
     });
   });
 
-  return errors;
+  return { errors, cellErrors };
+}
+
+/**
+ * Validate multiple rows against grid column definitions.
+ * @returns {string[]} error messages
+ */
+export function validateGridRows(rows, columns, opts = {}) {
+  return validateGridRowsDetailed(rows, columns, opts).errors;
+}
+
+/**
+ * Same validation as validateApiColumns, keyed by colname instead of a flat
+ * list — lets a form show each error next to the field it belongs to.
+ * @param {Set<string>} [opts.zeroValidFields] — colnames where "0" is a real dropdown
+ *   option, not an unselected placeholder (e.g. "basedonid" with a "Direct" = 0 choice).
+ * @returns {Record<string, string>} error message keyed by colname
+ */
+export function validateApiColumnsByField(values, apiColumns, opts = {}) {
+  const { zeroValidFields } = opts;
+  const fieldErrors = {};
+  (apiColumns || []).forEach((apiCol) => {
+    if (!isTruthyApiFlag(apiCol.isvisible)) return;
+    const key = apiCol.colname;
+    if (!key) return;
+    const result = validateColumnValue(values[key], apiCol, {
+      allowZero: zeroValidFields?.has(key),
+    });
+    if (!result.valid) fieldErrors[key] = result.message;
+  });
+  return fieldErrors;
 }
 
 /**
@@ -432,16 +470,5 @@ export function validateGridRows(rows, columns, opts = {}) {
  * @returns {string[]} error messages
  */
 export function validateApiColumns(values, apiColumns, opts = {}) {
-  const { zeroValidFields } = opts;
-  const errors = [];
-  (apiColumns || []).forEach((apiCol) => {
-    if (!isTruthyApiFlag(apiCol.isvisible)) return;
-    const key = apiCol.colname;
-    if (!key) return;
-    const result = validateColumnValue(values[key], apiCol, {
-      allowZero: zeroValidFields?.has(key),
-    });
-    if (!result.valid) errors.push(result.message);
-  });
-  return errors;
+  return Object.values(validateApiColumnsByField(values, apiColumns, opts));
 }

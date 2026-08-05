@@ -10,6 +10,7 @@ import { ARV_CONFIG, ENTRY_FORM_LABEL, buildArvListJsonPayload } from "./constan
 import "./AssetsRevaluationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
 function buildArvReportParams() {
@@ -89,6 +90,7 @@ export default function AssetsRevaluationPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Assets Revaluation Report"
               reportFileName="TODO_AssetsRevaluation.rpt"

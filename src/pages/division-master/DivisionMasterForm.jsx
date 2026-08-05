@@ -14,12 +14,13 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import {
   getMasterFieldLabel,
   isMasterCheckboxField,
   isMasterFieldLocked,
+  isMasterFieldVisible,
   isMasterToggleField,
 } from "../../utils/masterFormUtils";
 import {
@@ -49,13 +50,13 @@ function buildFieldMap(fieldDefs) {
 
 function resolveField(fieldMap, layoutName) {
   if (!layoutName) return null;
-  return fieldMap[layoutName] ?? fieldMap[layoutName.toLowerCase()] ?? null;
+  const field = fieldMap[layoutName] ?? fieldMap[layoutName.toLowerCase()] ?? null;
+  if (!field || !isMasterFieldVisible(field)) return null;
+  return field;
 }
 
-function resolveLayoutRows(rows, fieldMap) {
-  return rows
-    .map((row) => row.map((name) => resolveField(fieldMap, name)).filter(Boolean))
-    .filter((row) => row.length > 0);
+function resolveDvLayoutFields(fields, fieldMap) {
+  return fields.map((name) => resolveField(fieldMap, name)).filter(Boolean);
 }
 
 // Premises Name — shown in the screen design but absent from the MRD's Header
@@ -92,30 +93,22 @@ export default function DivisionMasterForm({
   const [isSaving,        setIsSaving]        = useState(false);
   const [saveError,       setSaveError]       = useState(null);
   const [formErrors,      setFormErrors]      = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction,   setDiscardAction]   = useState(null);
   const [premisesChecked, setPremisesChecked] = useState(false);
 
   const fieldMap = useMemo(() => buildFieldMap(fieldDefs), [fieldDefs]);
 
   const layout = useMemo(() => ({
-    mainRows: resolveLayoutRows(DV_FORM_LAYOUT.main.rows, fieldMap),
-    bankRows: resolveLayoutRows(DV_FORM_LAYOUT.bank.rows, fieldMap),
+    mainFields: resolveDvLayoutFields(DV_FORM_LAYOUT.main.fields, fieldMap),
+    bankFields: resolveDvLayoutFields(DV_FORM_LAYOUT.bank.fields, fieldMap),
   }), [fieldMap]);
 
-  const visibleFields = useMemo(() => {
-    const seen = new Set();
-    const fields = [];
-    const collect = (rows) => {
-      rows.forEach((row) => {
-        row.forEach((f) => {
-          if (!seen.has(f.colname)) { seen.add(f.colname); fields.push(f); }
-        });
-      });
-    };
-    collect(layout.mainRows);
-    collect(layout.bankRows);
-    return fields;
-  }, [layout]);
+  const visibleFields = useMemo(
+    () => [...layout.mainFields, ...layout.bankFields],
+    [layout]
+  );
 
   const buildEmptyFromColumns = useCallback(() => {
     const session = getUserSession();
@@ -137,6 +130,8 @@ export default function DivisionMasterForm({
     setIsEditMode(isAddMode);
     setSaveError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setRecordLoadError(null);
     setPremisesChecked(false);
     setFormValues(buildEmptyFromColumns());
@@ -164,6 +159,12 @@ export default function DivisionMasterForm({
   }, [isOpen, isAddMode, recordId, fetchEditRecord, seedOptionsFromMaster, buildEmptyFromColumns]);
 
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       const resetKeys = DV_CASCADE_RESETS[key];
@@ -192,6 +193,7 @@ export default function DivisionMasterForm({
         toggleClassName="dv-form-toggle"
         onRefresh={isHeadName ? onRefreshHeadName : undefined}
         quickAdd={isHeadName && onQuickAddHeadName ? { label: "User", onAdd: onQuickAddHeadName } : null}
+        error={fieldErrors[key]}
       />
     );
   }
@@ -213,24 +215,22 @@ export default function DivisionMasterForm({
     );
   }
 
-  function renderLayoutRow(rowFields, rowKey) {
-    if (rowFields.length === 1) {
-      return <div key={rowKey} className="dv-form-row">{renderFieldCell(rowFields[0])}</div>;
-    }
-    return (
-      <div key={rowKey} className="dv-form-row dv-form-row--split">
-        {rowFields.map((field) => renderFieldCell(field))}
-      </div>
-    );
-  }
-
-  function renderPanelBody(rows, keyPrefix) {
-    return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
+  // Uniform 5-per-row grid — fields auto-flow and wrap to a new row every 5
+  // items (see .dv-form-section__body), instead of hand-curated 1-or-2-field
+  // rows. Section body itself IS the grid; no per-row wrapper needed.
+  function renderPanelBody(fields) {
+    return fields.map((field) => renderFieldCell(field));
   }
 
   const handleSave = useCallback(async () => {
-    const errors = validateApiColumns(formValues, visibleFields);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateApiColumnsByField(formValues, visibleFields);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
+      return;
+    }
 
     setFormErrors([]);
     setSaveError(null);
@@ -333,26 +333,28 @@ export default function DivisionMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="dv-form-scroll">
             <div className="dv-form-layout">
               <section className="dv-form-section dv-form-section--main">
                 <div className="dv-form-section__body">
-                  {renderPanelBody(layout.mainRows, "main")}
-                  <div className="dv-form-row">
-                    <div className="dv-form-field">
-                      <span className="dv-form-label">Premises</span>
-                      <div className="dv-form-control dv-form-control--checkbox">
-                        <label className="dv-form-premises-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={premisesChecked}
-                            onChange={(e) => setPremisesChecked(e.target.checked)}
-                            disabled={!isEditMode}
-                          />
-                          {PREMISES_LOCAL_LABEL}
-                        </label>
-                      </div>
+                  {renderPanelBody(layout.mainFields)}
+                  <div className="dv-form-field">
+                    <span className="dv-form-label">Premises</span>
+                    <div className="dv-form-control dv-form-control--checkbox">
+                      <label className="dv-form-premises-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={premisesChecked}
+                          onChange={(e) => setPremisesChecked(e.target.checked)}
+                          disabled={!isEditMode}
+                        />
+                        {PREMISES_LOCAL_LABEL}
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -360,7 +362,7 @@ export default function DivisionMasterForm({
               <section className="dv-form-section dv-form-section--bank">
                 <h3 className="dv-form-section__title">{DV_FORM_LAYOUT.bank.title}</h3>
                 <div className="dv-form-section__body">
-                  {renderPanelBody(layout.bankRows, "bank")}
+                  {renderPanelBody(layout.bankFields)}
                 </div>
               </section>
             </div>

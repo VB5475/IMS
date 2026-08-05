@@ -76,7 +76,6 @@ export const PO_CONFIG = {
   SP_ITEM_PICKER_QUOT: "fn_tbl_rb_purposelquotitem",
   SP_INDENT_SUMMARY: "fn_tbl_fetchindentsummaryitem4po",
   SP_SUPPLIER_INFO: "fn_tbl_fetchsuppliercurrencyinfo",
-  SP_EXISTING_POS: "fn_tbl_fetchpurorderlistforamend",
   SP_UNIQUE_ID: "pr_gen_fetchlevyuniqueno4web",
   SP_DEPT: PURCHASE_API.SP_DEPT,
 

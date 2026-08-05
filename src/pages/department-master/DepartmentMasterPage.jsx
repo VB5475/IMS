@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Building2, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDepartmentMaster } from "../../hooks/useDepartmentMaster";
@@ -153,6 +154,7 @@ export default function DepartmentMasterPage() {
             <button type="button" className="dm-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Department Master Report"
               reportFileName="TODO_DepartmentMaster.rpt"

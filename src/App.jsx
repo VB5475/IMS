@@ -114,11 +114,14 @@ const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/A
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
 const DopMasterPage = lazy(() => import("./pages/dop-master/DopMasterPage"));
 const DopMasterForm = lazy(() => import("./pages/dop-master/DopMasterForm"));
+const TransporterMasterPage = lazy(() => import("./pages/transporter-master/TransporterMasterPage"));
+const TransporterMasterForm = lazy(() => import("./pages/transporter-master/TransporterMasterForm"));
 const DMDepartmentMasterPage = lazy(() => import("./pages/dm-department-master/DMDepartmentMasterPage"));
 const DocumentTypeMasterPage = lazy(() => import("./pages/document-type-master/DocumentTypeMasterPage"));
 const DocumentSubTypeMasterPage = lazy(() => import("./pages/document-subtype-master/DocumentSubTypeMasterPage"));
 const DMTT2DocTypeMasterPage = lazy(() => import("./pages/dm-tt2doctype-master/DMTT2DocTypeMasterPage"));
 const DMGroupRightsPage = lazy(() => import("./pages/dm-group-rights/DMGroupRightsPage"));
+const DMTranTypeLinkPage = lazy(() => import("./pages/dm-tran-type-link/DMTranTypeLinkPage"));
 const UserWiseGroupRightsPage = lazy(
   () => import("./pages/user-wise-group-rights/UserWiseGroupRightsPage")
 );
@@ -349,11 +352,17 @@ const router = createBrowserRouter([
             list: <DopMasterPage />,
             form: <DopMasterForm />,
           }),
+          rbModule({
+            rb: RB.TRANSPORTER_MASTER,
+            list: <TransporterMasterPage />,
+            form: <TransporterMasterForm />,
+          }),
           rbLeaf({ rb: RB.DM_DEPARTMENT_MASTER, element: <DMDepartmentMasterPage /> }),
           rbLeaf({ rb: RB.DOCUMENT_TYPE_MASTER, element: <DocumentTypeMasterPage /> }),
           rbLeaf({ rb: RB.DOCUMENT_SUBTYPE_MASTER, element: <DocumentSubTypeMasterPage /> }),
           rbLeaf({ rb: RB.DM_TT2DOCTYPE_MASTER, element: <DMTT2DocTypeMasterPage /> }),
           rbLeaf({ rb: RB.DM_GROUP_RIGHTS, element: <DMGroupRightsPage /> }),
+          rbLeaf({ rb: RB.DM_TRAN_TYPE_LINK, element: <DMTranTypeLinkPage /> }),
           { path: "demo/trial-balance", element: <TrialBalanceDemoPage /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

@@ -15,6 +15,7 @@ import { AET_CONFIG, ENTRY_FORM_LABEL, buildAetListJsonPayload } from "./constan
 import "./AssetsEmployeeTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
 function buildAetReportParams() {
@@ -92,6 +93,7 @@ export default function AssetsEmployeeTransferPage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Employee Location Transfer Report"
               reportFileName="TODO_AssetsEmployeeTransfer.rpt"

@@ -5,6 +5,7 @@ import CallFollowUpForm from "../call-follow-up/CallFollowUpForm";
 import CallReportingForm from "../call-reporting/CallReportingForm";
 import DashboardFilterPanelV2 from "../../components/filters/DashboardFilterPanelV2";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL, ENDPOINTS } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -555,6 +556,13 @@ export default function MaintenanceDashboard() {
           onSelectionChange={handleSelectionChange}
           getRowKey={(row, index) =>
             String(row.idnumber ?? row.compuniquekey ?? `maintenance-${index}`)
+          }
+          bottomPanelExtras={
+            <RefreshButton
+              onClick={() => handleSearch(filterValues)}
+              loading={searching}
+              title="Re-run the last search"
+            />
           }
         />
       </section>

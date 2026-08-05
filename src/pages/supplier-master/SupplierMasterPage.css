@@ -115,22 +115,10 @@
   background: #f4f6f9;
 }
 
+/* Sections stack full-width, top to bottom — a 5-column grid needs the full
+   modal width to keep each cell readable; splitting into two half-width
+   columns (the old layout) squeezed a multi-column grid to a cramped 1/10 width. */
 .sm-form-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-.sm-form-layout__left {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-
-.sm-form-layout__right {
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -179,64 +167,40 @@
   flex-shrink: 0;
 }
 
+/* Uniform 4-per-row grid — fields auto-flow and wrap to a new row every 4
+   items. The 1px gap + container background trick draws perfect grid lines
+   regardless of how many fields land in the last (possibly incomplete) row,
+   without needing nth-child border math. */
 .sm-form-section__body {
-  display: flex;
-  flex-direction: column;
-}
-
-.sm-form-row {
-  border-bottom: 1px solid var(--border);
-}
-
-.sm-form-row:last-child {
-  border-bottom: none;
-}
-
-.sm-form-row--split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border, #d8dee8);
+  border-top: 1px solid var(--border, #d8dee8);
 }
 
 .sm-form-field {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
-  flex: 1;
+  padding: 8px 14px;
+  background: #fff;
 }
 
-.sm-form-row--split .sm-form-field {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-}
-
-.sm-form-row--split .sm-form-field:first-child {
-  border-right: 1px solid var(--border);
-}
-
+/* Label sits ABOVE the control (not beside it) specifically so it can wrap
+   onto 2+ lines at 1/3 modal width without fighting a fixed-width column —
+   "Transporter Destinationid"-length labels need this room. */
 .sm-form-label {
-  flex: 0 0 168px;
-  padding: 8px 12px 8px 14px;
-  background: var(--field-frozen-label-bg, #dbe8f5);
   color: var(--primary);
-  border-right: 1.5px solid var(--field-frozen-border, #94b8d8);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  text-align: left;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
   user-select: none;
-  white-space: nowrap;
-}
-
-.sm-form-row--split .sm-form-label {
-  flex: unset;
-  width: auto;
-  padding: 8px 8px 8px 12px;
-  font-size: 10px;
-  letter-spacing: 0.02em;
 }
 
 .sm-form-label--required::after {
@@ -246,16 +210,10 @@
 }
 
 .sm-form-control {
-  flex: 1;
   min-width: 0;
-  padding: 6px 12px 6px 10px;
   display: flex;
-  align-items: center;
-  background: #fff;
-}
-
-.sm-form-row--split .sm-form-control {
-  padding: 6px 10px 6px 8px;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .sm-form-control .search-select {
@@ -313,18 +271,21 @@
   color: var(--text);
 }
 
-@media (max-width: 960px) {
-  .sm-form-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 1100px) {
+  .sm-form-section__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
 
-  .sm-form-row--split {
-    grid-template-columns: 1fr;
+@media (max-width: 900px) {
+  .sm-form-section__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .sm-form-row--split .sm-form-field:first-child {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+@media (max-width: 560px) {
+  .sm-form-section__body {
+    grid-template-columns: 1fr;
   }
 }
 

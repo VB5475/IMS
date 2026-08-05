@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Network } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDivisionMaster } from "../../hooks/useDivisionMaster";
@@ -141,6 +142,7 @@ export default function DivisionMasterPage() {
             <span>Division Master</span>
           </div>
           <div className="dv-list-panel__toolbar">
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Division Master Report"
               reportFileName="TODO_DivisionMaster.rpt"

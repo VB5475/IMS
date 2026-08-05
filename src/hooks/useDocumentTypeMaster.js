@@ -33,7 +33,7 @@ function mapDepartmentRows(rows) {
     .map((r) => {
       const value = r.IDNumber ?? r.idnumber;
       if (value == null || value === "") return null;
-      return { value: String(Number(value) || value), label: String(r.Name ?? r.name ?? value) };
+      return { value: String(Number(value) || value), label: String(r.Name ?? r.name ?? r.department ?? value) };
     })
     .filter(Boolean);
 }

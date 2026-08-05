@@ -13,7 +13,7 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { SMGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./SubMainGroupMasterPage.css";
@@ -51,6 +51,8 @@ export default function SubMainGroupMasterForm({
   const [saveError,       setSaveError]       = useState(null);
   const notify = useNotification();
   const [formErrors,    setFormErrors]    = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   // Build a blank row seeded from RB column defaults + context fields
@@ -76,6 +78,8 @@ export default function SubMainGroupMasterForm({
     setSaveError(null);
     setRecordLoadError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setFormValues(buildEmptyFromColumns());
   }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
@@ -128,6 +132,12 @@ export default function SubMainGroupMasterForm({
   // Cascade: itemtypeid → clear maingroupid + reload options
   // Auto-fill: submaingroupcode → submaingroupshortcode
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "submaingroupcode") {
@@ -143,9 +153,10 @@ export default function SubMainGroupMasterForm({
     }
   }, [fetchMainGroupByItemType]);
 
-  function renderControl(field) {
+  function buildControl(field) {
     const key    = field.colname;
     const locked = isLocked(field);
+    const error = fieldErrors[key];
 
     // Checkbox override — numeric 0/1 stored but rendered as checkbox
     if (CHECKBOX_OVERRIDES.has(key)) {
@@ -175,6 +186,7 @@ export default function SubMainGroupMasterForm({
           options={optionsMap[key] || []}
           placeholder={isMainGroup && mainGroupLoading ? "Loading…" : "Select..."}
           disabled={locked || (isMainGroup && mainGroupLoading)}
+          className={error ? "smgm-form-dropdown--error" : undefined}
         />
       );
     }
@@ -182,7 +194,7 @@ export default function SubMainGroupMasterForm({
     // colctrltype 1 — TextBox (default)
     return (
       <input
-        className="smgm-form-input"
+        className={`smgm-form-input${error ? " smgm-form-input--error" : ""}`}
         type="text"
         value={formValues[key] ?? ""}
         onChange={(e) => handleChange(key, e.target.value)}
@@ -193,17 +205,34 @@ export default function SubMainGroupMasterForm({
     );
   }
 
+  function renderControl(field) {
+    const error = fieldErrors[field.colname];
+    const control = buildControl(field);
+    if (!error) return control;
+    return (
+      <>
+        {control}
+        <div className="smgm-form-field-error">{error}</div>
+      </>
+    );
+  }
+
   // Validation from RB ismandatory; save row seeded from all RB columns via buildSaveRowFromColumns
   const handleSave = useCallback(async () => {
     setFormErrors([]);
+    setFieldValidationFailed(false);
     const normalizedValues = Object.fromEntries(
       visibleFields.map((f) => [
         f.colname,
         f.colctrltype === 4 && formValues[f.colname] === 0 ? "" : formValues[f.colname],
       ])
     );
-    const errors = validateApiColumns(normalizedValues, visibleFields);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    const fieldErrorMap = validateApiColumnsByField(normalizedValues, visibleFields);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      return;
+    }
 
     setSaveError(null);
     setIsSaving(true);
@@ -307,7 +336,11 @@ export default function SubMainGroupMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="smgm-form">
             {visibleFields.map((field) => (
               <div key={field.colname} className="smgm-form-row">

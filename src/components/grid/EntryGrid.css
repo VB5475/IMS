@@ -754,6 +754,28 @@
   display: flex;
   align-items: center;
   overflow: visible;
+  position: relative;
+}
+
+/* Inline cell validation — opt-in via EntryGrid's `cellErrors` prop. Inset
+   shadow (never adds to box size, row height stays untouched) + a small
+   corner triangle (the Excel/Sheets cell-error convention) so an invalid
+   cell is scannable across a dense row without a message pushing layout. */
+.cell-wrapper--error {
+  box-shadow: inset 0 0 0 1.5px var(--danger, #dc2626);
+}
+
+.cell-wrapper--error::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 7px 7px 0;
+  border-color: transparent var(--danger, #dc2626) transparent transparent;
+  pointer-events: none;
 }
 
 .cell-label {

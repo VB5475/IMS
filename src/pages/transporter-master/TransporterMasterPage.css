@@ -1,0 +1,164 @@
+/* TransporterMasterPage.css */
+
+/* ── Listing page ────────────────────────────────────────────────────── */
+.tm-list-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-list-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.tm-list-panel--fill {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.tm-list-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+}
+
+.tm-list-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.tm-list-panel__toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.tm-list-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tm-list-panel__add-btn:hover { filter: brightness(1.05); }
+
+.tm-list-panel__pagesize-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tm-list-panel__pagesize-select {
+  height: 26px;
+  min-width: 56px;
+  padding: 0 24px 0 8px;
+}
+
+.tm-list-panel .ng-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.tm-list-panel .ng-card-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-list__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.tm-list__edit-btn:hover {
+  background: #eef3fa;
+  border-color: var(--primary);
+}
+
+/* ── Form page shell ─────────────────────────────────────────────────── */
+.tm-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+/* Header is EnterpriseFilterPanel (same component + styling every
+   transaction form and DOP Master use) — no page-local CSS needed for it. */
+
+/* ── Detail grid section ─────────────────────────────────────────────── */
+.tm-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tm-detail-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tm-detail-section__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+}
+
+.tm-detail-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+

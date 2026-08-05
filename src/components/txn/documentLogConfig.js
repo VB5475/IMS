@@ -81,6 +81,44 @@
 // yearid/loginid/funccode already got. `ref_trantypeid` now comes from the
 // caller's `tranTypeId` prop; `ref_departmentid` defaults to
 // DEFAULT_REF_DEPARTMENT_ID (see below) — user-confirmed value, not guessed.
+//
+// REAL STORED-PROC SIGNATURE CONFIRMED 2026-07-30 (later same day, user
+// supplied the actual SQL Server proc header behind DM_DocSave) — the
+// authoritative source for what a single prmstrmstjson row must contain,
+// superseding guesswork from the RB's own column list:
+//   @prmMode varchar(20), @prmIDNumber numeric, @prmGUID nvarchar(4000),
+//   @prmTranID numeric, @prmRef_TranTypeID numeric, @prmRef_DepartmentID
+//   numeric, @prmRef_DocumentTypeID numeric, @prmRef_DocumentSubTypeID
+//   numeric, @prmRef_CategoryID numeric, @prmStatus char(10),
+//   @prmTranIDStatus char(10), @prmDocumentTitle varchar(250), @prmSubject
+//   varchar(250), @prmNotes varchar(500), @prmDocumentName varchar(100),
+//   @prmDocFolder varchar(1000), @prmFileName varchar(100), @prmFileExt
+//   char(5), @prmDocumentCode varchar(20), @prmDocumentNo varchar(20),
+//   @prmVersionNo smallint, @prmCreatedBy numeric, @prmCreatedDate datetime,
+//   @prmUpdatedBy numeric, @prmUpdatedDate datetime, @prmTranDate datetime,
+//   @prmTransNo varchar(50), @prmSrNo numeric.
+// Cross-checked against every field this app was already sending (see
+// saveDocs/uploadDoc in useDocumentLog.js) — 6 params had NO client-side
+// value at all, 4 of which (createdby/createddate/updatedby/updateddate)
+// don't even appear anywhere in the RB's own GetDetailColData column list —
+// a genuinely hidden requirement only this real signature revealed:
+// - idnumber: now explicitly defaulted to 0 (new row) — previously omitted
+//   entirely (whitelisted out of GRID_ROW_COLS with nothing in the save
+//   context to compensate).
+// - createdby/updatedby: now = session.loginId (every save here is Add-mode,
+//   so both are the same user).
+// - createddate/updateddate: now = nowStoredValue() (same helper used for
+//   RB "logdate" columns elsewhere in this app, exported from
+//   api/constants.js for reuse here).
+// - versionno: now defaulted to 1 (smallint) — a new document's first version.
+// - status/tranidstatus/documentcode/documentno/docfolder/trandate/transno:
+//   STILL UNRESOLVED — no confidently-correct value known (no RB metadata,
+//   no established app convention, and DM_DocSave's own backend bug
+//   (@prmSrNo OUTPUT-parameter mismatch — see FOLLOW-UP note above) blocks
+//   live trial-and-error to discover acceptable defaults). Left at their
+//   type-based defaults (blank string / 0) — flagged here rather than
+//   guessed, needs a real answer once DM_DocSave's backend bug is fixed and
+//   this can actually be tested end-to-end.
 
 import { RB_CODES } from "../../constants/rbCodes";
 
@@ -97,8 +135,33 @@ export const DOCUMENT_LOG_CONFIG = {
    *  "Reference Document" button click (no auto-load on open). */
   RB_REFERENCEDETAIL: "rb_dm_tranwiseredocs",
 
-  SP_DOCUMENT_TYPE: "fn_tbl_dm_documenttype_list",
-  SP_DOCUMENT_SUBTYPE: "fn_tbl_dm_documentsubtype_list",
+  // REPLACED 2026-07-31 per explicit user instruction — was the generic,
+  // unscoped `fn_tbl_dm_documenttype_list` (no args). The new function scopes
+  // the Document Type list to the transaction (prmref_trantypeid) and
+  // department (prmref_departmentid), plus prmloginid — same 3-part scoping
+  // already used for the Reference Document/Refresh buttons. Called from
+  // fetchHeaderMeta with the SAME tranTypeId/DEFAULT_REF_DEPARTMENT_ID values
+  // already threaded through this module.
+  SP_DOCUMENT_TYPE: "fn_tbl_rb_dm_tranwisedocs_doctype",
+
+  // REPLACED 2026-07-31 per explicit user instruction — was the flat, static
+  // `fn_tbl_dm_documentsubtype_list` (0-arg), fetched ONCE at modal-open time
+  // and shared across every row via a single column-level options list. The
+  // new function is a REAL per-row cascade, live-confirmed via curl: it
+  // takes a 4th arg `prmdocumenttypeid` and genuinely filters by it — sending
+  // 0 returns an empty result `[ ]`, sending a real id (e.g. 5, "Purchase
+  // Indent") returns exactly the matching subtype(s). So Sub Type is no
+  // longer a flat catalog fetched once — it must be re-fetched per row every
+  // time that row's OWN Document Type value changes (confirmed via
+  // AskUserQuestion: "Live per-row cascade" was the explicit choice over a
+  // simpler flat "fetch once with a fixed doctype" approach).
+  // Implementation: useDocumentLog.js exposes `fetchDocSubTypeOptions`
+  // (called on the Docs grid's `onCellEvent` for DOCTYPE_COL, via a new
+  // generic `rowOptionsKey` mechanism added to EntryGrid/gridUtils — a
+  // column can now source its dropdown options from a per-ROW field instead
+  // of a single per-COLUMN static list, see gridUtils.js's
+  // `resolveColumnDropdownOptions`).
+  SP_DOCUMENT_SUBTYPE: "fn_tbl_rb_dm_tranwisedocs_docsubtype",
   SP_CATEGORY: "fn_tbl_rb_dm_tranwisedocs_category",
 
   /** "Reference Document" button — fills the Reference Documents grid
@@ -145,6 +208,11 @@ export const DOCUMENT_LOG_CONFIG = {
   SUBTYPE_COL: "ref_documentsubtypeid",
   CATEGORY_COL: "ref_categoryid",
 
+  // Row field name (not a real content column, never sent to the backend)
+  // that carries each row's OWN cascaded Sub Type option list — see
+  // SP_DOCUMENT_SUBTYPE's note above.
+  SUBTYPE_ROW_OPTIONS_KEY: "_docSubTypeOptions",
+
   /** Docs grid ("Get Detail"-equivalent render list) — whitelist of the
    *  genuine content fields to actually show, regardless of how many other
    *  columns the RB marks visible (see the "RB CHANGED UPSTREAM" note
@@ -176,6 +244,23 @@ export const DOCUMENT_LOG_CONFIG = {
   // PO/PV/etc. get their own Document Log wiring — they may not all be
   // Purchase-department transactions.
   DEFAULT_REF_DEPARTMENT_ID: 1,
+
+  // "Refresh" button (Docs section) — appends documents ALREADY uploaded for
+  // this transaction into the same Docs grid (tagged `_isUploaded`, excluded
+  // from Save — see DocumentLogModal.jsx). REPLACED 2026-07-30 (later same
+  // day) — the function name AND shape both changed from the first attempt:
+  // `fn_tbl_rb_dm_tranwisedocs_showdoclistwithid` (session-id-based, 4th arg
+  // `prmstr_sessionid`) → `fn_tbl_rb_dm_tranwisedocs_showdoclist` (GUID-based,
+  // 4th arg `prmstrgenguid`) — the latter is a much better fit, since it
+  // reuses the SAME per-transaction `docGuid` (from DM_HandleGUID) already
+  // threaded through this component for the Reference Document button,
+  // rather than an unrelated session id. Live-confirmed 2026-07-30: exactly
+  // 4 named args (JSon=[{prmloginid, prmref_trantypeid, prmref_tranid,
+  // prmstrgenguid}]) — omitting prmstrgenguid errors "There is no row at
+  // position 3."; all 4 present (real guid OR empty string) executes
+  // cleanly, returns `[ ]` (table empty, same pattern as every other DM_*
+  // addition this session).
+  SP_SHOW_UPLOADED_DOCS: "fn_tbl_rb_dm_tranwisedocs_showdoclist",
 
   // Real RB columns, ColCtrlType 10 ("button" — live-confirmed 2026-07-30 on
   // BOTH rb_dm_tranwisedocs and rb_dm_tranwiseredocs), rendered natively by

@@ -1,7 +1,10 @@
 // useDocumentSubTypeMaster.js — Document SubType Master (DMS module).
-// Two independent header dropdowns (Department, Document Type) — no cascade
-// between them per the MRD. Both sourced from explicit fn_tbl_* fetches
-// (GetFilterDetail fails live for these RB columns, same as DOP/DocType).
+// Department is an independent fetch; Document Type cascades off the
+// selected Department (2026-08-04, see pages/document-subtype-master/
+// constants.js header note — MRD originally specified these as independent,
+// but user explicitly requested the cascade against a confirmed-live SP).
+// Both sourced from explicit fn_tbl_* fetches (GetFilterDetail fails live
+// for these RB columns, same as DOP/DocType).
 
 import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
@@ -25,13 +28,23 @@ function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId,
   ].join(",");
 }
 
-/** fn_tbl_dm_department_list / fn_tbl_dm_documenttype_list — [{ IDNumber, Code, Name, … }, …] */
-function mapIdNameRows(rows) {
+/**
+ * fn_tbl_dm_department_list rows: {idnumber, code, department} — no
+ * "name"/"Name" key despite the label suggesting otherwise, confirmed live.
+ * fn_tbl_fetch_documenttype (Document Type's cascading source since
+ * 2026-08-04) rows: {idnumber, documenttype} — pass "documenttype" as an
+ * extraLabelKey. Do NOT confuse with fn_tbl_dm_documenttype_list (the old,
+ * now-unused source), whose real label key was the differently-typo'd
+ * "docuemnt type" (with a space) — a live bug fixed earlier the same day.
+ */
+function mapIdNameRows(rows, extraLabelKeys = []) {
   return (rows || [])
     .map((r) => {
       const value = r.IDNumber ?? r.idnumber;
       if (value == null || value === "") return null;
-      return { value: String(Number(value) || value), label: String(r.Name ?? r.name ?? value) };
+      const extraLabel = extraLabelKeys.map((k) => r[k]).find((v) => v != null && v !== "");
+      const label = extraLabel ?? r.Name ?? r.name ?? r.department ?? value;
+      return { value: String(Number(value) || value), label: String(label) };
     })
     .filter(Boolean);
 }
@@ -46,7 +59,7 @@ export function useDocumentSubTypeMaster() {
   const [documentTypeOptions, setDocumentTypeOptions] = useState([]);
 
   const fetchOptions = useCallback(
-    async (spName, setter, label) => {
+    async (spName, setter, label, extraLabelKeys) => {
       try {
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: DOCSUBTYPE_CONFIG.LIST_OBJ_TYPE,
@@ -55,7 +68,7 @@ export function useDocumentSubTypeMaster() {
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
-        const opts = mapIdNameRows(resolveDetailColLinks(res));
+        const opts = mapIdNameRows(resolveDetailColLinks(res), extraLabelKeys);
         setter(opts);
         return opts;
       } catch (err) {
@@ -71,9 +84,33 @@ export function useDocumentSubTypeMaster() {
     () => fetchOptions(DOCSUBTYPE_CONFIG.SP_DEPARTMENT, setDepartmentOptions, "Department"),
     [fetchOptions]
   );
+
+  /** Cascades off Department — fn_tbl_fetch_documenttype requires prmdepartmentid (confirmed live, see constants.js). */
   const fetchDocumentTypeOptions = useCallback(
-    () => fetchOptions(DOCSUBTYPE_CONFIG.SP_DOCUMENT_TYPE, setDocumentTypeOptions, "Document Type"),
-    [fetchOptions]
+    async (departmentId) => {
+      const deptId = Number(departmentId) || 0;
+      if (!deptId) {
+        setDocumentTypeOptions([]);
+        return [];
+      }
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: DOCSUBTYPE_CONFIG.LIST_OBJ_TYPE,
+          ObjName: DOCSUBTYPE_CONFIG.SP_DOCUMENT_TYPE,
+          JSon: JSON.stringify([{ prmdepartmentid: deptId }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const opts = mapIdNameRows(resolveDetailColLinks(res), ["documenttype"]);
+        setDocumentTypeOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[DocSubType] Document Type fetch failed:", err);
+        setDocumentTypeOptions([]);
+        return [];
+      }
+    },
+    [get]
   );
 
   const fetchHeaderMeta = useCallback(async () => {
@@ -100,14 +137,16 @@ export function useDocumentSubTypeMaster() {
       });
       setHeaderColumns(normalizeDetailColLinks(resolveDetailColLinks(colData)));
 
-      await Promise.all([fetchDepartmentOptions(), fetchDocumentTypeOptions()]);
+      // Document Type now cascades off Department (see fetchDocumentTypeOptions)
+      // — nothing to eager-fetch here until a Department is selected.
+      await fetchDepartmentOptions();
     } catch (err) {
       console.error("[DocSubType] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Document SubType Master configuration.");
     } finally {
       setHeaderFetching(false);
     }
-  }, [get, fetchDepartmentOptions, fetchDocumentTypeOptions]);
+  }, [get, fetchDepartmentOptions]);
 
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
@@ -137,7 +176,7 @@ export function useDocumentSubTypeMaster() {
 
   return {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    departmentOptions, documentTypeOptions,
+    departmentOptions, documentTypeOptions, fetchDocumentTypeOptions,
     fetchEditRecord, fetchListRows,
   };
 }

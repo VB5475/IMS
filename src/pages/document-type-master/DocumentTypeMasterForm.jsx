@@ -19,7 +19,7 @@ import {
   isMasterFieldLocked,
   isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
+  validateMasterFormFieldsByField,
 } from "../../utils/masterFormUtils";
 import { DOCTYPE_CONFIG } from "./constants";
 import "./DocumentTypeMasterPage.css";
@@ -57,6 +57,8 @@ export default function DocumentTypeMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
@@ -66,6 +68,9 @@ export default function DocumentTypeMasterForm({
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
+    setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
     if (isAddMode) {
       setFormValues(empty);
@@ -75,6 +80,12 @@ export default function DocumentTypeMasterForm({
   }, [isOpen, isAddMode, editPrefill, fieldDefs]);
 
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -89,19 +100,23 @@ export default function DocumentTypeMasterForm({
         options={dropdownOptions[key] || []}
         inputClassName="doctype-form-input"
         valueClassName="doctype-form-value"
+        error={fieldErrors[key]}
       />
     );
   }
 
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateMasterFormFieldsByField(visibleFields, formValues, {
       skipMandatoryFor: new Set(
         visibleFields.filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f)).map((f) => f.ColName)
       ),
     });
+    setFieldErrors(fieldErrorMap);
 
-    if (validationErrors.length > 0) {
-      setFormErrors(validationErrors);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
       return false;
     }
 
@@ -206,7 +221,11 @@ export default function DocumentTypeMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="doctype-form-scroll">
             <div className="doctype-form">
               {visibleFields.map((field) => (

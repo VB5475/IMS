@@ -22,7 +22,7 @@ import {
   buildSaveRowFromColumns,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import {
@@ -36,7 +36,7 @@ import {
   SM_FORM_LAYOUT,
   SM_CHECKBOX_OVERRIDE_FIELDS,
   SM_LABEL_OVERRIDES,
-  resolveSmLayoutField,
+  resolveSmLayoutFields,
   getSmLayoutFieldNames,
   MODAL_TITLE_ADD,
   MODAL_TITLE_EDIT,
@@ -69,11 +69,6 @@ function buildFieldMap(headerColumns) {
   return map;
 }
 
-function resolveLayoutRows(rows, fieldMap) {
-  return rows
-    .map((row) => row.map((name) => resolveSmLayoutField(fieldMap, name)).filter(Boolean))
-    .filter((row) => row.length > 0);
-}
 
 export default function SupplierMasterForm({
   isOpen, mode, recordId, onClose, onSaved,
@@ -88,6 +83,8 @@ export default function SupplierMasterForm({
   const notify = useNotification();
 
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const session = getUserSession();
@@ -96,11 +93,11 @@ export default function SupplierMasterForm({
   const fieldMap = useMemo(() => buildFieldMap(headerColumns), [headerColumns]);
 
   const layout = useMemo(() => ({
-    mainRows: resolveLayoutRows(SM_FORM_LAYOUT.left.main.rows, fieldMap),
-    transporterRows: resolveLayoutRows(SM_FORM_LAYOUT.right.transporter.rows, fieldMap),
-    tdsRows: resolveLayoutRows(SM_FORM_LAYOUT.right.tds.rows, fieldMap),
-    bankRows: resolveLayoutRows(SM_FORM_LAYOUT.right.bank.rows, fieldMap),
-    contactRows: resolveLayoutRows(SM_FORM_LAYOUT.right.contact.rows, fieldMap),
+    mainFields: resolveSmLayoutFields(SM_FORM_LAYOUT.main.fields, fieldMap),
+    transporterFields: resolveSmLayoutFields(SM_FORM_LAYOUT.transporter.fields, fieldMap),
+    tdsFields: resolveSmLayoutFields(SM_FORM_LAYOUT.tds.fields, fieldMap),
+    bankFields: resolveSmLayoutFields(SM_FORM_LAYOUT.bank.fields, fieldMap),
+    contactFields: resolveSmLayoutFields(SM_FORM_LAYOUT.contact.fields, fieldMap),
   }), [fieldMap]);
 
   // Ordered list of visible fields for validation (from layout definition)
@@ -158,6 +155,8 @@ export default function SupplierMasterForm({
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setRecordLoadError(null);
     setFormValues(buildEmptyFromColumns());
     clearStates?.();
@@ -191,6 +190,12 @@ export default function SupplierMasterForm({
 
   // Country → State → City cascade + TDS gate reset
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "countryid") {
@@ -235,6 +240,7 @@ export default function SupplierMasterForm({
         inputClassName="sm-form-input"
         valueClassName="sm-form-value"
         toggleClassName="sm-form-toggle"
+        error={fieldErrors[key]}
       />
     );
   }
@@ -256,29 +262,23 @@ export default function SupplierMasterForm({
     );
   }
 
-  function renderLayoutRow(rowFields, rowKey) {
-    if (rowFields.length === 1) {
-      return <div key={rowKey} className="sm-form-row">{renderFieldCell(rowFields[0])}</div>;
-    }
-    return (
-      <div key={rowKey} className="sm-form-row sm-form-row--split">
-        {rowFields.map((field) => renderFieldCell(field))}
-      </div>
-    );
-  }
-
-  function renderPanelBody(rows, keyPrefix) {
-    return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
+  // Uniform 5-per-row grid — fields auto-flow and wrap to a new row every 5
+  // items (see .sm-form-section__body), instead of hand-curated 1-or-2-field
+  // rows. Section body itself IS the grid; no per-row wrapper needed.
+  function renderPanelBody(fields) {
+    return fields.map((field) => renderFieldCell(field));
   }
 
   // ── Save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setFormErrors([]);
-    const headerErrors = validateApiColumns(formValues, visibleFields);
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateApiColumnsByField(formValues, visibleFields);
+    setFieldErrors(fieldErrorMap);
 
-    const allErrors = [...headerErrors];
-    if (allErrors.length > 0) {
-      setFormErrors(allErrors);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
       return false;
     }
 
@@ -395,42 +395,52 @@ export default function SupplierMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="sm-form-scroll">
             <div className="sm-form-layout">
-              <div className="sm-form-layout__left">
+              {layout.mainFields.length > 0 && (
                 <section className="sm-form-section sm-form-section--main">
                   <div className="sm-form-section__body">
-                    {renderPanelBody(layout.mainRows, "main")}
+                    {renderPanelBody(layout.mainFields)}
                   </div>
                 </section>
-              </div>
-              <div className="sm-form-layout__right">
+              )}
+              {layout.transporterFields.length > 0 && (
                 <section className="sm-form-section sm-form-section--transporter">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.transporter.title}</h3>
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.transporter.title}</h3>
                   <div className="sm-form-section__body">
-                    {renderPanelBody(layout.transporterRows, "transporter")}
+                    {renderPanelBody(layout.transporterFields)}
                   </div>
                 </section>
+              )}
+              {layout.tdsFields.length > 0 && (
                 <section className="sm-form-section sm-form-section--tds">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.tds.title}</h3>
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.tds.title}</h3>
                   <div className="sm-form-section__body">
-                    {renderPanelBody(layout.tdsRows, "tds")}
+                    {renderPanelBody(layout.tdsFields)}
                   </div>
                 </section>
+              )}
+              {layout.bankFields.length > 0 && (
                 <section className="sm-form-section sm-form-section--bank">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.bank.title}</h3>
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.bank.title}</h3>
                   <div className="sm-form-section__body">
-                    {renderPanelBody(layout.bankRows, "bank")}
+                    {renderPanelBody(layout.bankFields)}
                   </div>
                 </section>
+              )}
+              {layout.contactFields.length > 0 && (
                 <section className="sm-form-section sm-form-section--contact">
-                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.right.contact.title}</h3>
+                  <h3 className="sm-form-section__title">{SM_FORM_LAYOUT.contact.title}</h3>
                   <div className="sm-form-section__body">
-                    {renderPanelBody(layout.contactRows, "contact")}
+                    {renderPanelBody(layout.contactFields)}
                   </div>
                 </section>
-              </div>
+              )}
             </div>
           </div>
         </>

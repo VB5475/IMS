@@ -19,7 +19,7 @@ import {
   isMasterFieldLocked,
   isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
+  validateMasterFormFieldsByField,
 } from "../../utils/masterFormUtils";
 import { DMDEPT_CONFIG } from "./constants";
 import "./DMDepartmentMasterPage.css";
@@ -56,6 +56,8 @@ export default function DMDepartmentMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
@@ -64,6 +66,9 @@ export default function DMDepartmentMasterForm({
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
+    setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
     if (isAddMode) {
       setFormValues(empty);
@@ -73,6 +78,12 @@ export default function DMDepartmentMasterForm({
   }, [isOpen, isAddMode, editPrefill, fieldDefs]);
 
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -86,19 +97,23 @@ export default function DMDepartmentMasterForm({
         locked={isMasterFieldLocked(field, { isAddMode, isEditMode })}
         inputClassName="dmdept-form-input"
         valueClassName="dmdept-form-value"
+        error={fieldErrors[key]}
       />
     );
   }
 
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateMasterFormFieldsByField(visibleFields, formValues, {
       skipMandatoryFor: new Set(
         visibleFields.filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f)).map((f) => f.ColName)
       ),
     });
+    setFieldErrors(fieldErrorMap);
 
-    if (validationErrors.length > 0) {
-      setFormErrors(validationErrors);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
       return false;
     }
 
@@ -203,7 +218,11 @@ export default function DMDepartmentMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="dmdept-form-scroll">
             <div className="dmdept-form">
               {visibleFields.map((field) => (

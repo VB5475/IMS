@@ -51,7 +51,7 @@ import {
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
@@ -132,6 +132,7 @@ export default function PurchaseQuotationForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -396,6 +397,12 @@ export default function PurchaseQuotationForm() {
       }
 
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+      setFieldErrors((prev) => {
+        if (!prev[colName]) return prev;
+        const next = { ...prev };
+        delete next[colName];
+        return next;
+      });
 
       if (colName === "supplierid") {
         if (!val || val === "0") {
@@ -707,6 +714,7 @@ export default function PurchaseQuotationForm() {
       setApprovedFilter("all");
       setLoadedMasterRow(null);
       summaryRef.current?.resetOverrides?.();
+      setFieldErrors({});
     },
   });
 
@@ -731,14 +739,17 @@ export default function PurchaseQuotationForm() {
       // ── Validation (header + detail grid) ────────────────────────────
       const headerFieldNames = new Set(QTN_HEADER_FILTERS.map((f) => f.FilterParameterID));
       const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+      const headerErrorMap = validateApiColumnsByField(hv, headerColsToValidate, {
         zeroValidFields: new Set(["basedonid"]),
       });
+      setFieldErrors(headerErrorMap);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
       const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
 
-      const allErrors = [...headerErrors, ...detailErrors];
+      const headerBannerMsg =
+        Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
+      const allErrors = [...headerBannerMsg, ...detailErrors];
       if (allErrors.length > 0) {
         setFormErrors(allErrors);
         return false;
@@ -912,6 +923,7 @@ export default function PurchaseQuotationForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterPanelLoading || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             externalValues={currencyExternalValues}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
@@ -926,6 +938,7 @@ export default function PurchaseQuotationForm() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           searchable={activeTab === "items"}
+          hideBottomPanel
           headerControls={
             <>
               {activeTab === "items" && (

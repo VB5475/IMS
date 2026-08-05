@@ -105,6 +105,7 @@ function FilterControl({
   disabled = false,
   tone = "editable",
   layout = "table",
+  error = null,
 }) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
   const notify = useNotification();
@@ -116,6 +117,8 @@ function FilterControl({
   const isLoading = disabled;
   const blockInteraction = isLoading || readOnly;
   const isDashboard = layout === "dashboard";
+  const inputErrorClass = error ? " efq-cell__input--error" : "";
+  const selectErrorClass = error ? " efq-cell__select--error" : "";
 
   const handleChange = (e) => onChange(FilterColName, e.target.value);
 
@@ -192,7 +195,7 @@ function FilterControl({
           return (
             <GridNumberInput
               id={`efq-${FilterColName}`}
-              className="efq-cell__input"
+              className={`efq-cell__input${inputErrorClass}`}
               value={value}
               columnMeta={filter.columnMeta}
               onChange={(next) => onChange(FilterColName, next)}
@@ -207,7 +210,7 @@ function FilterControl({
           <input
             id={`efq-${FilterColName}`}
             type="text"
-            className="efq-cell__input"
+            className={`efq-cell__input${inputErrorClass}`}
             value={value || ""}
             onChange={handleChange}
             onFocus={(e) => selectInputText(e.target)}
@@ -243,7 +246,7 @@ function FilterControl({
             <input
               id={`efq-${FilterColName}`}
               type="date"
-              className="efq-cell__input efq-cell__input--date"
+              className={`efq-cell__input efq-cell__input--date${inputErrorClass}`}
               value={value || ""}
               onFocus={() => {
                 lastValidValueRef.current = value || "";
@@ -336,7 +339,7 @@ function FilterControl({
         return (
           <SearchSelect
             id={`efq-${FilterColName}`}
-            className={`efq-cell__select${readOnly ? ` efq-cell__select--tone-${tone}` : ""}`}
+            className={`efq-cell__select${readOnly ? ` efq-cell__select--tone-${tone}` : ""}${selectErrorClass}`}
             value={value || ""}
             onChange={(val) => onChange(FilterColName, val)}
             options={(options || []).map((opt) => {
@@ -368,7 +371,7 @@ function FilterControl({
         return (
           <textarea
             id={`efq-${FilterColName}`}
-            className="efq-cell__input efq-cell__input--textarea"
+            className={`efq-cell__input efq-cell__input--textarea${inputErrorClass}`}
             value={value || ""}
             onChange={handleChange}
             onBlur={(e) => handleBlurValidate(e.target.value)}
@@ -396,6 +399,18 @@ function FilterControl({
 
   const isTextarea = FilterColCtrlType === controlTypeMap.TEXTAREA;
 
+  // Wrapped in its own local, non-shared block so an inline error message can
+  // stack below the control without touching .efq-cell__control's shared
+  // row-flex layout (used by every EnterpriseFilterPanel consumer).
+  const controlContent = error ? (
+    <div className="efq-field-stack">
+      {renderInput()}
+      <div className="efq-field-error">{error}</div>
+    </div>
+  ) : (
+    renderInput()
+  );
+
   if (isDashboard) {
     return (
       <div
@@ -414,7 +429,7 @@ function FilterControl({
           labelEl
         )}
         <div className="dfv2-slicer__control" title={controlTooltip}>
-          {renderInput()}
+          {controlContent}
         </div>
       </div>
     );
@@ -440,7 +455,7 @@ function FilterControl({
           labelEl
         )}
         <div className="efq-cell__control" title={controlTooltip}>
-          {renderInput()}
+          {controlContent}
         </div>
       </div>
     </td>
@@ -455,6 +470,7 @@ function FilterTable({
   disabled = false,
   fieldTones = null,
   layout = "table",
+  fieldErrors = null,
 }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
@@ -487,6 +503,7 @@ function FilterTable({
             disabled={disabled}
             tone={getFieldTone(filter)}
             layout="dashboard"
+            error={fieldErrors?.[filter.FilterColName]}
           />
         ))}
       </div>
@@ -510,6 +527,7 @@ function FilterTable({
                 onChange={onChange}
                 disabled={disabled}
                 tone={getFieldTone(row.items[0])}
+                error={fieldErrors?.[row.items[0].FilterColName]}
               />
             ) : (
               <>
@@ -526,6 +544,7 @@ function FilterTable({
                     onChange={onChange}
                     disabled={disabled}
                     tone={getFieldTone(filter)}
+                    error={fieldErrors?.[filter.FilterColName]}
                   />
                 ))}
                 {row.items.length < COLS &&
@@ -569,6 +588,7 @@ export default function EnterpriseFilterPanel({
   externalValues = null,
   disabled = false,
   fieldTones = null,
+  fieldErrors = null,
   panelRef = null,
   onLastFieldTabForward = null,
   enableKeyboardNav = true,
@@ -597,10 +617,13 @@ export default function EnterpriseFilterPanel({
   const HeaderIcon = isEntryMode ? FileSpreadsheet : Database;
   const showEntryMetaLoader = isEntryMode && isMetaLoading;
   const showDynamicLoader = !isEntryMode && isLoading;
+  // Entry-mode subtitle used to show a "N header fields" count under the
+  // title — removed app-wide per user request (2026-08-03); only the
+  // loading state (not a count) still shows here.
   const headerSubtitle = isEntryMode
     ? showEntryMetaLoader
       ? "Loading header fields…"
-      : `${filters.length} header field${filters.length !== 1 ? "s" : ""}`
+      : null
     : title;
 
   useEffect(() => {
@@ -1040,6 +1063,7 @@ export default function EnterpriseFilterPanel({
               disabled={disabled}
               fieldTones={fieldTones}
               layout={layout}
+              fieldErrors={fieldErrors}
             />
           </div>
 

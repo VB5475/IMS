@@ -176,22 +176,9 @@
   --am-cols: 1;
 }
 
-.am-form-link-row .am-form-label {
-  flex: 0 0 220px;
-}
-
 @media (max-width: 900px) {
   .am-form-grid-row--3 {
     grid-template-columns: 1fr;
-  }
-
-  .am-form-grid-row--3 .am-form-cell {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .am-form-grid-row--3 .am-form-cell:last-child {
-    border-bottom: none;
   }
 
   .am-form-checkbox-row {
@@ -204,27 +191,21 @@
     grid-template-columns: 1fr;
   }
 
-  .am-form-grid-row--2 .am-form-cell {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
   .am-form-checkbox-row {
     grid-template-columns: 1fr;
   }
-
-  .am-form-link-row .am-form-label,
-  .am-form-grid-row--2 .am-form-label,
-  .am-form-grid-row--3 .am-form-label {
-    flex: 0 0 120px;
-  }
 }
 
-/* MRD wireframe — 1 / 2 / 3 column grid rows */
+/* MRD wireframe — 1 / 2 / 3 column grid rows. Label sits above the control
+   (not beside it) so long labels wrap instead of truncating/forcing a wide
+   fixed-width label column; the 1px-gap + row-background trick draws grid
+   lines between cells without per-cell border-right rules. */
 .am-form-grid-row {
   display: grid;
   grid-template-columns: repeat(var(--am-cols, 1), minmax(0, 1fr));
-  border-bottom: 1px solid var(--border);
+  gap: 1px;
+  background: var(--border, #d8dee8);
+  border-bottom: 1px solid var(--border, #d8dee8);
 }
 
 .am-form-grid-row:last-child {
@@ -253,40 +234,11 @@
 
 .am-form-cell {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
-  border-right: 1px solid var(--border);
-}
-
-.am-form-cell:last-child {
-  border-right: none;
-}
-
-.am-form-grid-row--2 .am-form-label {
-  flex: 0 0 148px;
-}
-
-.am-form-grid-row--3 .am-form-label {
-  flex: 0 0 120px;
-  padding-left: 12px;
-  padding-right: 10px;
-  font-size: 11px;
-}
-
-.modal-dialog--account-master .am-form-grid-row--2 .am-form-label {
-  flex: 0 0 158px;
-}
-
-.modal-dialog--account-master .am-form-grid-row--3 .am-form-label {
-  flex: 0 0 128px;
-}
-
-.modal-dialog--account-master .am-form-checkbox-label {
-  white-space: nowrap;
-}
-
-.modal-dialog--account-master .am-form-label {
-  white-space: nowrap;
+  padding: 8px 14px;
+  background: #fff;
 }
 
 .am-form-checkbox-row {
@@ -420,20 +372,15 @@
 }
 
 .am-form-label {
-  flex: 0 0 220px;
-  padding: 7px 14px 7px 20px;
-  background: var(--field-frozen-label-bg, #dbe8f5);
   color: var(--primary);
-  border-right: 1.5px solid var(--field-frozen-border, #94b8d8);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
   user-select: none;
-  line-height: 1.35;
 }
 
 .am-form-label--required::after {
@@ -443,11 +390,10 @@
 }
 
 .am-form-control {
-  flex: 1;
   min-width: 0;
-  padding: 6px 16px 6px 12px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .am-form-control--toggle-wrap {

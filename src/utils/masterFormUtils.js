@@ -64,7 +64,7 @@ export function getCheckboxValue(raw) {
 /** Visible detail/grid fields from GET_DETAIL_COL_DATA (ColSeqNo >= 100). */
 export function getVisibleGridFields(fieldDefs) {
   return (fieldDefs || [])
-    .filter((f) => f.IsVisible && Number(f.ColSeqNo) >= 100)
+    .filter((f) => isMasterFieldVisible(f) && Number(f.ColSeqNo) >= 100)
     .sort((a, b) => Number(a.ColSeqNo) - Number(b.ColSeqNo));
 }
 
@@ -90,7 +90,7 @@ export function getVisibleHeaderFields(fieldDefs) {
   return (fieldDefs || [])
     .filter(
       (f) =>
-        isTruthyApiFlag(pickApiField(f, "IsVisible", "isvisible")) &&
+        isMasterFieldVisible(f) &&
         Number(pickApiField(f, "ColSeqNo", "colseqno")) < 100
     )
     .sort(
@@ -185,13 +185,18 @@ export function buildMasterCascadeResets(fieldDefs) {
   return map;
 }
 
-function isTruthyApiFlag(val) {
+export function isTruthyApiFlag(val) {
   if (val === true || val === 1) return true;
   if (typeof val === "string") {
     const s = val.trim().toLowerCase();
     return s === "true" || s === "1" || s === "y" || s === "yes";
   }
   return false;
+}
+
+/** IsVisible from GET_DETAIL_COL_DATA (any API key casing). */
+export function isMasterFieldVisible(field) {
+  return isTruthyApiFlag(pickApiField(field, "IsVisible", "isvisible"));
 }
 
 /**
@@ -231,10 +236,11 @@ function isTextEmpty(value) {
 }
 
 /**
- * Validate master form fields using GET_DETAIL_COL_DATA rules.
- * @returns {string[]} error messages
+ * Same rules as validateMasterFormFields, keyed by the resolved value key
+ * instead of a flat list — lets a form show each error next to its field.
+ * @returns {Record<string, string>} error message keyed by value key
  */
-export function validateMasterFormFields(fields, values, options = {}) {
+export function validateMasterFormFieldsByField(fields, values, options = {}) {
   const {
     keyMap = {},
     labelOverrides = {},
@@ -246,7 +252,7 @@ export function validateMasterFormFields(fields, values, options = {}) {
   const skipMandatorySet =
     skipMandatoryFor instanceof Set ? skipMandatoryFor : new Set(skipMandatoryFor || []);
 
-  const errors = [];
+  const fieldErrors = {};
 
   (fields || []).forEach((field) => {
     const colName = field?.ColName;
@@ -266,16 +272,24 @@ export function validateMasterFormFields(fields, values, options = {}) {
 
     if (mandatory && !isToggle && !isCheckbox) {
       if (isDropdown ? isDropdownEmpty(value) : isTextEmpty(value)) {
-        errors.push(`${label} is required.`);
+        fieldErrors[valueKey] = `${label} is required.`;
         return;
       }
     }
 
     const result = validateColumnValue(value, { ...field, columnMeta });
-    if (!result.valid) errors.push(result.message);
+    if (!result.valid) fieldErrors[valueKey] = result.message;
   });
 
-  return errors;
+  return fieldErrors;
+}
+
+/**
+ * Validate master form fields using GET_DETAIL_COL_DATA rules.
+ * @returns {string[]} error messages
+ */
+export function validateMasterFormFields(fields, values, options = {}) {
+  return Object.values(validateMasterFormFieldsByField(fields, values, options));
 }
 
 

@@ -5,9 +5,9 @@
 // components/txn/documentLogConfig.js for the "why" and for the real API
 // contract confirmed 2026-07-30 via the actual DM API spec doc.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useApi } from "../api/useApi";
-import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE, buildSaveRowFromColumns } from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE, buildSaveRowFromColumns, nowStoredValue } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { resolveDetailColLinks, normalizeDetailColLinks } from "../utils/masterFormUtils";
 import { isErrorOnlyRow } from "../utils/apiResponse";
@@ -18,21 +18,6 @@ import { DOCUMENT_LOG_CONFIG as CFG } from "../components/txn/documentLogConfig"
 // so it recomputes the correct multipart boundary header for FormData
 // bodies instead — required for SAVE_ENDPOINT (see documentLogConfig.js).
 const MULTIPART_CONFIG = { headers: { "Content-Type": undefined } };
-
-function mapIdNameRows(rows, labelKeys) {
-  return (rows || [])
-    .map((r) => {
-      const value = r.idnumber ?? r.IDNumber ?? r.IdNumber;
-      if (value == null || value === "") return null;
-      let label;
-      for (const key of labelKeys) {
-        if (r[key] != null && r[key] !== "") { label = r[key]; break; }
-      }
-      const num = Number(value);
-      return { value: Number.isFinite(num) ? String(Math.round(num)) : String(value), label: String(label ?? value) };
-    })
-    .filter(Boolean);
-}
 
 /** Builds the multipart body SAVE_ENDPOINT actually expects: a `jsonstring`
  *  field (a JSON-encoded STRING, not a JSON request body) wrapping context
@@ -66,10 +51,15 @@ export function useDocumentLog() {
   const [metaError, setMetaError] = useState(null);
 
   const [docTypeOptions, setDocTypeOptions] = useState([]);
-  const [docSubTypeOptions, setDocSubTypeOptions] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sub Type options are no longer a flat catalog (see SP_DOCUMENT_SUBTYPE's
+  // note in documentLogConfig.js) — cached per documentTypeId instead, keyed
+  // loosely since refTranTypeId/refDepartmentId are constant for the life of
+  // one modal session.
+  const docSubTypeCacheRef = useRef(new Map());
 
   const fetchColumnsForRb = useCallback(
     async (rbCode) => {
@@ -93,25 +83,31 @@ export function useDocumentLog() {
     [get]
   );
 
-  /** Fetch both grids' column metadata + the 3 dropdown catalogs, in parallel. */
-  const fetchHeaderMeta = useCallback(async () => {
+  /** Fetch both grids' column metadata + the 3 dropdown catalogs, in parallel.
+   *  Document Type is now scoped (refTranTypeId/refDepartmentId), per the
+   *  2026-07-31 API replacement — see documentLogConfig.js's SP_DOCUMENT_TYPE
+   *  note. Caller passes the same values it already threads through for the
+   *  Reference Document/Refresh buttons. */
+  const fetchHeaderMeta = useCallback(async ({ refTranTypeId = 0, refDepartmentId = CFG.DEFAULT_REF_DEPARTMENT_ID } = {}) => {
     setMetaFetching(true);
     setMetaError(null);
     try {
-      const [docsCols, refCols, docTypeRes, docSubTypeRes, categoryRes] = await Promise.all([
+      const session = getUserSession();
+      // Sub Type is deliberately NOT fetched here anymore — it's a genuine
+      // per-row cascade now (see SP_DOCUMENT_SUBTYPE's note in
+      // documentLogConfig.js), fetched on demand via fetchDocSubTypeOptions
+      // whenever a row's own Document Type value changes.
+      const [docsCols, refCols, docTypeRes, categoryRes] = await Promise.all([
         fetchColumnsForRb(CFG.RB_TRANDETAIL),
         fetchColumnsForRb(CFG.RB_REFERENCEDETAIL),
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: CFG.LIST_OBJ_TYPE,
           ObjName: CFG.SP_DOCUMENT_TYPE,
-          JSon: JSON.stringify([{}]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }),
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: CFG.LIST_OBJ_TYPE,
-          ObjName: CFG.SP_DOCUMENT_SUBTYPE,
-          JSon: JSON.stringify([{}]),
+          JSon: JSON.stringify([{
+            prmloginid: session.loginId,
+            prmref_trantypeid: Number(refTranTypeId) || 0,
+            prmref_departmentid: Number(refDepartmentId) || 0,
+          }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         }),
@@ -124,8 +120,19 @@ export function useDocumentLog() {
         }),
       ]);
 
-      const docTypeOpts = mapIdNameRows(resolveDetailColLinks(docTypeRes), ["name", "Name"]);
-      const docSubTypeOpts = mapIdNameRows(resolveDetailColLinks(docSubTypeRes), ["name", "Name"]);
+      // The new scoped function returns documenttypeid/documenttype (NOT
+      // idnumber/name like the old, unscoped fn_tbl_dm_documenttype_list did
+      // — which, live-checked 2026-07-31, was actually returning the
+      // TRANSACTION type list, not document types at all) — mapIdNameRows
+      // doesn't fit this shape, so map it directly here, same pattern as
+      // categoryOpts below.
+      const docTypeOpts = (resolveDetailColLinks(docTypeRes) || [])
+        .map((r) => {
+          const value = r.documenttypeid ?? r.DocumentTypeID;
+          if (value == null) return null;
+          return { value: String(Math.round(Number(value))), label: String(r.documenttype ?? r.DocumentType ?? value) };
+        })
+        .filter(Boolean);
       const categoryOpts = (resolveDetailColLinks(categoryRes) || [])
         .map((r) => {
           const value = r.categorytypeid ?? r.CategoryTypeID;
@@ -135,7 +142,6 @@ export function useDocumentLog() {
         .filter(Boolean);
 
       setDocTypeOptions(docTypeOpts);
-      setDocSubTypeOptions(docSubTypeOpts);
       setCategoryOptions(categoryOpts);
 
       // Both grids' raw RB columns now carry ~25 extra visible+mandatory
@@ -144,7 +150,7 @@ export function useDocumentLog() {
       // CHANGED UPSTREAM" note) that were never meant to be user-facing
       // fields. Whitelist down to the real content columns before building
       // grid columns — the system ones still get correct VALUES, just via
-      // the save context (saveDocs/uploadDoc) instead of a blank input.
+      // the save context (saveDocs) instead of a blank input.
       const whitelistedDocsCols = docsCols.filter((c) => CFG.GRID_ROW_COLS.includes(c.colname));
       const whitelistedRefCols = refCols.filter((c) => CFG.GRID_ROW_COLS.includes(c.colname));
 
@@ -152,16 +158,24 @@ export function useDocumentLog() {
       // Type/Category (ctrlsqlsource is empty for the first two live, so
       // options are supplied manually here rather than relying on the
       // generic GetFilterDetail resolver, which this app treats as
-      // unreliable — see project conventions).
+      // unreliable — see project conventions). Sub Type starts with an empty
+      // static list — it has no flat catalog anymore, see rowOptionsKey patch
+      // below.
+      const builtDocsCols = buildGridColumns(
+        whitelistedDocsCols,
+        {
+          [CFG.DOCTYPE_COL]: docTypeOpts,
+          [CFG.CATEGORY_COL]: categoryOpts,
+        },
+        { filterable: false, allEditable: true }
+      );
+      // Sub Type is a per-row cascade (see SP_DOCUMENT_SUBTYPE's note) — its
+      // options come from each row's OWN CFG.SUBTYPE_ROW_OPTIONS_KEY field
+      // (populated by DocumentLogModal's onCellEvent handler via
+      // fetchDocSubTypeOptions below) instead of a single static list.
       setDocsColumns(
-        buildGridColumns(
-          whitelistedDocsCols,
-          {
-            [CFG.DOCTYPE_COL]: docTypeOpts,
-            [CFG.SUBTYPE_COL]: docSubTypeOpts,
-            [CFG.CATEGORY_COL]: categoryOpts,
-          },
-          { filterable: false, allEditable: true }
+        builtDocsCols.map((c) =>
+          c.key === CFG.SUBTYPE_COL ? { ...c, rowOptionsKey: CFG.SUBTYPE_ROW_OPTIONS_KEY } : c
         )
       );
       // Grid 1 "Reference Documents" — read-only display, no dropdowns needed.
@@ -211,16 +225,110 @@ export function useDocumentLog() {
     [get]
   );
 
-  /** Saves Grid 2 ("Docs") rows, one SAVE_ENDPOINT call per row (multipart,
-   *  no file — metadata-only rows added via "Add Row"/manual entry, not
-   *  the per-row "Upload" action which attaches a real file, see uploadDoc
-   *  below). Returns one raw result per row for the caller to inspect. */
+  /** "Refresh" button (Docs section) — fetches documents ALREADY uploaded
+   *  for this transaction, appended into the same Docs grid (tagged and
+   *  excluded from Save, see DocumentLogModal.jsx). See
+   *  documentLogConfig.js's SP_SHOW_UPLOADED_DOCS note for the confirmed
+   *  4-arg shape — GUID-based (prmstrgenguid), not session-based. */
+  const fetchUploadedDocs = useCallback(
+    async ({ refTranTypeId = 0, tranId = 0, guid = "" } = {}) => {
+      const session = getUserSession();
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: CFG.SP_SHOW_UPLOADED_DOCS,
+          JSon: JSON.stringify([{
+            prmloginid: session.loginId,
+            prmref_trantypeid: Number(refTranTypeId) || 0,
+            prmref_tranid: Number(tranId) || 0,
+            prmstrgenguid: guid || "",
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const rows = resolveDetailColLinks(res) || [];
+        if (rows.length === 1 && isErrorOnlyRow(rows[0])) return [];
+        return rows;
+      } catch (err) {
+        console.warn("[DocumentLog] Uploaded Docs fetch failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
+
+  /** Sub Type per-row cascade — called from DocumentLogModal's onCellEvent
+   *  whenever a Docs row's own Document Type value changes. Live-confirmed
+   *  via curl: prmdocumenttypeid=0 returns `[ ]` (genuinely empty, not "all"),
+   *  a real id returns exactly the matching subtype(s) — so a documentTypeId
+   *  of 0 is short-circuited here rather than sent (saves a guaranteed-empty
+   *  round trip). Cached per documentTypeId since refTranTypeId/
+   *  refDepartmentId don't change within one modal session. */
+  const fetchDocSubTypeOptions = useCallback(
+    async ({ refTranTypeId = 0, refDepartmentId = CFG.DEFAULT_REF_DEPARTMENT_ID, documentTypeId = 0 } = {}) => {
+      const docTypeId = Number(documentTypeId) || 0;
+      if (!docTypeId) return [];
+      const cacheKey = `${refTranTypeId}:${refDepartmentId}:${docTypeId}`;
+      if (docSubTypeCacheRef.current.has(cacheKey)) return docSubTypeCacheRef.current.get(cacheKey);
+      const session = getUserSession();
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: CFG.LIST_OBJ_TYPE,
+          ObjName: CFG.SP_DOCUMENT_SUBTYPE,
+          JSon: JSON.stringify([{
+            prmloginid: session.loginId,
+            prmref_trantypeid: Number(refTranTypeId) || 0,
+            prmref_departmentid: Number(refDepartmentId) || 0,
+            prmdocumenttypeid: docTypeId,
+          }]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const rows = resolveDetailColLinks(res) || [];
+        const opts = rows
+          .map((r) => {
+            const value = r.documentsubtypeid ?? r.DocumentSubTypeID;
+            if (value == null) return null;
+            return { value: String(Math.round(Number(value))), label: String(r.documentsubtype ?? r.DocumentSubType ?? value) };
+          })
+          .filter(Boolean);
+        docSubTypeCacheRef.current.set(cacheKey, opts);
+        return opts;
+      } catch (err) {
+        console.warn("[DocumentLog] Sub Type fetch failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
+
+  /** Saves Grid 2 ("Docs") rows, one SAVE_ENDPOINT call per row (multipart).
+   *  Returns one raw result per row for the caller to inspect. Takes the
+   *  SAME shared per-transaction `guid` as Refresh/Reference Document —
+   *  previously omitted entirely (flagged gap); now included so
+   *  DM_Doc_UpdateOnTranSave can link these rows to the real tranid once the
+   *  parent transaction saves (see PurchaseIndentForm.jsx).
+   *
+   *  REVERSED 2026-07-31 (explicit user instruction): "Upload" used to call
+   *  this same endpoint immediately, on its own, the moment a file was
+   *  picked — separate from clicking the modal's own Save button. Now Upload
+   *  only STAGES the file locally on the row (DocumentLogModal.jsx's
+   *  handleFileSelected sets `row._file` — leading-underscore convention,
+   *  see buildSaveRowFromColumns' guard in api/constants.js, so it never
+   *  itself leaks into a payload), and this function is the ONE place that
+   *  actually calls the API — for every row, whether it carries a staged
+   *  `_file` (an "uploaded" row with a real attachment) or not (a plain
+   *  metadata-only row). The file-metadata columns (documentname/filename/
+   *  fileext/filesize) are already set on the row by handleFileSelected at
+   *  staging time, so they flow through via buildSaveRowFromColumns' own
+   *  row-field passthrough — no separate derivation needed here. */
   const saveDocs = useCallback(
-    async (rows, tranId = 0, divisionId = 0, refTranTypeId = 0) => {
+    async (rows, tranId = 0, divisionId = 0, refTranTypeId = 0, guid = "") => {
       setIsSaving(true);
       try {
         const session = getUserSession();
         const results = [];
+        const nowStamp = nowStoredValue();
         for (const row of rows) {
           const mstRow = buildSaveRowFromColumns(row, docsColumns, {
             companyid: session.companyId,
@@ -228,10 +336,20 @@ export function useDocumentLog() {
             loginid: session.loginId,
             funccode: CFG.FORM_TAG,
             tranid: Number(tranId) || 0,
+            guid,
             // Newly-mandatory on the RB (see documentLogConfig.js's "RB
             // CHANGED UPSTREAM" note) — must be supplied explicitly now.
             ref_trantypeid: Number(refTranTypeId) || 0,
             ref_departmentid: CFG.DEFAULT_REF_DEPARTMENT_ID,
+            // Confirmed via the real stored-proc signature 2026-07-30 (see
+            // documentLogConfig.js) — idnumber/createdby/createddate/
+            // updatedby/updatedate were previously never sent at all.
+            idnumber: 0,
+            createdby: session.loginId,
+            createddate: nowStamp,
+            updatedby: session.loginId,
+            updateddate: nowStamp,
+            versionno: 1,
           });
           const formData = buildDocFormData({
             mode: "A",
@@ -239,9 +357,10 @@ export function useDocumentLog() {
             loginId: session.loginId,
             divisionId,
             mstRow,
+            file: row._file || undefined,
           });
-          // eslint-disable-next-line no-await-in-loop -- each call must carry
-          // its own row/file pair; the endpoint takes one file per request.
+          // Each call must carry its own row/file pair; the endpoint takes
+          // one file per request.
           results.push(await post(CFG.SAVE_ENDPOINT, formData, {}, MULTIPART_CONFIG));
         }
         return results;
@@ -250,67 +369,6 @@ export function useDocumentLog() {
       }
     },
     [post, docsColumns]
-  );
-
-  /** Mints a fresh GUID for a single document upload — per explicit user
-   *  spec, a NEW guid is generated on EVERY upload (not the one page-level
-   *  docGuid reused across the whole unsaved transaction). Same endpoint/
-   *  casing as PurchaseIndentForm.jsx's fetchDocGuid (lowercase field names
-   *  — confirmed live 2026-07-30, see project_indent_dm_handle_guid memory).
-   *  Best-effort: a failure here must never block the upload, so it falls
-   *  back to an empty string rather than throwing. */
-  const fetchNewDocGuid = useCallback(
-    async ({ refTranTypeId = 0, tranId = 0 } = {}) => {
-      const session = getUserSession();
-      try {
-        const res = await post(ENDPOINTS.DM_HANDLE_GUID, {
-          prmguid: "1",
-          prmref_trantypeid: Number(refTranTypeId) || 0,
-          prmtranid: Number(tranId) || 0,
-        });
-        const row = Array.isArray(res) ? res[0] : res;
-        const guid = row?.guid ?? row?.Guid ?? row?.GUID ?? row?.guId;
-        return guid ? String(guid) : "";
-      } catch (err) {
-        console.warn("[DocumentLog] fetchNewDocGuid failed:", err);
-        return "";
-      }
-    },
-    [post]
-  );
-
-  /** "Upload" per-row action — same SAVE_ENDPOINT as saveDocs, but for
-   *  exactly one row with a real file attached. Mints its own fresh `guid`
-   *  (see fetchNewDocGuid above) and sends it as part of the row's own
-   *  `guid` column — a real column on rb_dm_tranwisedocs, per the DM API
-   *  doc's "Prmstrmstjson to contain dm_Tranwisedocs columns" note. */
-  const uploadDoc = useCallback(
-    async (row, file, tranId = 0, divisionId = 0, refTranTypeId = 0) => {
-      const session = getUserSession();
-      const guid = await fetchNewDocGuid({ refTranTypeId, tranId });
-      const mstRow = buildSaveRowFromColumns(row, docsColumns, {
-        companyid: session.companyId,
-        yearid: session.yearId,
-        loginid: session.loginId,
-        funccode: CFG.FORM_TAG,
-        tranid: Number(tranId) || 0,
-        guid,
-        // Newly-mandatory on the RB (see documentLogConfig.js's "RB CHANGED
-        // UPSTREAM" note) — must be supplied explicitly now.
-        ref_trantypeid: Number(refTranTypeId) || 0,
-        ref_departmentid: CFG.DEFAULT_REF_DEPARTMENT_ID,
-      });
-      const formData = buildDocFormData({
-        mode: "A",
-        yearId: session.yearId,
-        loginId: session.loginId,
-        divisionId,
-        mstRow,
-        file,
-      });
-      return post(CFG.SAVE_ENDPOINT, formData, {}, MULTIPART_CONFIG);
-    },
-    [post, docsColumns, fetchNewDocGuid]
   );
 
   /** "View" button — per the DM API doc, a SUCCESSFUL call returns the raw
@@ -375,11 +433,11 @@ export function useDocumentLog() {
     metaError,
     fetchHeaderMeta,
     docTypeOptions,
-    docSubTypeOptions,
     categoryOptions,
     fetchReferenceDocs,
+    fetchUploadedDocs,
+    fetchDocSubTypeOptions,
     saveDocs,
-    uploadDoc,
     viewDoc,
     updateDocsOnTranSave,
     isSaving,

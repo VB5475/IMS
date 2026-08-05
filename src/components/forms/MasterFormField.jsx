@@ -49,6 +49,9 @@ function resolveDropdownLabel(options, value) {
  * (onRefresh) and a "quick-add" icon that opens another master's form inline
  * (quickAdd: { label, onAdd }) — onAdd may be omitted to render a disabled,
  * explained button when no master module exists yet for that dropdown.
+ * `error` (string message) puts a red border on the control and renders the
+ * message directly below it — pass the per-field message from
+ * validateApiColumnsByField.
  */
 export default function MasterFormField({
   field,
@@ -69,6 +72,7 @@ export default function MasterFormField({
   autoComplete,
   onRefresh = null,
   quickAdd = null,
+  error = null,
 }) {
   const notify = useNotification();
   const lastValidRef = useRef(value);
@@ -81,6 +85,12 @@ export default function MasterFormField({
   );
 
   const displayValue = formatColumnDisplayValue(value, { ...field, columnMeta });
+
+  const effectiveInputClassName = error ? `${inputClassName} master-form-input--error` : inputClassName;
+  const effectiveTextareaClassName = error
+    ? `${textareaClassName} master-form-textarea--error`
+    : textareaClassName;
+  const dropdownClassName = error ? "master-form-dropdown--error" : undefined;
 
   const revertOnInvalid = useCallback(
     (nextValue) => {
@@ -143,151 +153,189 @@ export default function MasterFormField({
     [onChange, revertOnInvalid]
   );
 
-  // Must run after every hook above — Rules of Hooks requires this component
-  // to call the same hooks in the same order on every render, so this early
-  // return can't happen before revertOnInvalid/handleFocus/handleTextBlur/
-  // handleNumericBlur/handleDateBlur are declared (moved here 2026-07-29,
-  // see project_eslint_rollout memory).
-  const custom = customRender?.({ field, value, onChange, locked, columnMeta, label });
-  if (custom != null) return custom;
+  // Renders the field's control only — locked/type branching lives here so the
+  // outer component body (below) can append the error message once, in one
+  // place, regardless of which branch produced the control.
+  function buildControl() {
+    if (locked) {
+      if (maskWhenLocked && inputType === "password") {
+        return <span className={valueClassName}>********</span>;
+      }
 
-  if (locked) {
-    if (maskWhenLocked && inputType === "password") {
-      return <span className={valueClassName}>********</span>;
+      if (isMasterToggleField(field)) {
+        const on = getToggleValue(value);
+        return <span className={valueClassName}>{on ? "Yes" : "No"}</span>;
+      }
+
+      if (isMasterCheckboxField(field)) {
+        const on = getCheckboxValue(value);
+        return <span className={valueClassName}>{on ? "Yes" : "No"}</span>;
+      }
+
+      if (isMasterDropdownField(field)) {
+        const text = resolveDropdownLabel(options, value);
+        return <span className={valueClassName}>{text || "—"}</span>;
+      }
+
+      if (controlType === controlTypeMap.LABEL) {
+        return <span className={valueClassName}>{displayValue || value || "—"}</span>;
+      }
+
+      return <span className={valueClassName}>{displayValue || value || "—"}</span>;
     }
 
     if (isMasterToggleField(field)) {
       const on = getToggleValue(value);
-      return <span className={valueClassName}>{on ? "Yes" : "No"}</span>;
+      return (
+        <div className="master-form-control--toggle">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on === 1}
+            aria-label={label}
+            className={`${toggleClassName}${on ? ` ${toggleClassName}--on` : ""}`}
+            onClick={() => onChange(on ? 0 : 1)}
+          />
+          <span className="master-form-toggle-label">{on ? "Yes" : "No"}</span>
+        </div>
+      );
     }
 
     if (isMasterCheckboxField(field)) {
-      const on = getCheckboxValue(value);
-      return <span className={valueClassName}>{on ? "Yes" : "No"}</span>;
+      const checked = getCheckboxValue(value) === 1;
+      return (
+        <input
+          type="checkbox"
+          className="master-form-checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked ? 1 : 0)}
+          aria-label={label}
+        />
+      );
     }
 
     if (isMasterDropdownField(field)) {
-      const text = resolveDropdownLabel(options, value);
-      return <span className={valueClassName}>{text || "—"}</span>;
+      const dropdownControl = (
+        <SearchSelect
+          value={value != null && value !== "" ? String(value) : ""}
+          onChange={(val) => onChange(Number(val) || 0)}
+          onBlur={() => revertOnInvalid(value)}
+          options={options}
+          placeholder={placeholder ?? "Select..."}
+          ariaLabel={label}
+          className={dropdownClassName}
+        />
+      );
+
+      if (!onRefresh && !quickAdd) return dropdownControl;
+
+      return (
+        <div className="master-form-dropdown-row">
+          {dropdownControl}
+          {onRefresh && (
+            <button
+              type="button"
+              className="master-form-icon-btn"
+              tabIndex={-1}
+              onClick={onRefresh}
+              title={`Refresh ${label} options`}
+              aria-label={`Refresh ${label} options`}
+            >
+              <RefreshCw size={12} strokeWidth={2.5} />
+            </button>
+          )}
+          {quickAdd && (
+            <button
+              type="button"
+              className="master-form-icon-btn"
+              tabIndex={-1}
+              onClick={quickAdd.onAdd}
+              disabled={!quickAdd.onAdd}
+              title={quickAdd.onAdd ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
+              aria-label={quickAdd.onAdd ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
+            >
+              <Plus size={12} strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (controlType === controlTypeMap.DATE || columnMeta?.dataKind === "date") {
+      return (
+        <input
+          type="date"
+          className={effectiveInputClassName}
+          value={toNativeDateInputValue(value)}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={handleFocus}
+          onInput={(e) => {
+            const yearPart = String(e.target.value || "").split("-")[0] || "";
+            if (yearPart.length > 4) onChange(lastValidRef.current ?? "");
+          }}
+          onKeyDown={(e) =>
+            handleDateArrowKeys(e, toNativeDateInputValue(value), onChange, { nativeInput: true })
+          }
+          onBlur={handleDateBlur}
+          min={dateConstraints?.min || undefined}
+          max={dateConstraints?.max || undefined}
+          aria-label={label}
+          autoComplete="off"
+        />
+      );
+    }
+
+    if (controlType === controlTypeMap.TEXTAREA) {
+      return (
+        <textarea
+          className={effectiveTextareaClassName}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={handleFocus}
+          onBlur={handleTextBlur}
+          placeholder={placeholder ?? `Enter ${label}...`}
+          rows={3}
+          maxLength={
+            columnMeta?.dataKind === "varchar" && columnMeta?.maxLen != null
+              ? columnMeta.maxLen
+              : undefined
+          }
+          aria-label={label}
+        />
+      );
     }
 
     if (controlType === controlTypeMap.LABEL) {
       return <span className={valueClassName}>{displayValue || value || "—"}</span>;
     }
 
-    return <span className={valueClassName}>{displayValue || value || "—"}</span>;
-  }
+    const meta = resolveColumnMeta({ ...field, columnMeta });
+    if (meta?.dataKind === "numeric") {
+      return (
+        <Suspense fallback={<input className={effectiveInputClassName} disabled aria-label={label} />}>
+          <GridNumberInput
+            className={effectiveInputClassName}
+            value={value}
+            columnMeta={meta}
+            onChange={onChange}
+            onFocus={handleFocus}
+            onBlur={handleNumericBlur}
+            ariaLabel={label}
+          />
+        </Suspense>
+      );
+    }
 
-  if (isMasterToggleField(field)) {
-    const on = getToggleValue(value);
-    return (
-      <div className="master-form-control--toggle">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={on === 1}
-          aria-label={label}
-          className={`${toggleClassName}${on ? ` ${toggleClassName}--on` : ""}`}
-          onClick={() => onChange(on ? 0 : 1)}
-        />
-        <span className="master-form-toggle-label">{on ? "Yes" : "No"}</span>
-      </div>
-    );
-  }
-
-  if (isMasterCheckboxField(field)) {
-    const checked = getCheckboxValue(value) === 1;
     return (
       <input
-        type="checkbox"
-        className="master-form-checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked ? 1 : 0)}
-        aria-label={label}
-      />
-    );
-  }
-
-  if (isMasterDropdownField(field)) {
-    const control = (
-      <SearchSelect
-        value={value != null && value !== "" ? String(value) : ""}
-        onChange={(val) => onChange(Number(val) || 0)}
-        onBlur={() => revertOnInvalid(value)}
-        options={options}
-        placeholder={placeholder ?? "Select..."}
-        ariaLabel={label}
-      />
-    );
-
-    if (!onRefresh && !quickAdd) return control;
-
-    return (
-      <div className="master-form-dropdown-row">
-        {control}
-        {onRefresh && (
-          <button
-            type="button"
-            className="master-form-icon-btn"
-            tabIndex={-1}
-            onClick={onRefresh}
-            title={`Refresh ${label} options`}
-            aria-label={`Refresh ${label} options`}
-          >
-            <RefreshCw size={12} strokeWidth={2.5} />
-          </button>
-        )}
-        {quickAdd && (
-          <button
-            type="button"
-            className="master-form-icon-btn"
-            tabIndex={-1}
-            onClick={quickAdd.onAdd}
-            disabled={!quickAdd.onAdd}
-            title={quickAdd.onAdd ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
-            aria-label={quickAdd.onAdd ? `Add new ${quickAdd.label}` : `${quickAdd.label} master not available`}
-          >
-            <Plus size={12} strokeWidth={2.5} />
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (controlType === controlTypeMap.DATE || columnMeta?.dataKind === "date") {
-    return (
-      <input
-        type="date"
-        className={inputClassName}
-        value={toNativeDateInputValue(value)}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={handleFocus}
-        onInput={(e) => {
-          const yearPart = String(e.target.value || "").split("-")[0] || "";
-          if (yearPart.length > 4) onChange(lastValidRef.current ?? "");
-        }}
-        onKeyDown={(e) =>
-          handleDateArrowKeys(e, toNativeDateInputValue(value), onChange, { nativeInput: true })
-        }
-        onBlur={handleDateBlur}
-        min={dateConstraints?.min || undefined}
-        max={dateConstraints?.max || undefined}
-        aria-label={label}
-        autoComplete="off"
-      />
-    );
-  }
-
-  if (controlType === controlTypeMap.TEXTAREA) {
-    return (
-      <textarea
-        className={textareaClassName}
+        className={effectiveInputClassName}
+        type={inputType}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         onFocus={handleFocus}
         onBlur={handleTextBlur}
         placeholder={placeholder ?? `Enter ${label}...`}
-        rows={3}
+        autoComplete={autoComplete}
         maxLength={
           columnMeta?.dataKind === "varchar" && columnMeta?.maxLen != null
             ? columnMeta.maxLen
@@ -298,43 +346,20 @@ export default function MasterFormField({
     );
   }
 
-  if (controlType === controlTypeMap.LABEL) {
-    return <span className={valueClassName}>{displayValue || value || "—"}</span>;
-  }
+  // Must run after every hook above — Rules of Hooks requires this component
+  // to call the same hooks in the same order on every render, so this early
+  // return can't happen before revertOnInvalid/handleFocus/handleTextBlur/
+  // handleNumericBlur/handleDateBlur are declared (moved here 2026-07-29,
+  // see project_eslint_rollout memory).
+  const custom = customRender?.({ field, value, onChange, locked, columnMeta, label });
+  if (custom != null) return custom;
 
-  const meta = resolveColumnMeta({ ...field, columnMeta });
-  if (meta?.dataKind === "numeric") {
-    return (
-      <Suspense fallback={<input className={inputClassName} disabled aria-label={label} />}>
-        <GridNumberInput
-          className={inputClassName}
-          value={value}
-          columnMeta={meta}
-          onChange={onChange}
-          onFocus={handleFocus}
-          onBlur={handleNumericBlur}
-          ariaLabel={label}
-        />
-      </Suspense>
-    );
-  }
-
+  const control = buildControl();
+  if (!error) return control;
   return (
-    <input
-      className={inputClassName}
-      type={inputType}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={handleFocus}
-      onBlur={handleTextBlur}
-      placeholder={placeholder ?? `Enter ${label}...`}
-      autoComplete={autoComplete}
-      maxLength={
-        columnMeta?.dataKind === "varchar" && columnMeta?.maxLen != null
-          ? columnMeta.maxLen
-          : undefined
-      }
-      aria-label={label}
-    />
+    <>
+      {control}
+      <div className="master-form-field-error">{error}</div>
+    </>
   );
 }

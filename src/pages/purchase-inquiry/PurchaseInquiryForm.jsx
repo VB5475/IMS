@@ -60,7 +60,7 @@ import {
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -198,6 +198,7 @@ export default function PurchaseInquiryForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -393,6 +394,7 @@ export default function PurchaseInquiryForm() {
     termsGridRef.current?.clearRows?.();
 
     setFilterResetKey((k) => k + 1);
+    setFieldErrors({});
     exitEditMode();
   }, [clearInquiryTypes, clearSaveError, exitEditMode]);
 
@@ -764,6 +766,12 @@ export default function PurchaseInquiryForm() {
       }
 
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+      setFieldErrors((prev) => {
+        if (!prev[colName]) return prev;
+        const next = { ...prev };
+        delete next[colName];
+        return next;
+      });
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
@@ -1254,9 +1262,10 @@ export default function PurchaseInquiryForm() {
       // ── Validation (header + detail grids) ───────────────────────────
       const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
       const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
-      const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+      const headerErrorMap = validateApiColumnsByField(hv, headerColsToValidate, {
         zeroValidFields: new Set(["basedonid"]),
       });
+      setFieldErrors(headerErrorMap);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
       const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
@@ -1265,12 +1274,17 @@ export default function PurchaseInquiryForm() {
       const indentErrors = validateGridRows(indentChildRows, childColumns);
 
       const supplierRows = supplierGridRef.current?.getRows?.() ?? [];
-      const supplierErrors = validateGridRows(supplierRows, supplierColumns);
+      const supplierErrors = validateGridRows(supplierRows, supplierColumns, {
+        requireAtLeastOne: true,
+        emptyMessage: "Please add at least one supplier before saving.",
+      });
 
       const termsRows = termsGridRef.current?.getRows?.() ?? [];
       const termsErrors = validateGridRows(termsRows, termsColumns);
 
-      const allErrors = [...headerErrors, ...detailErrors, ...indentErrors, ...supplierErrors, ...termsErrors];
+      const headerBannerMsg =
+        Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
+      const allErrors = [...headerBannerMsg, ...detailErrors, ...indentErrors, ...supplierErrors, ...termsErrors];
       if (allErrors.length > 0) {
         setFormErrors(allErrors);
         return false;
@@ -1505,6 +1519,7 @@ export default function PurchaseInquiryForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterPanelLoading || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}
@@ -1518,6 +1533,7 @@ export default function PurchaseInquiryForm() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           searchable={activeTab === "items"}
+          hideBottomPanel
           headerControls={
             <>
               {activeTab === "items" && (
