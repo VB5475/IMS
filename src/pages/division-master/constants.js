@@ -41,8 +41,10 @@ export const DV_CONFIG = {
 };
 
 /**
- * Two-column form layout — lowercase PG colnames (matches RB GetDetailColData).
- * Rows not returned by the RB are silently dropped by resolveLayoutRows.
+ * Section layout — lowercase PG colnames (matches RB GetDetailColData). Each
+ * section is a flat, ordered field list rendered into a uniform grid (not
+ * hand-curated rows) — see DivisionMasterForm.jsx's renderPanelBody.
+ * Colnames not returned by the RB are silently dropped by resolveDvLayoutFields.
  *
  * panno/gstno (colseqno 14/15, ismandatory=1) exist live in the RB but were
  * missing from this layout — they never rendered, so their mandatory/maxlen
@@ -51,28 +53,16 @@ export const DV_CONFIG = {
  */
 export const DV_FORM_LAYOUT = {
   main: {
-    rows: [
-      ["divisioncode", "divisionshortcode"],
-      ["divisionname"],
-      ["address"],
-      ["openingyearid", "isdefault"],
-      ["divisiontypeid", "headnameid"],
-      ["officeid"],
-      ["countryid", "stateid"],
-      ["cityid", "zipcode"],
-      ["phone1", "phone2"],
-      ["fax", "arnoforgst"],
-      ["panno", "gstno"],
-      ["provisionalid"],
+    fields: [
+      "divisioncode", "divisionshortcode", "divisionname", "address",
+      "openingyearid", "isdefault", "divisiontypeid", "headnameid", "officeid",
+      "countryid", "stateid", "cityid", "zipcode", "phone1", "phone2",
+      "fax", "arnoforgst", "panno", "gstno", "provisionalid",
     ],
   },
   bank: {
     title: "Bank Information",
-    rows: [
-      ["bankname", "branch"],
-      ["accountno", "ifsccode"],
-      ["bankaddress"],
-    ],
+    fields: ["bankname", "branch", "accountno", "ifsccode", "bankaddress"],
   },
 };
 

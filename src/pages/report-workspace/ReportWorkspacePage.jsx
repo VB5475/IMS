@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import Loader from "../../components/ui/Loader";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { useGridSearch } from "../../hooks/useGridSearch";
 import { gridMeta } from "../../data/dummyData";
 import { toEnterpriseDataGridColumns } from "../../utils/gridUtils";
@@ -14,6 +15,7 @@ import "./ReportWorkspacePage.css";
 
 export default function ReportWorkspacePage() {
   const [hasFilters, setHasFilters] = useState(null);
+  const [lastSearchArgs, setLastSearchArgs] = useState(null);
   const { reportBoardId } = useParams();
   const masterID = Number(reportBoardId);
 
@@ -47,7 +49,13 @@ export default function ReportWorkspacePage() {
   }, [fetchMasterDetail, masterID]);
 
   const onSearch = (filterValues, filterDefs) => {
+    setLastSearchArgs({ filterValues, filterDefs });
     handleSearch(filterValues, filterDefs, masterID);
+  };
+
+  const onRefresh = () => {
+    if (!lastSearchArgs) return;
+    handleSearch(lastSearchArgs.filterValues, lastSearchArgs.filterDefs, masterID);
   };
 
   return (
@@ -86,6 +94,9 @@ export default function ReportWorkspacePage() {
             emptyMessage="No records match the current filters."
             searchable
             fill
+            bottomPanelExtras={
+              <RefreshButton onClick={onRefresh} loading={isSearching} title="Re-run the last search" />
+            }
           />
         ) : (
           !isSearching &&

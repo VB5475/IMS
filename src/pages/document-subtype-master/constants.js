@@ -6,15 +6,6 @@
 //     (fn_tbl_dm_department_list) is what matches live saved records. Using
 //     the DM list per the user's 2026-07-27 confirmation for Document Type
 //     Master, applied consistently here.
-//   - Document Type dropdown: MRD names fn_tbl_fetch_documenttype, a huge
-//     (~190-row) pre-existing generic screen/document list unrelated to this
-//     DMS suite. Given documentsubtypeid is architecturally a child of the
-//     Document Type Master being built alongside this module, and given the
-//     same department-list precedent, using Document Type Master's OWN list
-//     (fn_tbl_dm_documenttype_list) instead — NOT independently re-confirmed
-//     with the user (unlike the department case), flagging for explicit
-//     sign-off. Data content is nearly identical either way (both lists
-//     mirror the same ~180-190 row taxonomy), so the practical risk is low.
 //   - No cascade between Department and Document Type is specified in the
 //     MRD (both fields listed as independent dropdowns) — implemented as
 //     independent, uncoupled dropdowns.
@@ -26,6 +17,21 @@
 //     OWN §5.1 RB Save API row (correct) — used the value that matches this
 //     module's own RB name, consistent with the DOP MRD's SP_LIST conflict
 //     resolution.
+//
+// ── 2026-08-04: Document Type switched to a live Department cascade ──
+// Previously used Document Type Master's own unparameterized list
+// (fn_tbl_dm_documenttype_list, ~180 real rows e.g. "Purchase Order"). Per
+// explicit user request, switched to the MRD's originally-named
+// fn_tbl_fetch_documenttype(prmdepartmentid) instead, cascading off the
+// selected Department — confirmed live it accepts the parameter and filters
+// correctly (curled against all 4 real DMS department ids). Flagged
+// live-data caveat: the data behind this SP is sparse per department (e.g.
+// 3 rows for PURCHASE — "DEMOOO"/"purdoc"/"purdoc2" — 0 rows for MAST3),
+// test/junk-looking rather than the rich real list the old SP had. User
+// confirmed proceeding as-is despite this (2026-08-04); DBA should confirm
+// whether that table needs real data populated. The old SP does NOT itself
+// accept a department parameter (confirmed live — errors on every dept id),
+// so this wasn't a simple add-a-param fix; it required switching SPs.
 
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
@@ -39,8 +45,8 @@ export const DOCSUBTYPE_CONFIG = {
   SP_MASTER_FILL: "fn_tbl_rb_dm_docsubtypemst",
   /** Department dropdown — DM's own list (see note above). */
   SP_DEPARTMENT: "fn_tbl_dm_department_list",
-  /** Document Type dropdown — Document Type Master's own list (see note above). */
-  SP_DOCUMENT_TYPE: "fn_tbl_dm_documenttype_list",
+  /** Document Type dropdown — cascades off selected Department, takes prmdepartmentid (see 2026-08-04 header note). */
+  SP_DOCUMENT_TYPE: "fn_tbl_fetch_documenttype",
 
   LIST_OBJ_TYPE: 2,
   SP_LIST: "fn_tbl_dm_documentsubtype_list",

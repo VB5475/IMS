@@ -1265,7 +1265,10 @@ export default function PurchaseInquiryForm() {
       const indentErrors = validateGridRows(indentChildRows, childColumns);
 
       const supplierRows = supplierGridRef.current?.getRows?.() ?? [];
-      const supplierErrors = validateGridRows(supplierRows, supplierColumns);
+      const supplierErrors = validateGridRows(supplierRows, supplierColumns, {
+        requireAtLeastOne: true,
+        emptyMessage: "Please add at least one supplier before saving.",
+      });
 
       const termsRows = termsGridRef.current?.getRows?.() ?? [];
       const termsErrors = validateGridRows(termsRows, termsColumns);
@@ -1518,6 +1521,7 @@ export default function PurchaseInquiryForm() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           searchable={activeTab === "items"}
+          hideBottomPanel
           headerControls={
             <>
               {activeTab === "items" && (

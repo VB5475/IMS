@@ -25,7 +25,7 @@ import {
   isMasterFieldLocked,
   isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
+  validateMasterFormFieldsByField,
 } from "../../utils/masterFormUtils";
 import { AM_CONFIG } from "./constants";
 import { AM_FORM_LAYOUT, buildAccountMasterLayout } from "./formLayout";
@@ -103,6 +103,8 @@ export default function AccountMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
@@ -167,6 +169,9 @@ export default function AccountMasterForm({
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
+    setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
     if (isAddMode) {
       setFormValues(empty);
@@ -209,6 +214,12 @@ export default function AccountMasterForm({
 
   const handleChange = useCallback(
     (key, value) => {
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       setFormValues((prev) => {
         const next = { ...prev, [key]: value };
 
@@ -269,25 +280,29 @@ export default function AccountMasterForm({
         options={dropdownOptions[key] || []}
         inputClassName="am-form-input"
         valueClassName="am-form-value"
+        error={fieldErrors[key]}
       />
     );
   }
 
   const handleSave = useCallback(async () => {
+    setFieldValidationFailed(false);
     const fieldsToValidate = visibleFields.filter(
       (f) => showBankSection || !isBankDetailColName(f.ColName, bankFlagCol, bankCascadeChildNames)
     );
 
-    const validationErrors = validateMasterFormFields(fieldsToValidate, formValues, {
+    const fieldErrorMap = validateMasterFormFieldsByField(fieldsToValidate, formValues, {
       skipMandatoryFor: new Set(
         fieldsToValidate
           .filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f))
           .map((f) => f.ColName)
       ),
     });
+    setFieldErrors(fieldErrorMap);
 
-    if (validationErrors.length > 0) {
-      setFormErrors(validationErrors);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
       return;
     }
 
@@ -572,7 +587,11 @@ export default function AccountMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="am-form-scroll">
             <div className="am-form">{renderFormSections()}</div>
           </div>

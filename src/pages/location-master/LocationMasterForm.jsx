@@ -13,7 +13,7 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { getMasterFieldLabel } from "../../utils/masterFormUtils";
 import { isLockOnEditModeCol } from "../../utils/gridUtils";
 import { useNotification } from "../../context/NotificationContext";
@@ -44,6 +44,8 @@ export default function LocationMasterForm({
   const [saveError,       setSaveError]       = useState(null);
   const notify = useNotification();
   const [formErrors,    setFormErrors]    = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   // Build a blank row seeded from RB column defaults + context fields
@@ -76,6 +78,8 @@ export default function LocationMasterForm({
     setSaveError(null);
     setRecordLoadError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setFormValues(buildEmptyFromColumns());
   }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
@@ -150,6 +154,12 @@ export default function LocationMasterForm({
   // depend entirely on the selected Location Type — an old value almost
   // certainly won't belong to the new one's list).
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === PREMISES_COL) {
@@ -181,6 +191,7 @@ export default function LocationMasterForm({
         inputClassName="lm-form-input"
         textareaClassName="lm-form-textarea"
         valueClassName="lm-form-value"
+        error={fieldErrors[key]}
       />
     );
   }
@@ -190,8 +201,13 @@ export default function LocationMasterForm({
   // validateApiColumns), save row seeded from all RB columns
   const handleSave = useCallback(async () => {
     setFormErrors([]);
-    const errors = validateApiColumns(formValues, visibleFields);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateApiColumnsByField(formValues, visibleFields);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      return;
+    }
 
     setSaveError(null);
     setIsSaving(true);
@@ -297,7 +313,11 @@ export default function LocationMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="lm-form">
             {visibleFields.map((field) => {
               const rows = [];

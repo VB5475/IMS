@@ -926,6 +926,7 @@ export default function PurchaseQuotationForm() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           searchable={activeTab === "items"}
+          hideBottomPanel
           headerControls={
             <>
               {activeTab === "items" && (

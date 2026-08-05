@@ -19,7 +19,7 @@ import {
   isMasterFieldLocked,
   isMasterFieldRequired,
   isMasterToggleField,
-  validateMasterFormFields,
+  validateMasterFormFieldsByField,
 } from "../../utils/masterFormUtils";
 import { DOCSUBTYPE_CONFIG } from "./constants";
 import "./DocumentSubTypeMasterPage.css";
@@ -45,6 +45,7 @@ export default function DocumentSubTypeMasterForm({
   defsError = null,
   departmentOptions = [],
   documentTypeOptions = [],
+  onDepartmentChange,
   editPrefill = null,
   recordLoading = false,
   recordLoadError = null,
@@ -58,6 +59,8 @@ export default function DocumentSubTypeMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);
@@ -70,20 +73,48 @@ export default function DocumentSubTypeMasterForm({
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setSaveError(null);
+    setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     const empty = buildMasterFormEmpty(fieldDefs, buildSaveContext());
+    let deptId = 0;
     if (isAddMode) {
       setFormValues(empty);
     } else if (editPrefill?.headerValues) {
       setFormValues({ ...empty, ...editPrefill.headerValues });
+      deptId = editPrefill.headerValues.departmentid;
     }
-  }, [isOpen, isAddMode, editPrefill, fieldDefs]);
+    // Document Type cascades off Department — (re)fetch its options for
+    // whatever Department this form opened with (0 clears them for Add mode).
+    onDepartmentChange?.(deptId);
+  }, [isOpen, isAddMode, editPrefill, fieldDefs, onDepartmentChange]);
 
-  const handleChange = useCallback((key, value) => {
-    setFormValues((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const handleChange = useCallback(
+    (key, value) => {
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      setFormValues((prev) => {
+        const next = { ...prev, [key]: value };
+        if (key === "departmentid") {
+          // Stale Document Type from the previous Department no longer applies.
+          next.documenttypeid = 0;
+        }
+        return next;
+      });
+      if (key === "departmentid") {
+        onDepartmentChange?.(value);
+      }
+    },
+    [onDepartmentChange]
+  );
 
   function renderControl(field) {
     const key = field.ColName;
+    const needsDepartmentFirst = key === "documenttypeid" && !formValues.departmentid;
     return (
       <MasterFormField
         field={field}
@@ -91,21 +122,26 @@ export default function DocumentSubTypeMasterForm({
         onChange={(val) => handleChange(key, val)}
         locked={isMasterFieldLocked(field, { isAddMode, isEditMode })}
         options={dropdownOptions[key] || []}
+        placeholder={needsDepartmentFirst ? "Select Department first" : undefined}
         inputClassName="docsubtype-form-input"
         valueClassName="docsubtype-form-value"
+        error={fieldErrors[key]}
       />
     );
   }
 
   const handleSave = useCallback(async () => {
-    const validationErrors = validateMasterFormFields(visibleFields, formValues, {
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateMasterFormFieldsByField(visibleFields, formValues, {
       skipMandatoryFor: new Set(
         visibleFields.filter((f) => isMasterToggleField(f) || isMasterCheckboxField(f)).map((f) => f.ColName)
       ),
     });
+    setFieldErrors(fieldErrorMap);
 
-    if (validationErrors.length > 0) {
-      setFormErrors(validationErrors);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
       return false;
     }
 
@@ -210,7 +246,11 @@ export default function DocumentSubTypeMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="docsubtype-form-scroll">
             <div className="docsubtype-form">
               {visibleFields.map((field) => (

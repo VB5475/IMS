@@ -39,6 +39,8 @@ import {
   Landmark,
   ShieldCheck,
   Truck,
+  Route,
+  Link2,
   UserCheck,
   Scale,
   Wrench,
@@ -127,6 +129,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
       { to: rbRoutePath(RB_CODES.DM_TT2DOCTYPE_MASTER), icon: ArrowLeftRight, label: "Transaction To Document Type Master", end: false },
       { to: rbRoutePath(RB_CODES.DM_GROUP_RIGHTS), icon: KeyRound, label: "Group Rights", end: false },
+      { to: rbRoutePath(RB_CODES.DM_TRAN_TYPE_LINK), icon: Link2, label: "DM Tran Type Link", end: false },
     ],
   },
   {
@@ -139,12 +142,10 @@ const NAV_SECTIONS = [
       // ("/admin/company/division-master"). With end:false (prefix match),
       // Company's nav link + section label lit up as "active" on those other
       // modules' pages too. end:true forces an exact-path match instead.
-      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true },
-      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
       { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
       { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
       { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
+      { to: rbRoutePath(RB_CODES.TRANSPORTER_MASTER), icon: Route, label: "Transporter Master", end: false },
       { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
       { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
@@ -152,18 +153,17 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
+    ],
+  },
+   {
+    label: "Admin",
+    icon: Settings,
+    items: [
       { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
       { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
+      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true },
+      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
     ],
   },
 

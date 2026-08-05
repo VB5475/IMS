@@ -23,7 +23,7 @@ import {
   buildSaveRowFromColumns,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import {
@@ -67,10 +67,8 @@ function buildFieldMap(headerColumns) {
   return map;
 }
 
-function resolveLayoutRows(rows, fieldMap) {
-  return rows
-    .map((row) => row.map((name) => resolveCmLayoutField(fieldMap, name)).filter(Boolean))
-    .filter((row) => row.length > 0);
+function resolveLayoutFields(fields, fieldMap) {
+  return fields.map((name) => resolveCmLayoutField(fieldMap, name)).filter(Boolean);
 }
 
 export default function CustomerMasterForm({
@@ -86,6 +84,8 @@ export default function CustomerMasterForm({
   const notify = useNotification();
 
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const session = getUserSession();
@@ -94,11 +94,11 @@ export default function CustomerMasterForm({
   const fieldMap = useMemo(() => buildFieldMap(headerColumns), [headerColumns]);
 
   const layout = useMemo(() => ({
-    mainRows: resolveLayoutRows(CM_FORM_LAYOUT.left.main.rows, fieldMap),
-    transporterRows: resolveLayoutRows(CM_FORM_LAYOUT.right.transporter.rows, fieldMap),
-    tdsRows: resolveLayoutRows(CM_FORM_LAYOUT.right.tds.rows, fieldMap),
-    bankRows: resolveLayoutRows(CM_FORM_LAYOUT.right.bank.rows, fieldMap),
-    contactRows: resolveLayoutRows(CM_FORM_LAYOUT.right.contact.rows, fieldMap),
+    mainFields: resolveLayoutFields(CM_FORM_LAYOUT.main.fields, fieldMap),
+    transporterFields: resolveLayoutFields(CM_FORM_LAYOUT.transporter.fields, fieldMap),
+    tdsFields: resolveLayoutFields(CM_FORM_LAYOUT.tds.fields, fieldMap),
+    bankFields: resolveLayoutFields(CM_FORM_LAYOUT.bank.fields, fieldMap),
+    contactFields: resolveLayoutFields(CM_FORM_LAYOUT.contact.fields, fieldMap),
   }), [fieldMap]);
 
   // Ordered list of visible fields for validation (from layout definition)
@@ -153,6 +153,8 @@ export default function CustomerMasterForm({
     if (!isOpen) return;
     setIsEditMode(isAddMode);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setRecordLoadError(null);
     setFormValues(buildEmptyFromColumns());
     clearStates?.();
@@ -186,6 +188,12 @@ export default function CustomerMasterForm({
 
   // Country → State → City cascade + TDS gate reset
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "countryid") {
@@ -229,6 +237,7 @@ export default function CustomerMasterForm({
         inputClassName="sm-form-input"
         valueClassName="sm-form-value"
         toggleClassName="sm-form-toggle"
+        error={fieldErrors[key]}
       />
     );
   }
@@ -250,29 +259,23 @@ export default function CustomerMasterForm({
     );
   }
 
-  function renderLayoutRow(rowFields, rowKey) {
-    if (rowFields.length === 1) {
-      return <div key={rowKey} className="sm-form-row">{renderFieldCell(rowFields[0])}</div>;
-    }
-    return (
-      <div key={rowKey} className="sm-form-row sm-form-row--split">
-        {rowFields.map((field) => renderFieldCell(field))}
-      </div>
-    );
-  }
-
-  function renderPanelBody(rows, keyPrefix) {
-    return rows.map((rowFields, index) => renderLayoutRow(rowFields, `${keyPrefix}-${index}`));
+  // Uniform 5-per-row grid — fields auto-flow and wrap to a new row every 5
+  // items (see .sm-form-section__body, shared CSS with Supplier Master),
+  // instead of hand-curated 1-or-2-field rows.
+  function renderPanelBody(fields) {
+    return fields.map((field) => renderFieldCell(field));
   }
 
   // ── Save ───────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setFormErrors([]);
-    const headerErrors = validateApiColumns(formValues, visibleFields);
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateApiColumnsByField(formValues, visibleFields);
+    setFieldErrors(fieldErrorMap);
 
-    const allErrors = [...headerErrors];
-    if (allErrors.length > 0) {
-      setFormErrors(allErrors);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
       return false;
     }
 
@@ -388,42 +391,42 @@ export default function CustomerMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="sm-form-scroll">
             <div className="sm-form-layout">
-              <div className="sm-form-layout__left">
-                <section className="sm-form-section sm-form-section--main">
-                  <div className="sm-form-section__body">
-                    {renderPanelBody(layout.mainRows, "main")}
-                  </div>
-                </section>
-              </div>
-              <div className="sm-form-layout__right">
-                <section className="sm-form-section sm-form-section--transporter">
-                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.transporter.title}</h3>
-                  <div className="sm-form-section__body">
-                    {renderPanelBody(layout.transporterRows, "transporter")}
-                  </div>
-                </section>
-                <section className="sm-form-section sm-form-section--tds">
-                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.tds.title}</h3>
-                  <div className="sm-form-section__body">
-                    {renderPanelBody(layout.tdsRows, "tds")}
-                  </div>
-                </section>
-                <section className="sm-form-section sm-form-section--bank">
-                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.bank.title}</h3>
-                  <div className="sm-form-section__body">
-                    {renderPanelBody(layout.bankRows, "bank")}
-                  </div>
-                </section>
-                <section className="sm-form-section sm-form-section--contact">
-                  <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.right.contact.title}</h3>
-                  <div className="sm-form-section__body">
-                    {renderPanelBody(layout.contactRows, "contact")}
-                  </div>
-                </section>
-              </div>
+              <section className="sm-form-section sm-form-section--main">
+                <div className="sm-form-section__body">
+                  {renderPanelBody(layout.mainFields)}
+                </div>
+              </section>
+              <section className="sm-form-section sm-form-section--transporter">
+                <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.transporter.title}</h3>
+                <div className="sm-form-section__body">
+                  {renderPanelBody(layout.transporterFields)}
+                </div>
+              </section>
+              <section className="sm-form-section sm-form-section--tds">
+                <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.tds.title}</h3>
+                <div className="sm-form-section__body">
+                  {renderPanelBody(layout.tdsFields)}
+                </div>
+              </section>
+              <section className="sm-form-section sm-form-section--bank">
+                <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.bank.title}</h3>
+                <div className="sm-form-section__body">
+                  {renderPanelBody(layout.bankFields)}
+                </div>
+              </section>
+              <section className="sm-form-section sm-form-section--contact">
+                <h3 className="sm-form-section__title">{CM_FORM_LAYOUT.contact.title}</h3>
+                <div className="sm-form-section__body">
+                  {renderPanelBody(layout.contactFields)}
+                </div>
+              </section>
             </div>
           </div>
         </>

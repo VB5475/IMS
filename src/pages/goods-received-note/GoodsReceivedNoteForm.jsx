@@ -1183,6 +1183,7 @@ export default function GoodsReceivedNoteForm() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           searchable={activeTab === "items"}
+          hideBottomPanel
           headerControls={
             activeTab === "items" ? (
               <>

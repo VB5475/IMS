@@ -32,44 +32,20 @@ export const CO_CONFIG = {
  * All field names match PG lowercase colnames returned by the RB.
  */
 export const CO_FORM_LAYOUT = {
-  left: {
-    main: {
-      rows: [
-        ["code"],
-        ["name"],
-        ["address"],
-        ["countryid", "stateid"],
-        ["cityid", "zip"],
-      ],
-    },
-    contact: {
-      title: "Contact & Currency Detail",
-      rows: [
-        ["phone1"],
-        ["phone2"],
-        ["fax"],
-        ["website"],
-        ["bascurrencyid"],
-      ],
-    },
+  main: {
+    fields: ["code", "name", "address", "countryid", "stateid", "cityid", "zip"],
   },
-  right: {
-    responsible: {
-      title: "Responsible",
-      rows: [
-        ["personname"],
-        ["designation"],
-        ["address1"],
-        ["address2"],
-        ["address3"],
-        ["address4"],
-        ["address5"],
-        ["completeaddress"],
-        ["respersoncountryid"],
-        ["respersonstateid", "respersoncityid"],
-        ["respersoncontno"],
-      ],
-    },
+  contact: {
+    title: "Contact & Currency Detail",
+    fields: ["phone1", "phone2", "fax", "website", "bascurrencyid"],
+  },
+  responsible: {
+    title: "Responsible",
+    fields: [
+      "personname", "designation", "address1", "address2", "address3",
+      "address4", "address5", "completeaddress", "respersoncountryid",
+      "respersonstateid", "respersoncityid", "respersoncontno",
+    ],
   },
 };
 
@@ -149,11 +125,16 @@ export function resolveCoLayoutField(fieldMap, layoutName) {
   return null;
 }
 
+/** Resolve a section's flat field-name list into real field objects. */
+export function resolveCoLayoutFields(fields, fieldMap) {
+  return fields.map((name) => resolveCoLayoutField(fieldMap, name)).filter(Boolean);
+}
+
 /** Ordered flat field list for validation / save — keyed by lowercase colname. */
 export function getCoLayoutFieldNames(fieldMap = null) {
   const names = [];
-  const pushRow = (row) => {
-    row.forEach((layoutName) => {
+  const pushFields = (fields) => {
+    fields.forEach((layoutName) => {
       if (fieldMap) {
         const field = resolveCoLayoutField(fieldMap, layoutName);
         if (field) names.push(field.colname);
@@ -162,8 +143,8 @@ export function getCoLayoutFieldNames(fieldMap = null) {
       }
     });
   };
-  CO_FORM_LAYOUT.left.main.rows.forEach(pushRow);
-  CO_FORM_LAYOUT.left.contact.rows.forEach(pushRow);
-  CO_FORM_LAYOUT.right.responsible.rows.forEach(pushRow);
+  pushFields(CO_FORM_LAYOUT.main.fields);
+  pushFields(CO_FORM_LAYOUT.contact.fields);
+  pushFields(CO_FORM_LAYOUT.responsible.fields);
   return names;
 }

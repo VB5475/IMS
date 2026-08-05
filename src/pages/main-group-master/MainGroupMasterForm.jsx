@@ -13,7 +13,7 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { MGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./MainGroupMasterPage.css";
@@ -78,6 +78,8 @@ export default function MainGroupMasterForm({
   const [saveError,       setSaveError]       = useState(null);
   const notify = useNotification();
   const [formErrors,    setFormErrors]    = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   // Build a blank row seeded from RB column defaults + context fields
@@ -103,6 +105,8 @@ export default function MainGroupMasterForm({
     setSaveError(null);
     setRecordLoadError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     setFormValues(buildEmptyFromColumns());
   }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
@@ -155,6 +159,12 @@ export default function MainGroupMasterForm({
 
   // Cascade: UsedInAutoItemCodeGeneration checked → auto-fill MainGroupShortCode from MainGroupCode
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       let next = setFormKey(prev, key, value);
       const lowered = colKey(key);
@@ -170,11 +180,12 @@ export default function MainGroupMasterForm({
     });
   }, []);
 
-  function renderControl(field) {
+  function buildControl(field) {
     const key = field.colname;
     const lowered = colKey(key);
     const locked = isLocked(field);
     const currentValue = pickFormValue(formValues, key);
+    const error = fieldErrors[key];
 
     // MainGroupShortCode — always a read-only display value
     if (READONLY_AUTO.has(lowered)) {
@@ -209,6 +220,7 @@ export default function MainGroupMasterForm({
           options={options}
           placeholder="Select..."
           disabled={locked}
+          className={error ? "mgm-form-dropdown--error" : undefined}
         />
       );
     }
@@ -216,7 +228,7 @@ export default function MainGroupMasterForm({
     // colctrltype 1 — TextBox (default)
     return (
       <input
-        className="mgm-form-input"
+        className={`mgm-form-input${error ? " mgm-form-input--error" : ""}`}
         type="text"
         value={currentValue ?? ""}
         onChange={(e) => handleChange(key, e.target.value)}
@@ -227,8 +239,21 @@ export default function MainGroupMasterForm({
     );
   }
 
+  function renderControl(field) {
+    const error = fieldErrors[field.colname];
+    const control = buildControl(field);
+    if (!error) return control;
+    return (
+      <>
+        {control}
+        <div className="mgm-form-field-error">{error}</div>
+      </>
+    );
+  }
+
   // Validation from RB ismandatory; save row seeded from all RB columns
   const handleSave = useCallback(async () => {
+    setFieldValidationFailed(false);
     // Skip MainGroupShortCode in validation — it's auto-filled, not user-entered
     const fieldsToValidate = visibleFields.filter((f) => !READONLY_AUTO.has(colKey(f.colname)));
     const normalizedValues = Object.fromEntries(
@@ -240,9 +265,15 @@ export default function MainGroupMasterForm({
         ];
       })
     );
-    const errors = validateApiColumns(normalizedValues, fieldsToValidate);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    const fieldErrorMap = validateApiColumnsByField(normalizedValues, fieldsToValidate);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
+      return;
+    }
 
+    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -344,7 +375,11 @@ export default function MainGroupMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="mgm-form">
             {visibleFields.map((field) => {
               const lowered = colKey(field.colname);

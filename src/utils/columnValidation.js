@@ -403,13 +403,16 @@ export function formatColumnDisplayValue(value, colOrMeta) {
  *   (indent-children, supplier detail, terms detail) through this same
  *   function, which are allowed to be empty — only each module's own
  *   primary item-grid call site should pass this.
+ * @param {string} [opts.emptyMessage] — overrides the default "item row"
+ *   wording when requireAtLeastOne is used on a non-item grid (e.g. Purchase
+ *   Inquiry's supplier grid, 2026-08-03).
  * @returns {string[]} error messages
  */
 export function validateGridRows(rows, columns, opts = {}) {
-  const { requireAtLeastOne = false } = opts;
+  const { requireAtLeastOne = false, emptyMessage = "Please add at least one item row before saving." } = opts;
   const errors = [];
   if (requireAtLeastOne && (rows || []).length === 0) {
-    errors.push("Please add at least one item row before saving.");
+    errors.push(emptyMessage);
   }
   const dataCols = (columns || []).filter((c) => c.key && c.key !== "cb");
 
@@ -426,14 +429,15 @@ export function validateGridRows(rows, columns, opts = {}) {
 }
 
 /**
- * Validate a flat values object against raw GET_DETAIL_COL_DATA columns.
+ * Same validation as validateApiColumns, keyed by colname instead of a flat
+ * list — lets a form show each error next to the field it belongs to.
  * @param {Set<string>} [opts.zeroValidFields] — colnames where "0" is a real dropdown
  *   option, not an unselected placeholder (e.g. "basedonid" with a "Direct" = 0 choice).
- * @returns {string[]} error messages
+ * @returns {Record<string, string>} error message keyed by colname
  */
-export function validateApiColumns(values, apiColumns, opts = {}) {
+export function validateApiColumnsByField(values, apiColumns, opts = {}) {
   const { zeroValidFields } = opts;
-  const errors = [];
+  const fieldErrors = {};
   (apiColumns || []).forEach((apiCol) => {
     if (!isTruthyApiFlag(apiCol.isvisible)) return;
     const key = apiCol.colname;
@@ -441,7 +445,17 @@ export function validateApiColumns(values, apiColumns, opts = {}) {
     const result = validateColumnValue(values[key], apiCol, {
       allowZero: zeroValidFields?.has(key),
     });
-    if (!result.valid) errors.push(result.message);
+    if (!result.valid) fieldErrors[key] = result.message;
   });
-  return errors;
+  return fieldErrors;
+}
+
+/**
+ * Validate a flat values object against raw GET_DETAIL_COL_DATA columns.
+ * @param {Set<string>} [opts.zeroValidFields] — colnames where "0" is a real dropdown
+ *   option, not an unselected placeholder (e.g. "basedonid" with a "Direct" = 0 choice).
+ * @returns {string[]} error messages
+ */
+export function validateApiColumns(values, apiColumns, opts = {}) {
+  return Object.values(validateApiColumnsByField(values, apiColumns, opts));
 }

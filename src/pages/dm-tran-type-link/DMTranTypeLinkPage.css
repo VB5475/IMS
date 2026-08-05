@@ -1,0 +1,45 @@
+/* DM Tran Type Link — grid section (header + EntryGrid live under the
+   shared DivisionWiseRightsPage.css dwr-panel/dwr-form styling; this file
+   only covers the grid section that's specific to this module). */
+
+/* .dwr-form is `flex: 1` in the shared CSS because, in the modules it was
+   built for (Division Wise Rights, DM TT2DocType Master), it wraps the
+   grids-slot too, so it needs to stretch. Here the grid lives in its own
+   sibling section below (.ttlink-grid-section, already flex:1) — without
+   this override the empty header-only .dwr-form claims all the leftover
+   vertical space itself, leaving a large blank gap above the grid. */
+.ttlink-header-form {
+  flex: 0 0 auto;
+}
+
+.ttlink-grid-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 280px;
+  border-top: 1px solid var(--border);
+}
+
+.ttlink-grid-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+}
+
+.ttlink-grid-section__title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+.ttlink-grid-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

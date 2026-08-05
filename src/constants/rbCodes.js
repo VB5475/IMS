@@ -23,6 +23,7 @@ export const RB_CODES = Object.freeze({
   SUPPLIER_MASTER: "rb_suppliermst",
   ACCOUNT_GROUP_MASTER: "rb_acountgroupmst",
   ACCOUNT_MASTER: "rb_accountmst",
+  TRANSPORTER_MASTER: "rb_transportermst",
   // ⚠️ CONFIRM with DBA — MRD's Nav/Route labels say "Document Type Master"
   // but the embedded screen design & RB name ("wkf" = workflow, "dop" =
   // Delegation Of Power) both confirm this is DOP Master, an approval-
@@ -32,7 +33,7 @@ export const RB_CODES = Object.freeze({
 
   // DMS (Document Management System) module — three-level master hierarchy:
   // Department → Document Type (FK department) → Document SubType (FK both).
-  DM_DEPARTMENT_MASTER: "rb_dmdepartmaster",
+  DM_DEPARTMENT_MASTER: "rb_dm_deptmst",
   DOCUMENT_TYPE_MASTER: "rb_dm_doctypemst",
   DOCUMENT_SUBTYPE_MASTER: "rb_dm_docsubtypemst",
   // 4th DMS module — maps Department + Tran Type to a Document Type.
@@ -54,6 +55,15 @@ export const RB_CODES = Object.freeze({
   // See src/pages/dm-group-rights/constants.js for the full architecture
   // notes and confirmed/excluded fields.
   DM_GROUP_RIGHTS: "rb_dm_groupright",
+  // 7th DMS module — Tran Type Link: links a "From" Transaction Type to one
+  // or more "To" Transaction Types (idnumber-scoped grid fetch confirmed
+  // live). MRD_Template4DMS_Trantypelink.docx (Om, 24-Jun-2026) is largely
+  // unreliable for this module (screen design + one field row are
+  // copy-pasted from Document Log's MRD; "Department" dropdown described in
+  // the text doesn't exist as an RB column at all) — see
+  // src/pages/dm-tran-type-link/constants.js for the full live-RB
+  // investigation this module was built from instead.
+  DM_TRAN_TYPE_LINK: "rb_dm_ttmstreln",
 
   // ── Purchase ────────────────────────────────────────────────────
   PURCHASE_INDENT: "rb_purindtmst",
@@ -114,6 +124,10 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.SUPPLIER_MASTER]: "/admin/master/supplier-master",
   [RB_CODES.ACCOUNT_GROUP_MASTER]: "/admin/account-group-master",
   [RB_CODES.ACCOUNT_MASTER]: "/admin/account-master",
+  // MRD's own routes are malformed ("/Admin/Master/Supplier – Transporter
+  // Master" — literal en-dash, duplicated "Supplier") — using the sibling
+  // Supplier/Customer Master route shape instead.
+  [RB_CODES.TRANSPORTER_MASTER]: "/admin/master/transporter-master",
   [RB_CODES.DOP_MASTER]: "/admin/dop-master",
 
   // DMS module — namespaced separately from RB_CODES.DEPARTMENT_MASTER's
@@ -125,6 +139,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.DM_TT2DOCTYPE_MASTER]: "/admin/dms/tt2doctype-master",
   // DM_DOCUMENT_LIST has no route — it's a modal (see RB_CODES comment above).
   [RB_CODES.DM_GROUP_RIGHTS]: "/admin/dms/group-rights",
+  [RB_CODES.DM_TRAN_TYPE_LINK]: "/admin/dms/tran-type-link",
 
   [RB_CODES.PURCHASE_INDENT]: "/purchase-indent",
   [RB_CODES.PURCHASE_INQUIRY]: "/purchase-inquiry",

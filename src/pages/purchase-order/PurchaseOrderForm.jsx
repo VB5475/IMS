@@ -1,20 +1,19 @@
 // PurchaseOrderForm.jsx
 // Purchase Order entry form (add / edit).
 // Mirrors PurchaseInquiryForm.jsx exactly — same three-phase load, same 3-tab layout.
-// PO-specific additions vs PI: Amend strip, Currency, Cr. Days, Supplier auto-fill on select.
+// PO-specific additions vs PI: Currency, Cr. Days, Supplier auto-fill on select.
 //
 // Layout (top → bottom):
-//   1. Amend strip          — checkbox + conditional PO-select dropdown
-//   2. EnterpriseFilterPanel — header fields (PO No, Date, Division, PO Type,
+//   1. EnterpriseFilterPanel — header fields (PO No, Date, Division, PO Type,
 //                              Based On, Supplier, Currency (locked), Currency Rate (locked),
 //                              Cr. Days, Delivery Date, Dept, Remarks)
-//   3. po-grid-section       — 2-tab wrapper
+//   2. po-grid-section       — 2-tab wrapper
 //        • Item Grid tab  → EntryGrid (API columns, RB_PurPODet)
 //                           button: Select Item
 //        • Terms tab      → static terms table
 //        Fixed controls (always): Approved filter | Delete
-//   4. EnterpriseSummaryPanel — live totals computed from grid rows (reusable)
-//   5. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
+//   3. EnterpriseSummaryPanel — live totals computed from grid rows (reusable)
+//   4. ActionBar            — Save / Cancel / Close etc. (bottom-right, Alt shortcuts)
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -43,7 +42,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues, syncMasterSummaryFields } from "../../utils/gridUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -129,6 +128,7 @@ export default function PurchaseOrderForm() {
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const itemGridRef = useRef(null);
@@ -151,12 +151,10 @@ export default function PurchaseOrderForm() {
     poTypeOptions,
     supplierOptions,
     departmentOptions,
-    existingPOs,
     fetchPoTypes,
     clearPoTypes,
     fetchSupplierInfo,
     getSupplierCurrency,
-    fetchExistingPOs,
     fetchUniqueId,
     isLoadingPoTypes,
     columns,
@@ -216,29 +214,6 @@ export default function PurchaseOrderForm() {
   }, [loadedFilterValues]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
-
-  // ── Amend strip state ──────────────────────────────────────────────
-  const [isAmend, setIsAmend] = useState(false);
-  const [amendPOID, setAmendPOID] = useState("");
-
-  const handleAmendChange = useCallback(
-    async (checked) => {
-      setIsAmend(checked);
-      headerValuesRef.current.isamend = checked ? 1 : 0;
-      if (!checked) {
-        setAmendPOID("");
-        headerValuesRef.current.amendpoid = 0;
-        return;
-      }
-      await fetchExistingPOs();
-    },
-    [fetchExistingPOs]
-  );
-
-  const handleAmendPOChange = useCallback((val) => {
-    setAmendPOID(val);
-    headerValuesRef.current.amendpoid = Number(val) || 0;
-  }, []);
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
@@ -528,6 +503,12 @@ export default function PurchaseOrderForm() {
   const handleFilterChange = useCallback(
     async (colName, val) => {
       headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+      setFieldErrors((prev) => {
+        if (!prev[colName]) return prev;
+        const next = { ...prev };
+        delete next[colName];
+        return next;
+      });
 
       if (colName === "divisionid") {
         headerValuesRef.current.configid = 0;
@@ -900,12 +881,11 @@ export default function PurchaseOrderForm() {
       sessionStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
       sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
       setCurrencyExternalValues({ currencyname: "", currencyrate: "", creditdays: "" });
-      setIsAmend(false);
-      setAmendPOID("");
       setApprovedFilter("all");
       setChildRowsMap({});
       setChildColumns([]);
       summaryRef.current?.resetOverrides?.();
+      setFieldErrors({});
     },
   });
 
@@ -925,9 +905,10 @@ export default function PurchaseOrderForm() {
 
     // ── Validation (header + detail + indent) ────────────────────────
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors = validateApiColumns(hv, headerColsToValidate, {
+    const headerErrorMap = validateApiColumnsByField(hv, headerColsToValidate, {
       zeroValidFields: new Set(["basedonid"]),
     });
+    setFieldErrors(headerErrorMap);
 
     const itemRows = itemGridRef.current?.getRows?.() ?? [];
     const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
@@ -935,7 +916,12 @@ export default function PurchaseOrderForm() {
     const indentChildRows = Object.values(childRowsMap).flat();
     const indentErrors = validateGridRows(indentChildRows, childColumns);
 
-    const allErrors = [...headerErrors, ...detailErrors, ...indentErrors];
+    // Header errors show inline on their fields (fieldErrors, above); only a
+    // single summary line goes in the top banner alongside the grid errors,
+    // which have no per-cell display yet and still need their full messages.
+    const headerBannerMsg =
+      Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
+    const allErrors = [...headerBannerMsg, ...detailErrors, ...indentErrors];
     if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
@@ -1098,36 +1084,6 @@ export default function PurchaseOrderForm() {
           </div>
         ) : (
           <>
-            {/* ── Amend strip ─────────────────────────────────────── */}
-            <div className="po-amend-strip">
-              <div className="po-amend-strip__checkbox">
-                <input
-                  type="checkbox"
-                  id="po-amend-chk"
-                  className="po-amend-strip__chk-input"
-                  checked={isAmend}
-                  onChange={(e) => handleAmendChange(e.target.checked)}
-                  disabled={!isEditMode}
-                />
-                <label htmlFor="po-amend-chk" className="po-amend-strip__chk-label">
-                  Amend
-                </label>
-              </div>
-
-              {isAmend && (
-                <div className="po-amend-strip__select">
-                  <SearchSelect
-                    value={amendPOID}
-                    onChange={handleAmendPOChange}
-                    options={existingPOs}
-                    placeholder="Select PO to Amend…"
-                    ariaLabel="Select PO to Amend"
-                    disabled={!isEditMode}
-                  />
-                </div>
-              )}
-            </div>
-
             {/* ── Header filter panel ──────────────────────────────── */}
             <EnterpriseFilterPanel
               key={filterResetKey}
@@ -1142,6 +1098,7 @@ export default function PurchaseOrderForm() {
               isMetaLoading={!headerMetaReady || recordLoading}
               disabled={filterBusy || !headerMetaReady}
               fieldTones={filterFieldTones}
+              fieldErrors={fieldErrors}
               onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
             />
           </>
@@ -1227,6 +1184,7 @@ export default function PurchaseOrderForm() {
           childColumns={childColumns}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
+          hideBottomPanel
           remarkModalColumns={PO_REMARK_COLUMNS}
         />
       </section>

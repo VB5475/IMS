@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FileStack, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -31,7 +32,8 @@ function buildListParams() {
 export default function DocumentSubTypeMasterPage() {
   const {
     fetchHeaderMeta, headerColumns: fieldDefs, headerFetching, headerError,
-    departmentOptions, documentTypeOptions, fetchEditRecord, fetchListRows,
+    departmentOptions, documentTypeOptions, fetchDocumentTypeOptions,
+    fetchEditRecord, fetchListRows,
   } = useDocumentSubTypeMaster();
 
   const [data, setData] = useState([]);
@@ -139,6 +141,7 @@ export default function DocumentSubTypeMasterPage() {
             <button type="button" className="docsubtype-list-panel__add-btn" onClick={handleAddNew}>
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="DMS Document SubType Master Report"
               reportFileName="TODO_DocumentSubTypeMaster.rpt"
@@ -187,6 +190,7 @@ export default function DocumentSubTypeMasterPage() {
         defsError={headerError}
         departmentOptions={departmentOptions}
         documentTypeOptions={documentTypeOptions}
+        onDepartmentChange={fetchDocumentTypeOptions}
         editPrefill={editPrefill}
         recordLoading={editLoading}
         recordLoadError={editLoadError}

@@ -1,6 +1,6 @@
 // AssetsEmployeeTransferForm.jsx — Assets Employee Transfer entry form (Add / Edit)
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, ListPlus, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
@@ -836,9 +836,9 @@ export default function AssetsEmployeeTransferForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: isFillingDetail,
+    blocked: itemModalLoading,
     isEditMode,
-    isSaving: isSaving || isFillingDetail,
+    isSaving: isSaving || itemModalLoading,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -928,11 +928,11 @@ export default function AssetsEmployeeTransferForm() {
               type="button"
               className="eg-tab-btn"
               onClick={handleFillDetail}
-              disabled={!isEditMode || isFillingDetail}
+              disabled={!isEditMode || itemModalLoading}
               title="Fill detail items from header filters (Tab here after header fields)"
             >
               <ListPlus size={12} strokeWidth={2.5} />
-              {isFillingDetail ? "Filling…" : "Fill Detail"}
+              {itemModalLoading ? "Filling…" : "Fill Detail"}
             </button>
           </div>
         </div>
@@ -949,7 +949,7 @@ export default function AssetsEmployeeTransferForm() {
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
-            loading={isGridLoading || isFetching || isFillingDetail}
+            loading={isGridLoading || isFetching || itemModalLoading}
             multiValuePasteColumns={AET_MULTI_PASTE_COLUMNS}
             onMultiValuePaste={handleMultiValuePaste}
             remarkModalColumns={AET_REMARK_COLUMNS}

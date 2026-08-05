@@ -140,6 +140,8 @@ export default function DMTT2DocTypeMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
 
   const headerFields = useMemo(() => getHeaderFields(fieldDefs), [fieldDefs]);
   const dropdownOptions = useMemo(
@@ -157,6 +159,9 @@ export default function DMTT2DocTypeMasterForm({
     setRows([]);
     setSaveError(null);
     setGridsError(null);
+    setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
   }, [fieldDefs]);
 
   const handleDepartmentChange = useCallback(
@@ -172,6 +177,7 @@ export default function DMTT2DocTypeMasterForm({
       setTranTypeOptions([]);
       setRows([]);
       setSaveError(null);
+      setFieldErrors({});
 
       if (!normalized || !onDepartmentChange) return;
 
@@ -197,6 +203,12 @@ export default function DMTT2DocTypeMasterForm({
         handleDepartmentChange(value);
         return;
       }
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       setHeaderValues((prev) => ({ ...prev, [key]: value }));
     },
     [handleDepartmentChange]
@@ -207,18 +219,21 @@ export default function DMTT2DocTypeMasterForm({
     const tranTypeId = Number(headerValues[TT2DOCTYPE_CONFIG.HEADER_TRANTYPE_COL]) || 0;
     const checkedRows = rows.filter((r) => r.checked);
 
+    const fieldErrorMap = {};
+    if (!departmentId) fieldErrorMap[TT2DOCTYPE_CONFIG.HEADER_DEPARTMENT_COL] = "Department is required.";
+    if (!tranTypeId) fieldErrorMap[TT2DOCTYPE_CONFIG.HEADER_TRANTYPE_COL] = "Tran Type is required.";
+    setFieldErrors(fieldErrorMap);
+    setFieldValidationFailed(Object.keys(fieldErrorMap).length > 0);
+
+    // "Select at least one Document Type" has no single field to attach to —
+    // stays in the top banner instead of an inline per-field message.
     const errors = [];
-    if (!departmentId) errors.push("Department is required.");
-    if (!tranTypeId) errors.push("Tran Type is required.");
     if (departmentId && tranTypeId && checkedRows.length === 0) {
       errors.push("Select at least one Document Type.");
     }
-    if (errors.length) {
-      setFormErrors(errors);
-      return;
-    }
+    setFormErrors(errors);
+    if (Object.keys(fieldErrorMap).length > 0 || errors.length) return;
 
-    setFormErrors([]);
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -266,7 +281,11 @@ export default function DMTT2DocTypeMasterForm({
           </div>
         ) : (
           <>
-            <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+            <AlertPanel
+              errors={formErrors}
+              title={fieldValidationFailed && formErrors.length === 0 ? "Please fix the highlighted field(s) below." : undefined}
+              onDismiss={() => setFormErrors([])}
+            />
             <div className="dwr-form">
               {headerFields.map((field) => {
                 const key = field.ColName;
@@ -278,7 +297,7 @@ export default function DMTT2DocTypeMasterForm({
                     >
                       {getMasterFieldLabel(field, LABEL_OVERRIDES)}
                     </span>
-                    <div className="dwr-form-control">
+                    <div className="dwr-form-control tt2doctype-form-control">
                       <MasterFormField
                         field={field}
                         value={headerValues[key]}
@@ -291,6 +310,7 @@ export default function DMTT2DocTypeMasterForm({
                         options={dropdownOptions[key] || []}
                         inputClassName="dwr-form-input"
                         valueClassName="dwr-form-value"
+                        error={fieldErrors[key]}
                       />
                     </div>
                   </div>

@@ -10,6 +10,7 @@ import { ADI_CONFIG, ENTRY_FORM_LABEL, buildAdiListJsonPayload } from "./constan
 import "./AssetsDepartmentIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
 function buildAdiReportParams() {
@@ -86,6 +87,7 @@ export default function AssetsDepartmentIssuePage() {
               <Plus size={14} strokeWidth={2.5} />
               {ENTRY_FORM_LABEL}
             </button>
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Assets Department Issue Report"
               reportFileName="TODO_AssetsDepartmentIssue.rpt"

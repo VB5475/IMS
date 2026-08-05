@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Building } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import PrintReportButton from "../../components/ui/PrintReportButton";
+import RefreshButton from "../../components/ui/RefreshButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useCompanyMaster } from "../../hooks/useCompanyMaster";
@@ -119,6 +120,7 @@ export default function CompanyPage() {
             <span>Company</span>
           </div>
           <div className="co-list-panel__toolbar">
+            <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Company Report"
               reportFileName="TODO_Company.rpt"

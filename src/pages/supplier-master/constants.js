@@ -11,6 +11,7 @@ export const MODAL_SUBTITLE   = "Admin › Master › Supplier";
 // + live GetDetailColData checks. Live schema wins over the MRD wherever they disagree.
 import { controlTypeMap } from "../../data/dummyData";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { isMasterFieldVisible } from "../../utils/masterFormUtils";
 
 export const SM_CONFIG = {
   RB_MASTER: RB_CODES.SUPPLIER_MASTER,
@@ -115,86 +116,67 @@ export const SM_LABEL_OVERRIDES = {
 export const SM_CHECKBOX_OVERRIDE_FIELDS = new Set(["tds"]);
 
 /**
- * Two-column form layout — mirrors CompanyForm's CO_FORM_LAYOUT exactly
- * (see src/pages/company/constants.js). All field names are live PG lowercase
- * colnames. "main" and "contact" render on the left, the remaining three
- * blocks stack on the right. Consignee Detail is NOT part of this layout —
- * it stays a data grid, rendered as its own full-width section below.
+ * Section layout — each section is a flat, ordered field list (not paired
+ * into rows) — the form renders each section's fields into a uniform 3-per-
+ * row CSS grid that auto-flows and wraps, instead of hand-curated 1-or-2-
+ * field rows. All sections render full-width, stacked top to bottom (no
+ * left/right column split) so a 3-column grid has real room to breathe.
+ * All field names are live PG lowercase colnames. Consignee Detail is NOT
+ * part of this layout — it stays a data grid, rendered as its own
+ * full-width section below (currently unused, see SupplierMasterForm.jsx).
  */
 export const SM_FORM_LAYOUT = {
-  left: {
-    main: {
-      rows: [
-        ["supcode"],
-        ["supname"],
-        ["partyname"],
-        ["catrgoryid"],
-        ["accountgroupid"],
-        ["address"],
-        ["mailingaddress"],
-        ["countryid", "stateid"],
-        ["cityid", "zipcode"],
-        ["district"],
-        ["msmedate"],
-        ["msmeno"],
-        ["registrationtypeid"],
-        ["gstno"],
-        ["panno"],
-        ["currencyid"],
-        ["crlimit"],
-        ["creditamt"],
-      ],
-    },
+  main: {
+    fields: [
+      "supcode", "supname", "partyname", "catrgoryid", "accountgroupid",
+      "address", "mailingaddress", "countryid", "stateid", "cityid",
+      "zipcode", "district", "msmedate", "msmeno", "registrationtypeid",
+      "gstno", "panno", "currencyid", "crlimit", "creditamt",
+    ],
   },
-  right: {
-    transporter: {
-      title: "Transporter Detail",
-      rows: [
-        ["transporterid"],
-        ["transpoterdestinationid"],
-      ],
-    },
-    tds: {
-      title: "TDS Deduction",
-      rows: [
-        ["tds"],
-        ["deducteetypeid", "nopid"],
-      ],
-    },
-    bank: {
-      title: "Bank Information",
-      rows: [
-        ["bankname"],
-        ["bankaddress"],
-        ["branch"],
-        ["beneficiaryname"],
-        ["bankmobileno", "accountno"],
-        ["accounttype", "ifsccode"],
-      ],
-    },
-    contact: {
-      title: "Contacts",
-      rows: [
-        ["contactperson"],
-        ["designation"],
-        ["emailaddress"],
-        ["mobileno"],
-      ],
-    },
+  transporter: {
+    title: "Transporter Detail",
+    fields: ["transporterid", "transpoterdestinationid"],
+  },
+  tds: {
+    title: "TDS Deduction",
+    fields: ["tds", "deducteetypeid", "nopid"],
+  },
+  bank: {
+    title: "Bank Information",
+    fields: [
+      "bankname", "bankaddress", "branch", "beneficiaryname",
+      "bankmobileno", "accountno", "accounttype", "ifsccode",
+    ],
+  },
+  contact: {
+    title: "Contacts",
+    fields: ["contactperson", "designation", "emailaddress", "mobileno"],
   },
 };
 
-/** Resolve a layout field name against a fieldMap keyed by lowercase colname. */
+/**
+ * Resolve a layout field name against a fieldMap keyed by lowercase colname.
+ * Fields the RB has flagged IsVisible=false are omitted, same as the shared
+ * getVisibleHeaderFields/getVisibleGridFields pattern used elsewhere.
+ */
 export function resolveSmLayoutField(fieldMap, colname) {
   if (!colname) return null;
-  return fieldMap[colname] ?? null;
+  const field = fieldMap[colname] ?? null;
+  if (!field || !isMasterFieldVisible(field)) return null;
+  return field;
+}
+
+/** Resolve a section's flat field-name list into real field objects. */
+export function resolveSmLayoutFields(fields, fieldMap) {
+  return fields.map((name) => resolveSmLayoutField(fieldMap, name)).filter(Boolean);
 }
 
 /** Ordered flat field list for validation / save — keyed by lowercase colname. */
 export function getSmLayoutFieldNames(fieldMap = null) {
   const names = [];
-  const pushRow = (row) => {
-    row.forEach((colname) => {
+  const pushFields = (fields) => {
+    fields.forEach((colname) => {
       if (fieldMap) {
         const field = resolveSmLayoutField(fieldMap, colname);
         if (field) names.push(field.colname);
@@ -203,11 +185,11 @@ export function getSmLayoutFieldNames(fieldMap = null) {
       }
     });
   };
-  SM_FORM_LAYOUT.left.main.rows.forEach(pushRow);
-  SM_FORM_LAYOUT.right.transporter.rows.forEach(pushRow);
-  SM_FORM_LAYOUT.right.tds.rows.forEach(pushRow);
-  SM_FORM_LAYOUT.right.bank.rows.forEach(pushRow);
-  SM_FORM_LAYOUT.right.contact.rows.forEach(pushRow);
+  pushFields(SM_FORM_LAYOUT.main.fields);
+  pushFields(SM_FORM_LAYOUT.transporter.fields);
+  pushFields(SM_FORM_LAYOUT.tds.fields);
+  pushFields(SM_FORM_LAYOUT.bank.fields);
+  pushFields(SM_FORM_LAYOUT.contact.fields);
   return names;
 }
 

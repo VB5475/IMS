@@ -126,3 +126,25 @@
   background: var(--field-view-bg, #e6f1fc);
   cursor: default;
 }
+
+/* Inline validation — red border on the offending control + message below it */
+.master-form-input--error,
+.master-form-textarea--error {
+  border-color: var(--danger, #dc2626) !important;
+}
+
+.master-form-input--error:focus,
+.master-form-textarea--error:focus {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15) !important;
+}
+
+.master-form-dropdown--error .search-select__trigger {
+  border-color: var(--danger, #dc2626);
+}
+
+.master-form-field-error {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--danger, #dc2626);
+}

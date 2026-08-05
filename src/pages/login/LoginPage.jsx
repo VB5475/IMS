@@ -138,84 +138,89 @@ function LoginForm({
         </div>
       ) : (
         <form className="login-form" onSubmit={onSubmit}>
-          <label className="login-field">
-            <span>Company</span>
-            <select
-              className="login-field__control"
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-              required
-            >
-              {companies.map((row) => (
-                <option key={row.companyid ?? row.CompanyID} value={String(row.companyid ?? row.CompanyID)}>
-                  {row.companyname ?? row.CompanyName}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Only this wrapper scrolls (if the fields genuinely don't fit a
+              short mobile viewport) — the submit button below stays outside
+              it, always visible, never pushed off-screen or into the scroll. */}
+          <div className="login-form__fields">
+            <label className="login-field">
+              <span>Company</span>
+              <select
+                className="login-field__control"
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+                required
+              >
+                {companies.map((row) => (
+                  <option key={row.companyid ?? row.CompanyID} value={String(row.companyid ?? row.CompanyID)}>
+                    {row.companyname ?? row.CompanyName}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="login-field">
-            <span>Financial Year</span>
-            <select
-              className="login-field__control"
-              value={yearId}
-              onChange={(e) => setYearId(e.target.value)}
-              required
-            >
-              {years.map((row) => (
-                <option key={row.yearid} value={String(row.yearid)}>
-                  {row.yearname}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="login-field">
+              <span>Financial Year</span>
+              <select
+                className="login-field__control"
+                value={yearId}
+                onChange={(e) => setYearId(e.target.value)}
+                required
+              >
+                {years.map((row) => (
+                  <option key={row.yearid} value={String(row.yearid)}>
+                    {row.yearname}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="login-field">
-            <span>User ID</span>
-            <input
-              className="login-field__control"
-              type="text"
-              name="userId"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="Enter your user ID"
-              autoComplete="username"
-              required
-              autoFocus
-            />
-          </label>
-
-          <div className="login-field">
-            <div className="login-field__row">
-              <label htmlFor="password">Password</label>
-              <button type="button" className="login-field__link">
-                Forgot password?
-              </button>
-            </div>
-            <div className="login-field__password">
+            <label className="login-field">
+              <span>User ID</span>
               <input
                 className="login-field__control"
-                id="password"
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="text"
+                name="userId"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                placeholder="Enter your user ID"
+                autoComplete="username"
+                required
+                autoFocus
               />
-              <button
-                type="button"
-                className="login-field__toggle"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
+            </label>
 
-          <label className="login-remember">
-            <input type="checkbox" name="remember" defaultChecked />
-            <span>Remember me for 30 days</span>
-          </label>
+            <div className="login-field">
+              <div className="login-field__row">
+                <label htmlFor="password">Password</label>
+                <button type="button" className="login-field__link">
+                  Forgot password?
+                </button>
+              </div>
+              <div className="login-field__password">
+                <input
+                  className="login-field__control"
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="login-field__toggle"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <label className="login-remember">
+              <input type="checkbox" name="remember" defaultChecked />
+              <span>Remember me for 30 days</span>
+            </label>
+          </div>
 
           <button type="submit" className="login-submit" disabled={submitting}>
             {submitting ? "Signing in…" : "Sign In"}

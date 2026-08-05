@@ -14,7 +14,7 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import {
   getMasterFieldLabel,
@@ -74,6 +74,8 @@ export default function UserMasterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
 
   // Seed blank row from ALL RB columns (lowercase) + context + synthetic password fields
@@ -132,6 +134,8 @@ export default function UserMasterForm({
     setIsEditMode(isAddMode);
     setSaveError(null);
     setFormErrors([]);
+    setFieldErrors({});
+    setFieldValidationFailed(false);
     if (isAddMode) {
       setFormValues(buildEmptyFromColumns());
     } else if (editPrefill?.headerValues) {
@@ -140,6 +144,12 @@ export default function UserMasterForm({
   }, [isOpen, isAddMode, editPrefill, buildEmptyFromColumns]);
 
   const handleChange = useCallback((key, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setFormValues((prev) => {
       const next = { ...prev, [key]: value };
       const resetKeys = cascadeResets[key];
@@ -166,6 +176,7 @@ export default function UserMasterForm({
         maskWhenLocked
         autoComplete="new-password"
         placeholder={`Enter ${getMasterFieldLabel(field)}...`}
+        error={fieldErrors[valueKey]}
       />
     );
   }
@@ -184,6 +195,7 @@ export default function UserMasterForm({
         options={dropdownOptions[key] || []}
         inputClassName="um-form-input"
         valueClassName="um-form-value"
+        error={fieldErrors[key]}
       />
     );
 
@@ -194,7 +206,7 @@ export default function UserMasterForm({
 
     return (
       <div className="um-form-dropdown-row">
-        {control}
+        <div className="um-form-dropdown-row__field">{control}</div>
         <button
           type="button"
           className="um-form-icon-btn"
@@ -223,25 +235,30 @@ export default function UserMasterForm({
   }
 
   const handleSave = useCallback(async () => {
-    const errors = validateApiColumns(formValues, visibleFields);
+    setFieldValidationFailed(false);
+    const fieldErrorMap = validateApiColumnsByField(formValues, visibleFields);
 
     // Password validation
     if (isAddMode) {
       if (pwdField && !String(formValues.pwd ?? "").trim())
-        errors.push("Password is required.");
+        fieldErrorMap.pwd = "Password is required.";
       if (verifyField && !String(formValues.verifypwd ?? "").trim())
-        errors.push("Verify Password is required.");
+        fieldErrorMap.verifypwd = "Verify Password is required.";
     } else if (pwdField && String(formValues.pwd || "").trim()) {
       // Edit mode — validate format only if password is being changed
-      const pwdErrors = validateApiColumns({ pwd: formValues.pwd }, [pwdField]);
-      errors.push(...pwdErrors);
+      Object.assign(fieldErrorMap, validateApiColumnsByField({ pwd: formValues.pwd }, [pwdField]));
     }
 
     if (isAddMode && formValues.pwd !== formValues.verifypwd) {
-      errors.push("Password and Verify Password do not match.");
+      fieldErrorMap.verifypwd = "Password and Verify Password do not match.";
     }
 
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) {
+      setFieldValidationFailed(true);
+      setFormErrors([]);
+      return;
+    }
 
     setFormErrors([]);
     setSaveError(null);
@@ -346,7 +363,11 @@ export default function UserMasterForm({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            title={fieldValidationFailed ? "Please fix the highlighted field(s) below." : undefined}
+            onDismiss={() => setFormErrors([])}
+          />
           <div className="um-form-layout">
             <div className="um-form">
               {visibleFields.map((field) => (
@@ -385,14 +406,6 @@ export default function UserMasterForm({
                 </div>
               )}
             </div>
-
-            <aside className="um-hierarchy-panel">
-              <div className="um-hierarchy-panel__title">User / Group Hierarchy</div>
-              <p className="um-hierarchy-panel__hint">
-                Group-wise hierarchy for the selected user will appear here once the hierarchy API
-                is connected.
-              </p>
-            </aside>
           </div>
 
           {saveError && (

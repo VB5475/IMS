@@ -3,7 +3,7 @@
  * Resolves fields from GET_DETAIL_COL_DATA by ColName / DisplayName hints.
  */
 
-import { isMasterCheckboxField, isMasterToggleField } from "../../utils/masterFormUtils";
+import { isMasterCheckboxField, isMasterFieldVisible, isMasterToggleField } from "../../utils/masterFormUtils";
 import { pickApiField } from "../../utils/columnValidation";
 
 /** Layout slot → API colname / label hints. */
@@ -65,8 +65,8 @@ function fieldMatchesHint(field, hint) {
   return col === h || col.includes(h) || label.includes(h);
 }
 
-/** Resolve one layout slot to a GET_DETAIL_COL_DATA field. */
-export function resolveAmLayoutField(fieldMap, slotId) {
+/** Find one layout slot's field regardless of RB IsVisible (used for `used`-set bookkeeping). */
+function findAmLayoutFieldRaw(fieldMap, slotId) {
   const hints = AM_LAYOUT_SLOTS[slotId] ?? [slotId];
   for (const hint of hints) {
     for (const key of Object.keys(fieldMap)) {
@@ -79,14 +79,26 @@ export function resolveAmLayoutField(fieldMap, slotId) {
   return null;
 }
 
+/**
+ * Resolve one layout slot to a GET_DETAIL_COL_DATA field. Fields the RB has
+ * flagged IsVisible=false are skipped, same as the shared
+ * getVisibleHeaderFields/getVisibleGridFields pattern used elsewhere.
+ */
+export function resolveAmLayoutField(fieldMap, slotId) {
+  const field = findAmLayoutFieldRaw(fieldMap, slotId);
+  return field && isMasterFieldVisible(field) ? field : null;
+}
+
+// Marks the slot's field `used` even when hidden, so a hidden field never
+// falls through into the unmapped "remainder"/division buckets below.
 export function resolveAmLayoutRow(fieldMap, slotIds, used) {
   return slotIds
     .map((slotId) => {
-      const field = resolveAmLayoutField(fieldMap, slotId);
+      const field = findAmLayoutFieldRaw(fieldMap, slotId);
       const colName = field ? pickApiField(field, "ColName", "colname") : null;
       if (!field || !colName || used.has(colName)) return null;
       used.add(colName);
-      return field;
+      return isMasterFieldVisible(field) ? field : null;
     })
     .filter(Boolean);
 }
@@ -154,11 +166,13 @@ export function buildAccountMasterLayout(coreFields) {
   });
   const linkRefRows2 = chunkPairs(linkRefFields);
 
-  const allDivisionField = resolveAmLayoutField(fieldMap, "alldivision");
-  if (allDivisionField) {
-    const col = fieldColName(allDivisionField);
+  const allDivisionFieldRaw = findAmLayoutFieldRaw(fieldMap, "alldivision");
+  if (allDivisionFieldRaw) {
+    const col = fieldColName(allDivisionFieldRaw);
     if (col) used.add(col);
   }
+  const allDivisionField =
+    allDivisionFieldRaw && isMasterFieldVisible(allDivisionFieldRaw) ? allDivisionFieldRaw : null;
 
   const divisionFields = coreFields.filter((f) => {
     const col = fieldColName(f);
