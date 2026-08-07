@@ -50,6 +50,26 @@ function formatColumnList(columns = []) {
 }
 
 /**
+ * Read a bounded matrix from the sheet. Excel workbooks often advertise a huge
+ * `!ref` (hundreds of thousands of blank rows); never expand that full range
+ * with blankrows:true — it freezes the tab.
+ */
+function readSheetRows(sheet, { maxRows, blankrows = false } = {}) {
+  const ref = sheet?.["!ref"];
+  if (!ref) return [];
+  const full = XLSX.utils.decode_range(ref);
+  const endRow =
+    maxRows == null ? full.e.r : Math.min(full.e.r, full.s.r + maxRows - 1);
+  const range = { s: full.s, e: { r: endRow, c: full.e.c } };
+  return XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+    blankrows,
+    range,
+  });
+}
+
+/**
  * Parse the first worksheet of an Excel file into grid rows keyed by RB colname.
  * Header row must use displayname values from GET_DETAIL_COL_DATA (case-insensitive, spaces ignored).
  * @param {File} file
@@ -64,18 +84,17 @@ export async function parseExcelFileToGridRows(file, apiColumns = []) {
 
   const sheet = workbook.Sheets[sheetName];
   const lookup = buildColumnLookup(apiColumns);
-  const allDisplayHeaders = getDisplayHeaders(apiColumns);
   const requiredDisplayHeaders = getRequiredDisplayHeaders(apiColumns);
 
-  const sheetRows = XLSX.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: "",
+  // Only materialize the first two physical rows for header + "row 2 blank" checks.
+  const previewRows = readSheetRows(sheet, {
+    maxRows: 2,
     blankrows: true,
   });
 
-  if (!sheetRows.length) return [];
+  if (!previewRows.length) return [];
 
-  const headerRow = sheetRows[0] || [];
+  const headerRow = previewRows[0] || [];
   const normalizedHeaders = headerRow.map(normalizeHeader).filter(Boolean);
 
   const invalidHeaders = normalizedHeaders.filter((header) => !lookup.has(header));
@@ -98,11 +117,12 @@ export async function parseExcelFileToGridRows(file, apiColumns = []) {
     );
   }
 
-  if (sheetRows.length < 2 || isBlankRow(sheetRows[1] || [])) {
+  if (previewRows.length < 2 || isBlankRow(previewRows[1] || [])) {
     throw new Error("Data format should start from 2nd row. Row 2 cannot be blank.");
   }
 
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  // Skip blank filler rows from an inflated worksheet used-range.
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "", blankrows: false });
   if (!rawRows.length) return [];
 
   return rawRows.map((rawRow, index) => {

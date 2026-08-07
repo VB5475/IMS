@@ -171,6 +171,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     // `cellErrors`. Opt-in — omitted by every existing caller, so behavior is
     // unchanged unless passed.
     cellErrors = null,
+    loading = false, // true → translucent overlay with spinner over the grid body
+    loaderText = "Loading…",
   },
   ref
 ) {
@@ -1345,6 +1347,12 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             />
           )}
         </BodyWrap>
+      )}
+
+      {loading && (
+        <div className="eg-refresh-overlay" aria-live="polite" aria-busy="true">
+          <Loader text={loaderText} />
+        </div>
       )}
 
       {remarkEditor && (

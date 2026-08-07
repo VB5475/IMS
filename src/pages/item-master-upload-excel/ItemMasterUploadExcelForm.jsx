@@ -6,7 +6,6 @@
 //   3. Save             → POST prmStrDetJSON only
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { AlertCircle, Trash2, FileSpreadsheet, Save, Upload, Download } from "lucide-react";
 import EntryGrid from "../../components/grid/EntryGrid";
@@ -30,11 +29,10 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import { isTruthyApiFlag } from "../../utils/gridUtils";
-import { IMUE_CONFIG, IMUE_GRID_TABS, PAGE_TITLE_NEW } from "./constants";
+import { IMUE_CONFIG, IMUE_GRID_TABS, PAGE_TITLE } from "./constants";
 import "./ItemMasterUploadExcelPage.css";
 
 export default function ItemMasterUploadExcelForm() {
-  const navigate = useNavigate();
   const notify = useNotification();
   const fileInputRef = useRef(null);
   const uploadBtnRef = useRef(null);
@@ -70,12 +68,11 @@ export default function ItemMasterUploadExcelForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title: PAGE_TITLE_NEW,
+    title: PAGE_TITLE,
     subtitle: isEditMode
       ? "Upload an Excel file, review rows, then save."
       : "Click Add (Alt+A) to upload an Excel file and create entries.",
-    showBack: true,
-    backTo: IMUE_CONFIG.ROUTE_PATH,
+    showBack: false,
   });
 
   useEffect(() => {
@@ -102,6 +99,8 @@ export default function ItemMasterUploadExcelForm() {
 
     setIsUploading(true);
     setFormErrors([]);
+    // Let React paint the loading overlay before heavy XLSX work blocks the thread.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
       itemGridRef.current?.clearRows?.();
 
@@ -192,7 +191,8 @@ export default function ItemMasterUploadExcelForm() {
       return false;
     }
 
-    const detRows = detailRows.map(({ id, __excelRowNo, ...rest }) => {
+    // Save API takes prmStrMstJSON (not Det) — each Excel row is a master row.
+    const mstRows = detailRows.map(({ id, __excelRowNo, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => {
         row[key] = getColDefault(colDataType);
@@ -200,9 +200,9 @@ export default function ItemMasterUploadExcelForm() {
       return { ...row, ...rest, loginid: getUserSession().loginId };
     });
 
-    const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: IMUE_CONFIG.FORM_TAG, det: detRows }),
-      { divisionId: 0, isEdit: false },
+    const payload = withSaveContextFields(
+      buildSaveJsonFields({ label: IMUE_CONFIG.FORM_TAG, mst: mstRows }),
+      { divisionId: IMUE_CONFIG.DIVISION_ID, isEdit: false },
     );
 
     setIsSaving(true);
@@ -214,7 +214,11 @@ export default function ItemMasterUploadExcelForm() {
         return false;
       }
       notify.success(message);
-      navigate(IMUE_CONFIG.ROUTE_PATH);
+      localStorage.removeItem(IMUE_CONFIG.STORAGE_ENTRY_META);
+      itemGridRef.current?.clearRows?.();
+      setFormErrors([]);
+      setItemSelectionCount(0);
+      exitEditMode();
       return true;
     } catch (err) {
       console.error("[IMUE Save] Failed:", err);
@@ -223,7 +227,7 @@ export default function ItemMasterUploadExcelForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [allColumns, columns, navigate, notify, postSave]);
+  }, [allColumns, columns, exitEditMode, notify, postSave]);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
@@ -382,6 +386,8 @@ export default function ItemMasterUploadExcelForm() {
           emptyMessage={isEditMode ? "No rows yet. Click Upload Excel above." : "Click Add below to begin."}
           onSelectionChange={setItemSelectionCount}
           readOnly
+          loading={isUploading}
+          loaderText="Reading Excel…"
         />
       </section>
 
