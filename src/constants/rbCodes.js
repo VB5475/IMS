@@ -97,6 +97,8 @@ export const RB_CODES = Object.freeze({
   ASSETS_ITEM_OPENING: "rb_astitemopemst",
   /** Detail-only module (no RB_MASTER) — Asset Item Opening Excel */
   ASSETS_ITEM_OPENING_EXCEL: "rb_assetitmopnexl",
+  /** Detail-only module (no RB_MASTER) — Item Master Upload Excel */
+  ITEM_MASTER_UPLOAD_EXCEL: "rb_xluplditemmst",
   /** Dashboard report-board stock detail columns */
   DASHBOARD_AST_STOCK_DETAIL: "rb_aststkadbdtl",
 
@@ -171,6 +173,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ASSETS_STOCK_TRANSFER]: "/assets-stock-transfer",
   [RB_CODES.ASSETS_ITEM_OPENING]: "/assets-item-opening",
   [RB_CODES.ASSETS_ITEM_OPENING_EXCEL]: "/account/master/asset-item-opening-excel",
+  [RB_CODES.ITEM_MASTER_UPLOAD_EXCEL]: "/admin/master/item-master-upload-excel",
 
   [RB_CODES.MAINTENANCE_DASHBOARD]: "/maintenance-dashboard",
   [RB_CODES.COMPLAINT_REGISTER]: "/complaint-register",

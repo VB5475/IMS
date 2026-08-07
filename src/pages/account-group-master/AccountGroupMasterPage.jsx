@@ -14,6 +14,7 @@ import { AGM_CONFIG } from "./constants";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountGroupMasterPage.css";
+import { useModuleRights } from "../../hooks/useModuleRights";
 
 function buildAccountGroupMasterReportParams() {
   return [
@@ -32,6 +33,7 @@ function buildListParams() {
 }
 
 export default function AccountGroupMasterPage() {
+  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -157,9 +159,11 @@ export default function AccountGroupMasterPage() {
             <span>Account Group Master</span>
           </div>
           <div className="agm-list-panel__toolbar">
-            <button type="button" className="agm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
+            {canInsert && (
+              <button type="button" className="agm-list-panel__add-btn" onClick={handleAddNew}>
+                <Plus size={14} strokeWidth={2.5} /> Add New
+              </button>
+            )}
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
               reportTitle="Account Group Master Report"

@@ -1,15 +1,24 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect, useRef } from "react";
 import {
   Navigate,
   Outlet,
   RouterProvider,
   createBrowserRouter,
+  useLocation,
+  useMatches,
 } from "react-router-dom";
 import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
-import { RB_CODES as RB, rbRouteSegment as rs } from "./constants/rbCodes";
+import { useNotification } from "./context/NotificationContext";
+import {
+  RB_CODES as RB,
+  rbRouteSegment as rs,
+  findRbByPath,
+  findRbFromMatches,
+} from "./constants/rbCodes";
+import { getModuleRights } from "./session/moduleRights";
 
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
 const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
@@ -132,6 +141,12 @@ const AssetsItemOpeningExcelPage = lazy(
 const AssetsItemOpeningExcelForm = lazy(
   () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm")
 );
+const ItemMasterUploadExcelPage = lazy(
+  () => import("./pages/item-master-upload-excel/ItemMasterUploadExcelPage")
+);
+const ItemMasterUploadExcelForm = lazy(
+  () => import("./pages/item-master-upload-excel/ItemMasterUploadExcelForm")
+);
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
 const CustomerMasterPage = lazy(() => import("./pages/customer-master/CustomerMasterPage"));
 const TrialBalanceDemoPage = lazy(() => import("./pages/trial-balance-demo/TrialBalanceDemoPage"));
@@ -140,17 +155,82 @@ function AppLayout() {
   return (
     <AppShell>
       <Suspense fallback={<Loader text="Loading page…" />}>
-        <Outlet />
+        <RequireModuleAccess />
       </Suspense>
     </AppShell>
   );
 }
 
 function RequireAuth() {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, refreshPermissions } = useUser();
+
+  // Full browser reload of ANY authenticated route remounts this guard and
+  // re-fetches fn_tbl_fetchloginusermenudetail. SPA navigations keep this
+  // component mounted, so they do not re-fetch. In-flight dedupe in
+  // refreshPermissions covers the login → first shell mount overlap.
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    let cancelled = false;
+    (async () => {
+      await refreshPermissions();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, refreshPermissions]);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  return <Outlet />;
+}
+
+/** Which right a URL needs — the `new` / `edit` children of an rbModule route. */
+function routeActionFor(pathname) {
+  const last = pathname.split("/").filter(Boolean).pop();
+  if (last === "new") return "insert";
+  if (last === "edit") return "update";
+  return "view";
+}
+
+const DENIED_MESSAGE = {
+  view: "You do not have permission to open that page.",
+  insert: "You do not have permission to create records in that module.",
+  update: "You do not have permission to edit records in that module.",
+};
+
+/**
+ * Enforces module rights on the URL itself, so hiding a nav entry or an Add
+ * button cannot be bypassed by typing the address. Unlisted modules are
+ * unrestricted — see session/moduleRights.js.
+ */
+function RequireModuleAccess() {
+  const matches = useMatches();
+  const { pathname } = useLocation();
+  const notify = useNotification();
+  const notifiedFor = useRef(null);
+
+  const rights = getModuleRights(findRbFromMatches(matches) ?? findRbByPath(pathname));
+  const action = routeActionFor(pathname);
+  const allowed =
+    rights.canView
+    && (action === "insert" ? rights.canInsert : true)
+    && (action === "update" ? rights.canUpdate : true);
+
+  useEffect(() => {
+    if (allowed) {
+      notifiedFor.current = null;
+      return;
+    }
+    // Guarded by pathname because `notify` is a fresh object on every
+    // NotificationProvider render, which would otherwise re-fire the toast.
+    if (notifiedFor.current === pathname) return;
+    notifiedFor.current = pathname;
+    notify.warning(DENIED_MESSAGE[action]);
+  }, [allowed, action, pathname, notify]);
+
+  if (!allowed) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -334,6 +414,12 @@ const router = createBrowserRouter([
             rb: RB.ASSETS_ITEM_OPENING_EXCEL,
             list: <AssetsItemOpeningExcelPage />,
             form: <AssetsItemOpeningExcelForm />,
+            variants: ["new"],
+          }),
+          rbModule({
+            rb: RB.ITEM_MASTER_UPLOAD_EXCEL,
+            list: <ItemMasterUploadExcelPage />,
+            form: <ItemMasterUploadExcelForm />,
             variants: ["new"],
           }),
           rbLeaf({ rb: RB.SUPPLIER_MASTER, element: <SupplierMasterPage /> }),

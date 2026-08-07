@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { UserCheck, Plus } from "lucide-react";
+import { UserCheck } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,6 +13,7 @@ import "../supplier-master/SupplierMasterPage.css";
 import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildCustomerMasterReportParams() {
   return [
@@ -24,7 +23,7 @@ function buildCustomerMasterReportParams() {
 
 function buildListParams() {
   const session = getUserSession();
-   const today = formatTranDate(new Date(), { invalidValue: "" });
+  const today = formatTranDate(new Date(), { invalidValue: "" });
   return {
     ObjType: CM_CONFIG.LIST_OBJ_TYPE,
     ObjName: CM_CONFIG.SP_LIST,
@@ -129,40 +128,21 @@ export default function CustomerMasterPage() {
   return (
     <div className="workspace-page sm-list-page">
       <section className="sm-list-panel sm-list-panel--compact sm-list-panel--fill">
-        <header className="sm-list-panel__header">
-          <div className="sm-list-panel__title">
-            <UserCheck size={14} strokeWidth={2} />
-            <span>Customers</span>
-          </div>
-          <div className="sm-list-panel__toolbar">
-            <button type="button" className="sm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchCustomerList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Customer Master Report"
-              reportFileName="TODO_CustomerMaster.rpt"
-              buildParams={buildCustomerMasterReportParams}
-            />
-            <label htmlFor="cm-list-page-size" className="sm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="cm-list-page-size"
-              className="ng-select sm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={UserCheck}
+          title="Customers"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchCustomerList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Customer Master Report",
+            reportFileName: "TODO_CustomerMaster.rpt",
+            buildParams: buildCustomerMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

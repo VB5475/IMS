@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -9,9 +9,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { ARV_CONFIG, ENTRY_FORM_LABEL, buildArvListJsonPayload } from "./constants";
 import "./AssetsRevaluationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildArvReportParams() {
   return [
@@ -80,38 +79,21 @@ export default function AssetsRevaluationPage() {
   return (
     <div className="workspace-page arv-list-page">
       <section className="arv-list-panel arv-list-panel--fill">
-        <header className="arv-list-panel__header">
-          <div className="arv-list-panel__title">
-            <FileText size={14} strokeWidth={2} />
-            <span>Assets Revaluation</span>
-          </div>
-          <div className="arv-list-panel__toolbar">
-            <button type="button" className="arv-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Assets Revaluation Report"
-              reportFileName="TODO_AssetsRevaluation.rpt"
-              buildParams={buildArvReportParams}
-            />
-            <label htmlFor="arv-list-page-size" className="arv-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="arv-list-page-size"
-              className="ng-select arv-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={FileText}
+          title="Assets Revaluation"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Revaluation Report",
+            reportFileName: "TODO_AssetsRevaluation.rpt",
+            buildParams: buildArvReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

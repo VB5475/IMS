@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus, Pencil } from "lucide-react";
+import { Layers, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -14,9 +14,8 @@ import { createListActionsColumn } from "../../utils/listGridUtils";
 import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDpcReportParams() {
   return [
@@ -25,15 +24,15 @@ function buildDpcReportParams() {
 }
 
 const MONTH_ABBR = [
-  "Jan","Feb","Mar","Apr","May","Jun",
-  "Jul","Aug","Sep","Oct","Nov","Dec",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 function formatListDate(value) {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -43,16 +42,16 @@ function buildListParams() {
     ObjType: DPC_CONFIG.LIST_OBJ_TYPE,
     ObjName: DPC_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  session.companyId,
+      prmcompanyid: session.companyId,
       prmdivisionid: DPC_CONFIG.LIST_DIVISION_ID,
-      prmloginid:    session.loginId,
-      prmyearid:     session.yearId,
-      prmfromdate:   `01-Jan-${year}`,
-      prmtodate:     `31-Dec-${year}`,
-      prmaccountid:  0,
+      prmloginid: session.loginId,
+      prmyearid: session.yearId,
+      prmfromdate: `01-Jan-${year}`,
+      prmtodate: `31-Dec-${year}`,
+      prmaccountid: 0,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -68,13 +67,13 @@ function buildColumnsFromData(data, navigate) {
   return [
     ...keys.map((key) => ({
       key,
-      label:      toLabel(key),
+      label: toLabel(key),
       filterable: true,
-      align:      "left",
+      align: "left",
       ...(key.toLowerCase().includes("date") ? { render: (v) => formatListDate(v) } : {}),
     })),
     {
-      key:   "_actions",
+      key: "_actions",
       label: "Edit",
       width: "60px",
       align: "center",
@@ -101,18 +100,18 @@ function buildColumnsFromData(data, navigate) {
 
 export default function AssetsDepreciationPage() {
   const navigate = useNavigate();
-  const { get }  = useApi(API_BASE_URL);
+  const { get } = useApi(API_BASE_URL);
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   usePageHeader({
-    title:    "Company Act Depreciation",
+    title: "Company Act Depreciation",
     subtitle: "Create and manage asset depreciation entries.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);
@@ -138,36 +137,21 @@ export default function AssetsDepreciationPage() {
   return (
     <div className="workspace-page dpc-list-page">
       <section className="dpc-list-panel dpc-list-panel--fill">
-        <header className="dpc-list-panel__header">
-          <div className="dpc-list-panel__title">
-            <Layers size={14} strokeWidth={2} />
-            <span>Company Act Depreciation</span>
-          </div>
-          <div className="dpc-list-panel__toolbar">
-            <button type="button" className="dpc-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Company Act Depreciation Report"
-              reportFileName="TODO_AssetsDepreciation.rpt"
-              buildParams={buildDpcReportParams}
-            />
-            <label htmlFor="dpc-list-page-size" className="dpc-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="dpc-list-page-size"
-              className="ng-select dpc-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Layers}
+          title="Company Act Depreciation"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Company Act Depreciation Report",
+            reportFileName: "TODO_AssetsDepreciation.rpt",
+            buildParams: buildDpcReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

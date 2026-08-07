@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Shield, Plus } from "lucide-react";
+import { Shield } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useUserGroup } from "../../hooks/useUserGroup";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
@@ -12,6 +10,7 @@ import { UG_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserGroupPage.css";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildUserGroupReportParams() {
   return [
@@ -41,13 +40,13 @@ export default function UserGroupPage() {
     fetchListRows,
   } = useUserGroup();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
@@ -110,39 +109,20 @@ export default function UserGroupPage() {
   return (
     <div className="workspace-page ug-list-page">
       <section className="ug-list-panel ug-list-panel--fill">
-        <header className="ug-list-panel__header">
-          <div className="ug-list-panel__title">
-            <Shield size={14} strokeWidth={2} />
-            <span>User Group</span>
-          </div>
-          <div className="ug-list-panel__toolbar">
-            <button type="button" className="ug-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="User Group Report"
-              reportFileName="TODO_UserGroup.rpt"
-              buildParams={buildUserGroupReportParams}
-            />
-            <label htmlFor="ug-list-page-size" className="ug-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="ug-list-page-size"
-              className="ng-select ug-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Shield}
+          title="User Group"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "User Group Report",
+            reportFileName: "TODO_UserGroup.rpt",
+            buildParams: buildUserGroupReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

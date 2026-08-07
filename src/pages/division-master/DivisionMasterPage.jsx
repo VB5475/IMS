@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Network } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useDivisionMaster } from "../../hooks/useDivisionMaster";
@@ -16,6 +14,7 @@ import { DV_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DivisionMasterPage.css";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDivisionMasterReportParams() {
   return [
@@ -136,34 +135,19 @@ export default function DivisionMasterPage() {
   return (
     <div className="workspace-page dv-list-page">
       <section className="dv-list-panel dv-list-panel--fill">
-        <header className="dv-list-panel__header">
-          <div className="dv-list-panel__title">
-            <Network size={14} strokeWidth={2} />
-            <span>Division Master</span>
-          </div>
-          <div className="dv-list-panel__toolbar">
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Division Master Report"
-              reportFileName="TODO_DivisionMaster.rpt"
-              buildParams={buildDivisionMasterReportParams}
-            />
-            <label htmlFor="dv-list-page-size" className="dv-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="dv-list-page-size"
-              className="ng-select dv-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Network}
+          title="Division Master"
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Division Master Report",
+            reportFileName: "TODO_DivisionMaster.rpt",
+            buildParams: buildDivisionMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

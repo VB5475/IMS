@@ -127,8 +127,8 @@ export function useUserWiseGroupRights() {
 
   /** Search — loads both rights grids for the selected Group in one pass. */
   const fetchRightsGrids = useCallback(
-    async ({ groupId, groupName }) => {
-      const params = buildGridParams({ groupId, groupName });
+    async ({ groupId }) => {
+      const params = buildGridParams({ groupId });
       if (!params.prmgroupid) return { transaction: [], report: [] };
 
       const [functionRows, approvalRows] = await Promise.all([

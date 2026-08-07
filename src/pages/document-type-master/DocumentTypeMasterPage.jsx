@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -14,6 +12,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import DocumentTypeMasterForm from "./DocumentTypeMasterForm";
 import { DOCTYPE_CONFIG } from "./constants";
 import "./DocumentTypeMasterPage.css";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDocTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -131,35 +130,20 @@ export default function DocumentTypeMasterPage() {
   return (
     <div className="workspace-page doctype-list-page">
       <section className="doctype-list-panel doctype-list-panel--fill">
-        <header className="doctype-list-panel__header">
-          <div className="doctype-list-panel__title">
-            <FileText size={14} strokeWidth={2} />
-            <span>Document Type Master</span>
-          </div>
-          <div className="doctype-list-panel__toolbar">
-            <button type="button" className="doctype-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="DMS Document Type Master Report"
-              reportFileName="TODO_DocumentTypeMaster.rpt"
-              buildParams={buildDocTypeReportParams}
-            />
-            <label htmlFor="doctype-list-page-size" className="doctype-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="doctype-list-page-size"
-              className="ng-select doctype-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={FileText}
+          title="Document Type Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "DMS Document Type Master Report",
+            reportFileName: "TODO_DocumentTypeMaster.rpt",
+            buildParams: buildDocTypeReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

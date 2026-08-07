@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileX, Plus } from "lucide-react";
+import { FileX } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import {
@@ -15,9 +15,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AWF_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsWriteOffPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAwfReportParams() {
   return [
@@ -94,38 +93,21 @@ export default function AssetsWriteOffPage() {
   return (
     <div className="workspace-page awf-list-page">
       <section className="awf-list-panel awf-list-panel--fill">
-        <header className="awf-list-panel__header">
-          <div className="awf-list-panel__title">
-            <FileX size={14} strokeWidth={2} />
-            <span>Assets Write Off</span>
-          </div>
-          <div className="awf-list-panel__toolbar">
-            <button type="button" className="awf-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Assets Write Off Report"
-              reportFileName="TODO_AssetsWriteOff.rpt"
-              buildParams={buildAwfReportParams}
-            />
-            <label htmlFor="awf-list-page-size" className="awf-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="awf-list-page-size"
-              className="ng-select awf-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={FileX}
+          title="Assets Write Off"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Write Off Report",
+            reportFileName: "TODO_AssetsWriteOff.rpt",
+            buildParams: buildAwfReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

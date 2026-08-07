@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Tag, Plus } from "lucide-react";
+import { Tag } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -15,6 +13,7 @@ import { MGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./MainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildMainGroupReportParams() {
   return [buildCompanyReportParam()];
@@ -123,35 +122,21 @@ export default function MainGroupMasterPage() {
   return (
     <div className="workspace-page mgm-list-page">
       <section className="mgm-list-panel mgm-list-panel--fill">
-        <header className="mgm-list-panel__header">
-          <div className="mgm-list-panel__title">
-            <Tag size={14} strokeWidth={2} />
-            <span>Main Group Master</span>
-          </div>
-          <div className="mgm-list-panel__toolbar">
-            <button type="button" className="mgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Main Group Master Report"
-              reportFileName="RptMainGroupList_PG.rpt"
-              buildParams={buildMainGroupReportParams}
-            />
-            <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="mgm-list-page-size"
-              className="ng-select mgm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Tag}
+          title="Main Group Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Main Group Master Report",
+            reportFileName: "RptMainGroupList_PG.rpt",
+            buildParams: buildMainGroupReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

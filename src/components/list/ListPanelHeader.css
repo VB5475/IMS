@@ -1,0 +1,68 @@
+/* ListPanelHeader.css — the one stylesheet for every list page's panel header.
+ *
+ * Replaces 42 near-identical per-page copies (aet-list-panel__header,
+ * ind-list-panel__header, …). Those had drifted slightly — header height was
+ * 40px on 27 pages and 44px on 15, the title gap 8px vs 7px — so these values
+ * are the majority variant and the outliers now match it. */
+
+.list-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #f4f6f9;
+  border-bottom: 1px solid var(--border);
+}
+
+.list-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.list-panel__toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.list-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.list-panel__add-btn:hover {
+  filter: brightness(1.05);
+}
+
+.list-panel__pagesize-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.list-panel__pagesize-select {
+  height: 26px;
+  min-width: 56px;
+  padding: 0 24px 0 8px;
+}

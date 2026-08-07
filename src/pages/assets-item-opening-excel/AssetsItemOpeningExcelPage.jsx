@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileSpreadsheet, Plus } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -13,9 +13,8 @@ import { createDeleteActionColumn } from "../../utils/listGridUtils";
 import { AIME_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsItemOpeningExcelPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAimeReportParams() {
   return [
@@ -113,36 +112,21 @@ export default function AssetsItemOpeningExcelPage() {
   return (
     <div className="workspace-page aop-list-page">
       <section className="aop-list-panel aop-list-panel--fill">
-        <header className="aop-list-panel__header">
-          <div className="aop-list-panel__title">
-            <FileSpreadsheet size={14} strokeWidth={2} />
-            <span>Asset Item Opening Excel</span>
-          </div>
-          <div className="aop-list-panel__toolbar">
-            <button type="button" className="aop-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Asset Item Opening Excel Report"
-              reportFileName="TODO_AssetsItemOpeningExcel.rpt"
-              buildParams={buildAimeReportParams}
-            />
-            <label htmlFor="aime-list-page-size" className="aop-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="aime-list-page-size"
-              className="ng-select aop-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={FileSpreadsheet}
+          title="Asset Item Opening Excel"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Asset Item Opening Excel Report",
+            reportFileName: "TODO_AssetsItemOpeningExcel.rpt",
+            buildParams: buildAimeReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

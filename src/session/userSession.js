@@ -24,6 +24,11 @@ export const DEFAULT_USER_SESSION = {
   // ENDPOINTS.DM_CONFIG) — null until fetched, or if the fetch fails/errors,
   // so any permission check reading this defaults to deny rather than crash.
   dmConfig: null,
+// Per-module form rights (fn_tbl_fetchloginusermenudetail). Refetched on login
+// and on every full reload of any authenticated page (RequireAuth remount).
+// Read through session/moduleRights.js, which fails open on an empty list —
+// see UNRESTRICTED there for why.
+  menuRights: [],
 };
 
 let currentSession = { ...DEFAULT_USER_SESSION };

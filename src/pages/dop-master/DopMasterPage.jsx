@@ -4,10 +4,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldCheck, Plus } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -17,6 +15,7 @@ import { DOP_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./DopMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDopMasterReportParams() {
   return [buildCompanyReportParam()];
@@ -88,38 +87,21 @@ export default function DopMasterPage() {
   return (
     <div className="workspace-page dop-list-page">
       <section className="dop-list-panel dop-list-panel--fill">
-        <header className="dop-list-panel__header">
-          <div className="dop-list-panel__title">
-            <ShieldCheck size={14} strokeWidth={2} />
-            <span>DOP Master</span>
-          </div>
-          <div className="dop-list-panel__toolbar">
-            <button type="button" className="dop-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="DOP Master Report"
-              reportFileName="TODO_DopMaster.rpt"
-              buildParams={buildDopMasterReportParams}
-            />
-            <label htmlFor="dop-list-page-size" className="dop-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="dop-list-page-size"
-              className="ng-select dop-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ShieldCheck}
+          title="DOP Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "DOP Master Report",
+            reportFileName: "TODO_DopMaster.rpt",
+            buildParams: buildDopMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

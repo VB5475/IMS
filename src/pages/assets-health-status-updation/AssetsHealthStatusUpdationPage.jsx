@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { HeartPulse, Plus } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -9,9 +9,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AHS_CONFIG, ENTRY_FORM_LABEL, buildAhsListJsonPayload } from "./constants";
 import "./AssetsHealthStatusUpdationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAhsReportParams() {
   return [
@@ -80,38 +79,21 @@ export default function AssetsHealthStatusUpdationPage() {
   return (
     <div className="workspace-page ahs-list-page">
       <section className="ahs-list-panel ahs-list-panel--fill">
-        <header className="ahs-list-panel__header">
-          <div className="ahs-list-panel__title">
-            <HeartPulse size={14} strokeWidth={2} />
-            <span>Assets Health Status Updation</span>
-          </div>
-          <div className="ahs-list-panel__toolbar">
-            <button type="button" className="ahs-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Assets Health Status Updation Report"
-              reportFileName="TODO_AssetsHealthStatusUpdation.rpt"
-              buildParams={buildAhsReportParams}
-            />
-            <label htmlFor="ahs-list-page-size" className="ahs-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="ahs-list-page-size"
-              className="ng-select ahs-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={HeartPulse}
+          title="Assets Health Status Updation"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Health Status Updation Report",
+            reportFileName: "TODO_AssetsHealthStatusUpdation.rpt",
+            buildParams: buildAhsReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

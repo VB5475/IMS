@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -10,6 +9,7 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { MACNG_CONFIG, ENTRY_FORM_LABEL, buildMacngListJsonPayload } from "./constants";
 import "./MaintenanceNewContractPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildListParams() {
   return {
@@ -72,33 +72,16 @@ export default function MaintenanceNewContractPage() {
   return (
     <div className="workspace-page macng-list-page">
       <section className="macng-list-panel macng-list-panel--fill">
-        <header className="macng-list-panel__header">
-          <div className="macng-list-panel__title">
-            <RefreshCw size={14} strokeWidth={2} />
-            <span>Maintenance Contract (New)</span>
-          </div>
-          <div className="macng-list-panel__toolbar">
-            <button type="button" className="macng-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <label htmlFor="macng-list-page-size" className="macng-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="macng-list-page-size"
-              className="ng-select macng-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={RefreshCw}
+          title="Maintenance Contract (New)"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

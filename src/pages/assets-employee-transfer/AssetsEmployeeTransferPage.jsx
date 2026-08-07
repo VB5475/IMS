@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeftRight, Plus } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import {
@@ -14,9 +14,8 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AET_CONFIG, ENTRY_FORM_LABEL, buildAetListJsonPayload } from "./constants";
 import "./AssetsEmployeeTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildAetReportParams() {
   return [
@@ -83,38 +82,21 @@ export default function AssetsEmployeeTransferPage() {
   return (
     <div className="workspace-page aet-list-page">
       <section className="aet-list-panel aet-list-panel--fill">
-        <header className="aet-list-panel__header">
-          <div className="aet-list-panel__title">
-            <ArrowLeftRight size={14} strokeWidth={2} />
-            <span>Employee Location Transfer</span>
-          </div>
-          <div className="aet-list-panel__toolbar">
-            <button type="button" className="aet-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="Employee Location Transfer Report"
-              reportFileName="TODO_AssetsEmployeeTransfer.rpt"
-              buildParams={buildAetReportParams}
-            />
-            <label htmlFor="aet-list-page-size" className="aet-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="aet-list-page-size"
-              className="ng-select aet-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ArrowLeftRight}
+          title="Employee Location Transfer"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Employee Location Transfer Report",
+            reportFileName: "TODO_AssetsEmployeeTransfer.rpt",
+            buildParams: buildAetReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

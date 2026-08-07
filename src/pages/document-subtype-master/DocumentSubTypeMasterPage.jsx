@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { FileStack, Plus } from "lucide-react";
+import { FileStack } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -14,6 +12,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import DocumentSubTypeMasterForm from "./DocumentSubTypeMasterForm";
 import { DOCSUBTYPE_CONFIG } from "./constants";
 import "./DocumentSubTypeMasterPage.css";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
 function buildDocSubTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -132,35 +131,20 @@ export default function DocumentSubTypeMasterPage() {
   return (
     <div className="workspace-page docsubtype-list-page">
       <section className="docsubtype-list-panel docsubtype-list-panel--fill">
-        <header className="docsubtype-list-panel__header">
-          <div className="docsubtype-list-panel__title">
-            <FileStack size={14} strokeWidth={2} />
-            <span>Document SubType Master</span>
-          </div>
-          <div className="docsubtype-list-panel__toolbar">
-            <button type="button" className="docsubtype-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle="DMS Document SubType Master Report"
-              reportFileName="TODO_DocumentSubTypeMaster.rpt"
-              buildParams={buildDocSubTypeReportParams}
-            />
-            <label htmlFor="docsubtype-list-page-size" className="docsubtype-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="docsubtype-list-page-size"
-              className="ng-select docsubtype-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={FileStack}
+          title="Document SubType Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "DMS Document SubType Master Report",
+            reportFileName: "TODO_DocumentSubTypeMaster.rpt",
+            buildParams: buildDocSubTypeReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""
