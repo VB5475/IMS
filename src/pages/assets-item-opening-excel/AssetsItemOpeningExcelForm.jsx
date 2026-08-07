@@ -6,7 +6,6 @@
 //   3. Save             → POST prmStrDetJSON only
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { AlertCircle, Trash2, FileSpreadsheet, Save, Upload, Download } from "lucide-react";
 import EntryGrid from "../../components/grid/EntryGrid";
@@ -30,11 +29,10 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import { isTruthyApiFlag } from "../../utils/gridUtils";
-import { AIME_CONFIG, AIME_GRID_TABS, PAGE_TITLE_NEW } from "./constants";
+import { AIME_CONFIG, AIME_GRID_TABS, PAGE_TITLE } from "./constants";
 import "./AssetsItemOpeningExcelPage.css";
 
 export default function AssetsItemOpeningExcelForm() {
-  const navigate = useNavigate();
   const notify = useNotification();
   const fileInputRef = useRef(null);
   const uploadBtnRef = useRef(null);
@@ -70,12 +68,11 @@ export default function AssetsItemOpeningExcelForm() {
   const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   usePageHeader({
-    title: PAGE_TITLE_NEW,
+    title: PAGE_TITLE,
     subtitle: isEditMode
       ? "Upload an Excel file, review rows, then save."
       : "Click Add (Alt+A) to upload an Excel file and create entries.",
-    showBack: true,
-    backTo: AIME_CONFIG.ROUTE_PATH,
+    showBack: false,
   });
 
   useEffect(() => {
@@ -102,6 +99,8 @@ export default function AssetsItemOpeningExcelForm() {
 
     setIsUploading(true);
     setFormErrors([]);
+    // Let React paint the loading overlay before heavy XLSX work blocks the thread.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
       // MRD: upload clears past grid data before loading new rows.
       itemGridRef.current?.clearRows?.();
@@ -215,7 +214,11 @@ export default function AssetsItemOpeningExcelForm() {
         return false;
       }
       notify.success(message);
-      navigate(AIME_CONFIG.ROUTE_PATH);
+      localStorage.removeItem(AIME_CONFIG.STORAGE_ENTRY_META);
+      itemGridRef.current?.clearRows?.();
+      setFormErrors([]);
+      setItemSelectionCount(0);
+      exitEditMode();
       return true;
     } catch (err) {
       console.error("[AIME Save] Failed:", err);
@@ -224,7 +227,7 @@ export default function AssetsItemOpeningExcelForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [allColumns, columns, navigate, notify, postSave]);
+  }, [allColumns, columns, exitEditMode, notify, postSave]);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
@@ -383,6 +386,8 @@ export default function AssetsItemOpeningExcelForm() {
           emptyMessage={isEditMode ? "No rows yet. Click Upload Excel above." : "Click Add below to begin."}
           onSelectionChange={setItemSelectionCount}
           readOnly
+          loading={isUploading}
+          loaderText="Reading Excel…"
         />
       </section>
 

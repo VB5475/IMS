@@ -1845,6 +1845,25 @@ textarea:focus-visible {
   min-height: 0;
 }
 
+/* Loading overlay — keeps grid chrome visible while data is read/loaded */
+.eg-refresh-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.eg-refresh-overlay .loader-wrap {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
 /* ===== FILL VIEWPORT — table flexes to window, footer pinned at bottom ===== */
 .erp-grid-container--fill {
   flex: 1;
