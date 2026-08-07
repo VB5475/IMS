@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import {
   buildSessionFromAuthRow,
   clearUserSession,
@@ -19,53 +19,77 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(() => getUserSession());
   const { post } = useApi(API_BASE_URL_IMS);
   const { get } = useApi(API_BASE_URL);
+  // Share one in-flight request when login and the auth-shell remount both
+  // ask for permissions at the same time (e.g. right after a successful login).
+  const inflightRef = useRef(null);
+
+  // Best-effort: a failure leaves menuRights as [] (fail-open) and dmConfig as
+  // null (default-deny for DM). Called from login and from RequireAuth on every
+  // full reload of any authenticated page.
+  const refreshPermissions = useCallback(
+    async (session = getUserSession()) => {
+      if (!session?.isAuthenticated) return session;
+      if (inflightRef.current) return inflightRef.current;
+
+      inflightRef.current = (async () => {
+        try {
+          const dmConfigPromise = post(ENDPOINTS.DM_CONFIG, {
+            prmyearid: session.yearId,
+            prmloginid: session.loginId,
+          })
+            .then(extractDmConfigPermissions)
+            .catch((err) => {
+              console.warn("[UserContext] DM Config fetch failed:", err);
+              return null;
+            });
+
+          const menuRightsPromise = get(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: MENU_RIGHTS_SP,
+            JSon: JSON.stringify([
+              {
+                prmloginid: session.loginId,
+                prmcompanyid: session.companyId,
+                prmyearid: session.yearId,
+              },
+            ]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          })
+            .then(extractMenuRights)
+            .catch((err) => {
+              console.warn("[UserContext] Menu rights fetch failed:", err);
+              return [];
+            });
+
+          const [dmConfig, menuRights] = await Promise.all([dmConfigPromise, menuRightsPromise]);
+
+          if (!getUserSession().isAuthenticated) return getUserSession();
+
+          const withPermissions = setUserSession({
+            ...(dmConfig ? { dmConfig } : {}),
+            menuRights,
+          });
+          setUser(withPermissions);
+          return withPermissions;
+        } finally {
+          inflightRef.current = null;
+        }
+      })();
+
+      return inflightRef.current;
+    },
+    [post, get]
+  );
 
   const login = useCallback(async (authRow, { companyId, yearId, company, year }) => {
     const next = buildSessionFromAuthRow(authRow, { companyId, yearId, company, year });
-    setUserSession(next);
-    setUser(next);
-
-    // Two best-effort permission calls right after auth succeeds, in parallel.
-    // Neither may block login: dmConfig stays null on failure (checks reading
-    // it default-deny) and menuRights stays empty (which fails open).
-    const dmConfigPromise = post(ENDPOINTS.DM_CONFIG, {
-      prmyearid: next.yearId,
-      prmloginid: next.loginId,
-    })
-      .then(extractDmConfigPermissions)
-      .catch((err) => {
-        console.warn("[UserContext] DM Config fetch failed:", err);
-        return null;
-      });
-
-    const menuRightsPromise = get(ENDPOINTS.FN_FETCH_DATA, {
-      ObjType: OBJ_TYPE.FUNCTION,
-      ObjName: MENU_RIGHTS_SP,
-      JSon: JSON.stringify([
-        {
-          prmloginid: next.loginId,
-          prmcompanyid: next.companyId,
-          prmyearid: next.yearId,
-        },
-      ]),
-      p_ErrCode: -1,
-      p_ErrMsg: "",
-    })
-      .then(extractMenuRights)
-      .catch((err) => {
-        console.warn("[UserContext] Menu rights fetch failed:", err);
-        return [];
-      });
-
-    const [dmConfig, menuRights] = await Promise.all([dmConfigPromise, menuRightsPromise]);
-
-    const withPermissions = setUserSession({
-      ...(dmConfig ? { dmConfig } : {}),
-      menuRights,
-    });
-    setUser(withPermissions);
-    return withPermissions;
-  }, [post, get]);
+    // Clear previous login's permissions until the fetch below fills them.
+    const pending = { ...next, menuRights: [], dmConfig: null };
+    setUserSession(pending);
+    setUser(pending);
+    return refreshPermissions(pending);
+  }, [refreshPermissions]);
 
   const logout = useCallback(() => {
     const next = clearUserSession();
@@ -86,10 +110,11 @@ export function UserProvider({ children }) {
       // Identity changes when rights are (re)fetched — consumers that gate UI
       // on module rights depend on this to recompute.
       menuRights: user.menuRights,
+      refreshPermissions,
       login,
       logout,
     }),
-    [user, login, logout]
+    [user, refreshPermissions, login, logout]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

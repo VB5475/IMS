@@ -1,6 +1,7 @@
-// moduleRights.js — per-login form rights, fetched once at login from
-// fn_tbl_fetchloginusermenudetail and read from anywhere (hooks, plain utils,
-// route guards).
+// moduleRights.js — per-login form rights from fn_tbl_fetchloginusermenudetail,
+// refreshed on login and on every full reload of any authenticated page
+// (RequireAuth → UserContext.refreshPermissions). Read from anywhere (hooks,
+// plain utils, route guards).
 //
 // The SP returns one row per function the login can reach:
 //   { funcid, funccode, funname, allowinsert, allowupdate, allowview,
@@ -91,9 +92,9 @@ function buildIndex(rows) {
   return index;
 }
 
-// Derived from the session rather than held independently, so a page reload
-// (which rehydrates the session from localStorage) needs no re-fetch, and
-// logout clears the rights along with everything else.
+// Derived from the session rather than held independently, so logout clears
+// the rights along with everything else. UserContext.refreshPermissions
+// rewrites session.menuRights on login and on provider remount.
 let indexedRows = null;
 let index = new Map();
 

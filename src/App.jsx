@@ -141,6 +141,12 @@ const AssetsItemOpeningExcelPage = lazy(
 const AssetsItemOpeningExcelForm = lazy(
   () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm")
 );
+const ItemMasterUploadExcelPage = lazy(
+  () => import("./pages/item-master-upload-excel/ItemMasterUploadExcelPage")
+);
+const ItemMasterUploadExcelForm = lazy(
+  () => import("./pages/item-master-upload-excel/ItemMasterUploadExcelForm")
+);
 const SupplierMasterPage = lazy(() => import("./pages/supplier-master/SupplierMasterPage"));
 const CustomerMasterPage = lazy(() => import("./pages/customer-master/CustomerMasterPage"));
 const TrialBalanceDemoPage = lazy(() => import("./pages/trial-balance-demo/TrialBalanceDemoPage"));
@@ -156,7 +162,24 @@ function AppLayout() {
 }
 
 function RequireAuth() {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, refreshPermissions } = useUser();
+
+  // Full browser reload of ANY authenticated route remounts this guard and
+  // re-fetches fn_tbl_fetchloginusermenudetail. SPA navigations keep this
+  // component mounted, so they do not re-fetch. In-flight dedupe in
+  // refreshPermissions covers the login → first shell mount overlap.
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    let cancelled = false;
+    (async () => {
+      await refreshPermissions();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, refreshPermissions]);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -391,6 +414,12 @@ const router = createBrowserRouter([
             rb: RB.ASSETS_ITEM_OPENING_EXCEL,
             list: <AssetsItemOpeningExcelPage />,
             form: <AssetsItemOpeningExcelForm />,
+            variants: ["new"],
+          }),
+          rbModule({
+            rb: RB.ITEM_MASTER_UPLOAD_EXCEL,
+            list: <ItemMasterUploadExcelPage />,
+            form: <ItemMasterUploadExcelForm />,
             variants: ["new"],
           }),
           rbLeaf({ rb: RB.SUPPLIER_MASTER, element: <SupplierMasterPage /> }),
