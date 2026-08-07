@@ -14,6 +14,9 @@ import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["goods-received-note"];
 function buildGoodsReceivedNoteReportParams() {
   return [
     buildCompanyReportParam(),
@@ -111,8 +114,8 @@ export default function GoodsReceivedNotePage() {
             </button>
             <RefreshButton onClick={fetchGrnList} loading={loading} />
             <PrintReportButton
-              reportTitle="Goods Received Note Report"
-              reportFileName="TODO_GoodsReceivedNote.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildGoodsReceivedNoteReportParams}
             />
             <label htmlFor="grn-list-page-size" className="grn-list-panel__pagesize-label">

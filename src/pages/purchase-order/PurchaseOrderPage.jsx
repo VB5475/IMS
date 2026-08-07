@@ -19,6 +19,9 @@ import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["purchase-order"];
 function buildPurchaseOrderReportParams() {
   return [
     buildCompanyReportParam(),
@@ -109,8 +112,8 @@ export default function PurchaseOrderPage() {
             </button>
             <RefreshButton onClick={fetchOrders} loading={loading} />
             <PrintReportButton
-              reportTitle="Purchase Order Report"
-              reportFileName="TODO_PurchaseOrder.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildPurchaseOrderReportParams}
             />
             <label htmlFor="po-list-page-size" className="po-list-panel__pagesize-label">

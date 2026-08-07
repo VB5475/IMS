@@ -18,6 +18,9 @@ import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["cwip-to-fa"];
 function buildCWIPToFAReportParams() {
   return [
     buildCompanyReportParam(),
@@ -148,8 +151,8 @@ export default function CWIPToFAPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="CWIP To FA Report"
-              reportFileName="TODO_CWIPToFA.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildCWIPToFAReportParams}
             />
             <label htmlFor="c2f-list-page-size" className="c2f-list-panel__pagesize-label">

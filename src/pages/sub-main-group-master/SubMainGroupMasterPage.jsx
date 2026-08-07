@@ -15,6 +15,9 @@ import "./SubMainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["sub-main-group-master"];
 function buildSubMainGroupReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -147,8 +150,8 @@ export default function SubMainGroupMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Sub Main Group Master Report"
-              reportFileName="RptSubMainGroupList_PG.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildSubMainGroupReportParams}
             />
             <label htmlFor="smgm-list-page-size" className="smgm-list-panel__pagesize-label">

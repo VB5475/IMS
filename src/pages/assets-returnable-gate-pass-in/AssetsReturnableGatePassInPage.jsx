@@ -13,6 +13,9 @@ import { ARGI_CONFIG, ENTRY_FORM_LABEL, buildArgiListJsonPayload } from "./const
 import "./AssetsReturnableGatePassInPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-returnable-gate-pass-in"];
 function buildGatePassReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -90,8 +93,8 @@ export default function AssetsReturnableGatePassInPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Returnable Gate Pass In Report"
-              reportFileName="Rpt_ReturnableGatePass_PG.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildGatePassReportParams}
             />
             <label htmlFor="argi-list-page-size" className="argi-list-panel__pagesize-label">

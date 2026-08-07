@@ -16,6 +16,9 @@ import "./MainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["main-group-master"];
 function buildMainGroupReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -134,8 +137,8 @@ export default function MainGroupMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Main Group Master Report"
-              reportFileName="RptMainGroupList_PG.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildMainGroupReportParams}
             />
             <label htmlFor="mgm-list-page-size" className="mgm-list-panel__pagesize-label">

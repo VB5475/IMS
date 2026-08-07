@@ -16,6 +16,9 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["customer-master"];
 function buildCustomerMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -141,8 +144,8 @@ export default function CustomerMasterPage() {
             </button>
             <RefreshButton onClick={fetchCustomerList} loading={loading} />
             <PrintReportButton
-              reportTitle="Customer Master Report"
-              reportFileName="TODO_CustomerMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildCustomerMasterReportParams}
             />
             <label htmlFor="cm-list-page-size" className="sm-list-panel__pagesize-label">

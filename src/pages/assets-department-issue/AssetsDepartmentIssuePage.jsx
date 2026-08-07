@@ -13,6 +13,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-department-issue"];
 function buildAdiReportParams() {
   return [
     buildCompanyReportParam(),
@@ -89,8 +92,8 @@ export default function AssetsDepartmentIssuePage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Department Issue Report"
-              reportFileName="TODO_AssetsDepartmentIssue.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAdiReportParams}
             />
             <label htmlFor="adi-list-page-size" className="adi-list-panel__pagesize-label">

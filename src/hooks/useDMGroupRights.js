@@ -37,6 +37,12 @@ function mapIdNameRows(rows, labelKeys) {
 function mapGridRowFromApi(row, gridColumnDefs) {
   const mapped = mapRowToFieldValues(row, gridColumnDefs);
 
+  // mapRowToFieldValues only copies the visible grid columns (doctype/subtype/
+  // upload/view/delete) — idnumber is a real, hidden PK column on this RB
+  // (confirmed live: colDataType numeric(18,0)) that must round-trip back to
+  // Save so existing rows update instead of re-inserting with idnumber 0.
+  mapped.idnumber = Number(row.idnumber ?? row.IDNumber ?? row.IdNumber) || 0;
+
   gridColumnDefs.forEach((col) => {
     const key = col.ColName ?? col.colname;
     if (!key) return;

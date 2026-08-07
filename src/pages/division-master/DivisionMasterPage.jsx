@@ -17,6 +17,9 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DivisionMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["division-master"];
 function buildDivisionMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -144,8 +147,8 @@ export default function DivisionMasterPage() {
           <div className="dv-list-panel__toolbar">
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Division Master Report"
-              reportFileName="TODO_DivisionMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildDivisionMasterReportParams}
             />
             <label htmlFor="dv-list-page-size" className="dv-list-panel__pagesize-label">

@@ -18,6 +18,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-employee-transfer"];
 function buildAetReportParams() {
   return [
     buildCompanyReportParam(),
@@ -95,8 +98,8 @@ export default function AssetsEmployeeTransferPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Employee Location Transfer Report"
-              reportFileName="TODO_AssetsEmployeeTransfer.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAetReportParams}
             />
             <label htmlFor="aet-list-page-size" className="aet-list-panel__pagesize-label">

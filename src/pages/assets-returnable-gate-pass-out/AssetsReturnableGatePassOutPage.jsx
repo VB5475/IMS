@@ -13,6 +13,9 @@ import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./const
 import "./AssetsReturnableGatePassOutPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-returnable-gate-pass-out"];
 function buildGatePassReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -90,8 +93,8 @@ export default function AssetsReturnableGatePassOutPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Returnable Gate Pass Out Report"
-              reportFileName="Rpt_ReturnableGatePass_PG.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildGatePassReportParams}
             />
             <label htmlFor="argo-list-page-size" className="argo-list-panel__pagesize-label">

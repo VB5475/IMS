@@ -13,6 +13,9 @@ import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["complaint-register"];
 function buildComplaintRegisterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -92,8 +95,8 @@ export default function ComplaintRegisterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Complaint Register Report"
-              reportFileName="TODO_ComplaintRegister.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildComplaintRegisterReportParams}
             />
             <label htmlFor="mcr-list-page-size" className="mcr-list-panel__pagesize-label">

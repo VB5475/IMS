@@ -16,6 +16,9 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["supplier-master"];
 function buildSupplierMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -141,8 +144,8 @@ export default function SupplierMasterPage() {
             </button>
             <RefreshButton onClick={fetchSupplierList} loading={loading} />
             <PrintReportButton
-              reportTitle="Supplier Master Report"
-              reportFileName="TODO_SupplierMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildSupplierMasterReportParams}
             />
             <label htmlFor="sm-list-page-size" className="sm-list-panel__pagesize-label">

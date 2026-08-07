@@ -9,6 +9,8 @@ import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
+import { useInactivityLogout } from "./hooks/useInactivityLogout";
+import { useUiGuard } from "./hooks/useUiGuard";
 import { RB_CODES as RB, rbRouteSegment as rs } from "./constants/rbCodes";
 
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
@@ -148,6 +150,7 @@ function AppLayout() {
 
 function RequireAuth() {
   const { isAuthenticated } = useUser();
+  useInactivityLogout();
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -372,6 +375,8 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
+  // Applies everywhere, including the login page — not gated on auth.
+  useUiGuard();
   return (
     <UserProvider>
       <PageHeaderProvider>

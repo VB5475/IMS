@@ -232,20 +232,20 @@ export default function CallFollowUpForm({
       <div className="master-modal-footer-actions">
         <button
           type="button"
-          className="master-modal-btn master-modal-btn--cancel"
-          onClick={handleClose}
-          disabled={isSaving}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
           className="master-modal-btn master-modal-btn--save"
           onClick={handleSave}
           disabled={isSaving || recordLoading || headerFetching}
         >
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          className="master-modal-btn master-modal-btn--cancel"
+          onClick={handleClose}
+          disabled={isSaving}
+        >
+          Cancel
         </button>
       </div>
     ),

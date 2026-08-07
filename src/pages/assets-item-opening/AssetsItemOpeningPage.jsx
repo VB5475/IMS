@@ -18,6 +18,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-item-opening"];
 function buildAopReportParams() {
   return [
     buildCompanyReportParam(),
@@ -143,8 +146,8 @@ export default function AssetsItemOpeningPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Item Opening Report"
-              reportFileName="TODO_AssetsItemOpening.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAopReportParams}
             />
             <label htmlFor="aop-list-page-size" className="aop-list-panel__pagesize-label">

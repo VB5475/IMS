@@ -15,6 +15,9 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountGroupMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["account-group-master"];
 function buildAccountGroupMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -162,8 +165,8 @@ export default function AccountGroupMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Account Group Master Report"
-              reportFileName="TODO_AccountGroupMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAccountGroupMasterReportParams}
             />
             <label htmlFor="agm-list-page-size" className="agm-list-panel__pagesize-label">

@@ -16,6 +16,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-employee-return"];
 function buildAerReportParams() {
   return [
     buildCompanyReportParam(),
@@ -93,8 +96,8 @@ export default function AssetsEmployeeReturnPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Employee Return Report"
-              reportFileName="TODO_AssetsEmployeeReturn.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAerReportParams}
             />
             <label htmlFor="aer-list-page-size" className="aer-list-panel__pagesize-label">

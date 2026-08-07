@@ -19,6 +19,9 @@ import "./TransporterMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["transporter-master"];
 function buildTransporterMasterReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -110,8 +113,8 @@ export default function TransporterMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Transporter Master Report"
-              reportFileName="TODO_TransporterMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildTransporterMasterReportParams}
             />
             <label htmlFor="tm-list-page-size" className="tm-list-panel__pagesize-label">

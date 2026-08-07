@@ -14,6 +14,9 @@ import "./PurchaseInquiryPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["purchase-inquiry"];
 function buildPurchaseInquiryReportParams() {
   return [
     buildCompanyReportParam(),
@@ -104,8 +107,8 @@ export default function PurchaseInquiryPage() {
             </button>
             <RefreshButton onClick={fetchInquiries} loading={loading} />
             <PrintReportButton
-              reportTitle="Purchase Inquiry Report"
-              reportFileName="TODO_PurchaseInquiry.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildPurchaseInquiryReportParams}
             />
             <label htmlFor="pi-list-page-size" className="pi-list-panel__pagesize-label">

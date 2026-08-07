@@ -333,31 +333,6 @@
   box-shadow: 0 0 0 3px rgba(30, 74, 122, 0.1);
 }
 
-.login-field__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.login-field__row label {
-  margin-bottom: 0;
-}
-
-.login-field__link {
-  border: none;
-  background: none;
-  padding: 0;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--primary);
-}
-
-.login-field__link:hover {
-  text-decoration: underline;
-}
-
 .login-field__password {
   position: relative;
 }
@@ -377,21 +352,6 @@
   display: flex;
   padding: 4px;
   color: var(--text-muted);
-}
-
-.login-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--text-secondary);
-}
-
-.login-remember input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary);
 }
 
 .login-submit {

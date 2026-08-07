@@ -13,6 +13,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-client-allocation"];
 function buildAcaReportParams() {
   return [
     buildCompanyReportParam(),
@@ -92,8 +95,8 @@ export default function AssetsClientAllocationPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Client Allocation Report"
-              reportFileName="TODO_AssetsClientAllocation.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAcaReportParams}
             />
             <label htmlFor="aca-list-page-size" className="aca-list-panel__pagesize-label">

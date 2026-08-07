@@ -19,6 +19,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-write-off"];
 function buildAwfReportParams() {
   return [
     buildCompanyReportParam(),
@@ -106,8 +109,8 @@ export default function AssetsWriteOffPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Write Off Report"
-              reportFileName="TODO_AssetsWriteOff.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAwfReportParams}
             />
             <label htmlFor="awf-list-page-size" className="awf-list-panel__pagesize-label">

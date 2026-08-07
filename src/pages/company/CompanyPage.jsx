@@ -15,6 +15,9 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./CompanyPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["company"];
 function buildCompanyReportParams() {
   return [
     buildCompanyReportParam(),
@@ -122,8 +125,8 @@ export default function CompanyPage() {
           <div className="co-list-panel__toolbar">
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Company Report"
-              reportFileName="TODO_Company.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildCompanyReportParams}
             />
             <label htmlFor="co-list-page-size" className="co-list-panel__pagesize-label">

@@ -13,6 +13,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-stock-transfer"];
 function buildAstReportParams() {
   return [
     buildCompanyReportParam(),
@@ -92,8 +95,8 @@ export default function AssetsStockTransferPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Stock Transfer Report"
-              reportFileName="TODO_AssetsStockTransfer.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAstReportParams}
             />
             <label htmlFor="ast-list-page-size" className="ast-list-panel__pagesize-label">

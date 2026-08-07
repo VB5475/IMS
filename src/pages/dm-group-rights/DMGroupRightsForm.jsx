@@ -43,32 +43,44 @@ function buildEmptyHeaderValues() {
   };
 }
 
-function RightsGrid({ rows, gridColumnDefs, onRowsChange, disabled }) {
-  const doctypeCol = gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_DOCTYPE_COL);
-  const subtypeCol = gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_SUBTYPE_COL);
-  const checkboxCols = [
+/** Upload/View/Delete column defs, in display order — shared by the grid's
+ *  per-column select-all headers and the page footer's blanket select-all. */
+function getCheckboxCols(gridColumnDefs) {
+  return [
     gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_UPLOAD_COL),
     gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_VIEW_COL),
     gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_DELETE_COL),
   ].filter(Boolean);
+}
 
-  const allChecked =
-    rows.length > 0 &&
-    rows.every((row) => checkboxCols.every((col) => getCheckboxValue(row[col.ColName]) === 1));
+function isColumnAllChecked(rows, colName) {
+  return rows.length > 0 && rows.every((row) => getCheckboxValue(row[colName]) === 1);
+}
 
-  const handleSelectAll = useCallback(
-    (checked) => {
-      onRowsChange(
-        rows.map((row) => {
-          const next = { ...row };
-          checkboxCols.forEach((col) => {
-            next[col.ColName] = checked ? 1 : 0;
-          });
-          return next;
-        })
-      );
-    },
-    [rows, onRowsChange, checkboxCols]
+function setColumnForAllRows(rows, colName, checked) {
+  return rows.map((row) => ({ ...row, [colName]: checked ? 1 : 0 }));
+}
+
+/** Blanket select-all — every checkbox column, every row. Used by the page
+ *  footer's "Select All" control (moved out of the grid card itself). */
+function setAllCheckboxCols(rows, checkboxCols, checked) {
+  return rows.map((row) => {
+    const next = { ...row };
+    checkboxCols.forEach((col) => {
+      next[col.ColName] = checked ? 1 : 0;
+    });
+    return next;
+  });
+}
+
+function RightsGrid({ rows, gridColumnDefs, onRowsChange, disabled }) {
+  const doctypeCol = gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_DOCTYPE_COL);
+  const subtypeCol = gridColumnDefs.find((c) => c.ColName === DMGR_CONFIG.GRID_SUBTYPE_COL);
+  const checkboxCols = getCheckboxCols(gridColumnDefs);
+
+  const handleColumnSelectAll = useCallback(
+    (colName, checked) => onRowsChange(setColumnForAllRows(rows, colName, checked)),
+    [rows, onRowsChange]
   );
 
   const handleRowCheckbox = useCallback(
@@ -84,17 +96,6 @@ function RightsGrid({ rows, gridColumnDefs, onRowsChange, disabled }) {
     <section className="dmgr-grid">
       <header className="dmgr-grid__header">
         <span className="dmgr-grid__title">Document Rights</span>
-        {rows.length > 0 && (
-          <label className="dmgr-grid__select-all">
-            <input
-              type="checkbox"
-              checked={allChecked}
-              onChange={(e) => handleSelectAll(e.target.checked)}
-              disabled={disabled}
-            />
-            Select all
-          </label>
-        )}
       </header>
 
       <div className="dmgr-grid__table-wrap">
@@ -110,7 +111,16 @@ function RightsGrid({ rows, gridColumnDefs, onRowsChange, disabled }) {
                 {subtypeCol && <th>{getMasterFieldLabel(subtypeCol, { [subtypeCol.ColName]: "Document Sub Type" })}</th>}
                 {checkboxCols.map((col) => (
                   <th key={col.ColName} className="dmgr-grid__checkbox-col">
-                    {getMasterFieldLabel(col)}
+                    <label className="dmgr-grid__col-select-all">
+                      <input
+                        type="checkbox"
+                        checked={isColumnAllChecked(rows, col.ColName)}
+                        onChange={(e) => handleColumnSelectAll(col.ColName, e.target.checked)}
+                        disabled={disabled}
+                        aria-label={`Select all ${getMasterFieldLabel(col)}`}
+                      />
+                      {getMasterFieldLabel(col)}
+                    </label>
                   </th>
                 ))}
               </tr>
@@ -220,21 +230,86 @@ export default function DMGroupRightsForm({
     [onDefineModeChange]
   );
 
+  // Department's option list already swaps by define-type (see
+  // handleHeaderChange/onDefineModeChange above) — this additionally keeps
+  // the dropdown disabled until one of the two is actually chosen, so a
+  // Department can't be picked from the baseline catalog by accident.
+  const isDefineTypeChosen =
+    getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]) === 1 ||
+    getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_USER_DEFINE_COL]) === 1;
+
   const canGetDetail =
     Number(headerValues[DMGR_CONFIG.HEADER_GROUP_COL]) > 0 &&
     Number(headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL]) > 0;
 
-  const handleGetDetail = useCallback(async () => {
+  // Shared by the manual Save button AND the automatic post-Get-Detail save
+  // below — both must build the exact same payload from a given rows array.
+  // `silent` skips the success/error toast (used for the automatic trigger,
+  // which isn't a user-initiated click).
+  const persistRows = useCallback(
+    async (rows, { silent = false } = {}) => {
+      const session = getUserSession();
+      const saveColumnDefs = allColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType }));
+      const context = {
+        [DMGR_CONFIG.HEADER_GROUP_COL]: Number(headerValues[DMGR_CONFIG.HEADER_GROUP_COL]) || 0,
+        [DMGR_CONFIG.HEADER_DEPARTMENT_COL]: Number(headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL]) || 0,
+        [DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]: getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]),
+        [DMGR_CONFIG.HEADER_USER_DEFINE_COL]: getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_USER_DEFINE_COL]),
+        companyid: session.companyId,
+        yearid: session.yearId,
+        loginid: session.loginId,
+        funccode: DMGR_CONFIG.FORM_TAG,
+      };
+
+      const detRows = rows.map(({ id, _doctypeLabel, _subtypeLabel, ...rest }) =>
+        buildSaveRowFromColumns(rest, saveColumnDefs, context)
+      );
+
+      const payload = withSaveContextFields(
+        buildSaveJsonFields({ label: DMGR_CONFIG.FORM_TAG, mst: detRows }),
+        { divisionId: 0, isEdit: false }
+      );
+
+      const result = await post(DMGR_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) {
+        if (!silent) notify.error(message);
+        return { success: false, message };
+      }
+      if (!silent) notify.success(message || "Group rights saved successfully.");
+      return { success: true, message };
+    },
+    [allColumns, headerValues, post, notify]
+  );
+
+  // `skipPreSave` — handleSave's own success path calls this to refresh the
+  // grid after ITS OWN (non-silent, validated) save already ran; without the
+  // flag that refresh would trigger a second, redundant silent save of the
+  // same data. The Get Detail button's own onClick (no args) always runs the
+  // full pre-save-then-fetch sequence below.
+  const handleGetDetail = useCallback(async ({ skipPreSave = false } = {}) => {
     if (!canGetDetail) return;
     setGridsLoading(true);
     setGridsError(null);
     try {
+      // Save first — whatever's currently on screen (e.g. unsaved checkbox
+      // edits from before this click), THEN fetch. Silent: not a
+      // user-clicked Save, and failure here must not block the fetch below.
+      if (!skipPreSave) {
+        try {
+          await persistRows(gridRows, { silent: true });
+        } catch (err) {
+          console.error("[DMGroupRights] Pre-fetch auto-save failed:", err);
+        }
+      }
+
       const rows = await onGetDetail(
         headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL],
         headerValues[DMGR_CONFIG.HEADER_GROUP_COL],
         gridColumns
       );
-      setGridRows((rows || []).map((r, i) => ({ ...r, id: r.idnumber ?? r.IDNumber ?? `_row_${i}` })));
+      const mapped = (rows || []).map((r, i) => ({ ...r, id: r.idnumber ?? r.IDNumber ?? `_row_${i}` }));
+      setGridRows(mapped);
     } catch (err) {
       console.error("[DMGroupRights] Get Detail failed:", err);
       setGridsError(err?.message || "Failed to load document rights.");
@@ -242,7 +317,7 @@ export default function DMGroupRightsForm({
     } finally {
       setGridsLoading(false);
     }
-  }, [canGetDetail, onGetDetail, headerValues, gridColumns]);
+  }, [canGetDetail, onGetDetail, headerValues, gridColumns, persistRows, gridRows]);
 
   const handleSave = useCallback(async () => {
     const headerErrors = validateMasterFormFields(effectiveHeaderColumns, headerValues);
@@ -265,43 +340,28 @@ export default function DMGroupRightsForm({
     setFormErrors([]);
     setIsSaving(true);
     try {
-      const session = getUserSession();
-      const saveColumnDefs = allColumns.map((c) => ({ key: c.ColName, colDataType: c.ColDataType }));
-      const context = {
-        [DMGR_CONFIG.HEADER_GROUP_COL]: Number(headerValues[DMGR_CONFIG.HEADER_GROUP_COL]) || 0,
-        [DMGR_CONFIG.HEADER_DEPARTMENT_COL]: Number(headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL]) || 0,
-        [DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]: getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]),
-        [DMGR_CONFIG.HEADER_USER_DEFINE_COL]: getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_USER_DEFINE_COL]),
-        companyid: session.companyId,
-        yearid: session.yearId,
-        loginid: session.loginId,
-        funccode: DMGR_CONFIG.FORM_TAG,
-      };
-
-      const detRows = gridRows.map(({ id, _doctypeLabel, _subtypeLabel, ...rest }) =>
-        buildSaveRowFromColumns(rest, saveColumnDefs, context)
-      );
-
-      const payload = withSaveContextFields(
-        buildSaveJsonFields({ label: DMGR_CONFIG.FORM_TAG, mst: detRows }),
-        { divisionId: 0, isEdit: false }
-      );
-
-      const result = await post(DMGR_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
-      if (!success) {
-        notify.error(message);
-        return;
-      }
-      notify.success(message || "Group rights saved successfully.");
-      await handleGetDetail();
+      const result = await persistRows(gridRows);
+      if (!result.success) return;
+      await handleGetDetail({ skipPreSave: true });
     } catch (err) {
       console.error("[DMGroupRights Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
     } finally {
       setIsSaving(false);
     }
-  }, [effectiveHeaderColumns, headerValues, gridRows, gridColumns, allColumns, post, notify, handleGetDetail]);
+  }, [effectiveHeaderColumns, headerValues, gridRows, gridColumns, persistRows, handleGetDetail, notify]);
+
+  // Blanket select-all — moved out of the grid card into the footer beside
+  // Save (per-column select-all now lives in the grid's own column headers).
+  const footerCheckboxCols = useMemo(() => getCheckboxCols(gridColumns), [gridColumns]);
+  const allRightsChecked = useMemo(
+    () => gridRows.length > 0 && footerCheckboxCols.every((col) => isColumnAllChecked(gridRows, col.ColName)),
+    [gridRows, footerCheckboxCols]
+  );
+  const handleSelectAllRows = useCallback(
+    (checked) => setGridRows((rows) => setAllCheckboxCols(rows, footerCheckboxCols, checked)),
+    [footerCheckboxCols]
+  );
 
   const combinedError = headerError || gridsError;
 
@@ -361,6 +421,8 @@ export default function DMGroupRightsForm({
                   value={headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL]}
                   onChange={(val) => handleHeaderChange(DMGR_CONFIG.HEADER_DEPARTMENT_COL, val)}
                   options={departmentOptions}
+                  disabled={!isDefineTypeChosen}
+                  placeholder={isDefineTypeChosen ? undefined : "Select System Defined or User Define first"}
                 />
               </div>
 
@@ -390,6 +452,17 @@ export default function DMGroupRightsForm({
           </div>
 
           <footer className="dmgr-page-footer">
+            {gridRows.length > 0 && (
+              <label className="dmgr-footer-select-all">
+                <input
+                  type="checkbox"
+                  checked={allRightsChecked}
+                  onChange={(e) => handleSelectAllRows(e.target.checked)}
+                  disabled={gridsLoading}
+                />
+                Select All
+              </label>
+            )}
             <button
               type="button"
               className="master-modal-btn master-modal-btn--save"

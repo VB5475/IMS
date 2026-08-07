@@ -22,6 +22,9 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ItemMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["item-master"];
 // prmisactive is always "1" (active only) — confirmed business rule, not a
 // live filter value: this list page has no Active/Inactive toggle to read from.
 function buildItemMasterReportParams() {
@@ -322,8 +325,8 @@ export default function ItemMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Item Master Report"
-              reportFileName="RptPrintItems_PG.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildItemMasterReportParams}
             />
             <label htmlFor="im-list-page-size" className="im-list-panel__pagesize-label">

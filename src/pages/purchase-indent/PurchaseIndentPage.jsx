@@ -19,6 +19,9 @@ import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["purchase-indent"];
 function buildPurchaseIndentReportParams() {
   return [
     buildCompanyReportParam(),
@@ -109,8 +112,8 @@ export default function PurchaseIndentPage() {
             </button>
             <RefreshButton onClick={fetchIndents} loading={loading} />
             <PrintReportButton
-              reportTitle="Purchase Indent Report"
-              reportFileName="TODO_PurchaseIndent.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildPurchaseIndentReportParams}
             />
             <label htmlFor="ind-list-page-size" className="ind-list-panel__pagesize-label">

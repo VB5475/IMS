@@ -117,7 +117,7 @@ const EVENT_COLUMNS = new Set([
 const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   {
     config,
-    title = "Invoice Line Items",
+    title = "Line Items",
     onSave,
     onCellEvent,
     eventColumns: eventColumnsProp = null,
@@ -1043,6 +1043,20 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       ) : title ? (
         <div className="grid-header">
           <h2 className="grid-title">{title}</h2>
+          <div className="grid-header__controls">
+            {searchable && (
+              <GridSearch
+                query={searchQuery}
+                onChange={handleSearchChange}
+                matchCount={searchedRows.length}
+                totalCount={rows.length}
+              />
+            )}
+            {headerControls}
+          </div>
+        </div>
+      ) : searchable || headerControls ? (
+        <div className="eg-search-bar">
           {searchable && (
             <GridSearch
               query={searchQuery}
@@ -1051,15 +1065,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               totalCount={rows.length}
             />
           )}
-        </div>
-      ) : searchable ? (
-        <div className="eg-search-bar">
-          <GridSearch
-            query={searchQuery}
-            onChange={handleSearchChange}
-            matchCount={searchedRows.length}
-            totalCount={rows.length}
-          />
+          {headerControls}
         </div>
       ) : null}
 
@@ -1360,6 +1366,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           icon={<StickyNote size={16} strokeWidth={2} />}
           size="sm"
           variant="enterprise"
+          initialFocusSelector=".cell-remark-modal__textarea"
           footer={
             remarkEditor.readOnly ? null : (
               <div className="filter-actions cell-remark-modal__footer">

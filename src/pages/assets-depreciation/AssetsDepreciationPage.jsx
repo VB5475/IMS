@@ -18,6 +18,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-depreciation"];
 function buildDpcReportParams() {
   return [
     buildCompanyReportParam(),
@@ -150,8 +153,8 @@ export default function AssetsDepreciationPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Company Act Depreciation Report"
-              reportFileName="TODO_AssetsDepreciation.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildDpcReportParams}
             />
             <label htmlFor="dpc-list-page-size" className="dpc-list-panel__pagesize-label">

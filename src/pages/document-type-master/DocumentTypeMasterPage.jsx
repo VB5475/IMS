@@ -15,6 +15,9 @@ import DocumentTypeMasterForm from "./DocumentTypeMasterForm";
 import { DOCTYPE_CONFIG } from "./constants";
 import "./DocumentTypeMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["document-type-master"];
 function buildDocTypeReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -142,8 +145,8 @@ export default function DocumentTypeMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="DMS Document Type Master Report"
-              reportFileName="TODO_DocumentTypeMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildDocTypeReportParams}
             />
             <label htmlFor="doctype-list-page-size" className="doctype-list-panel__pagesize-label">

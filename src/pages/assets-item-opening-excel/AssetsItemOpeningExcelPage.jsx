@@ -17,6 +17,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-item-opening-excel"];
 function buildAimeReportParams() {
   return [
     buildCompanyReportParam(),
@@ -125,8 +128,8 @@ export default function AssetsItemOpeningExcelPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Asset Item Opening Excel Report"
-              reportFileName="TODO_AssetsItemOpeningExcel.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAimeReportParams}
             />
             <label htmlFor="aime-list-page-size" className="aop-list-panel__pagesize-label">

@@ -192,12 +192,7 @@ function LoginForm({
             </label>
 
             <div className="login-field">
-              <div className="login-field__row">
-                <label htmlFor="password">Password</label>
-                <button type="button" className="login-field__link">
-                  Forgot password?
-                </button>
-              </div>
+              <label htmlFor="password">Password</label>
               <div className="login-field__password">
                 <input
                   className="login-field__control"
@@ -217,11 +212,6 @@ function LoginForm({
                 </button>
               </div>
             </div>
-
-            <label className="login-remember">
-              <input type="checkbox" name="remember" defaultChecked />
-              <span>Remember me for 30 days</span>
-            </label>
           </div>
 
           <button type="submit" className="login-submit" disabled={submitting}>
@@ -376,7 +366,7 @@ export default function LoginPage() {
               <img src={BRAND_LOGO_SRC} alt="IMS logo" className="login-brand-logo__image" />
             </div>
             <div>
-              <h1>IMS PORTAL</h1>
+              <h1>IMS</h1>
               <p className="login-brand__tagline">Asset Management System</p>
             </div>
           </div>

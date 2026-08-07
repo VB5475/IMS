@@ -147,7 +147,7 @@ const NAV_SECTIONS = [
       // ("/admin/company/division-master"). With end:false (prefix match),
       // Company's nav link + section label lit up as "active" on those other
       // modules' pages too. end:true forces an exact-path match instead.
-      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: KeyRound, label: "User Wise Group Rights", end: false },
+      
       { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
       { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
       { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
@@ -168,6 +168,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
       { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
       { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
+      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: KeyRound, label: "User Wise Group Rights", end: false },
       { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true },
       { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
     ],

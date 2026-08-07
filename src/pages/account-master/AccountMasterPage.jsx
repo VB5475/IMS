@@ -15,6 +15,9 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["account-master"];
 function buildAccountMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -172,8 +175,8 @@ export default function AccountMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Account Master Report"
-              reportFileName="TODO_AccountMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAccountMasterReportParams}
             />
             <label htmlFor="am-list-page-size" className="am-list-panel__pagesize-label">

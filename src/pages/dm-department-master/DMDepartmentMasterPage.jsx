@@ -15,6 +15,9 @@ import DMDepartmentMasterForm from "./DMDepartmentMasterForm";
 import { DMDEPT_CONFIG } from "./constants";
 import "./DMDepartmentMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["dm-department-master"];
 function buildDMDeptReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -142,8 +145,8 @@ export default function DMDepartmentMasterPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="DMS Department Master Report"
-              reportFileName="TODO_DMDepartmentMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildDMDeptReportParams}
             />
             <label htmlFor="dmdept-list-page-size" className="dmdept-list-panel__pagesize-label">

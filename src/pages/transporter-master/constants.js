@@ -84,11 +84,11 @@ export const TM_CONFIG = {
   SP_MASTER_FILL: "fn_tbl_rb_transportermst",
   SP_DETAIL_FILL: "fn_tbl_rb_transporterdet",
 
-  SAVE_ENDPOINT: "/API/SupplierMst/Post_Rb_transportermst_Save", // CONFIRM — casing differs across MRD sections
+  SAVE_ENDPOINT: "/API/TransporterMst/Post_rb_transportermst_Save",
 
   // Save payload's detail-rows key — MRD-specified, non-standard for this
   // app (most modules use prmStrDetJSON) — CONFIRM live once wired up.
-  SAVE_DETAIL_JSON_KEY: "prmStrConsigneeJSON",
+  SAVE_DETAIL_JSON_KEY: "prmStrDetJSON",
 
   STORAGE_HEADER_META: "tmHeaderMeta",
   STORAGE_DETAIL_META: "tmDetailMeta",

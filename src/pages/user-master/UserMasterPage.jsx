@@ -19,6 +19,9 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["user-master"];
 function buildUserMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -221,8 +224,8 @@ export default function UserMasterPage() {
               <Plus size={14} strokeWidth={2.5} /> Add New
             </button>
             <PrintReportButton
-              reportTitle="User Master Report"
-              reportFileName="TODO_UserMaster.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildUserMasterReportParams}
             />
             <label htmlFor="um-list-page-size" className="um-list-panel__pagesize-label">

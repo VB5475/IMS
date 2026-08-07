@@ -19,6 +19,9 @@ import "./PurchaseVoucherPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["purchase-voucher"];
 function buildPurchaseVoucherReportParams() {
   return [
     buildCompanyReportParam(),
@@ -107,8 +110,8 @@ export default function PurchaseVoucherPage() {
             </button>
             <RefreshButton onClick={fetchVouchers} loading={loading} />
             <PrintReportButton
-              reportTitle="Purchase Voucher Report"
-              reportFileName="TODO_PurchaseVoucher.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildPurchaseVoucherReportParams}
             />
             <label htmlFor="pv-list-page-size" className="pv-list-panel__pagesize-label">

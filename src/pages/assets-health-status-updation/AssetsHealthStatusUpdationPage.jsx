@@ -13,6 +13,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-health-status-updation"];
 function buildAhsReportParams() {
   return [
     buildCompanyReportParam(),
@@ -92,8 +95,8 @@ export default function AssetsHealthStatusUpdationPage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Health Status Updation Report"
-              reportFileName="TODO_AssetsHealthStatusUpdation.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAhsReportParams}
             />
             <label htmlFor="ahs-list-page-size" className="ahs-list-panel__pagesize-label">

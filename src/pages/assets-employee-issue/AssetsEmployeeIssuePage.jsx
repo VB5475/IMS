@@ -18,6 +18,9 @@ import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-employee-issue"];
 function buildAeiReportParams() {
   return [
     buildCompanyReportParam(),
@@ -95,8 +98,8 @@ export default function AssetsEmployeeIssuePage() {
             </button>
             <RefreshButton onClick={fetchList} loading={loading} />
             <PrintReportButton
-              reportTitle="Assets Employee Issue Report"
-              reportFileName="TODO_AssetsEmployeeIssue.rpt"
+              reportTitle={PRINT_CONFIG.reportTitle}
+              reportFileName={PRINT_CONFIG.reportFileName}
               buildParams={buildAeiReportParams}
             />
             <label htmlFor="aei-list-page-size" className="aei-list-panel__pagesize-label">
