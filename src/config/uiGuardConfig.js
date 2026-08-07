@@ -9,7 +9,15 @@
 // This only blocks the common entry points — it cannot prevent DevTools
 // from being opened via the browser's own menu (no browser lets a page do
 // that). It's a deterrent for casual users, not a security control.
+//
+// Sourced from public/config.json's "uiGuardIsAllow" (same server-editable,
+// no-rebuild pattern as apiMode) — see src/config/runtimeConfig.js, which
+// resolves before this is ever read (src/main.jsx awaits it before App mounts).
+
+import { getUiGuardIsAllow } from "./runtimeConfig";
 
 export const UI_GUARD_CONFIG = {
-  isAllow: "Yes",
+  get isAllow() {
+    return getUiGuardIsAllow();
+  },
 };
