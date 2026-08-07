@@ -293,9 +293,14 @@ export default function DMGroupRightsForm({
     setGridsError(null);
     try {
       // Save first — whatever's currently on screen (e.g. unsaved checkbox
-      // edits from before this click), THEN fetch. Silent: not a
-      // user-clicked Save, and failure here must not block the fetch below.
-      if (!skipPreSave) {
+      // edits from before this click), THEN fetch. Skipped when there are no
+      // rows yet (e.g. the very first Get Detail click for a freshly picked
+      // Group/Department) — the Save button itself refuses to save an empty
+      // grid (see handleSave below), so the auto-save must match that and
+      // never fire persistRows([]) — that would send a payload Save would
+      // never send. Silent: not a user-clicked Save, and failure here must
+      // not block the fetch below.
+      if (!skipPreSave && gridRows.length > 0) {
         try {
           await persistRows(gridRows, { silent: true });
         } catch (err) {

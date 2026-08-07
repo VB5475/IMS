@@ -10,6 +10,7 @@
 // resolved before this module is imported (src/main.jsx guarantees that).
 import {
   BASE_PROJECTS,
+  getBaseDomain,
   getBaseProject,
   isEnvSwitcherEnabled,
   setBaseProject,
@@ -21,10 +22,11 @@ export const PROD_BASE_PROJECT = getBaseProject();
 export const ENV_SWITCHER_ENABLED = isEnvSwitcherEnabled();
 export const switchBaseProject = setBaseProject;
 
-const BASE_DOMAIN = "http://122.179.135.100:8095/" + PROD_BASE_PROJECT;
+const DOMAIN_ROOT = getBaseDomain();
+const BASE_DOMAIN = DOMAIN_ROOT + PROD_BASE_PROJECT;
 export const API_BASE_URL = BASE_DOMAIN + "/webservice/WsIMS.asmx";
 
-export const API_BASE_URL_OLD = "http://122.179.135.100:8095/ERPWS_TB/webservice/WsIMS.asmx";
+export const API_BASE_URL_OLD = DOMAIN_ROOT + "ERPWS_TB/webservice/WsIMS.asmx";
 
 // REST-style endpoint — body is a JSON object, not query params.
 // Used by SPs that route through the newer /API/Values gateway.

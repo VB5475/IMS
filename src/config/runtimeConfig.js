@@ -17,10 +17,12 @@ export const UI_GUARD_OPTIONS = Object.freeze(["Yes", "No"]);
 
 const DEFAULT_API_MODE = "ALL";
 const DEFAULT_UI_GUARD_IS_ALLOW = "Yes";
+const DEFAULT_BASE_DOMAIN = "http://122.179.135.100:8095/";
 const PROJECT_STORAGE_KEY = "ims_base_project";
 
 let apiMode = DEFAULT_API_MODE;
 let uiGuardIsAllow = DEFAULT_UI_GUARD_IS_ALLOW;
+let baseDomain = DEFAULT_BASE_DOMAIN;
 
 export async function loadRuntimeConfig() {
   try {
@@ -36,10 +38,16 @@ export async function loadRuntimeConfig() {
 
     const guardFlag = config?.uiGuardIsAllow;
     uiGuardIsAllow = UI_GUARD_OPTIONS.includes(guardFlag) ? guardFlag : DEFAULT_UI_GUARD_IS_ALLOW;
+
+    const domain = config?.baseDomain;
+    baseDomain = typeof domain === "string" && domain.trim()
+      ? (domain.endsWith("/") ? domain : `${domain}/`)
+      : DEFAULT_BASE_DOMAIN;
   } catch (err) {
     console.error(`[config] Using default apiMode "${DEFAULT_API_MODE}":`, err);
     apiMode = DEFAULT_API_MODE;
     uiGuardIsAllow = DEFAULT_UI_GUARD_IS_ALLOW;
+    baseDomain = DEFAULT_BASE_DOMAIN;
   }
   return apiMode;
 }
@@ -51,6 +59,11 @@ export function getApiMode() {
 /** UI Guard's isAllow flag — see src/config/uiGuardConfig.js. */
 export function getUiGuardIsAllow() {
   return uiGuardIsAllow;
+}
+
+/** Root server URL (protocol + host + port, trailing slash) — see src/api/constants.js. */
+export function getBaseDomain() {
+  return baseDomain;
 }
 
 /** The switcher only makes sense when the deployment allows both backends. */

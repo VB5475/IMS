@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 
-const INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+const INACTIVITY_LIMIT_MS = 20 * 60 * 1000;
 const CHECK_INTERVAL_MS = 5000;
 const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "wheel"];
 
