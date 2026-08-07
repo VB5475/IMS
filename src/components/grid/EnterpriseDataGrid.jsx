@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL_IMS, ENDPOINTS } from "../../api/constants";
 import { useNotification } from "../../context/NotificationContext";
+import { useModuleRights } from "../../hooks/useModuleRights";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import Loader from "../ui/Loader";
@@ -29,6 +30,42 @@ function isActionColumn(col) {
 
 function isSelectColumn(col) {
   return col.key === SELECT_COLUMN_KEY || col.actionType === "select";
+}
+
+/**
+ * Strips Edit / Delete affordances the login's module rights do not grant.
+ * Every list page in the app renders through this grid, so gating here covers
+ * them all regardless of which listGridUtils helper built the column.
+ * See session/moduleRights.js — unlisted modules stay unrestricted.
+ */
+function applyRightsToActionColumns(columns, { canUpdate, canDelete }) {
+  if (canUpdate && canDelete) return columns;
+  if (!Array.isArray(columns) || columns.length === 0) return columns;
+
+  const permitted = [];
+  for (const col of columns) {
+    if (col.actionType === "edit" && !canUpdate) continue;
+    if (col.actionType === "delete" && !canDelete) continue;
+    // Asset Depreciation, Asset Item Opening and CWIP To FA hand-roll an
+    // edit-only "_actions" column with an inline render instead of going
+    // through listGridUtils, so they carry no actionType to switch on.
+    if (col.key === "_actions" && !col.actionType && !canUpdate) continue;
+    if (col.actionType === "actions") {
+      if (!canUpdate && !canDelete) continue;
+      // Combined column keeps its header but renders only the allowed button,
+      // so it narrows to the single-action width.
+      permitted.push({
+        ...col,
+        hideEdit: !canUpdate,
+        hideDelete: !canDelete,
+        width: "44px",
+        minWidth: 44,
+      });
+      continue;
+    }
+    permitted.push(col);
+  }
+  return permitted;
 }
 
 /** Place select + edit/action columns first; data columns keep their relative order. */
@@ -118,6 +155,7 @@ function EnterpriseDataGrid({
 }) {
   const navigate = useNavigate();
   const notify = useNotification();
+  const moduleRights = useModuleRights();
   const { postDelete } = useApi(API_BASE_URL_IMS);
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilterCol, setActiveFilterCol] = useState(null);
@@ -210,9 +248,14 @@ function EnterpriseDataGrid({
     await handleDeleteRow(row, meta ?? {});
   }, [closeDeleteConfirm, deleteConfirmState, handleDeleteRow]);
 
+  const permittedColumns = useMemo(
+    () => applyRightsToActionColumns(columns, moduleRights),
+    [columns, moduleRights]
+  );
+
   const displayColumns = useMemo(
-    () => orderColumnsWithActionsFirst(columns, selectable),
-    [columns, selectable]
+    () => orderColumnsWithActionsFirst(permittedColumns, selectable),
+    [permittedColumns, selectable]
   );
 
   const hasPinnedActions = useMemo(
@@ -450,32 +493,36 @@ function EnterpriseDataGrid({
       const isDeleting = deletingRowIds.has(String(rowId));
       return (
         <div className="ng-action-btns">
-          <button
-            type="button"
-            className={col.editClassName}
-            title={editMeta.title ?? "Edit record"}
-            aria-label={editMeta.ariaLabel ?? "Edit record"}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (editMeta.onClick) editMeta.onClick();
-              else if (editMeta.navigateTo) navigate(editMeta.navigateTo, { state: editMeta.navigateState });
-            }}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            className={col.deleteClassName}
-            title={deleteMeta.title ?? "Delete record"}
-            aria-label={deleteMeta.ariaLabel ?? "Delete record"}
-            onClick={(e) => {
-              e.stopPropagation();
-              openDeleteConfirm(row, deleteMeta);
-            }}
-            disabled={isDeleting || !deleteProcName}
-          >
-            <Trash2 size={13} strokeWidth={2} />
-          </button>
+          {!col.hideEdit && (
+            <button
+              type="button"
+              className={col.editClassName}
+              title={editMeta.title ?? "Edit record"}
+              aria-label={editMeta.ariaLabel ?? "Edit record"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (editMeta.onClick) editMeta.onClick();
+                else if (editMeta.navigateTo) navigate(editMeta.navigateTo, { state: editMeta.navigateState });
+              }}
+            >
+              <Pencil size={13} strokeWidth={2} />
+            </button>
+          )}
+          {!col.hideDelete && (
+            <button
+              type="button"
+              className={col.deleteClassName}
+              title={deleteMeta.title ?? "Delete record"}
+              aria-label={deleteMeta.ariaLabel ?? "Delete record"}
+              onClick={(e) => {
+                e.stopPropagation();
+                openDeleteConfirm(row, deleteMeta);
+              }}
+              disabled={isDeleting || !deleteProcName}
+            >
+              <Trash2 size={13} strokeWidth={2} />
+            </button>
+          )}
         </div>
       );
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeftRight, Plus } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -9,13 +9,9 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AST_CONFIG, ENTRY_FORM_LABEL, buildAstListJsonPayload } from "./constants";
 import "./AssetsStockTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-stock-transfer"];
 function buildAstReportParams() {
   return [
     buildCompanyReportParam(),
@@ -83,38 +79,21 @@ export default function AssetsStockTransferPage() {
   return (
     <div className="workspace-page ast-list-page">
       <section className="ast-list-panel ast-list-panel--fill">
-        <header className="ast-list-panel__header">
-          <div className="ast-list-panel__title">
-            <ArrowLeftRight size={14} strokeWidth={2} />
-            <span>Assets Stock Transfer</span>
-          </div>
-          <div className="ast-list-panel__toolbar">
-            <button type="button" className="ast-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildAstReportParams}
-            />
-            <label htmlFor="ast-list-page-size" className="ast-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="ast-list-page-size"
-              className="ng-select ast-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={ArrowLeftRight}
+          title="Assets Stock Transfer"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Stock Transfer Report",
+            reportFileName: "TODO_AssetsStockTransfer.rpt",
+            buildParams: buildAstReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

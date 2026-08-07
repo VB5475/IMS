@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Package, Plus } from "lucide-react";
+import { Package } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -13,20 +11,18 @@ import SubGroupMasterForm from "./SubGroupMasterForm";
 import { SGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["sub-group-master"];
 // Sub Group Master's report takes no parameters — unlike Main Group / Sub
 // Main Group, which scope by Company (buildCompanyReportParam).
 function buildSubGroupReportParams() {
   return [];
 }
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function todayFormatted() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 function buildListParams() {
@@ -36,25 +32,25 @@ function buildListParams() {
     ObjType: SGM_CONFIG.LIST_OBJ_TYPE,
     ObjName: SGM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid:  session.companyId,
+      prmcompanyid: session.companyId,
       prmdivisionid: SGM_CONFIG.LIST_DIVISION_ID,
-      prmfromdate:   today,
-      prmtodate:     today,
+      prmfromdate: today,
+      prmtodate: today,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
 const HIDDEN_COLS = new Set(["idnumber", "systemconfigured"]);
 
 const LABEL_MAP = {
-  code:          "Code",
-  name:          "Name",
-  shortname:     "Short Name",
-  shortcode:     "Short Code",
+  code: "Code",
+  name: "Name",
+  shortname: "Short Name",
+  shortcode: "Short Code",
   isautocodegen: "Auto Code Gen",
-  regname:       "Reg Name",
+  regname: "Reg Name",
 };
 
 function toLabel(key) {
@@ -67,9 +63,9 @@ function buildColumnsFromData(data, onEdit) {
   return [
     ...keys.map((key) => ({
       key,
-      label:      toLabel(key),
+      label: toLabel(key),
       filterable: true,
-      align:      "left",
+      align: "left",
     })),
     createListActionsColumn({
       onEdit: (row) => { if (row.idnumber) onEdit(row.idnumber); },
@@ -88,20 +84,20 @@ export default function SubGroupMasterPage() {
     fetchEditRecord,
   } = useSubGroupMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Sub Group Master",
+    title: "Sub Group Master",
     subtitle: "Browse sub groups or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -144,35 +140,21 @@ export default function SubGroupMasterPage() {
   return (
     <div className="workspace-page sgm-list-page">
       <section className="sgm-list-panel sgm-list-panel--fill">
-        <header className="sgm-list-panel__header">
-          <div className="sgm-list-panel__title">
-            <Package size={14} strokeWidth={2} />
-            <span>Sub Group Master</span>
-          </div>
-          <div className="sgm-list-panel__toolbar">
-            <button type="button" className="sgm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildSubGroupReportParams}
-            />
-            <label htmlFor="sgm-list-page-size" className="sgm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="sgm-list-page-size"
-              className="ng-select sgm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Package}
+          title="Sub Group Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Sub Group Master Report",
+            reportFileName: "RptSubGroupMaster_PG.rpt",
+            buildParams: buildSubGroupReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

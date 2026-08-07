@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { MapPin, Plus } from "lucide-react";
+import { MapPin } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -14,10 +12,8 @@ import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./LocationMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["location-master"];
 function buildLocationMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -32,7 +28,7 @@ function buildListParams() {
       prmcompanyid: getUserSession().companyId,
     }]),
     p_ErrCode: -1,
-    p_ErrMsg:  "",
+    p_ErrMsg: "",
   };
 }
 
@@ -72,20 +68,20 @@ export default function LocationMasterPage() {
     fetchEditRecord,
   } = useLocationMaster();
 
-  const [data,     setData]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [modalMode,    setModalMode]    = useState("add");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
 
   usePageHeader({
-    title:    "Location Master",
+    title: "Location Master",
     subtitle: "Browse locations or create a new one.",
     showBack: true,
-    backTo:   "/",
+    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);
@@ -128,36 +124,21 @@ export default function LocationMasterPage() {
   return (
     <div className="workspace-page lm-list-page">
       <section className="lm-list-panel lm-list-panel--fill">
-        <header className="lm-list-panel__header">
-          <div className="lm-list-panel__title">
-            <MapPin size={14} strokeWidth={2} />
-            <span>Location Master</span>
-          </div>
-          <div className="lm-list-panel__toolbar">
-            <button type="button" className="lm-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildLocationMasterReportParams}
-            />
-            <label htmlFor="lm-list-page-size" className="lm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="lm-list-page-size"
-              className="ng-select lm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={MapPin}
+          title="Location Master"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Location Master Report",
+            reportFileName: "TODO_LocationMaster.rpt",
+            buildParams: buildLocationMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

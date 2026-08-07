@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquareWarning, Plus } from "lucide-react";
+import { MessageSquareWarning } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -12,10 +10,8 @@ import { MCR_CONFIG, ENTRY_FORM_LABEL, buildMcrListJsonPayload } from "./constan
 import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["complaint-register"];
 function buildComplaintRegisterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -83,38 +79,21 @@ export default function ComplaintRegisterPage() {
   return (
     <div className="workspace-page mcr-list-page">
       <section className="mcr-list-panel mcr-list-panel--fill">
-        <header className="mcr-list-panel__header">
-          <div className="mcr-list-panel__title">
-            <MessageSquareWarning size={14} strokeWidth={2} />
-            <span>Complaint Register</span>
-          </div>
-          <div className="mcr-list-panel__toolbar">
-            <button type="button" className="mcr-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildComplaintRegisterReportParams}
-            />
-            <label htmlFor="mcr-list-page-size" className="mcr-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="mcr-list-page-size"
-              className="ng-select mcr-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={MessageSquareWarning}
+          title="Complaint Register"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Complaint Register Report",
+            reportFileName: "TODO_ComplaintRegister.rpt",
+            buildParams: buildComplaintRegisterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { DoorOpen, Plus } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -12,10 +10,8 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./constants";
 import "./AssetsReturnableGatePassOutPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-returnable-gate-pass-out"];
 function buildGatePassReportParams() {
   return [buildCompanyReportParam()];
 }
@@ -81,38 +77,21 @@ export default function AssetsReturnableGatePassOutPage() {
   return (
     <div className="workspace-page argo-list-page">
       <section className="argo-list-panel argo-list-panel--fill">
-        <header className="argo-list-panel__header">
-          <div className="argo-list-panel__title">
-            <DoorOpen size={14} strokeWidth={2} />
-            <span>Assets Returnable Gate Pass Out</span>
-          </div>
-          <div className="argo-list-panel__toolbar">
-            <button type="button" className="argo-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildGatePassReportParams}
-            />
-            <label htmlFor="argo-list-page-size" className="argo-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="argo-list-page-size"
-              className="ng-select argo-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={DoorOpen}
+          title="Assets Returnable Gate Pass Out"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Returnable Gate Pass Out Report",
+            reportFileName: "Rpt_ReturnableGatePass_PG.rpt",
+            buildParams: buildGatePassReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

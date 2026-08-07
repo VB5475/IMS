@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Package, Plus } from "lucide-react";
+import { Package } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -21,10 +19,8 @@ import { IM_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ItemMasterPage.css";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["item-master"];
 // prmisactive is always "1" (active only) — confirmed business rule, not a
 // live filter value: this list page has no Active/Inactive toggle to read from.
 function buildItemMasterReportParams() {
@@ -314,39 +310,20 @@ export default function ItemMasterPage() {
   return (
     <div className="workspace-page im-list-page">
       <section className="im-list-panel im-list-panel--fill">
-        <header className="im-list-panel__header">
-          <div className="im-list-panel__title">
-            <Package size={14} strokeWidth={2} />
-            <span>Item Master</span>
-          </div>
-          <div className="im-list-panel__toolbar">
-            <button type="button" className="im-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} /> Add New
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildItemMasterReportParams}
-            />
-            <label htmlFor="im-list-page-size" className="im-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="im-list-page-size"
-              className="ng-select im-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Package}
+          title="Item Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Item Master Report",
+            reportFileName: "RptPrintItems_PG.rpt",
+            buildParams: buildItemMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

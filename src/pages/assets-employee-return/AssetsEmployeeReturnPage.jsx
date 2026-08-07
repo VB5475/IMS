@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { RotateCcw, Plus } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import {
@@ -12,13 +12,9 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { AER_CONFIG, ENTRY_FORM_LABEL, buildAerListJsonPayload } from "./constants";
 import "./AssetsEmployeeReturnPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-employee-return"];
 function buildAerReportParams() {
   return [
     buildCompanyReportParam(),
@@ -84,38 +80,21 @@ export default function AssetsEmployeeReturnPage() {
   return (
     <div className="workspace-page aer-list-page">
       <section className="aer-list-panel aer-list-panel--fill">
-        <header className="aer-list-panel__header">
-          <div className="aer-list-panel__title">
-            <RotateCcw size={14} strokeWidth={2} />
-            <span>Assets Employee Return</span>
-          </div>
-          <div className="aer-list-panel__toolbar">
-            <button type="button" className="aer-list-panel__add-btn" onClick={handleAddNew}>
-              <Plus size={14} strokeWidth={2.5} />
-              {ENTRY_FORM_LABEL}
-            </button>
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildAerReportParams}
-            />
-            <label htmlFor="aer-list-page-size" className="aer-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="aer-list-page-size"
-              className="ng-select aer-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={RotateCcw}
+          title="Assets Employee Return"
+          addLabel={ENTRY_FORM_LABEL}
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Assets Employee Return Report",
+            reportFileName: "TODO_AssetsEmployeeReturn.rpt",
+            buildParams: buildAerReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

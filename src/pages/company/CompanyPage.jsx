@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Building } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useCompanyMaster } from "../../hooks/useCompanyMaster";
@@ -14,10 +12,8 @@ import { CO_CONFIG } from "./constants";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./CompanyPage.css";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-const PRINT_CONFIG = PRINT_REPORT_CONFIG["company"];
 function buildCompanyReportParams() {
   return [
     buildCompanyReportParam(),
@@ -117,34 +113,19 @@ export default function CompanyPage() {
   return (
     <div className="workspace-page co-list-page">
       <section className="co-list-panel co-list-panel--fill">
-        <header className="co-list-panel__header">
-          <div className="co-list-panel__title">
-            <Building size={14} strokeWidth={2} />
-            <span>Company</span>
-          </div>
-          <div className="co-list-panel__toolbar">
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildCompanyReportParams}
-            />
-            <label htmlFor="co-list-page-size" className="co-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="co-list-page-size"
-              className="ng-select co-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Building}
+          title="Company"
+          onRefresh={fetchList}
+          refreshing={loading}
+          print={{
+            reportTitle: "Company Report",
+            reportFileName: "TODO_Company.rpt",
+            buildParams: buildCompanyReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""

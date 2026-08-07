@@ -44,6 +44,7 @@ import {
   UserCheck,
   Scale,
   Wrench,
+  Cog,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -64,6 +65,7 @@ import {
   switchBaseProject,
 } from "../api/constants";
 import { RB_CODES, rbRoutePath } from "../constants/rbCodes";
+import { getRightsForPath } from "../session/moduleRights";
 import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
@@ -99,7 +101,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false },
-      
+
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN), icon: RotateCcw, label: "Assets Employee Return", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Building2, label: "Assets Department Issue", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false },
@@ -109,7 +111,6 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false },
-      // { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false },
     ],
   },
@@ -123,7 +124,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false },
     ],
   },
-   {
+  {
     label: "DMS",
     icon: FileStack,
     items: [
@@ -161,7 +162,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
     ],
   },
-   {
+  {
     label: "Admin",
     icon: Settings,
     items: [
@@ -173,7 +174,14 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
     ],
   },
-
+  {
+    label: "Utility",
+    icon: Cog,
+    items: [
+      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false },
+      { to: rbRoutePath(RB_CODES.ITEM_MASTER_UPLOAD_EXCEL), icon: FileSpreadsheet, label: "Item Master Upload Excel", end: false },
+    ],
+  },
 ];
 
 // Mirrors react-router NavLink's own isActive semantics (exact match when
@@ -209,7 +217,7 @@ export default function AppShell({ children }) {
   const [openSection, setOpenSection] = useState(() => findSectionForPath(location.pathname));
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
-  const { userName, userId, logout } = useUser();
+  const { userName, userId, logout, menuRights } = useUser();
 
   // Collapsed rail has no room for labels/search — reset any in-progress
   // filter so re-expanding the sidebar always starts from the full nav tree.
@@ -223,14 +231,25 @@ export default function AppShell({ children }) {
 
   const isSearching = navSearch.trim().length > 0;
 
+  // Modules the login may not view drop out of the tree entirely, and any
+  // section left with no items disappears with them. Entries whose target is
+  // not an RB module route (Dashboard) resolve to no RB code and stay.
+  const visibleNavSections = useMemo(() => {
+    void menuRights;
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => getRightsForPath(item.to).canView),
+    })).filter((section) => section.items.length > 0);
+  }, [menuRights]);
+
   const filteredNavSections = useMemo(() => {
     const query = navSearch.trim().toLowerCase();
-    if (!query) return NAV_SECTIONS;
-    return NAV_SECTIONS.map((section) => ({
+    if (!query) return visibleNavSections;
+    return visibleNavSections.map((section) => ({
       ...section,
       items: section.items.filter((item) => item.label.toLowerCase().includes(query)),
     })).filter((section) => section.items.length > 0);
-  }, [navSearch]);
+  }, [navSearch, visibleNavSections]);
 
   const toggleSection = (label) => {
     setOpenSection((prev) => (prev === label ? null : label));
@@ -526,7 +545,7 @@ export default function AppShell({ children }) {
             )}
             <div className="ent-topbar__titles">
               <h1 className="ent-topbar__title">{title}</h1>
-              {subtitle && <p className="ent-topbar__subtitle">{subtitle}</p>}
+              {/* {subtitle && <p className="ent-topbar__subtitle">{subtitle}</p>} */}
             </div>
             {/* <div className="ent-topbar__search">
               <Search size={14} />
