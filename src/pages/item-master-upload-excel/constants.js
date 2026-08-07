@@ -4,7 +4,6 @@ import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Item Master Upload Excel";
-export const PAGE_TITLE_NEW = "New Item Master Upload Excel";
 
 export const IMUE_CONFIG = {
   /** Detail-only RB (no RB_MASTER for this module). */
@@ -15,15 +14,11 @@ export const IMUE_CONFIG = {
 
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
 
-  // Gateway path follows the RB / sibling Asset Item Opening Excel convention.
-  SAVE_ENDPOINT: "/API/xluplditemmst/Post_RB_xluplditemmst_Save",
+  // Confirmed 2026-08-07 — body: prmYearID, prmLoginID, prmDivisionID,
+  // prmMode, prmStrMstJSON (uploaded rows as the master JSON array).
+  SAVE_ENDPOINT: "/API/XLItmMstUpload/Post_XLUploadItemMst_Save",
 
-  LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_xluplditemmst_list", // ⚠️ DBA CONFIRM
-  LIST_DIVISION_ID: 0,
-
-  // ⚠️ DBA CONFIRM — guessed from RB_DETAIL naming pending DBA sign-off.
-  DELETE_PROC_NAME: "pr_rb_xluplditemmst_delete",
+  DIVISION_ID: 0,
 
   STORAGE_ENTRY_META: "imueEntryMeta",
 };

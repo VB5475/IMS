@@ -4,7 +4,6 @@ import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Asset Item Opening Excel";
-export const PAGE_TITLE_NEW = "New Asset Item Opening Excel";
 
 export const AIME_CONFIG = {
   /** Detail-only RB (no RB_MASTER for this module). */
@@ -21,14 +20,6 @@ export const AIME_CONFIG = {
   SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
 
   SAVE_ENDPOINT: "/API/assetitmopnexl/Post_RB_assetitmopnexl_Save",
-
-  LIST_OBJ_TYPE: 2,
-  SP_LIST: "fn_tbl_rb_assetitmopnexl_list", // ⚠️ DBA CONFIRM
-  LIST_DIVISION_ID: 0,
-
-  // ⚠️ DBA CONFIRM — no confirmed delete proc in the backend registry for this
-  // module; guessed from the RB_DETAIL naming convention pending DBA sign-off.
-  DELETE_PROC_NAME: "pr_rb_assetitmopnexl_delete",
 
   STORAGE_ENTRY_META: "aimeEntryMeta",
 };

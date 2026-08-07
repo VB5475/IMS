@@ -137,14 +137,8 @@ const UserWiseGroupRightsPage = lazy(
   () => import("./pages/user-wise-group-rights/UserWiseGroupRightsPage")
 );
 const DivisionMasterPage = lazy(() => import("./pages/division-master/DivisionMasterPage"));
-const AssetsItemOpeningExcelPage = lazy(
-  () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelPage")
-);
 const AssetsItemOpeningExcelForm = lazy(
   () => import("./pages/assets-item-opening-excel/AssetsItemOpeningExcelForm")
-);
-const ItemMasterUploadExcelPage = lazy(
-  () => import("./pages/item-master-upload-excel/ItemMasterUploadExcelPage")
 );
 const ItemMasterUploadExcelForm = lazy(
   () => import("./pages/item-master-upload-excel/ItemMasterUploadExcelForm")
@@ -413,18 +407,8 @@ const router = createBrowserRouter([
           rbLeaf({ rb: RB.SUB_GROUP_MASTER, element: <SubGroupMasterPage /> }),
           rbLeaf({ rb: RB.LOCATION_MASTER, element: <LocationMasterPage /> }),
           rbLeaf({ rb: RB.DIVISION_MASTER, element: <DivisionMasterPage /> }),
-          rbModule({
-            rb: RB.ASSETS_ITEM_OPENING_EXCEL,
-            list: <AssetsItemOpeningExcelPage />,
-            form: <AssetsItemOpeningExcelForm />,
-            variants: ["new"],
-          }),
-          rbModule({
-            rb: RB.ITEM_MASTER_UPLOAD_EXCEL,
-            list: <ItemMasterUploadExcelPage />,
-            form: <ItemMasterUploadExcelForm />,
-            variants: ["new"],
-          }),
+          rbLeaf({ rb: RB.ASSETS_ITEM_OPENING_EXCEL, element: <AssetsItemOpeningExcelForm /> }),
+          rbLeaf({ rb: RB.ITEM_MASTER_UPLOAD_EXCEL, element: <ItemMasterUploadExcelForm /> }),
           rbLeaf({ rb: RB.SUPPLIER_MASTER, element: <SupplierMasterPage /> }),
           { path: "admin/master/customer-master", element: <CustomerMasterPage /> },
           rbLeaf({ rb: RB.USER_MASTER, element: <UserMasterPage /> }),
