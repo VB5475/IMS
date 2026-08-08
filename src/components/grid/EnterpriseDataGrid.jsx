@@ -148,6 +148,8 @@ function EnterpriseDataGrid({
   deleteProcName = "",
   onDeleteSuccess,
   selectable = false,
+  /** Radio-like selection — picking a row replaces the selection instead of adding to it, and hides the header "select all" checkbox. */
+  singleSelect = false,
   selectedRowKeys = [],
   onSelectionChange,
   getRowKey = (row, index) =>
@@ -408,12 +410,16 @@ function EnterpriseDataGrid({
     (row, index) => {
       if (!selectable || !onSelectionChange) return;
       const key = String(getRowKey(row, index));
+      if (singleSelect) {
+        onSelectionChange(selectedKeySet.has(key) ? [] : [key]);
+        return;
+      }
       const next = new Set(selectedKeySet);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       onSelectionChange(Array.from(next));
     },
-    [getRowKey, onSelectionChange, selectable, selectedKeySet]
+    [getRowKey, onSelectionChange, selectable, selectedKeySet, singleSelect]
   );
 
   const pageRowKeys = useMemo(
@@ -658,14 +664,16 @@ function EnterpriseDataGrid({
                           }}
                         >
                           {selectCol ? (
-                            <input
-                              type="checkbox"
-                              className="ng-row-select ng-row-select--header"
-                              checked={allPageRowsSelected}
-                              aria-label="Select all rows on this page"
-                              title="Select all rows on this page"
-                              onChange={togglePageSelection}
-                            />
+                            singleSelect ? null : (
+                              <input
+                                type="checkbox"
+                                className="ng-row-select ng-row-select--header"
+                                checked={allPageRowsSelected}
+                                aria-label="Select all rows on this page"
+                                title="Select all rows on this page"
+                                onChange={togglePageSelection}
+                              />
+                            )
                           ) : (
                             <div className="ng-th-inner">
                               <span

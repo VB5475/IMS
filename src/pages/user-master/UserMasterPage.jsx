@@ -211,8 +211,7 @@ export default function UserMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "User Master Report",
-            reportFileName: "TODO_UserMaster.rpt",
+            ...PRINT_CONFIG,
             buildParams: buildUserMasterReportParams,
           }}
           pageSize={pageSize}

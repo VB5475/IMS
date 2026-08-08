@@ -17,6 +17,7 @@ import "./AssetsWriteOffPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAwfReportParams() {
   return [
@@ -101,8 +102,7 @@ export default function AssetsWriteOffPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Write Off Report",
-            reportFileName: "TODO_AssetsWriteOff.rpt",
+            ...PRINT_REPORT_CONFIG["assets-write-off"],
             buildParams: buildAwfReportParams,
           }}
           pageSize={pageSize}

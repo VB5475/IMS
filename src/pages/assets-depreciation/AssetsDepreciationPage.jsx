@@ -16,6 +16,7 @@ import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildDpcReportParams() {
   return [
@@ -145,8 +146,7 @@ export default function AssetsDepreciationPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Company Act Depreciation Report",
-            reportFileName: "TODO_AssetsDepreciation.rpt",
+            ...PRINT_REPORT_CONFIG["assets-depreciation"],
             buildParams: buildDpcReportParams,
           }}
           pageSize={pageSize}

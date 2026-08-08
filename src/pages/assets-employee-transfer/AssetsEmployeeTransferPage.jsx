@@ -16,6 +16,7 @@ import "./AssetsEmployeeTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAetReportParams() {
   return [
@@ -90,8 +91,7 @@ export default function AssetsEmployeeTransferPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Employee Location Transfer Report",
-            reportFileName: "TODO_AssetsEmployeeTransfer.rpt",
+            ...PRINT_REPORT_CONFIG["assets-employee-transfer"],
             buildParams: buildAetReportParams,
           }}
           pageSize={pageSize}

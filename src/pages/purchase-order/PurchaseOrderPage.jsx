@@ -12,16 +12,26 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { resolveListRowId } from "../../utils/listColumns";
 import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
-function buildPurchaseOrderReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
+// PO's report SP takes its own param casing (@prmCompanyID/@prmloginID), not
+// the shared lowercase @prmcompanyid used by buildCompanyReportParam — don't
+// reuse that helper here. Selected row narrows to just that record; no
+// selection omits @prmidnumber entirely and prints the full list.
+function buildPurchaseOrderReportParams(selectedId) {
+  const session = getUserSession();
+  const params = [];
+  if (selectedId != null) {
+    params.push({ paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) });
+  }
+params.push({ paramtitle: "Company", paramname: "@prmCompanyID", paramval: String(session.companyId), paramtext: session.company?.companyname ?? session.company?.CompanyName ?? "" });
+params.push({ paramtitle: "Login", paramname: "@prmloginID", paramval: String(session.loginId), paramtext: session.userName ?? "" });
+  return params;
 }
 
 function buildListParams() {
@@ -53,6 +63,7 @@ export default function PurchaseOrderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selectedId, setSelectedId] = useState(null);
 
   usePageHeader({
     title: "Purchase Orders",
@@ -93,6 +104,11 @@ export default function PurchaseOrderPage() {
     navigate(`${PO_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handlePrintParams = useCallback(
+    () => buildPurchaseOrderReportParams(selectedId),
+    [selectedId]
+  );
+
   return (
     <div className="workspace-page po-list-page">
       <section className="po-list-panel po-list-panel--compact po-list-panel--fill">
@@ -104,9 +120,8 @@ export default function PurchaseOrderPage() {
           onRefresh={fetchOrders}
           refreshing={loading}
           print={{
-            reportTitle: "Purchase Order Report",
-            reportFileName: "TODO_PurchaseOrder.rpt",
-            buildParams: buildPurchaseOrderReportParams,
+            ...PRINT_REPORT_CONFIG["purchase-order"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -128,6 +143,11 @@ export default function PurchaseOrderPage() {
           deleteProcName={PO_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchOrders}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
         />
       </section>
     </div>

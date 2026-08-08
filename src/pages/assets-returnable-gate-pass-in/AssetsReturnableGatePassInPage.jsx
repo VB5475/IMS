@@ -6,14 +6,17 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { resolveListRowId } from "../../utils/listColumns";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { ARGI_CONFIG, ENTRY_FORM_LABEL, buildArgiListJsonPayload } from "./constants";
 import "./AssetsReturnableGatePassInPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
-function buildGatePassReportParams() {
-  return [buildCompanyReportParam()];
+function buildGatePassReportParams(selectedId) {
+  const params = [buildCompanyReportParam()];
+  return params;
 }
 
 function buildListParams() {
@@ -33,6 +36,7 @@ export default function AssetsReturnableGatePassInPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selectedId, setSelectedId] = useState(null);
 
   usePageHeader({
     title: "Assets Returnable Gate Pass In",
@@ -74,6 +78,11 @@ export default function AssetsReturnableGatePassInPage() {
     [navigate]
   );
 
+  const handlePrintParams = useCallback(
+    () => buildGatePassReportParams(selectedId),
+    [selectedId]
+  );
+
   return (
     <div className="workspace-page argi-list-page">
       <section className="argi-list-panel argi-list-panel--fill">
@@ -85,9 +94,8 @@ export default function AssetsReturnableGatePassInPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Returnable Gate Pass In Report",
-            reportFileName: "Rpt_ReturnableGatePass_PG.rpt",
-            buildParams: buildGatePassReportParams,
+            ...PRINT_REPORT_CONFIG["assets-returnable-gate-pass-in"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -109,6 +117,11 @@ export default function AssetsReturnableGatePassInPage() {
           deleteProcName={ARGI_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
         />
       </section>
     </div>

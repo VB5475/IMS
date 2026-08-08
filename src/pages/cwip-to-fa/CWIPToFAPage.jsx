@@ -16,6 +16,7 @@ import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildCWIPToFAReportParams() {
   return [
@@ -143,8 +144,7 @@ export default function CWIPToFAPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "CWIP To FA Report",
-            reportFileName: "TODO_CWIPToFA.rpt",
+            ...PRINT_REPORT_CONFIG["cwip-to-fa"],
             buildParams: buildCWIPToFAReportParams,
           }}
           pageSize={pageSize}

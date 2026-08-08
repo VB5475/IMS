@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import { Truck, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
-import PrintReportButton from "../../components/ui/PrintReportButton";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
@@ -110,8 +109,7 @@ export default function TransporterMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Transporter Master Report",
-            reportFileName: "TODO_TransporterMaster.rpt",
+            ...PRINT_CONFIG,
             buildParams: buildTransporterMasterReportParams,
           }}
           pageSize={pageSize}

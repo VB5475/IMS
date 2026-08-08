@@ -20,14 +20,16 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ItemMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 // prmisactive is always "1" (active only) — confirmed business rule, not a
 // live filter value: this list page has no Active/Inactive toggle to read from.
-function buildItemMasterReportParams() {
-  return [
+function buildItemMasterReportParams(selectedId) {
+  const params = [
     buildCompanyReportParam(),
     { paramtitle: "Is Active", paramname: "@prmisactive", paramval: "1", paramtext: "Active" },
   ];
+  return params;
 }
 
 function buildListParams() {
@@ -76,6 +78,7 @@ export default function ItemMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selectedId, setSelectedId] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -295,6 +298,11 @@ export default function ItemMasterPage() {
     fetchList();
   }, [fetchList, handleCloseModal]);
 
+  const handlePrintParams = useCallback(
+    () => buildItemMasterReportParams(selectedId),
+    [selectedId]
+  );
+
   const columns = useMemo(
     () => [
       ...buildListColumnsFromApi({ data, fieldDefs }),
@@ -317,9 +325,8 @@ export default function ItemMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Item Master Report",
-            reportFileName: "RptPrintItems_PG.rpt",
-            buildParams: buildItemMasterReportParams,
+            ...PRINT_REPORT_CONFIG["item-master"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -341,6 +348,11 @@ export default function ItemMasterPage() {
           deleteProcName={IM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
         />
       </section>
 

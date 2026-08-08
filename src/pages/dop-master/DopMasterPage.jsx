@@ -16,6 +16,7 @@ import "./DopMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildDopMasterReportParams() {
   return [buildCompanyReportParam()];
@@ -95,8 +96,7 @@ export default function DopMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "DOP Master Report",
-            reportFileName: "TODO_DopMaster.rpt",
+            ...PRINT_REPORT_CONFIG["dop-master"],
             buildParams: buildDopMasterReportParams,
           }}
           pageSize={pageSize}

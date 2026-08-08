@@ -58,6 +58,7 @@ import {
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
+import ChangePasswordModal from "../pages/change-password/ChangePasswordModal";
 import {
   PROD_BASE_PROJECT,
   BASE_PROJECT_OPTIONS,
@@ -215,6 +216,7 @@ export default function AppShell({ children }) {
   // collapse above. Opening a section auto-closes whichever one was open;
   // starts on the section containing the current route.
   const [openSection, setOpenSection] = useState(() => findSectionForPath(location.pathname));
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
   const { userName, userId, logout, menuRights } = useUser();
@@ -596,6 +598,14 @@ export default function AppShell({ children }) {
                   </div>
                   <button
                     type="button"
+                    className="ent-topbar__profile-dropdown-changepwd"
+                    onClick={() => setChangePasswordOpen(true)}
+                  >
+                    <KeyRound size={14} strokeWidth={1.75} />
+                    Change Password
+                  </button>
+                  <button
+                    type="button"
                     className="ent-topbar__profile-dropdown-logout"
                     onClick={handleLogout}
                   >
@@ -610,6 +620,12 @@ export default function AppShell({ children }) {
 
         <main className="ent-content enterprise-content">{children}</main>
       </div>
+
+      <ChangePasswordModal
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        onPasswordChanged={handleLogout}
+      />
     </div>
   );
 }

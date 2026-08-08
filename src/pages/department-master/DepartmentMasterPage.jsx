@@ -15,6 +15,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DepartmentMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildDepartmentMasterReportParams() {
   return [
@@ -151,8 +152,7 @@ export default function DepartmentMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Department Master Report",
-            reportFileName: "TODO_DepartmentMaster.rpt",
+            ...PRINT_REPORT_CONFIG["department-master"],
             buildParams: buildDepartmentMasterReportParams,
           }}
           pageSize={pageSize}

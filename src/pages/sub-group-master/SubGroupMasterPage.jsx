@@ -12,6 +12,7 @@ import { SGM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 // Sub Group Master's report takes no parameters — unlike Main Group / Sub
 // Main Group, which scope by Company (buildCompanyReportParam).
@@ -148,8 +149,7 @@ export default function SubGroupMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Sub Group Master Report",
-            reportFileName: "RptSubGroupMaster_PG.rpt",
+            ...PRINT_REPORT_CONFIG["sub-group-master"],
             buildParams: buildSubGroupReportParams,
           }}
           pageSize={pageSize}

@@ -26,6 +26,9 @@ export const RB_CODES = Object.freeze({
   LOCATION_MASTER: "rb_genlocationmst",
   DIVISION_MASTER: "rb_divisionmst",
   SUPPLIER_MASTER: "rb_suppliermst",
+  // Own RB per MRD_Template4Customer Master.docx (2026-08-08) — previously
+  // shared rb_suppliermst with Supplier Master (see customer-master/constants.js).
+  CUSTOMER_MASTER: "rb_customermst",
   ACCOUNT_GROUP_MASTER: "rb_acountgroupmst",
   ACCOUNT_MASTER: "rb_accountmst",
   TRANSPORTER_MASTER: "rb_transportermst",

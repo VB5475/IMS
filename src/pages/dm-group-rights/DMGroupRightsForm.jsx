@@ -261,9 +261,15 @@ export default function DMGroupRightsForm({
         funccode: DMGR_CONFIG.FORM_TAG,
       };
 
-      const detRows = rows.map(({ id, _doctypeLabel, _subtypeLabel, ...rest }) =>
-        buildSaveRowFromColumns(rest, saveColumnDefs, context)
-      );
+      // Empty grid (e.g. the very first Get Detail click for a freshly
+      // picked Group/Department) still needs to carry the same header/
+      // context params Save would send — a single context-only row (real
+      // doc-right fields default to blank/zero) instead of a bare "[]".
+      const detRows = rows.length > 0
+        ? rows.map(({ id, _doctypeLabel, _subtypeLabel, ...rest }) =>
+            buildSaveRowFromColumns(rest, saveColumnDefs, context)
+          )
+        : [buildSaveRowFromColumns({}, saveColumnDefs, context)];
 
       const payload = withSaveContextFields(
         buildSaveJsonFields({ label: DMGR_CONFIG.FORM_TAG, mst: detRows }),
@@ -293,14 +299,12 @@ export default function DMGroupRightsForm({
     setGridsError(null);
     try {
       // Save first — whatever's currently on screen (e.g. unsaved checkbox
-      // edits from before this click), THEN fetch. Skipped when there are no
-      // rows yet (e.g. the very first Get Detail click for a freshly picked
-      // Group/Department) — the Save button itself refuses to save an empty
-      // grid (see handleSave below), so the auto-save must match that and
-      // never fire persistRows([]) — that would send a payload Save would
-      // never send. Silent: not a user-clicked Save, and failure here must
-      // not block the fetch below.
-      if (!skipPreSave && gridRows.length > 0) {
+      // edits from before this click), THEN fetch. Always fires, even when
+      // gridRows is empty (e.g. the very first Get Detail click for a
+      // freshly picked Group/Department) — per explicit instruction, the
+      // call must go out regardless of row count. Silent: not a user-clicked
+      // Save, and failure here must not block the fetch below.
+      if (!skipPreSave) {
         try {
           await persistRows(gridRows, { silent: true });
         } catch (err) {

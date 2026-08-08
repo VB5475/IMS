@@ -12,6 +12,7 @@ import "./PurchaseQuotationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildPurchaseQuotationReportParams() {
   return [
@@ -107,8 +108,7 @@ export default function PurchaseQuotationPage() {
           onRefresh={fetchQuotations}
           refreshing={loading}
           print={{
-            reportTitle: "Purchase Quotation Report",
-            reportFileName: "TODO_PurchaseQuotation.rpt",
+            ...PRINT_REPORT_CONFIG["purchase-quotation"],
             buildParams: buildPurchaseQuotationReportParams,
           }}
           pageSize={pageSize}

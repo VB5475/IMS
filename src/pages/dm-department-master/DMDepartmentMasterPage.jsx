@@ -13,6 +13,7 @@ import DMDepartmentMasterForm from "./DMDepartmentMasterForm";
 import { DMDEPT_CONFIG } from "./constants";
 import "./DMDepartmentMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildDMDeptReportParams() {
   return [buildCompanyReportParam()];
@@ -137,8 +138,7 @@ export default function DMDepartmentMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "DMS Department Master Report",
-            reportFileName: "TODO_DMDepartmentMaster.rpt",
+            ...PRINT_REPORT_CONFIG["dm-department-master"],
             buildParams: buildDMDeptReportParams,
           }}
           pageSize={pageSize}

@@ -758,6 +758,7 @@
   flex-shrink: 0;
 }
 
+.ent-topbar__profile-dropdown-changepwd,
 .ent-topbar__profile-dropdown-logout {
   display: flex;
   align-items: center;
@@ -772,6 +773,11 @@
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+}
+
+.ent-topbar__profile-dropdown-changepwd:hover {
+  background: var(--bg-tint);
+  color: var(--primary);
 }
 
 .ent-topbar__profile-dropdown-logout:hover {

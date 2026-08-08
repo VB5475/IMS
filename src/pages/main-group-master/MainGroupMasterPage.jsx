@@ -14,9 +14,11 @@ import "./MainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
-function buildMainGroupReportParams() {
-  return [buildCompanyReportParam()];
+function buildMainGroupReportParams(selectedId) {
+  const params = [buildCompanyReportParam()];
+  return params;
 }
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -61,6 +63,7 @@ export default function MainGroupMasterPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   usePageHeader({
     title: "Main Group Master",
@@ -104,6 +107,11 @@ export default function MainGroupMasterPage() {
     fetchList();
   }, [fetchList]);
 
+  const handlePrintParams = useCallback(
+    () => buildMainGroupReportParams(selectedId),
+    [selectedId]
+  );
+
   const columns = useMemo(
     () => [
       ...buildListColumnsFromApi({ data, fieldDefs }),
@@ -130,9 +138,8 @@ export default function MainGroupMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Main Group Master Report",
-            reportFileName: "RptMainGroupList_PG.rpt",
-            buildParams: buildMainGroupReportParams,
+            ...PRINT_REPORT_CONFIG["main-group-master"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -154,6 +161,11 @@ export default function MainGroupMasterPage() {
           deleteProcName={MGM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
         />
       </section>
 

@@ -16,6 +16,7 @@ import "./AssetsItemOpeningPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAopReportParams() {
   return [
@@ -138,8 +139,7 @@ export default function AssetsItemOpeningPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Item Opening Report",
-            reportFileName: "TODO_AssetsItemOpening.rpt",
+            ...PRINT_REPORT_CONFIG["assets-item-opening"],
             buildParams: buildAopReportParams,
           }}
           pageSize={pageSize}

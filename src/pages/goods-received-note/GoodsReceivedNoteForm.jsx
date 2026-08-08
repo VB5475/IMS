@@ -769,10 +769,13 @@ export default function GoodsReceivedNoteForm() {
       if (isDirect) {
         await groupFilter.fetchMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
       } else {
+        // fn_tbl_rb_purgrnselpodet (SP_ITEM_PICKER_PO) doesn't take
+        // prmtrandate either — same as the Direct picker above.
+        const { prmtrandate: _prmtrandate, ...poPickerPayload } = buildItemPickerJsonPayload(headerValues, loginId);
         const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: itemPickerSp,
-          JSon: JSON.stringify([buildItemPickerJsonPayload(headerValues, loginId)]),
+          JSon: JSON.stringify([poPickerPayload]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
@@ -798,11 +801,15 @@ export default function GoodsReceivedNoteForm() {
     setItemModalError(null);
     try {
       await groupFilter.applyFilter(async () => {
+        // fn_tbl_rb_purgrnselonlyitem (SP_ITEM_PICKER_DIRECT) doesn't take
+        // prmtrandate — drop it here rather than in the shared
+        // buildItemPickerJsonPayload (other purchase modules still need it).
+        const { prmtrandate: _prmtrandate, ...directPayload } = buildItemPickerJsonPayload(headerValues, loginId);
         const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: OBJ_TYPE.FUNCTION,
           ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
           JSon: JSON.stringify([{
-            ...buildItemPickerJsonPayload(headerValues, loginId),
+            ...directPayload,
             prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
             prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
           }]),

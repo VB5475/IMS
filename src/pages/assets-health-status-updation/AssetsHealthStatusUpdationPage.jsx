@@ -11,6 +11,7 @@ import "./AssetsHealthStatusUpdationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAhsReportParams() {
   return [
@@ -87,8 +88,7 @@ export default function AssetsHealthStatusUpdationPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Health Status Updation Report",
-            reportFileName: "TODO_AssetsHealthStatusUpdation.rpt",
+            ...PRINT_REPORT_CONFIG["assets-health-status-updation"],
             buildParams: buildAhsReportParams,
           }}
           pageSize={pageSize}

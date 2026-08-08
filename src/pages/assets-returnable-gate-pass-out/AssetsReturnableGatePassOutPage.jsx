@@ -6,14 +6,18 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { resolveListRowId } from "../../utils/listColumns";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./constants";
 import "./AssetsReturnableGatePassOutPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
-function buildGatePassReportParams() {
-  return [buildCompanyReportParam()];
+function buildGatePassReportParams(selectedId) {
+  const params = [buildCompanyReportParam()];
+  
+  return params;
 }
 
 function buildListParams() {
@@ -33,6 +37,7 @@ export default function AssetsReturnableGatePassOutPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selectedId, setSelectedId] = useState(null);
 
   usePageHeader({
     title: "Assets Returnable Gate Pass Out",
@@ -74,6 +79,11 @@ export default function AssetsReturnableGatePassOutPage() {
     [navigate]
   );
 
+  const handlePrintParams = useCallback(
+    () => buildGatePassReportParams(selectedId),
+    [selectedId]
+  );
+
   return (
     <div className="workspace-page argo-list-page">
       <section className="argo-list-panel argo-list-panel--fill">
@@ -85,9 +95,8 @@ export default function AssetsReturnableGatePassOutPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Returnable Gate Pass Out Report",
-            reportFileName: "Rpt_ReturnableGatePass_PG.rpt",
-            buildParams: buildGatePassReportParams,
+            ...PRINT_REPORT_CONFIG["assets-returnable-gate-pass-out"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -109,6 +118,11 @@ export default function AssetsReturnableGatePassOutPage() {
           deleteProcName={ARGO_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
         />
       </section>
     </div>

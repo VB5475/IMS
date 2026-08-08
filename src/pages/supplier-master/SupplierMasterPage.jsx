@@ -14,6 +14,7 @@ import { formatTranDate } from "../../utils/dateFormat";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildSupplierMasterReportParams() {
   return [
@@ -136,8 +137,7 @@ export default function SupplierMasterPage() {
           onRefresh={fetchSupplierList}
           refreshing={loading}
           print={{
-            reportTitle: "Supplier Master Report",
-            reportFileName: "TODO_SupplierMaster.rpt",
+            ...PRINT_REPORT_CONFIG["supplier-master"],
             buildParams: buildSupplierMasterReportParams,
           }}
           pageSize={pageSize}
