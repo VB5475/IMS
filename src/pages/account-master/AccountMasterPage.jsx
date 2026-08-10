@@ -13,6 +13,7 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAccountMasterReportParams() {
   return [
@@ -167,8 +168,7 @@ export default function AccountMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Account Master Report",
-            reportFileName: "TODO_AccountMaster.rpt",
+            ...PRINT_REPORT_CONFIG["account-master"],
             buildParams: buildAccountMasterReportParams,
           }}
           pageSize={pageSize}

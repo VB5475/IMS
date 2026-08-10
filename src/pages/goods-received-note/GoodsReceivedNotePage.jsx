@@ -12,6 +12,7 @@ import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildGoodsReceivedNoteReportParams() {
   return [
@@ -106,8 +107,7 @@ export default function GoodsReceivedNotePage() {
           onRefresh={fetchGrnList}
           refreshing={loading}
           print={{
-            reportTitle: "Goods Received Note Report",
-            reportFileName: "TODO_GoodsReceivedNote.rpt",
+            ...PRINT_REPORT_CONFIG["goods-received-note"],
             buildParams: buildGoodsReceivedNoteReportParams,
           }}
           pageSize={pageSize}

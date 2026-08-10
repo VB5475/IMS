@@ -13,6 +13,7 @@ import DocumentSubTypeMasterForm from "./DocumentSubTypeMasterForm";
 import { DOCSUBTYPE_CONFIG } from "./constants";
 import "./DocumentSubTypeMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildDocSubTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -138,8 +139,7 @@ export default function DocumentSubTypeMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "DMS Document SubType Master Report",
-            reportFileName: "TODO_DocumentSubTypeMaster.rpt",
+            ...PRINT_REPORT_CONFIG["document-subtype-master"],
             buildParams: buildDocSubTypeReportParams,
           }}
           pageSize={pageSize}

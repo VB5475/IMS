@@ -19,6 +19,9 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserMasterPage.css";
 
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+
+const PRINT_CONFIG = PRINT_REPORT_CONFIG["user-master"];
 function buildUserMasterReportParams() {
   return [
     buildCompanyReportParam(),
@@ -208,8 +211,7 @@ export default function UserMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "User Master Report",
-            reportFileName: "TODO_UserMaster.rpt",
+            ...PRINT_CONFIG,
             buildParams: buildUserMasterReportParams,
           }}
           pageSize={pageSize}

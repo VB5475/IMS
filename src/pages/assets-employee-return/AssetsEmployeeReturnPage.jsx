@@ -14,6 +14,7 @@ import "./AssetsEmployeeReturnPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAerReportParams() {
   return [
@@ -88,8 +89,7 @@ export default function AssetsEmployeeReturnPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Employee Return Report",
-            reportFileName: "TODO_AssetsEmployeeReturn.rpt",
+            ...PRINT_REPORT_CONFIG["assets-employee-return"],
             buildParams: buildAerReportParams,
           }}
           pageSize={pageSize}

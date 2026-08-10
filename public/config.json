@@ -1,5 +1,10 @@
 {
   "apiMode": "ALL",
   "_apiModeOptions": ["IMS_LIVE", "IMS_PGLIVE", "ALL"],
-  "_note": "IMS_LIVE / IMS_PGLIVE pin the app to that backend and hide the environment switcher. ALL shows the switcher and lets the user pick. Edit this file on the server and reload — no rebuild needed."
+  "_note": "IMS_LIVE / IMS_PGLIVE pin the app to that backend and hide the environment switcher. ALL shows the switcher and lets the user pick. Edit this file on the server and reload — no rebuild needed.",
+  "uiGuardIsAllow": "Yes",
+  "_uiGuardIsAllowOptions": ["Yes", "No"],
+  "_uiGuardNote": "No -> right-click and DevTools shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U) are blocked with a toast. Yes -> guard off, normal browser behavior.",
+  "baseDomain": "http://122.179.135.100:8095/",
+  "_baseDomainNote": "Root server URL (protocol + host + port, trailing slash required) that all API base URLs are built from. Edit this file on the server and reload — no rebuild needed."
 }

@@ -98,6 +98,17 @@ function mapDropdownTable(colName, table) {
   return [];
 }
 
+function mapLocationOptions(table) {
+  return (table ?? []).map((row) => {
+    const value = row.locationid ?? row.LocationID ?? row.idnumber ?? row.IDNumber;
+    if (value == null || value === "") return null;
+    return {
+      value: String(Math.round(Number(value))),
+      label: String(row.locationname ?? row.LocationName ?? row.location ?? row.Location ?? row.name ?? value),
+    };
+  }).filter(Boolean);
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -137,9 +148,35 @@ export function useUserMaster() {
     return Object.fromEntries(entries);
   }, [fetchSpTable]);
 
+  // Location takes real params (company/login/type) — doesn't fit the no-arg
+  // UM_DROPDOWN_SP/fetchSpTable pattern above, so it's fetched separately.
+  const fetchLocationOptions = useCallback(async () => {
+    const session = getUserSession();
+    const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: 2,
+      ObjName: UM_CONFIG.SP_LOCATION,
+      JSon: JSON.stringify([{
+        prmcompanyid: session.companyId,
+        prmloginid: session.loginId,
+        prmlocationtype: "",
+      }]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    }).catch((err) => {
+      console.warn(`[UM] ${UM_CONFIG.SP_LOCATION} fetch failed:`, err);
+      return null;
+    });
+    const table = Array.isArray(res) ? res : (res?.Table ?? res?.Links ?? []);
+    return mapLocationOptions(table);
+  }, [get]);
+
   const fetchAllDropdowns = useCallback(async () => {
-    return fetchDropdownsForCols(Object.keys(UM_DROPDOWN_SP));
-  }, [fetchDropdownsForCols]);
+    const [genericOpts, locationOpts] = await Promise.all([
+      fetchDropdownsForCols(Object.keys(UM_DROPDOWN_SP)),
+      fetchLocationOptions(),
+    ]);
+    return { ...genericOpts, locationid: locationOpts };
+  }, [fetchDropdownsForCols, fetchLocationOptions]);
 
   const fetchHeaderMeta = useCallback(async () => {
     setHeaderFetching(true);
@@ -197,9 +234,14 @@ export function useUserMaster() {
   // Manual per-field refresh — e.g. a "refresh" button next to a dropdown, or
   // after a quick-add modal (Group/Department) saves a new record.
   const refreshDropdownField = useCallback(async (colName) => {
+    if (colName === "locationid") {
+      const opts = await fetchLocationOptions();
+      setDropdownOptions((prev) => ({ ...prev, locationid: opts }));
+      return;
+    }
     const refreshed = await fetchDropdownsForCols([colName]);
     setDropdownOptions((prev) => ({ ...prev, ...refreshed }));
-  }, [fetchDropdownsForCols]);
+  }, [fetchDropdownsForCols, fetchLocationOptions]);
 
   // PG returns lowercase keys — spread master directly; clear password fields.
   const fetchEditRecord = useCallback(
@@ -227,6 +269,11 @@ export function useUserMaster() {
           loginid: Number(master.loginid ?? loginId) || session.loginId,
           sessionid: Number(master.sessionid ?? sessionId) || DEFAULT_SESSION_ID,
           funccode: master.funccode ?? UM_CONFIG.RB_MASTER,
+          // fn_tbl_rb_genusermst returns this field under a misspelled key
+          // ("locatoinid", letters transposed) — DBA-confirmed live 2026-08-07.
+          // Fall back to it so Edit mode still fills the Location dropdown
+          // until the backend SP is corrected.
+          locationid: master.locationid ?? master.locatoinid,
           pwd: "",       // never prefill password from API
           verifypwd: "",       // synthetic confirm field
         } : null,
@@ -269,6 +316,15 @@ export function useUserMaster() {
         const opt = { value: String(deptId), label: String(deptLabel) };
         if (!next.deptid?.some((o) => o.value === opt.value))
           next = { ...next, deptid: [opt, ...(next.deptid || [])] };
+      }
+
+      // "locatoinid" fallback — see the same-named comment in fetchEditRecord above.
+      const locationId = master.locationid ?? master.LocationID ?? master.locatoinid;
+      const locationLabel = master.locationname ?? master.LocationName ?? master.location ?? master.Location;
+      if (locationId != null && locationLabel) {
+        const opt = { value: String(locationId), label: String(locationLabel) };
+        if (!next.locationid?.some((o) => o.value === opt.value))
+          next = { ...next, locationid: [opt, ...(next.locationid || [])] };
       }
 
       return next;

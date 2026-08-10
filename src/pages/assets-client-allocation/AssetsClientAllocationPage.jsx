@@ -11,6 +11,7 @@ import "./AssetsClientAllocationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAcaReportParams() {
   return [
@@ -87,8 +88,7 @@ export default function AssetsClientAllocationPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Client Allocation Report",
-            reportFileName: "TODO_AssetsClientAllocation.rpt",
+            ...PRINT_REPORT_CONFIG["assets-client-allocation"],
             buildParams: buildAcaReportParams,
           }}
           pageSize={pageSize}

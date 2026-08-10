@@ -435,7 +435,7 @@ export default function TxnEntryPage() {
           <EntryGrid
             ref={gridRef}
             config={gridConfig}
-            title="Invoice Line Items"
+            title="Line Items"
             onSave={handleSave}
             onCellEvent={handleCellEvent}
           />

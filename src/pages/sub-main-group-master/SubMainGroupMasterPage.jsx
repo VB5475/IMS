@@ -13,9 +13,15 @@ import "./SubMainGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
-function buildSubMainGroupReportParams() {
-  return [buildCompanyReportParam()];
+function buildSubMainGroupReportParams(selectedId) {
+  const params = [buildCompanyReportParam()];
+  return params;
+}
+
+function resolveSubMainGroupRowId(row) {
+  return row?.IDNumber ?? row?.idnumber ?? null;
 }
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -87,6 +93,7 @@ export default function SubMainGroupMasterPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   usePageHeader({
     title: "Sub Main Group Master",
@@ -132,6 +139,11 @@ export default function SubMainGroupMasterPage() {
 
   const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
+  const handlePrintParams = useCallback(
+    () => buildSubMainGroupReportParams(selectedId),
+    [selectedId]
+  );
+
   return (
     <div className="workspace-page smgm-list-page">
       <section className="smgm-list-panel smgm-list-panel--fill">
@@ -143,9 +155,8 @@ export default function SubMainGroupMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Sub Main Group Master Report",
-            reportFileName: "RptSubMainGroupList_PG.rpt",
-            buildParams: buildSubMainGroupReportParams,
+            ...PRINT_REPORT_CONFIG["sub-main-group-master"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -167,6 +178,11 @@ export default function SubMainGroupMasterPage() {
           deleteProcName={SMGM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveSubMainGroupRowId(row) ?? "")}
         />
       </section>
 

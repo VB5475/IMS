@@ -11,6 +11,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./UserGroupPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildUserGroupReportParams() {
   return [
@@ -116,8 +117,7 @@ export default function UserGroupPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "User Group Report",
-            reportFileName: "TODO_UserGroup.rpt",
+            ...PRINT_REPORT_CONFIG["user-group"],
             buildParams: buildUserGroupReportParams,
           }}
           pageSize={pageSize}

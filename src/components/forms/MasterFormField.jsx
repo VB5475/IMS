@@ -73,6 +73,10 @@ export default function MasterFormField({
   onRefresh = null,
   quickAdd = null,
   error = null,
+  // Dropdown-only (like onRefresh/quickAdd above) — greys out the combobox
+  // while still showing it, for fields gated on another field's value
+  // (e.g. Department disabled until a define-type checkbox is chosen).
+  disabled = false,
 }) {
   const notify = useNotification();
   const lastValidRef = useRef(value);
@@ -224,6 +228,7 @@ export default function MasterFormField({
           placeholder={placeholder ?? "Select..."}
           ariaLabel={label}
           className={dropdownClassName}
+          disabled={disabled}
         />
       );
 

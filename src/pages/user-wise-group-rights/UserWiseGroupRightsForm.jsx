@@ -415,21 +415,21 @@ export default function UserWiseGroupRightsForm({
         <footer className="uwgr-footer">
           <button
             type="button"
-            className="master-modal-btn master-modal-btn--cancel"
-            onClick={handleCancel}
-            disabled={isSaving || gridsLoading}
-          >
-            <RotateCcw size={13} strokeWidth={2} />
-            Cancel
-          </button>
-          <button
-            type="button"
             className="master-modal-btn master-modal-btn--save"
             onClick={handleSave}
             disabled={isSaving || gridsLoading}
           >
             <Save size={13} strokeWidth={2} />
             {isSaving ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            className="master-modal-btn master-modal-btn--cancel"
+            onClick={handleCancel}
+            disabled={isSaving || gridsLoading}
+          >
+            <RotateCcw size={13} strokeWidth={2} />
+            Cancel
           </button>
         </footer>
       </section>

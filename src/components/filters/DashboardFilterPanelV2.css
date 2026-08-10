@@ -227,7 +227,7 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: capitalize;
 }
 
 .dashboard-filter-v2 .dfv2-applied__chips {

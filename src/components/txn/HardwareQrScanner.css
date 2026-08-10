@@ -41,7 +41,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: capitalize;
   color: var(--text-secondary);
 }
 
@@ -137,7 +137,7 @@
 .hw-qr__history-title {
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
 }
@@ -220,7 +220,7 @@
   width: 44px;
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.03em;
   color: var(--text-secondary);
 }

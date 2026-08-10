@@ -11,6 +11,7 @@ import "./AssetsRevaluationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildArvReportParams() {
   return [
@@ -87,8 +88,7 @@ export default function AssetsRevaluationPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Revaluation Report",
-            reportFileName: "TODO_AssetsRevaluation.rpt",
+            ...PRINT_REPORT_CONFIG["assets-revaluation"],
             buildParams: buildArvReportParams,
           }}
           pageSize={pageSize}

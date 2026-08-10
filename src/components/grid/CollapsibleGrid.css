@@ -70,7 +70,7 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: capitalize;
   color: var(--cg-badge-text);
   background: var(--cg-badge-bg);
   border: 1px solid var(--cg-badge-border);
@@ -113,7 +113,7 @@
 .cg-header__title {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
   color: var(--cg-header-text);
 }
@@ -203,7 +203,7 @@
   font-size: var(--font-size-xs) !important;
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: capitalize;
   border-bottom: 1px solid var(--cg-child-head-border) !important;
   border-right: 1px solid var(--border) !important;
   min-height: 24px;

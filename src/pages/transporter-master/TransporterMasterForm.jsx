@@ -324,7 +324,7 @@ export default function TransporterMasterForm() {
       buildSaveJsonFields({
         label: TM_CONFIG.FORM_TAG,
         mst: mstRow,
-        extra: { [TM_CONFIG.SAVE_DETAIL_JSON_KEY]: JSON.stringify(detRows) },
+        extra: { [TM_CONFIG.SAVE_DETAIL_JSON_KEY]:detRows },
       }),
       { divisionId: 0, isEdit: isEditRoute }
     );

@@ -50,7 +50,7 @@
   border-right: 1px solid #b8cfe6;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.06em;
   display: flex;
   align-items: center;
@@ -144,18 +144,18 @@
 .dmgr-grid__title {
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.07em;
   color: var(--primary);
 }
 
-.dmgr-grid__select-all {
+.dmgr-footer-select-all {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 4px 10px 4px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
+  background: #fff;
   border: 1px solid #d4e0ed;
   cursor: pointer;
   font-size: 11px;
@@ -163,9 +163,30 @@
   color: var(--text-secondary);
 }
 
-.dmgr-grid__select-all:hover {
-  background: #fff;
+.dmgr-footer-select-all:hover {
   border-color: var(--primary);
+}
+
+.dmgr-footer-select-all input {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.dmgr-grid__col-select-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.dmgr-grid__col-select-all input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  accent-color: var(--primary);
 }
 
 .dmgr-grid__table-wrap {
@@ -196,7 +217,7 @@
   background: #f8fafc;
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.06em;
   color: var(--text-secondary);
   box-shadow: 0 1px 0 #edf2f7;

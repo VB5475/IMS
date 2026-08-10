@@ -14,12 +14,10 @@ import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumnsByField } from "../../utils/columnValidation";
+import { isMasterFieldLocked } from "../../utils/masterFormUtils";
 import { useNotification } from "../../context/NotificationContext";
 import { SMGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./SubMainGroupMasterPage.css";
-
-// Fields locked during edit mode (RB colnames — all lowercase)
-const LOCK_ON_EDIT = new Set(["itemtypeid", "submaingroupcode", "fixedassetaccountid"]);
 
 // Fields that render as checkbox despite colctrltype=1 (API returns numeric 0/1)
 const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration", "issrnocontrolreq"]);
@@ -124,9 +122,7 @@ export default function SubMainGroupMasterForm({
   }), [itemTypeOptions, mainGroupOptions, fixedAssetAccOptions]);
 
   function isLocked(field) {
-    if (!isEditMode) return true;
-    if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.colname);
+    return isMasterFieldLocked(field, { isAddMode, isEditMode });
   }
 
   // Cascade: itemtypeid → clear maingroupid + reload options
@@ -295,14 +291,14 @@ export default function SubMainGroupMasterForm({
     }
     return (
       <div className="master-modal-footer-actions">
-        <button type="button" className="master-modal-btn master-modal-btn--cancel"
-                onClick={handleCancelEdit} disabled={isSaving}>
-          Cancel
-        </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
                 onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+                onClick={handleCancelEdit} disabled={isSaving}>
+          Cancel
         </button>
       </div>
     );

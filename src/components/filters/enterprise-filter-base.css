@@ -66,7 +66,7 @@
   color: #ffffff;
   letter-spacing: 0.02em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  text-transform: uppercase;
+  text-transform: capitalize;
 }
 
 .filter-panel-badge {
@@ -110,7 +110,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.06em;
   line-height: 1;
   white-space: nowrap;

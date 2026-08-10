@@ -210,7 +210,7 @@
 .aei-last-qr__label {
   flex-shrink: 0;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.03em;
   color: var(--primary);
 }

@@ -6,7 +6,7 @@
 //   • filterType on each column controls which filter UI renders
 //     ('list' | 'date' | 'number' | 'text')
 
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Filter, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../api/useApi";
@@ -97,6 +97,14 @@ function orderColumnsWithActionsFirst(columns, selectable = false) {
  * pageSizeOptions{number[]}        Rows-per-page choices (default: [5,10,20,50,99])
  * emptyMessage   {string}          Empty-state text (default: 'No records found.')
  * bottomPanelExtras {ReactNode}    Extra controls rendered in the pagination bar
+ * searchable     {boolean}         Enable text search across visible columns
+ * hideSearchBar  {boolean}         Suppress the grid's own search row — use when the
+ *                                  page renders its own <GridSearch> elsewhere (e.g. title bar)
+ * searchQuery    {string}          Controlled search value; pairs with onSearchChange +
+ *                                  hideSearchBar to drive filtering from an external search box
+ * onSearchChange {(q) => void}     Required alongside searchQuery for controlled search
+ * onSearchStats  {(stats) => void} Called with { matchCount, totalCount } on every filter
+ *                                  pass, so an external search box can show the same counts
  *
  * Column shape
  * ────────────
@@ -133,9 +141,15 @@ function EnterpriseDataGrid({
   fill = false,
   variant = "",
   searchable = false,
+  hideSearchBar = false,
+  searchQuery: controlledSearchQuery,
+  onSearchChange: controlledOnSearchChange,
+  onSearchStats,
   deleteProcName = "",
   onDeleteSuccess,
   selectable = false,
+  /** Radio-like selection — picking a row replaces the selection instead of adding to it, and hides the header "select all" checkbox. */
+  singleSelect = false,
   selectedRowKeys = [],
   onSelectionChange,
   getRowKey = (row, index) =>
@@ -150,7 +164,9 @@ function EnterpriseDataGrid({
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [internalSearchQuery, setInternalSearchQuery] = useState("");
+  const isSearchControlled = controlledSearchQuery !== undefined;
+  const searchQuery = isSearchControlled ? controlledSearchQuery : internalSearchQuery;
   const [deletedRowIds, setDeletedRowIds] = useState(() => new Set());
   const [deletingRowIds, setDeletingRowIds] = useState(() => new Set());
   const [deleteConfirmState, setDeleteConfirmState] = useState({
@@ -160,7 +176,19 @@ function EnterpriseDataGrid({
   });
   const itemsPerPage = pageSizeProp ?? internalPageSize;
 
-  const handleSearchChange = useCallback((q) => { setSearchQuery(q); setCurrentPage(1); }, []);
+  const handleSearchChange = useCallback(
+    (q) => {
+      if (isSearchControlled) controlledOnSearchChange?.(q);
+      else setInternalSearchQuery(q);
+    },
+    [isSearchControlled, controlledOnSearchChange]
+  );
+
+  // Reset to page 1 whenever the search query changes, whether it was
+  // typed into the grid's own bar or an externally-rendered search box.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const markRowDeleting = useCallback((id, active) => {
     setDeletingRowIds((prev) => {
@@ -360,6 +388,12 @@ function EnterpriseDataGrid({
     setCurrentPage(1);
   }, []);
 
+  // Let an externally-rendered search box (e.g. one placed in the page's
+  // title bar instead of this card's own header) show the same match count.
+  useEffect(() => {
+    onSearchStats?.({ matchCount: filteredData.length, totalCount: data.length });
+  }, [filteredData.length, data.length, onSearchStats]);
+
   const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage));
 
   const currentData = useMemo(() => {
@@ -376,12 +410,16 @@ function EnterpriseDataGrid({
     (row, index) => {
       if (!selectable || !onSelectionChange) return;
       const key = String(getRowKey(row, index));
+      if (singleSelect) {
+        onSelectionChange(selectedKeySet.has(key) ? [] : [key]);
+        return;
+      }
       const next = new Set(selectedKeySet);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       onSelectionChange(Array.from(next));
     },
-    [getRowKey, onSelectionChange, selectable, selectedKeySet]
+    [getRowKey, onSelectionChange, selectable, selectedKeySet, singleSelect]
   );
 
   const pageRowKeys = useMemo(
@@ -567,7 +605,7 @@ function EnterpriseDataGrid({
       )}
 
       {/* ── search bar ── */}
-      {searchable && (
+      {searchable && !hideSearchBar && (
         <div className="eg-search-bar">
           <GridSearch
             query={searchQuery}
@@ -626,14 +664,16 @@ function EnterpriseDataGrid({
                           }}
                         >
                           {selectCol ? (
-                            <input
-                              type="checkbox"
-                              className="ng-row-select ng-row-select--header"
-                              checked={allPageRowsSelected}
-                              aria-label="Select all rows on this page"
-                              title="Select all rows on this page"
-                              onChange={togglePageSelection}
-                            />
+                            singleSelect ? null : (
+                              <input
+                                type="checkbox"
+                                className="ng-row-select ng-row-select--header"
+                                checked={allPageRowsSelected}
+                                aria-label="Select all rows on this page"
+                                title="Select all rows on this page"
+                                onChange={togglePageSelection}
+                              />
+                            )
                           ) : (
                             <div className="ng-th-inner">
                               <span

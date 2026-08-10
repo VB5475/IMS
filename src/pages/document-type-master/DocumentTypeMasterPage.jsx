@@ -13,6 +13,7 @@ import DocumentTypeMasterForm from "./DocumentTypeMasterForm";
 import { DOCTYPE_CONFIG } from "./constants";
 import "./DocumentTypeMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildDocTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -137,8 +138,7 @@ export default function DocumentTypeMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "DMS Document Type Master Report",
-            reportFileName: "TODO_DocumentTypeMaster.rpt",
+            ...PRINT_REPORT_CONFIG["document-type-master"],
             buildParams: buildDocTypeReportParams,
           }}
           pageSize={pageSize}

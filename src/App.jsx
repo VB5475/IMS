@@ -11,6 +11,8 @@ import AppShell from "./layout/AppShell";
 import Loader from "./components/ui/Loader";
 import { PageHeaderProvider } from "./context/PageHeaderContext";
 import { UserProvider, useUser } from "./context/UserContext";
+import { useInactivityLogout } from "./hooks/useInactivityLogout";
+import { useUiGuard } from "./hooks/useUiGuard";
 import { useNotification } from "./context/NotificationContext";
 import {
   RB_CODES as RB,
@@ -174,6 +176,7 @@ function RequireAuth() {
     };
   }, [isAuthenticated, refreshPermissions]);
 
+  useInactivityLogout();
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -442,6 +445,8 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
+  // Applies everywhere, including the login page — not gated on auth.
+  useUiGuard();
   return (
     <UserProvider>
       <PageHeaderProvider>

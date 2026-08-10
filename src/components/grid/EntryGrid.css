@@ -21,6 +21,11 @@
 
 /* ===== HEADER / TOOLBAR ===== */
 .grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
   padding: 12px 16px;
   background: var(--header-gradient);
   color: white;
@@ -28,6 +33,13 @@
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.grid-header__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .grid-header::after {
@@ -158,6 +170,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
   padding: 5px 10px;
   border-bottom: 1px solid var(--border, #d8dee6);
   background: var(--bg, #e8eef4);
@@ -343,7 +357,7 @@
   word-wrap: break-word;
   user-select: none;
   min-height: var(--header-height);
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
   box-shadow: none;
 }
@@ -1307,7 +1321,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
 }
 
@@ -1627,7 +1641,7 @@ textarea:focus-visible {
 .erp-grid-container--dense .grid-title {
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.02em;
 }
 

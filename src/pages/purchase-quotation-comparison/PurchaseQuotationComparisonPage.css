@@ -39,7 +39,7 @@
 .pqc-header__display-label {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }

@@ -12,16 +12,23 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { resolveListRowId } from "../../utils/listColumns";
 import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
-function buildPurchaseIndentReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
+// Selected row (via the grid's single-select checkbox) narrows the print to
+// just that record — prmidnumber omitted entirely prints the full list, same
+// as before this feature existed.
+function buildPurchaseIndentReportParams(selectedId) {
+  const params = [buildCompanyReportParam()];
+  if (selectedId != null) {
+    params.push({ paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) });
+  }
+  return params;
 }
 
 function buildListParams() {
@@ -53,6 +60,7 @@ export default function PurchaseIndentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selectedId, setSelectedId] = useState(null);
 
   usePageHeader({
     title: "Purchase Indents",
@@ -93,6 +101,11 @@ export default function PurchaseIndentPage() {
     navigate(`${IND_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handlePrintParams = useCallback(
+    () => buildPurchaseIndentReportParams(selectedId),
+    [selectedId]
+  );
+
   return (
     <div className="workspace-page ind-list-page">
       <section className="ind-list-panel ind-list-panel--fill">
@@ -104,9 +117,8 @@ export default function PurchaseIndentPage() {
           onRefresh={fetchIndents}
           refreshing={loading}
           print={{
-            reportTitle: "Purchase Indent Report",
-            reportFileName: "TODO_PurchaseIndent.rpt",
-            buildParams: buildPurchaseIndentReportParams,
+            ...PRINT_REPORT_CONFIG["purchase-indent"],
+            buildParams: handlePrintParams,
           }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -128,6 +140,11 @@ export default function PurchaseIndentPage() {
           deleteProcName={IND_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchIndents}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
         />
       </section>
     </div>

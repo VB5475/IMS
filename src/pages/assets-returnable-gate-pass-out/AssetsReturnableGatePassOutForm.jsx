@@ -63,13 +63,14 @@ const nextTempId = () => _argoTempId--;
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   const str = (v) => (v == null || v === "" ? "" : String(v));
+  const intStr = (v) => (v == null || v === "" ? 0 : String(v));
   return {
     trancode: str(headerValues.trancode),
     trandate: headerValues.trandate ?? "",
     issuedate: headerValues.issuedate ?? "",
     fromdivisionid: str(headerValues.fromdivisionid),
     fromlocationid: str(headerValues.fromlocationid),
-    tolocationid: str(headerValues.tolocationid),
+    tolocationid: intStr(headerValues.tolocationid),
     fromdeptid: str(headerValues.fromdeptid),
     tovendorid: str(headerValues.tovendorid),
     configid: str(headerValues.configid),

@@ -11,6 +11,7 @@ import "./AssetsStockTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAstReportParams() {
   return [
@@ -87,8 +88,7 @@ export default function AssetsStockTransferPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Stock Transfer Report",
-            reportFileName: "TODO_AssetsStockTransfer.rpt",
+            ...PRINT_REPORT_CONFIG["assets-stock-transfer"],
             buildParams: buildAstReportParams,
           }}
           pageSize={pageSize}

@@ -11,6 +11,7 @@ import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildComplaintRegisterReportParams() {
   return [
@@ -87,8 +88,7 @@ export default function ComplaintRegisterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Complaint Register Report",
-            reportFileName: "TODO_ComplaintRegister.rpt",
+            ...PRINT_REPORT_CONFIG["complaint-register"],
             buildParams: buildComplaintRegisterReportParams,
           }}
           pageSize={pageSize}

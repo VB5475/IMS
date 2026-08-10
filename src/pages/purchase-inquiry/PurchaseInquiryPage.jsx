@@ -12,6 +12,7 @@ import "./PurchaseInquiryPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildPurchaseInquiryReportParams() {
   return [
@@ -99,8 +100,7 @@ export default function PurchaseInquiryPage() {
           onRefresh={fetchInquiries}
           refreshing={loading}
           print={{
-            reportTitle: "Purchase Inquiry Report",
-            reportFileName: "TODO_PurchaseInquiry.rpt",
+            ...PRINT_REPORT_CONFIG["purchase-inquiry"],
             buildParams: buildPurchaseInquiryReportParams,
           }}
           pageSize={pageSize}

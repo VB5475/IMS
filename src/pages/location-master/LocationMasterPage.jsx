@@ -13,6 +13,7 @@ import "./LocationMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildLocationMasterReportParams() {
   return [
@@ -132,8 +133,7 @@ export default function LocationMasterPage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Location Master Report",
-            reportFileName: "TODO_LocationMaster.rpt",
+            ...PRINT_REPORT_CONFIG["location-master"],
             buildParams: buildLocationMasterReportParams,
           }}
           pageSize={pageSize}

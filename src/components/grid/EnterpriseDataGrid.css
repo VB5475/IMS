@@ -319,7 +319,7 @@
   padding: 10px 12px;
   border-bottom: 2px solid #94a3b8;
   border-right: 1px solid var(--border-dark);
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.02em;
   white-space: nowrap;
   user-select: none;
@@ -614,7 +614,7 @@
   color: var(--primary);
   font-size: 12px;
   letter-spacing: 0.02em;
-  text-transform: uppercase;
+  text-transform: capitalize;
   text-shadow: none;
 }
 

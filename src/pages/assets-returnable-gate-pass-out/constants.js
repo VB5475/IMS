@@ -183,15 +183,19 @@ export function resolveArgoColKey(fieldDefs, ...hints) {
 export function buildArgoCascadeResets(fieldDefs) {
   const fromDiv = resolveArgoColKey(fieldDefs, "fromdivisionid");
   const fromLoc = resolveArgoColKey(fieldDefs, "fromlocationid");
-  const toLoc = resolveArgoColKey(fieldDefs, "tolocationid");
   const fromDept = resolveArgoColKey(fieldDefs, "fromdeptid");
-  const toVendor = resolveArgoColKey(fieldDefs, "tovendorid");
-  const config = resolveArgoColKey(fieldDefs, "configid");
 
+  // fromdivisionid's dependent-field reset is handled entirely by
+  // AssetsReturnableGatePassOutForm's own handleFilterChange (typed 0
+  // defaults + live option re-fetch for fromlocationid/tolocationid/
+  // fromdeptid/tovendorid/configid) — deliberately NOT listed here.
+  // EnterpriseFilterPanel's generic cascadeResets always resets to the
+  // string "", which fired right after the manual reset and clobbered its
+  // typed 0 back to "" (the real cause of tolocationid ending up "" in the
+  // save payload instead of 0). Keeping fromDiv's own entry empty, same as
+  // fromLoc/fromDept below, avoids double-resetting the same fields.
   const resets = {};
-  if (fromDiv) {
-    resets[fromDiv] = [fromLoc, toLoc, fromDept, toVendor, config].filter(Boolean);
-  }
+  if (fromDiv) resets[fromDiv] = [];
   if (fromLoc) resets[fromLoc] = [];
   if (fromDept) resets[fromDept] = [];
   return resets;

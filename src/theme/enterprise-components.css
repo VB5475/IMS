@@ -23,7 +23,7 @@
   margin: 0;
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   color: var(--primary);
   display: flex;
   align-items: center;
@@ -35,7 +35,7 @@
   color: var(--text-secondary) !important;
   font-size: 10px !important;
   font-weight: 700 !important;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
   padding: 6px 12px !important;
   height: 28px;
@@ -163,7 +163,7 @@
   color: var(--primary) !important;
   font-size: 12px !important;
   font-weight: 700 !important;
-  text-transform: uppercase;
+  text-transform: capitalize;
   text-shadow: none !important;
 }
 

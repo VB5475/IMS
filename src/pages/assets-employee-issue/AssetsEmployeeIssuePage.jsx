@@ -16,6 +16,7 @@ import "./AssetsEmployeeIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 function buildAeiReportParams() {
   return [
@@ -90,8 +91,7 @@ export default function AssetsEmployeeIssuePage() {
           onRefresh={fetchList}
           refreshing={loading}
           print={{
-            reportTitle: "Assets Employee Issue Report",
-            reportFileName: "TODO_AssetsEmployeeIssue.rpt",
+            ...PRINT_REPORT_CONFIG["assets-employee-issue"],
             buildParams: buildAeiReportParams,
           }}
           pageSize={pageSize}

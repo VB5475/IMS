@@ -144,6 +144,9 @@ export default function UserMasterForm({
   }, [isOpen, isAddMode, editPrefill, buildEmptyFromColumns]);
 
   const handleChange = useCallback((key, value) => {
+    // User ID must never contain spaces — stripped immediately, not just on save.
+    const nextValue = key === "userid" && typeof value === "string" ? value.replace(/\s/g, "") : value;
+
     setFieldErrors((prev) => {
       if (!prev[key]) return prev;
       const next = { ...prev };
@@ -151,7 +154,7 @@ export default function UserMasterForm({
       return next;
     });
     setFormValues((prev) => {
-      const next = { ...prev, [key]: value };
+      const next = { ...prev, [key]: nextValue };
       const resetKeys = cascadeResets[key];
       if (resetKeys?.length) {
         resetKeys.forEach((rk) => { next[rk] = 0; });
@@ -321,14 +324,14 @@ export default function UserMasterForm({
     }
     return (
       <div className="master-modal-footer-actions">
-        <button type="button" className="master-modal-btn master-modal-btn--cancel"
-          onClick={handleCancelEdit} disabled={isSaving}>
-          Cancel
-        </button>
         <button type="button" className="master-modal-btn master-modal-btn--save"
           onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
           {isSaving ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="master-modal-btn master-modal-btn--cancel"
+          onClick={handleCancelEdit} disabled={isSaving}>
+          Cancel
         </button>
       </div>
     );
