@@ -56,7 +56,7 @@
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.07em;
-  text-transform: uppercase;
+  text-transform: capitalize;
   line-height: 1;
 }
 .n-toast--success .n-toast__label { color: var(--n-success, #089949); }

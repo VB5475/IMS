@@ -70,7 +70,7 @@
   padding: 8px 14px;
   font-size: 10px;
   font-weight: 800;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.08em;
   color: var(--primary);
   background: linear-gradient(180deg, #e8f1fa 0%, #f4f7fb 100%);
@@ -277,7 +277,7 @@
   flex: 1;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.06em;
   color: var(--primary);
 }
@@ -306,7 +306,7 @@
   padding: 5px 14px;
   font-size: 10px;
   font-weight: 800;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.08em;
   color: var(--primary);
 }
@@ -315,7 +315,7 @@
   color: var(--primary);
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.03em;
   line-height: 1.3;
   white-space: normal;

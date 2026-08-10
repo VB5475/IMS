@@ -357,7 +357,7 @@
   word-wrap: break-word;
   user-select: none;
   min-height: var(--header-height);
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
   box-shadow: none;
 }
@@ -1321,7 +1321,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.04em;
 }
 
@@ -1641,7 +1641,7 @@ textarea:focus-visible {
 .erp-grid-container--dense .grid-title {
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.02em;
 }
 

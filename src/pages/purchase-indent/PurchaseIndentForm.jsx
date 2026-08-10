@@ -220,8 +220,8 @@ export default function PurchaseIndentForm() {
   // REVERSED 2026-07-31 (explicit user instruction, 2nd correction same day):
   // gated on isEditRoute (existing-record-only) a moment ago — corrected to
   // isEditMode instead: "before Add OR Edit mode active the button will be
-  // disabled." So the button is disabled while merely VIEWING a record (or
-  // before "Add" is clicked on a new one), and becomes active as soon as
+  // disabled." So the button is unavailable while merely VIEWING a record (or
+  // before "Add" is clicked on a new one), and becomes usable as soon as
   // Add/Edit mode is entered — including on a brand-new, still-unsaved
   // record (tranid=0), since documents can be staged against the temporary
   // docGuid before the transaction itself is saved. NOTE: this REOPENS the
@@ -229,6 +229,12 @@ export default function PurchaseIndentForm() {
   // Add-mode session can now stage documents, but linking them still only
   // fires on Edit-mode saves (no known tranid to link against after an Add
   // save) — flagged there again, not silently resolved.
+  //
+  // 2026-08-08 (Indent-only instruction): the app-wide convention of
+  // rendering this button disabled-with-explanatory-title was replaced, for
+  // this module only, with hide/show — see indExtraButtons below. This flag
+  // is still used as the keyboard-shortcut guard (Alt+shortcut can fire even
+  // while the button itself isn't rendered).
   const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES" && isEditMode;
 
   const [docModalOpen, setDocModalOpen] = useState(false);
@@ -881,24 +887,23 @@ export default function PurchaseIndentForm() {
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const indExtraButtons = useMemo(
     () => [
-      {
-        key: "documents",
-        label: "Documents",
-        Icon: FileText,
-        variant: "secondary",
-        onClick: handleOpenDocuments,
-        // Enabled only when dmConfig AND the per-trantype
-        // DM_HandleButtonVisibility flag both allow it AND Add/Edit mode is
-        // actually active (2026-07-31, 2nd correction same day — gated on
-        // isEditMode, not isEditRoute, see isDocumentLogEnabled above).
-        disabled: !isDocumentLogEnabled,
-        showAlways: true,
-        title: !isEditMode
-          ? "Click Add/Edit first to manage documents."
-          : isDocumentLogEnabled
-            ? FORM_SHORTCUT_TITLES.documents
-            : "Document rights are not enabled for your account.",
-      },
+      // Show/hide only, never a disabled state (2026-08-08, Indent-only
+      // instruction). Permission gates (dmConfigAllows/docBtnVisible) decide
+      // whether this entry exists in the array at all; when it does,
+      // omitting showAlways lets ActionBar's own `showAlways || isEditMode`
+      // filter hide/show it with Add/Edit mode the same way every other
+      // extra button already does — no separate disabled/title-explaining-why
+      // state needed.
+      ...(dmConfigAllows && docBtnVisible === "YES"
+        ? [{
+            key: "documents",
+            label: "Documents",
+            Icon: FileText,
+            variant: "secondary",
+            onClick: handleOpenDocuments,
+            title: FORM_SHORTCUT_TITLES.documents,
+          }]
+        : []),
       {
         key: "saveprint",
         label: "Save & Print",
@@ -920,7 +925,7 @@ export default function PurchaseIndentForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleOpenDocuments, isDocumentLogEnabled, isEditMode, handleSaveAndPrint, isSavingIndent, handleSave]
+    [dmConfigAllows, docBtnVisible, handleOpenDocuments, handleSaveAndPrint, isSavingIndent, handleSave]
   );
 
   const itemGridConfig = {

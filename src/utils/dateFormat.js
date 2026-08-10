@@ -108,9 +108,20 @@ export function parseFlexibleDate(value) {
   const str = String(value).trim();
   if (!str) return null;
 
-  const isoDate = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  // yyyy-MM-dd, optionally followed by a T- or space-separated time (API
+  // createddate/updateddate come back as "yyyy-MM-ddTHH:mm:ss.ffffff") — the
+  // time must be captured here, not just detected later in formatListDate,
+  // or getHours()/getMinutes() on the returned Date always read back 00:00.
+  const isoDate = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/);
   if (isoDate) {
-    const date = new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
+    const date = new Date(
+      Number(isoDate[1]),
+      Number(isoDate[2]) - 1,
+      Number(isoDate[3]),
+      Number(isoDate[4] ?? 0),
+      Number(isoDate[5] ?? 0),
+      Number(isoDate[6] ?? 0)
+    );
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
