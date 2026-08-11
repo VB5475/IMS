@@ -1,8 +1,8 @@
 // constants.js — Assets Employee Issue (AEI) page config
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
 import { parseQrItemPayload } from "../../utils/qrScanJson";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Employee Issue";
@@ -54,9 +54,10 @@ export const AEI_CONFIG = {
   SP_TO_VENDOR: "fn_gen_fetchtovendor",
   SP_CONFIG: "fn_tbl_ddl_assetissueconfiguration",
   SP_ITEM_PICKER: "fn_tbl_Rb_astempissselonly",
-  // Select Item popup filters — Main Group / Sub Main Group cascading.
-  // Scan QR (paste JSON for now) uses the same SP with magroup/sub = 0 and
-  // prmsearchtext = stringified { itemcode, srno }.
+  // Select Item popup filters — any one of Main Group / Sub Main Group /
+  // Item Name (≥3 chars). Unselected filters are sent as defaults (0 / "").
+  // Scan QR uses the same SP with magroup/sub = 0 and prmqrjson =
+  // stringified { itemcode, srno }.
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
@@ -82,13 +83,6 @@ export const AEI_FRM_TYPE_OPTIONS = [
   { value: String(AEI_CONFIG.FRM_TYPE), label: AEI_CONFIG.FRM_TYPE_LABEL },
 ];
 
-const AEI_ITEM_PICKER_REQUIRED_FIELDS = [
-  { keys: ["fromdivisionid", "FromDivisionID"], label: "From Division" },
-  { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
-  { keys: ["fromlocationid", "FromLocationID"], label: "From Location" },
-  { keys: ["configid", "ConfigID"], label: "Configuration" },
-];
-
 function pickHeaderValue(headerValues, keys) {
   if (!headerValues) return undefined;
   for (const key of keys) {
@@ -99,24 +93,9 @@ function pickHeaderValue(headerValues, keys) {
   return undefined;
 }
 
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy; fields not marked
- *   mandatory are skipped here (their raw/default value still flows into the picker payload).
- *   When omitted (or before it loads), every field is treated as required — unchanged behavior.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return AEI_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
 function pickHeaderInt(headerValues, ...keys) {
@@ -126,7 +105,7 @@ function pickHeaderInt(headerValues, ...keys) {
 }
 
 /**
- * Parse pasted/scanned QR JSON for Select Item (prmsearchtext).
+ * Parse pasted/scanned QR JSON for Select Item (prmqrjson).
  * Accepts any key casing (ItemCode, SrNo, …) and normalizes to
  * { "itemcode": "...", "srno": "..." }.
  */
@@ -137,7 +116,7 @@ export function normalizeAeiQrSearchJson(rawText) {
   if (!parsed) {
     return { error: "Invalid JSON. Expected itemcode and srno (any key casing)." };
   }
-  return { searchText: JSON.stringify(parsed) };
+  return { qrJson: JSON.stringify(parsed) };
 }
 
 /** FN_FETCH_DATA JSON for fn_tbl_Rb_astempissselonly item picker rows. */
@@ -147,7 +126,8 @@ export function buildAeiItemPickerJsonPayload(headerValues, {
   yearId,
   maGroupId = 0,
   subMaGroupId = 0,
-  searchText = "",
+  itemNameSearch = "",
+  qrJson = "",
 } = {}) {
   const session = getUserSession();
   return {
@@ -169,11 +149,16 @@ export function buildAeiItemPickerJsonPayload(headerValues, {
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AEI_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
+    // Trailing SP args — keep this order:
+    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext,
+    // prmotherstr, prmjson, prmqrjson
     prmmaingroupid: Number(maGroupId) || 0,
     prmsubmaingroupid: Number(subMaGroupId) || 0,
-    prmsearchtext: searchText ?? "",
+    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    prmsearchtext: "",
     prmotherstr: "",
     prmjson: "[]",
+    prmqrjson: String(qrJson ?? "").trim(),
   };
 }
 

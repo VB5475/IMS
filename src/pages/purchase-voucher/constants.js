@@ -194,5 +194,7 @@ export const PV_ITEM_PICKER_JSON_FIELDS = [
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return getMissingPickerFields(headerValues, PV_ITEM_PICKER_JSON_FIELDS, { headerColumns });
+  return getMissingPickerFields(headerValues, headerColumns, {
+    zeroValidFields: new Set(["basedonid"]),
+  });
 }

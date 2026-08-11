@@ -1,6 +1,6 @@
 // constants.js — CWIP To FA (C2F) page config
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "CWIP To FA";
@@ -77,15 +77,6 @@ export const C2F_FILTER_CASCADE_RESETS = {
   DivisionID: ["LocationID", "CWIPAccID"],
 };
 
-// ── Item picker required fields ───────────────────────────────────────────────
-const C2F_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "divisionid",       label: "Division" },
-  { headerKey: "trandate",         label: "Tran Date",       isDate: true },
-  { headerKey: "puttouseinstdate", label: "Put To Use Date", isDate: true },
-  { headerKey: "locationid",       label: "Location" },
-  { headerKey: "cwipaccid",        label: "CWIP A/C" },
-];
-
 const MONTH_ABBR = [
   "Jan","Feb","Mar","Apr","May","Jun",
   "Jul","Aug","Sep","Oct","Nov","Dec",
@@ -98,22 +89,7 @@ export function formatC2FTranDate(dateVal) {
   return `${String(d.getDate()).padStart(2,"0")}-${MONTH_ABBR[d.getMonth()]}-${d.getFullYear()}`;
 }
 
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "" || formatC2FTranDate(value) === "0";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return C2F_ITEM_PICKER_REQUIRED_FIELDS
-    .filter((f) => {
-      if (headerColumns && !isColumnMandatoryByName(headerColumns, f.headerKey)) return false;
-      return isMissingValue(f, headerValues?.[f.headerKey]);
-    })
-    .map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }

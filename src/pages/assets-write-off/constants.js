@@ -1,6 +1,7 @@
 // constants.js — Assets Write Off (AWF) page config
+import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Assets Write Off";
@@ -30,6 +31,8 @@ export const AWF_CONFIG = {
   SP_LOCATION: "fn_gen_fetchastissfromlocationmaster",
   SP_ASSETS_ACC: "Fn_tbl_Fetch_AssetsAccount",
   SP_ITEM_PICKER: "fn_tbl_rb_astwritoffselonly",
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
   SP_MASTER_FILL: "fn_tbl_rb_astwriteoffmst",
   SP_DETAIL_FILL: "fn_tbl_rb_astwriteoffdet",
@@ -51,39 +54,38 @@ export const AWF_CONFIG = {
 
 export const AWF_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
-const AWF_ITEM_PICKER_REQUIRED_FIELDS = [
-  { keys: ["divisionid", "DivisionID"], label: "Division" },
-  { keys: ["trandate", "TranDate"], label: "Write-off Date", isDate: true },
-  { keys: ["fromlocid", "LocationID", "locationid"], label: "From Location" },
-  { keys: ["accountid", "AccountID"], label: "Account" },
-];
-
-function pickHeaderValue(headerValues, keys) {
-  if (!headerValues) return undefined;
-  for (const key of keys) {
-    if (headerValues[key] !== undefined && headerValues[key] !== null && headerValues[key] !== "") {
-      return headerValues[key];
-    }
-  }
-  return undefined;
-}
-
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return AWF_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
+}
+
+/** FN_FETCH_DATA JSON for fn_tbl_rb_astwritoffselonly item picker rows. */
+export function buildAwfItemPickerJsonPayload(headerValues, {
+  notIn = "",
+  maGroupId = 0,
+  subMaGroupId = 0,
+  itemNameSearch = "",
+  qrJson = "",
+} = {}) {
+  const session = getUserSession();
+  return {
+    prmcompanyid: session.companyId,
+    prmyearid: session.yearId,
+    prmdivisionid: Number(headerValues?.divisionid) || 0,
+    prmtrandate: headerValues?.trandate ?? "",
+    prmaccountid: Number(headerValues?.accountid) || 0,
+    prmlocationid: Number(headerValues?.fromlocid ?? headerValues?.locationid) || 0,
+    prmnotin: notIn,
+    // Trailing SP args — keep this order:
+    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext, prmotherstr, prmjson, prmqrjson
+    prmmaingroupid: Number(maGroupId) || 0,
+    prmsubmaingroupid: Number(subMaGroupId) || 0,
+    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    prmsearchtext: "",
+    prmotherstr: "",
+    prmjson: "[]",
+    prmqrjson: String(qrJson ?? "").trim(),
+  };
 }
 
 export function resolveAwfColKey(fieldDefs, ...hints) {

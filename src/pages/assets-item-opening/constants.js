@@ -1,7 +1,7 @@
 // constants.js — Assets Item Opening (AOP) module config
 // Values aligned to MRD_Template4AssetsItemOpening.docx (Richa, 16-Jun-2026).
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Assets Item Opening";
@@ -70,27 +70,7 @@ export const AOP_FILTER_CASCADE_RESETS = {
 // Item Type ID for Item Group SP — ⚠️ DBA CONFIRM
 export const AOP_ITEM_TYPE_ID = 7;
 
-// Item picker required header fields (gate before opening item picker)
-const AOP_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "divisionid",  label: "Division" },
-  { headerKey: "itemgroupid", label: "Item Group" },
-];
-
-function isMissingValue(field, value) {
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return AOP_ITEM_PICKER_REQUIRED_FIELDS
-    .filter((f) => {
-      if (headerColumns && !isColumnMandatoryByName(headerColumns, f.headerKey)) return false;
-      return isMissingValue(f, headerValues?.[f.headerKey]);
-    })
-    .map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }

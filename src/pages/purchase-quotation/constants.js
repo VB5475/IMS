@@ -145,7 +145,9 @@ export const QTN_ITEM_PICKER_JSON_FIELDS = [
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return getMissingPickerFields(headerValues, QTN_ITEM_PICKER_JSON_FIELDS, { headerColumns });
+  return getMissingPickerFields(headerValues, headerColumns, {
+    zeroValidFields: new Set(["basedonid"]),
+  });
 }
 
 export function buildItemPickerJsonPayload(headerValues, loginId) {

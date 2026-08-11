@@ -60,7 +60,9 @@ export function useItemPickerGroupFilter({ spMainGroup, spSubMainGroup, formTag 
   }, [get, spMainGroup, formTag]);
 
   const fetchSubMainGroupOptions = useCallback(async ({ divisionId, configId, mainGroupId }) => {
-    if (!mainGroupId) {
+    // Allow prmmaingroupid=0 (default / all) when callers pass 0 explicitly.
+    // Only skip when the id is truly absent (undefined/null/"").
+    if (mainGroupId === undefined || mainGroupId === null || mainGroupId === "") {
       setSubMainGroupOptions([]);
       return [];
     }
@@ -77,7 +79,7 @@ export function useItemPickerGroupFilter({ spMainGroup, spSubMainGroup, formTag 
           prmitemtype: 0,
           prmconfigid: Number(configId) || 0,
           prmfrmtype: formTag,
-          prmmaingroupid: Number(mainGroupId),
+          prmmaingroupid: Number(mainGroupId) || 0,
         }]),
         p_ErrCode: -1, p_ErrMsg: "",
       });
@@ -96,12 +98,19 @@ export function useItemPickerGroupFilter({ spMainGroup, spSubMainGroup, formTag 
 
   const clearSubMainGroupOptions = useCallback(() => setSubMainGroupOptions([]), []);
 
-  /** Main Group changed → reload Sub Main Group, reset its own selection. */
-  const handleMainGroupChange = useCallback((value, { divisionId, configId }) => {
+  /**
+   * Main Group changed → reload Sub Main Group, reset its own selection.
+   * When cleared, `defaultMaGroupId` (e.g. 0) keeps Sub Main options loaded
+   * with that default prmmaingroupid — used by AEI so the dropdown stays active
+   * on first open / after clearing Main Group.
+   */
+  const handleMainGroupChange = useCallback((value, { divisionId, configId, defaultMaGroupId } = {}) => {
     setMainGroupFilter(value);
     setSubMainGroupFilter("");
     if (value) {
       fetchSubMainGroupOptions({ divisionId, configId, mainGroupId: value });
+    } else if (defaultMaGroupId !== undefined && defaultMaGroupId !== null && defaultMaGroupId !== "") {
+      fetchSubMainGroupOptions({ divisionId, configId, mainGroupId: defaultMaGroupId });
     } else {
       clearSubMainGroupOptions();
     }
@@ -130,18 +139,23 @@ export function useItemPickerGroupFilter({ spMainGroup, spSubMainGroup, formTag 
    * the 5 filter params and is expected to set the module's own item state;
    * errors propagate to the caller's own try/catch (e.g. to set an error banner).
    *
-   * Requires both Main Group AND Sub Main Group to be selected before the
-   * filter is allowed to apply (2026-07-29 requirement) — thrown here rather
-   * than in each of the 15 call sites, since every one already wraps this
-   * call in its own try/catch that surfaces err.message via its existing
-   * error banner (setItemModalError), so this needs no changes anywhere else.
+   * Default: requires both Main Group AND Sub Main Group (2026-07-29).
+   * Pass `options.validate` to replace that check (e.g. AEI: group pair OR
+   * item-name search).
    */
-  const applyFilter = useCallback(async (fetchItemsFn) => {
-    if (!mainGroupFilter) {
-      throw new Error("Please select an Item Main Group before applying the filter.");
-    }
-    if (!subMainGroupFilter) {
-      throw new Error("Please select an Item Sub Main Group before applying the filter.");
+  const applyFilter = useCallback(async (fetchItemsFn, options = {}) => {
+    if (typeof options.validate === "function") {
+      options.validate({
+        mainGroupFilter,
+        subMainGroupFilter,
+      });
+    } else {
+      if (!mainGroupFilter) {
+        throw new Error("Please select an Item Main Group before applying the filter.");
+      }
+      if (!subMainGroupFilter) {
+        throw new Error("Please select an Item Sub Main Group before applying the filter.");
+      }
     }
     setFilterLoading(true);
     try {

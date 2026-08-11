@@ -145,9 +145,8 @@ export const PI_ITEM_PICKER_JSON_FIELDS = [
 ];
 
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return getMissingPickerFields(headerValues, PI_ITEM_PICKER_JSON_FIELDS, {
-    basedOnKey: "basedonid",
-    headerColumns,
+  return getMissingPickerFields(headerValues, headerColumns, {
+    zeroValidFields: new Set(["basedonid"]),
   });
 }
 

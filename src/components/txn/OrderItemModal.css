@@ -28,6 +28,23 @@
   color: var(--text-secondary);
 }
 
+.oim-filter-bar__text {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+}
+
+.oim-filter-bar__text:focus {
+  border-color: var(--primary, #1a56db);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #1a56db) 18%, transparent);
+}
+
 .oim-filter-bar__btn {
   display: flex;
   align-items: center;

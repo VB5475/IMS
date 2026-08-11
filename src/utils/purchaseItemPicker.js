@@ -1,40 +1,19 @@
 // Shared item-picker helpers for purchase entry forms.
 
 import { formatTranDate } from "./dateFormat";
-import { isColumnMandatoryByName } from "./gridUtils";
-
-/** True when a required item-picker header field value is missing or invalid. */
-export function isMissingItemPickerFieldValue(field, value) {
-  if (field.isDate) {
-    return value == null || value === "" || formatTranDate(value) === "0";
-  }
-  if (value == null || value === "") return true;
-  if (field.allowZero) return false;
-  return Number(value) === 0 || value === "0";
-}
+import { getMissingMandatoryHeaderLabels } from "./columnValidation";
 
 /**
  * Returns display labels of header fields that must be filled before Select Item.
+ * Driven entirely by GET_DETAIL_COL_DATA IsMandatory / IsVisible — no hardcoded
+ * candidate field lists.
+ *
  * @param {object} headerValues
- * @param {object[]} fields — module-specific picker field defs
- * @param {{ basedOnKey?: string, headerColumns?: object[] }} [opts] - `headerColumns` are
- *   GET_DETAIL_COL_DATA rows; when provided, a field is only enforced as required if its
- *   matching column's IsMandatory flag is truthy.
+ * @param {object[]|null|undefined} headerColumns - GET_DETAIL_COL_DATA rows
+ * @param {{ zeroValidFields?: Set<string> }} [opts]
  */
-export function getMissingItemPickerHeaderFields(headerValues, fields, opts = {}) {
-  const { basedOnKey = "basedonid", headerColumns = null } = opts;
-  const basedOn = Number(headerValues?.[basedOnKey]) || 0;
-  const missing = [];
-
-  fields.forEach((field) => {
-    if (field.requiredWhenBasedOn != null && basedOn !== field.requiredWhenBasedOn) return;
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, field.headerKey)) return;
-    if (isMissingItemPickerFieldValue(field, headerValues?.[field.headerKey])) {
-      missing.push(field.label);
-    }
-  });
-
-  return missing;
+export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null, opts = {}) {
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns, opts);
 }
 
 /**

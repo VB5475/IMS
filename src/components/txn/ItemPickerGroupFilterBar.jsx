@@ -14,6 +14,13 @@ export default function ItemPickerGroupFilterBar({
   onSubMainGroupChange,
   onFilter,
   filterLoading = false,
+  /** When true, Sub Main Group stays enabled even with no Main Group (AEI). */
+  subMainAlwaysEnabled = false,
+  /** Optional free-text Item Name filter (AEI — min 3 chars enforced by caller). */
+  showItemName = false,
+  itemNameValue = "",
+  onItemNameChange,
+  itemNamePlaceholder = "Min. 3 characters",
 }) {
   return (
     <div className="oim-filter-bar">
@@ -35,9 +42,23 @@ export default function ItemPickerGroupFilterBar({
           options={subMainGroupOptions}
           placeholder="All sub main groups"
           ariaLabel="Item Sub Main Group"
-          disabled={!mainGroupValue}
+          disabled={subMainAlwaysEnabled ? false : !mainGroupValue}
         />
       </label>
+      {showItemName && (
+        <label className="oim-filter-bar__field">
+          <span>Item Name</span>
+          <input
+            type="text"
+            className="oim-filter-bar__text"
+            value={itemNameValue}
+            onChange={(e) => onItemNameChange?.(e.target.value)}
+            placeholder={itemNamePlaceholder}
+            aria-label="Item Name"
+            autoComplete="off"
+          />
+        </label>
+      )}
       <button
         type="button"
         className="oim-filter-bar__btn"

@@ -2,7 +2,7 @@
 
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -57,15 +57,6 @@ export const MACNG_GRID_TABS = [
   { id: "terms", label: "Terms & Condition Detail" },
 ];
 
-const ITEM_PICKER_REQUIRED = [
-  { keys: ["divisionid", "DivisionID"], label: "Division" },
-];
-
-const TERMS_PICKER_REQUIRED = [
-  { keys: ["divisionid", "DivisionID"], label: "Division" },
-  { keys: ["configtypeid", "ConfigTypeID", "configid", "ConfigID"], label: "Config Type" },
-];
-
 function pickHeaderValue(headerValues, keys) {
   if (!headerValues) return undefined;
   for (const key of keys) {
@@ -76,34 +67,20 @@ function pickHeaderValue(headerValues, keys) {
   return undefined;
 }
 
-function isMissingValue(value) {
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
 function pickHeaderInt(headerValues, ...keys) {
   const raw = pickHeaderValue(headerValues, keys);
   if (raw == null || raw === "") return 0;
   return Number(raw) || 0;
 }
 
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return ITEM_PICKER_REQUIRED.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
+/** Terms picker gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingTermsPickerHeaderFields(headerValues, headerColumns = null) {
-  return TERMS_PICKER_REQUIRED.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
 /** fn_tbl_rb_mntamcnewselonly — MRD typo prmdivisonid; no supplier param. */
