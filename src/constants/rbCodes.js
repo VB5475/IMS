@@ -78,6 +78,8 @@ export const RB_CODES = Object.freeze({
   PURCHASE_INQUIRY: "rb_purinquirymst",
   PURCHASE_QUOTATION: "rb_purqtnmst",
   PURCHASE_ORDER: "rb_purpomst",
+  /** Purchase Rate Contract — MRD_Template4PurchaseRateContract.docx (Richa, 03-Jul-2026) */
+  PURCHASE_RATE_CONTRACT: "rb_purratecontmst",
   GOODS_RECEIVED_NOTE: "rb_purgrnmst",
   PURCHASE_VOUCHER: "rb_purpvmst",
   TXN_ENTRY: "rb_sampleinvmst",
@@ -156,6 +158,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.PURCHASE_INQUIRY]: "/purchase-inquiry",
   [RB_CODES.PURCHASE_QUOTATION]: "/purchase-quotation",
   [RB_CODES.PURCHASE_ORDER]: "/purchase-order",
+  [RB_CODES.PURCHASE_RATE_CONTRACT]: "/purchase-rate-contract",
   [RB_CODES.GOODS_RECEIVED_NOTE]: "/goods-received-note",
   [RB_CODES.PURCHASE_VOUCHER]: "/purchase-voucher",
   [RB_CODES.TXN_ENTRY]: "/txn-entry",

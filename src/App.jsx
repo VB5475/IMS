@@ -35,6 +35,12 @@ const PurchaseQuotationComparisonPage = lazy(
 );
 const PurchaseOrderPage = lazy(() => import("./pages/purchase-order/PurchaseOrderPage"));
 const PurchaseOrderForm = lazy(() => import("./pages/purchase-order/PurchaseOrderForm"));
+const PurchaseRateContractPage = lazy(
+  () => import("./pages/purchase-rate-contract/PurchaseRateContractPage")
+);
+const PurchaseRateContractForm = lazy(
+  () => import("./pages/purchase-rate-contract/PurchaseRateContractForm")
+);
 const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIndentPage"));
 const PurchaseIndentForm = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
 const PurchaseVoucherPage = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
@@ -288,6 +294,12 @@ const router = createBrowserRouter([
             rb: RB.PURCHASE_ORDER,
             list: <PurchaseOrderPage />,
             form: <PurchaseOrderForm />,
+            variants: ["new", "edit", "view"],
+          }),
+          rbModule({
+            rb: RB.PURCHASE_RATE_CONTRACT,
+            list: <PurchaseRateContractPage />,
+            form: <PurchaseRateContractForm />,
             variants: ["new", "edit", "view"],
           }),
           rbModule({

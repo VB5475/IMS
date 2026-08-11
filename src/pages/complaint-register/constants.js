@@ -1,6 +1,6 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -52,14 +52,6 @@ export const MCR_FRM_TYPE_OPTIONS = [
   { value: String(MCR_CONFIG.FRM_TYPE), label: MCR_CONFIG.FRM_TYPE_LABEL },
 ];
 
-const MCR_ITEM_PICKER_REQUIRED_FIELDS = [
-  { keys: ["divisionid", "DivisionID"], label: "Division" },
-  { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
-  { keys: ["fromlocationid", "FromLocationID"], label: "Location" },
-  { keys: ["fromdeptid", "FromDeptID"], label: "Department" },
-  { keys: ["configid", "ConfigID"], label: "Configuration" },
-];
-
 function pickHeaderValue(headerValues, keys) {
   if (!headerValues) return undefined;
   for (const key of keys) {
@@ -70,28 +62,15 @@ function pickHeaderValue(headerValues, keys) {
   return undefined;
 }
 
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
 function pickHeaderInt(headerValues, ...keys) {
   const raw = pickHeaderValue(headerValues, keys);
   if (raw == null || raw === "") return 0;
   return Number(raw) || 0;
 }
 
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return MCR_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
 export function buildMcrItemPickerJsonPayload(

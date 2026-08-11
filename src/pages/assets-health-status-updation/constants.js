@@ -1,6 +1,6 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -66,13 +66,6 @@ export const AHS_FRM_TYPE_OPTIONS = [
   { value: String(AHS_CONFIG.FRM_TYPE), label: AHS_CONFIG.FRM_TYPE_LABEL },
 ];
 
-const AHS_ITEM_PICKER_REQUIRED_FIELDS = [
-  { keys: ["fromdivisionid", "FromDivisionID"], label: "Division" },
-  { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
-  { keys: ["todeptid", "ToDeptID"], label: "To Department" },
-  { keys: ["configid", "ConfigID"], label: "Configuration" },
-];
-
 function pickHeaderValue(headerValues, keys) {
   if (!headerValues) return undefined;
   for (const key of keys) {
@@ -83,33 +76,20 @@ function pickHeaderValue(headerValues, keys) {
   return undefined;
 }
 
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
 function pickHeaderInt(headerValues, ...keys) {
   const raw = pickHeaderValue(headerValues, keys);
   if (raw == null || raw === "") return 0;
   return Number(raw) || 0;
 }
 
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return AHS_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
 export function buildAhsItemPickerJsonPayload(
   headerValues,
-  { companyId, loginId, yearId } = {}
+  { companyId, loginId, yearId, maGroupId = 0, subMaGroupId = 0, itemNameSearch = "", qrJson = "" } = {}
 ) {
   const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
@@ -133,6 +113,15 @@ export function buildAhsItemPickerJsonPayload(
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AHS_CONFIG.ISSUE_TYPE_ID,
+    // Trailing SP args — keep this order:
+    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext, prmotherstr, prmjson, prmqrjson
+    prmmaingroupid: Number(maGroupId) || 0,
+    prmsubmaingroupid: Number(subMaGroupId) || 0,
+    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    prmsearchtext: "",
+    prmotherstr: "",
+    prmjson: "[]",
+    prmqrjson: String(qrJson ?? "").trim(),
   };
 }
 

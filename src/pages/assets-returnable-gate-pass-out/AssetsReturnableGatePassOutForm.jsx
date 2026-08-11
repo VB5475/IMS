@@ -185,6 +185,8 @@ export default function AssetsReturnableGatePassOutForm() {
     formTag: ARGO_CONFIG.FORM_TAG,
   });
 
+  const [itemNameFilter, setItemNameFilter] = useState("");
+
   const [isEditMode, setIsEditMode] = useState(false);
 
   const cascadeResets = useMemo(() => buildArgoCascadeResets(headerColumns), [headerColumns]);
@@ -484,6 +486,7 @@ export default function AssetsReturnableGatePassOutForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemNameFilter("");
     groupFilter.resetFilter();
 
     try {
@@ -507,9 +510,14 @@ export default function AssetsReturnableGatePassOutForm() {
       });
       setItemModalColumns(gridColumns);
 
-      await groupFilter.fetchMainGroupOptions({
-        divisionId: headerValues.fromdivisionid,
-        configId: headerValues.configid,
+      const divisionId = headerValues.fromdivisionid;
+      const configId = headerValues.configid;
+      await groupFilter.fetchMainGroupOptions({ divisionId, configId });
+      // Keep Sub Main Group active on first load — fetch with default magroupid=0.
+      await groupFilter.fetchSubMainGroupOptions({
+        divisionId,
+        configId,
+        mainGroupId: 0,
       });
     } catch (err) {
       console.error("[ARGO] Item picker fetch failed:", err);
@@ -521,26 +529,52 @@ export default function AssetsReturnableGatePassOutForm() {
 
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
+    const itemName = String(itemNameFilter ?? "").trim();
     setItemModalError(null);
     try {
-      await groupFilter.applyFilter(async (groupParams) => {
-        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: ARGO_CONFIG.SP_ITEM_PICKER,
-          JSon: JSON.stringify([{
-            ...buildArgoItemPickerJsonPayload(headerValues),
-            ...groupParams,
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        setItemModalItems(rowRes || []);
-      });
+      await groupFilter.applyFilter(
+        async (groupParams) => {
+          const hasMain = Boolean(groupFilter.mainGroupFilter);
+          const hasSub = Boolean(groupFilter.subMainGroupFilter);
+          const hasItemName = itemName.length >= 3;
+          // Only the chosen filter(s) are sent; others go as defaults (0 / "").
+          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: ARGO_CONFIG.SP_ITEM_PICKER,
+            JSon: JSON.stringify([{
+              ...buildArgoItemPickerJsonPayload(headerValues, {
+                maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
+                subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
+                itemNameSearch: hasItemName ? itemName : "",
+                qrJson: "",
+              }),
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          });
+          setItemModalItems(rowRes || []);
+        },
+        {
+          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
+            const hasMain = Boolean(mainGroupFilter);
+            const hasSub = Boolean(subMainGroupFilter);
+            const hasItemName = itemName.length >= 3;
+            if (itemName.length > 0 && itemName.length < 3) {
+              throw new Error("Item Name must be at least 3 characters.");
+            }
+            if (!hasMain && !hasSub && !hasItemName) {
+              throw new Error(
+                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
+              );
+            }
+          },
+        }
+      );
     } catch (err) {
       console.error("[ARGO] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     }
-  }, [getLive, groupFilter]);
+  }, [getLive, groupFilter, itemNameFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
@@ -848,10 +882,16 @@ export default function AssetsReturnableGatePassOutForm() {
               onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
                 divisionId: headerValuesRef.current.fromdivisionid,
                 configId: headerValuesRef.current.configid,
+                // Cleared Main Group → keep Sub Main loaded with default magroupid=0.
+                defaultMaGroupId: 0,
               })}
               onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
               onFilter={handleApplyItemFilter}
               filterLoading={groupFilter.filterLoading}
+              subMainAlwaysEnabled
+              showItemName
+              itemNameValue={itemNameFilter}
+              onItemNameChange={setItemNameFilter}
             />
           }
           awaitingFilter={!groupFilter.filterApplied}

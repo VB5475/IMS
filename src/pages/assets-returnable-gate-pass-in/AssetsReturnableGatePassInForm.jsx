@@ -1,16 +1,13 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, ListPlus, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
-const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstRgi } from "../../hooks/useAstRgi";
-import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -22,7 +19,6 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import {
-  buildGridColumns,
   isLockOnEditModeCol,
   isTruthyApiFlag,
   hasVisibleCol,
@@ -167,16 +163,7 @@ export default function AssetsReturnableGatePassInForm() {
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [itemModalOpen, setItemModalOpen] = useState(false);
-  const [itemModalItems, setItemModalItems] = useState([]);
-  const [itemModalColumns, setItemModalColumns] = useState([]);
-  const [itemModalLoading, setItemModalLoading] = useState(false);
-  const [itemModalError, setItemModalError] = useState(null);
-  const groupFilter = useItemPickerGroupFilter({
-    spMainGroup: ARGI_CONFIG.SP_ITEM_MAIN_GROUP,
-    spSubMainGroup: ARGI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
-    formTag: ARGI_CONFIG.FORM_TAG,
-  });
+  const [isFillingDetail, setIsFillingDetail] = useState(false);
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -444,7 +431,7 @@ export default function AssetsReturnableGatePassInForm() {
     });
   }, [trackCellEvent]);
 
-  const handleSelectItem = useCallback(async () => {
+  const handleFillDetail = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
     if (missingFields.length > 0) {
@@ -452,80 +439,47 @@ export default function AssetsReturnableGatePassInForm() {
       return;
     }
 
-    setItemModalOpen(true);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalError(null);
-    setItemModalLoading(true);
-    groupFilter.resetFilter();
+    setFormErrors([]);
+    setActiveTab("items");
+    setIsFillingDetail(true);
+    setIsGridLoading(true);
 
     try {
-      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) {
+        notify.error("Item grid columns could not be loaded.");
+        return;
+      }
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ARGI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmrbcode: ARGI_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: ARGI_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildArgiItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const rbRow = rbRes?.[0];
-      if (!rbRow) throw new Error("Could not load item picker configuration.");
+      const items = Array.isArray(rowRes) ? rowRes : [];
+      if (items.length === 0) {
+        itemGridRef.current?.clearRows?.();
+        notify.info("No items found for the selected header filters.");
+        return;
+      }
 
-      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.rbid,
-        prmLoginID: getUserSession().loginId,
-      });
-      const gridColumns = buildGridColumns(colRes || [], {}, {
-        filterable: false,
-        allEditable: false,
-      });
-      setItemModalColumns(gridColumns);
-
-      await groupFilter.fetchMainGroupOptions({
-        divisionId: headerValues.fromdivisionid,
-        configId: headerValues.configid,
-      });
+      itemGridRef.current?.clearRows?.();
+      items.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+      notify.success(`${items.length} item${items.length === 1 ? "" : "s"} loaded into the grid.`);
     } catch (err) {
-      console.error("[ARGI] Item picker fetch failed:", err);
-      setItemModalError(err?.message || "Failed to fetch items.");
+      console.error("[ARGI] Fill Detail failed:", err);
+      notify.error(err?.message || "Failed to fill detail items.");
     } finally {
-      setItemModalLoading(false);
+      setIsFillingDetail(false);
+      setIsGridLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
-
-  const handleApplyItemFilter = useCallback(async () => {
-    const headerValues = headerValuesRef.current;
-    setItemModalError(null);
-    try {
-      await groupFilter.applyFilter(async (groupParams) => {
-        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: ARGI_CONFIG.SP_ITEM_PICKER,
-          JSon: JSON.stringify([{
-            ...buildArgiItemPickerJsonPayload(headerValues),
-            ...groupParams,
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        setItemModalItems(rowRes || []);
-      });
-    } catch (err) {
-      console.error("[ARGI] Item filter fetch failed:", err);
-      setItemModalError(err?.message || "Failed to fetch items.");
-    }
-  }, [getLive, groupFilter]);
-
-  const handleInsertItems = useCallback(async (selectedItems) => {
-    if (!selectedItems?.length) return;
-    setActiveTab("items");
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+  }, [getLive, headerColumns, ensureItemColumns, allColumns, addItemRow, notify]);
 
   const handleSelectListShortcut = useCallback(() => {
-    if (activeTab === "items") handleSelectItem();
-  }, [activeTab, handleSelectItem]);
+    if (activeTab === "items") handleFillDetail();
+  }, [activeTab, handleFillDetail]);
 
   const handleDeleteSelected = useCallback(() => {
     if (!itemGridRef.current) return;
@@ -570,11 +524,6 @@ export default function AssetsReturnableGatePassInForm() {
     setActiveTab,
     setIsGridLoading,
     setItemSelectionCount,
-    setItemModalOpen,
-    setItemModalItems,
-    setItemModalColumns,
-    setItemModalLoading,
-    setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
     extraClearFns: [() => setFieldErrors({})],
@@ -672,9 +621,9 @@ export default function AssetsReturnableGatePassInForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: isFillingDetail,
     isEditMode,
-    isSaving,
+    isSaving: isSaving || isFillingDetail,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -757,12 +706,12 @@ export default function AssetsReturnableGatePassInForm() {
                 ref={selectItemBtnRef}
                 type="button"
                 className="eg-tab-btn"
-                onClick={handleSelectItem}
-                disabled={!isEditMode}
-                title="Pick return items"
+                onClick={handleFillDetail}
+                disabled={!isEditMode || isFillingDetail}
+                title="Fill detail items from header filters (Tab here after header fields)"
               >
-                <Package size={12} strokeWidth={2.5} />
-                Select Item
+                <ListPlus size={12} strokeWidth={2.5} />
+                {isFillingDetail ? "Filling…" : "Fill Detail"}
               </button>
 
               <button
@@ -778,13 +727,13 @@ export default function AssetsReturnableGatePassInForm() {
             </>
           }
           hideBottomPanel
-          emptyMessage="No items yet. Click Select Item above."
+          emptyMessage="No items yet. Click Fill Detail above."
           onSelectionChange={setItemSelectionCount}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
-          loading={isGridLoading || isFetching}
+          loading={isGridLoading || isFetching || isFillingDetail}
           multiValuePasteColumns={ARGI_MULTI_PASTE_COLUMNS}
           onMultiValuePaste={handleMultiValuePaste}
           remarkModalColumns={ARGI_REMARK_COLUMNS}
@@ -802,33 +751,6 @@ export default function AssetsReturnableGatePassInForm() {
         extraButtons={extraButtons}
       />
 
-      <Suspense fallback={null}>
-        <OrderItemModal
-          isOpen={itemModalOpen}
-          onClose={() => setItemModalOpen(false)}
-          items={itemModalItems}
-          columns={itemModalColumns}
-          isLoading={itemModalLoading || groupFilter.filterLoading}
-          error={itemModalError}
-          onInsert={handleInsertItems}
-          filterBar={
-            <ItemPickerGroupFilterBar
-              mainGroupOptions={groupFilter.mainGroupOptions}
-              subMainGroupOptions={groupFilter.subMainGroupOptions}
-              mainGroupValue={groupFilter.mainGroupFilter}
-              subMainGroupValue={groupFilter.subMainGroupFilter}
-              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
-                divisionId: headerValuesRef.current.fromdivisionid,
-                configId: headerValuesRef.current.configid,
-              })}
-              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
-              onFilter={handleApplyItemFilter}
-              filterLoading={groupFilter.filterLoading}
-            />
-          }
-          awaitingFilter={!groupFilter.filterApplied}
-        />
-      </Suspense>
     </div>
   );
 }

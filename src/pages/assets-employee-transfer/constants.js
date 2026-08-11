@@ -1,7 +1,7 @@
 // constants.js — Assets Employee Transfer (AET) page config
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Employee Location Transfer";
@@ -20,6 +20,7 @@ export const AET_CONFIG = {
   ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER),
   DELETE_PROC_NAME: "pr_rb_astemptrfmst_delete",
   RB_DETAIL: "rb_astemptrfdet",
+  RB_ITEM_PICKER: "rb_astemptrfselonly",
 
   MODULE_CODE: "AIS",
   FORM_TAG: "rb_astemptrfmst",
@@ -83,15 +84,6 @@ export const AET_FRM_TYPE_OPTIONS = [
   { value: String(AET_CONFIG.FRM_TYPE), label: AET_CONFIG.FRM_TYPE_LABEL },
 ];
 
-const AET_ITEM_PICKER_REQUIRED_FIELDS = [
-  { keys: ["fromdivisionid", "FromDivisionID"], label: "From Division" },
-  { keys: ["trandate", "TranDate"], label: "Tran Date", isDate: true },
-  { keys: ["tolocationid", "ToLocationID"], label: "To Location" },
-  { keys: ["todeptid", "ToDeptID"], label: "To Department" },
-  { keys: ["fromempuserid", "FromEmpUserID"], label: "Employee" },
-  { keys: ["configid", "ConfigID"], label: "Configuration" },
-];
-
 function pickHeaderValue(headerValues, keys) {
   if (!headerValues) return undefined;
   for (const key of keys) {
@@ -102,22 +94,9 @@ function pickHeaderValue(headerValues, keys) {
   return undefined;
 }
 
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return AET_ITEM_PICKER_REQUIRED_FIELDS.filter((f) => {
-    if (headerColumns && !isColumnMandatoryByName(headerColumns, f.keys)) return false;
-    return isMissingValue(f, pickHeaderValue(headerValues, f.keys));
-  }).map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
 function pickHeaderInt(headerValues, ...keys) {
@@ -131,6 +110,10 @@ export function buildAetItemPickerJsonPayload(headerValues, {
   companyId,
   loginId,
   yearId,
+  maGroupId = 0,
+  subMaGroupId = 0,
+  itemNameSearch = "",
+  qrJson = "",
 } = {}) {
   const session = getUserSession();
   return {
@@ -152,12 +135,15 @@ export function buildAetItemPickerJsonPayload(headerValues, {
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AET_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
-    // Magroup / submagroup filters removed from UI — SP still expects the params.
-    prmmaingroupid: 0,
-    prmsubmaingroupid: 0,
+    // Trailing SP args — keep this order:
+    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext, prmotherstr, prmjson, prmqrjson
+    prmmaingroupid: Number(maGroupId) || 0,
+    prmsubmaingroupid: Number(subMaGroupId) || 0,
+    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
     prmsearchtext: "",
     prmotherstr: "",
     prmjson: "[]",
+    prmqrjson: String(qrJson ?? "").trim(),
   };
 }
 

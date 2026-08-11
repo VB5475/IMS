@@ -88,6 +88,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.PURCHASE_QUOTATION), icon: FileText, label: "Purchase Quotation", end: false },
       { to: "/purchase-quotation-comparison", icon: Scale, label: "Purchase Quotation Comparison", end: false },
       { to: rbRoutePath(RB_CODES.PURCHASE_ORDER), icon: ShoppingCart, label: "Purchase Order", end: false },
+      { to: rbRoutePath(RB_CODES.PURCHASE_RATE_CONTRACT), icon: FileText, label: "Purchase Rate Contract", end: false },
       { to: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE), icon: PackageCheck, label: "Goods Received Note", end: false },
       { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false },
       { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false },

@@ -1,6 +1,6 @@
 // constants.js — Company Act Depreciation (DPC) page config
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
-import { isColumnMandatoryByName } from "../../utils/gridUtils";
+import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Company Act Depreciation";
@@ -64,29 +64,7 @@ export const DPC_FILTER_CASCADE_RESETS = {
   DivisionID: ["FixedAstAcID"],
 };
 
-// ── Item picker required header fields (MRD § 3) ─────────────────────────────
-const DPC_ITEM_PICKER_REQUIRED_FIELDS = [
-  { headerKey: "divisionid",   label: "Division" },
-  { headerKey: "trandate",     label: "Tran Date", isDate: true },
-  { headerKey: "fixedastacid", label: "Fixed Asset A/C" },
-];
-
-function isMissingValue(field, value) {
-  if (field.isDate) return value == null || value === "";
-  if (value == null || value === "") return true;
-  return Number(value) === 0 || value === "0";
-}
-
-/**
- * @param {object} headerValues
- * @param {object[]} [headerColumns] - GET_DETAIL_COL_DATA rows. When provided, a field is only
- *   enforced as required if its matching column's IsMandatory flag is truthy.
- */
+/** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
-  return DPC_ITEM_PICKER_REQUIRED_FIELDS
-    .filter((f) => {
-      if (headerColumns && !isColumnMandatoryByName(headerColumns, f.headerKey)) return false;
-      return isMissingValue(f, headerValues?.[f.headerKey]);
-    })
-    .map((f) => f.label);
+  return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }

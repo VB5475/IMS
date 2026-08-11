@@ -452,15 +452,35 @@ export function validateApiColumnsByField(values, apiColumns, opts = {}) {
   const { zeroValidFields } = opts;
   const fieldErrors = {};
   (apiColumns || []).forEach((apiCol) => {
-    if (!isTruthyApiFlag(apiCol.isvisible)) return;
-    const key = apiCol.colname;
+    if (!isTruthyApiFlag(apiCol.isvisible ?? apiCol.IsVisible)) return;
+    const key = apiCol.colname ?? apiCol.ColName;
     if (!key) return;
-    const result = validateColumnValue(values[key], apiCol, {
-      allowZero: zeroValidFields?.has(key),
-    });
+    const allowZero =
+      zeroValidFields?.has(key) || zeroValidFields?.has(String(key).toLowerCase());
+    const result = validateColumnValue(values?.[key], apiCol, { allowZero });
     if (!result.valid) fieldErrors[key] = result.message;
   });
   return fieldErrors;
+}
+
+/**
+ * Display labels of visible IsMandatory header fields that fail validation.
+ * Select Item / picker gates should use this so GET_DETAIL_COL_DATA alone
+ * decides what is required (no hardcoded field candidate lists).
+ * @param {object} headerValues
+ * @param {object[]|null|undefined} headerColumns - GET_DETAIL_COL_DATA rows
+ * @param {{ zeroValidFields?: Set<string> }} [opts]
+ * @returns {string[]}
+ */
+export function getMissingMandatoryHeaderLabels(headerValues, headerColumns, opts = {}) {
+  if (!Array.isArray(headerColumns) || headerColumns.length === 0) return [];
+  const errorMap = validateApiColumnsByField(headerValues, headerColumns, opts);
+  return Object.keys(errorMap).map((key) => {
+    const col = headerColumns.find(
+      (c) => String(c.colname ?? c.ColName ?? "").toLowerCase() === String(key).toLowerCase()
+    );
+    return col?.displayname ?? col?.DisplayName ?? key;
+  });
 }
 
 /**

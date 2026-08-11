@@ -10,7 +10,9 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstWriteOff } from "../../hooks/useAstWriteOff";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -48,6 +50,7 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   getMissingItemPickerHeaderFields,
+  buildAwfItemPickerJsonPayload,
   buildAwfCascadeResets,
 } from "./constants";
 import "./AssetsWriteOffPage.css";
@@ -160,6 +163,12 @@ export default function AssetsWriteOffForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemNameFilter, setItemNameFilter] = useState("");
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: AWF_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: AWF_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: AWF_CONFIG.FORM_TAG,
+  });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -433,18 +442,13 @@ export default function AssetsWriteOffForm() {
       return;
     }
 
-    const { divisionid, accountid, trandate, fromlocid, locationid } = headerValues;
-    const existingRows = itemGridRef.current?.getRows?.() ?? [];
-    const notIn = existingRows
-      .map((r) => r.itemid ?? r.compuniquekey)
-      .filter(Boolean)
-      .join(",");
-
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemNameFilter("");
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -467,29 +471,75 @@ export default function AssetsWriteOffForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AWF_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([{
-          prmcompanyid: getUserSession().companyId,
-          prmyearid: getUserSession().yearId,
-          prmdivisionid: Number(divisionid) || 0,
-          prmtrandate: trandate ?? "",
-          prmaccountid: Number(accountid) || 0,
-          prmlocationid: Number(fromlocid ?? locationid) || 0,
-          prmnotin: notIn,
-        }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      const divisionId = headerValues.divisionid;
+      const configId = headerValues.configid;
+      await groupFilter.fetchMainGroupOptions({ divisionId, configId });
+      await groupFilter.fetchSubMainGroupOptions({
+        divisionId,
+        configId,
+        mainGroupId: 0,
       });
-      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[AWF] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, groupFilter]);
+
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const itemName = String(itemNameFilter ?? "").trim();
+    const existingRows = itemGridRef.current?.getRows?.() ?? [];
+    const notIn = existingRows
+      .map((r) => r.itemid ?? r.compuniquekey)
+      .filter(Boolean)
+      .join(",");
+    setItemModalError(null);
+    try {
+      await groupFilter.applyFilter(
+        async (groupParams) => {
+          const hasMain = Boolean(groupFilter.mainGroupFilter);
+          const hasSub = Boolean(groupFilter.subMainGroupFilter);
+          const hasItemName = itemName.length >= 3;
+          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: AWF_CONFIG.SP_ITEM_PICKER,
+            JSon: JSON.stringify([{
+              ...buildAwfItemPickerJsonPayload(headerValues, {
+                notIn,
+                maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
+                subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
+                itemNameSearch: hasItemName ? itemName : "",
+                qrJson: "",
+              }),
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          });
+          setItemModalItems(rowRes || []);
+        },
+        {
+          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
+            const hasMain = Boolean(mainGroupFilter);
+            const hasSub = Boolean(subMainGroupFilter);
+            const hasItemName = itemName.length >= 3;
+            if (itemName.length > 0 && itemName.length < 3) {
+              throw new Error("Item Name must be at least 3 characters.");
+            }
+            if (!hasMain && !hasSub && !hasItemName) {
+              throw new Error(
+                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
+              );
+            }
+          },
+        }
+      );
+    } catch (err) {
+      console.error("[AWF] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    }
+  }, [getLive, groupFilter, itemNameFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -785,9 +835,30 @@ export default function AssetsWriteOffForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={
+            <ItemPickerGroupFilterBar
+              mainGroupOptions={groupFilter.mainGroupOptions}
+              subMainGroupOptions={groupFilter.subMainGroupOptions}
+              mainGroupValue={groupFilter.mainGroupFilter}
+              subMainGroupValue={groupFilter.subMainGroupFilter}
+              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+                divisionId: headerValuesRef.current.divisionid,
+                configId: headerValuesRef.current.configid,
+                defaultMaGroupId: 0,
+              })}
+              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+              onFilter={handleApplyItemFilter}
+              filterLoading={groupFilter.filterLoading}
+              subMainAlwaysEnabled
+              showItemName
+              itemNameValue={itemNameFilter}
+              onItemNameChange={setItemNameFilter}
+            />
+          }
+          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>

@@ -33,9 +33,12 @@ function dedupeRowsCaseKeys(rows) {
   return dedupeRowCaseKeys(rows);
 }
 
+/** Default Inquiry terms key — MRD spelling (incl. "Conditiont") confirmed against SP. */
+const DEFAULT_TERMS_DET_KEY = "prmPurTermsNConditiontDetJson";
+
 /**
  * Build prmStr*JSON fields from raw row arrays and log the full body before stringify.
- * @param {{ label?: string, mst?: object|object[], det?: object[], indtDet?: object[], supplierDet?: object[], termsDet?: object[], extra?: object }} parts
+ * @param {{ label?: string, mst?: object|object[], det?: object[], indtDet?: object[], supplierDet?: object[], termsDet?: object[], termsDetKey?: string, extra?: object }} parts
  * @returns {object} payload fragment with stringified JSON fields
  */
 export function buildSaveJsonFields({
@@ -45,6 +48,7 @@ export function buildSaveJsonFields({
   indtDet,
   supplierDet,
   termsDet,
+  termsDetKey = DEFAULT_TERMS_DET_KEY,
   extra = {},
 } = {}) {
   const rawBody = { ...extra };
@@ -60,11 +64,12 @@ export function buildSaveJsonFields({
   }
   // MRD-specified keys for Post_RB_PurInquiryMst_Save — verbatim casing (incl.
   // "TermsNConditiontDet"), confirmed against the SP signature, not a typo fix.
+  // Purchase Rate Contract uses prmTermsNCondDetJSon via termsDetKey override.
   if (supplierDet !== undefined) {
     rawBody.prmPurSupplierDetJson = dedupeRowsCaseKeys(supplierDet);
   }
   if (termsDet !== undefined) {
-    rawBody.prmPurTermsNConditiontDetJson = dedupeRowsCaseKeys(termsDet);
+    rawBody[termsDetKey] = dedupeRowsCaseKeys(termsDet);
   }
 
   console.log(
@@ -86,8 +91,8 @@ export function buildSaveJsonFields({
   if (rawBody.prmPurSupplierDetJson) {
     payload.prmPurSupplierDetJson = JSON.stringify(rawBody.prmPurSupplierDetJson);
   }
-  if (rawBody.prmPurTermsNConditiontDetJson) {
-    payload.prmPurTermsNConditiontDetJson = JSON.stringify(rawBody.prmPurTermsNConditiontDetJson);
+  if (rawBody[termsDetKey]) {
+    payload[termsDetKey] = JSON.stringify(rawBody[termsDetKey]);
   }
 
   return payload;
