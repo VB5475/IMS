@@ -105,6 +105,11 @@ export const PO_CONFIG = {
 
   SP_PO_LIST: "fn_tbl_rb_purpomst_list",
   LIST_DIVISION_ID: 0,
+
+  // Workflow (WKF) approval — "Approval Initiator" button on the list page,
+  // beside Entry Form (2026-08-12 /pm, MRD_Template4WorkFlowDashBoard.docx's
+  // companion feature). User-confirmed value.
+  WKF_TRAN_TYPE_ID: 1,
 };
 
 export const PO_MASTER = {

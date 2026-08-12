@@ -7,8 +7,26 @@
 // why. Unlike that standalone-master version, there's no separate "Add" gate
 // before the grids render: opening the modal via F6 already signals intent,
 // so both grids load immediately.
+//
+// 2026-08-10 (/pm + /tl): exposes `saveDocuments()` via ref so the parent
+// transaction form can piggy-back the SAME DM_DocSave call its own Save
+// button already triggers onto the transaction's own Save flow, so staged
+// document rows aren't lost if the user closes this modal (which fully
+// unmounts <Modal>'s children, including the Docs EntryGrid and its row
+// state) without explicitly clicking THIS modal's own Save button first.
+// `pendingRows` is the survivor: captured from the live grid right before
+// close, held here (this component itself never unmounts — only its <Modal>
+// child does), and fed back in as the grid's initialRows on reopen.
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, {
+  forwardRef,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+} from "react";
 import { AlertCircle, Plus, FolderSearch, RefreshCw, Save as SaveIcon, FileText } from "lucide-react";
 import Modal from "../ui/Modal";
 import EntryGrid from "../grid/EntryGrid";
@@ -28,6 +46,13 @@ const nextTempId = () => _docLogTempId--;
 // plain `title` branch — see original DM Document List gotcha, still true here.
 const DOCS_GRID_TABS = [{ id: "docs", label: "Docs" }];
 const REF_GRID_TABS = [{ id: "reference", label: "Reference Documents" }];
+
+// 2026-08-12 /pm: hide the Reference Documents grid for now (its backing API,
+// DM_DOC_LIST_REF, is still unverified against a live backend). Deliberately
+// temporary — flip back to true to restore it. Every bit of the underlying
+// logic (fetchReferenceDocs, handleFetchReferenceDocs, refRows state, the
+// grid's own <section> below) stays intact, just not rendered.
+const SHOW_REFERENCE_DOCS_TAB = false;
 
 // Document Type isn't in EntryGrid's default EVENT_COLUMNS set (that's built
 // for transaction line-item grids, e.g. ItemID/TranQty) — opt in explicitly
@@ -53,7 +78,7 @@ function withoutUploadColumn(columns) {
   return columns.filter((c) => c.key !== CFG.UPLOAD_COL);
 }
 
-export default function DocumentLogModal({
+const DocumentLogModal = forwardRef(function DocumentLogModal({
   isOpen = false,
   onClose,
   tranId = 0,
@@ -63,7 +88,7 @@ export default function DocumentLogModal({
   // "Reference Document" button's fetch (fn_tbl_rb_dm_trnwisedocs_fetch_DocData).
   tranTypeId = 0,
   guid = "",
-}) {
+}, ref) {
   const notify = useNotification();
   const docGridRef = useRef(null);
   const loadedForTranRef = useRef(null);
@@ -89,6 +114,12 @@ export default function DocumentLogModal({
   const [refFetched, setRefFetched] = useState(false);
   const [uploadedLoading, setUploadedLoading] = useState(false);
   const [formErrors, setFormErrors] = useState([]);
+  // Docs grid rows staged (added/uploaded) but not yet explicitly saved via
+  // this modal's own Save button — captured on close (see handleModalClose)
+  // since the grid itself unmounts with <Modal>. Survives close/reopen and
+  // backs saveDocuments() below (called by the parent transaction form after
+  // its own Save succeeds).
+  const [pendingRows, setPendingRows] = useState([]);
 
   // Load once per (modal-open, tranId) pair — not on every re-render while
   // open. Only fetches column metadata (needed to render both grids at all)
@@ -191,13 +222,15 @@ export default function DocumentLogModal({
   const handleFetchReferenceDocs = useCallback(async () => {
     setRefLoading(true);
     try {
-      const rows = await fetchReferenceDocs({ refTranTypeId: tranTypeId, guid, tranId });
+      // No guid param — Reference Documents (DM_DOC_LIST_REF) is looked up by
+      // tranid alone, unlike Refresh/fetchUploadedDocs (DM_DOC_LIST).
+      const rows = await fetchReferenceDocs({ refTranTypeId: tranTypeId, tranId });
       setRefRows((rows || []).map((r, i) => ({ ...r, id: r.idnumber ?? r.IDNumber ?? `_ref_${i}` })));
       setRefFetched(true);
     } finally {
       setRefLoading(false);
     }
-  }, [fetchReferenceDocs, tranTypeId, guid, tranId]);
+  }, [fetchReferenceDocs, tranTypeId, tranId]);
 
   const handleView = useCallback(
     async (row) => {
@@ -299,6 +332,23 @@ export default function DocumentLogModal({
       return;
     }
     setFormErrors([]);
+
+    // 2026-08-11 (/pm): when the parent transaction hasn't saved yet
+    // (tranId=0 — the common Add-mode case), DON'T call DM_DocSave here.
+    // Calling it immediately would save with tranid=0, and there is no
+    // working way to correct that afterward (a resend-as-update attempt was
+    // built, live-tested, and confirmed the backend silently ignores the
+    // tranid correction — see PurchaseIndentForm.jsx's linkDocsToTransaction
+    // comment). Staging instead — same as Cancel/X — guarantees exactly ONE
+    // DM_DocSave call per row, fired by the parent's own Save via
+    // saveDocuments() below, always carrying the real tranid from the start.
+    if (!tranId) {
+      setPendingRows(rows);
+      notify.success(`${rows.length} document row(s) staged — will save with the transaction.`);
+      onClose?.();
+      return;
+    }
+
     try {
       const results = await saveDocs(rows, tranId, divisionId, tranTypeId, guid);
       const parsed = results.map((r) => parseApiErrMsg(r));
@@ -315,7 +365,52 @@ export default function DocumentLogModal({
       console.error("[DocumentLogModal] Save failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
     }
-  }, [saveDocs, tranId, divisionId, tranTypeId, guid, notify]);
+  }, [saveDocs, tranId, divisionId, tranTypeId, guid, notify, onClose]);
+
+  // Fires on every path that closes this modal (X, Cancel, Escape) — grabs
+  // whatever's currently in the Docs grid before <Modal> unmounts it and
+  // takes that state with it, so a closed-without-saving draft survives
+  // until either the user reopens (fed back in as initialRows below) or the
+  // parent form's Save calls saveDocuments() for them.
+  const handleModalClose = useCallback(() => {
+    const rows = (docGridRef.current?.getRows?.() ?? []).filter((r) => !r._isUploaded);
+    setPendingRows(rows);
+    onClose?.();
+  }, [onClose]);
+
+  // Exposed to the parent transaction form (see PurchaseIndentForm.jsx) —
+  // saves whatever was staged and left unsaved when this modal was last
+  // closed, via the SAME DM_DocSave call handleSave above uses. No-op when
+  // nothing is pending, so it's safe to call unconditionally after every
+  // transaction Save. Best-effort: like linkDocsToTransaction, a failure
+  // here must never be treated as the transaction's own save having failed
+  // — it already succeeded by the time this runs.
+  //
+  // `overrideTranId` — the parent's own Save just parsed the REAL tranid out
+  // of its own save response (see extractSavedIdFromMessage), which on an
+  // Add-mode save is only known there, AFTER this component's `tranId` prop
+  // (still 0 — the route hasn't changed) was captured by this callback's own
+  // closure. Falls back to the `tranId` prop when omitted.
+  const saveDocuments = useCallback(async (overrideTranId) => {
+    if (pendingRows.length === 0) return { success: true, count: 0 };
+    const effectiveTranId = overrideTranId != null ? overrideTranId : tranId;
+    try {
+      const results = await saveDocs(pendingRows, effectiveTranId, divisionId, tranTypeId, guid);
+      const parsed = results.map((r) => parseApiErrMsg(r));
+      const failed = parsed.filter((p) => !p.success);
+      if (failed.length > 0) {
+        return { success: false, message: failed.map((p) => p.message).join(" | ") };
+      }
+      const count = pendingRows.length;
+      setPendingRows([]);
+      return { success: true, count };
+    } catch (err) {
+      console.error("[DocumentLogModal] saveDocuments (via parent Save) failed:", err);
+      return { success: false, message: err?.message || "Document save failed." };
+    }
+  }, [pendingRows, saveDocs, tranId, divisionId, tranTypeId, guid]);
+
+  useImperativeHandle(ref, () => ({ saveDocuments }), [saveDocuments]);
 
   const docsGridConfig = useMemo(
     () => ({ columns: docsColumns, pagination: { pageSize: 25, pageSizeOptions: [10, 25, 50] } }),
@@ -328,14 +423,14 @@ export default function DocumentLogModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleModalClose}
       title="Document Log"
       subtitle="Add document metadata rows, then Save. Click Reference Document to load related entries."
       icon={<FileText size={16} strokeWidth={2} />}
       size="xl"
       footer={
         <>
-          <button type="button" className="action-btn action-btn--secondary" onClick={onClose}>
+          <button type="button" className="action-btn action-btn--secondary" onClick={handleModalClose}>
             <span>Cancel</span>
           </button>
           <button
@@ -371,37 +466,39 @@ export default function DocumentLogModal({
         <>
           <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
 
-          <section className="workspace-page__grid" style={{ marginBottom: 16 }}>
-            <EntryGrid
-              config={refGridConfig}
-              tabs={REF_GRID_TABS}
-              activeTab="reference"
-              readOnly
-              initialRows={refRows}
-              headerControls={
-                <>
-                  {refFetched && (
-                    <span className="doclog-modal__count">
-                      {refRows.length} record{refRows.length !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className="eg-tab-btn"
-                    onClick={handleFetchReferenceDocs}
-                    disabled={refLoading}
-                    title="Fetch reference documents for this transaction"
-                  >
-                    <FolderSearch size={12} strokeWidth={2.5} />
-                    {refLoading ? "Loading…" : "Reference Document"}
-                  </button>
-                </>
-              }
-              hideBottomPanel
-              emptyMessage={refLoading ? "Loading…" : "No reference documents found. Click Reference Document above."}
-              onButtonClick={handleGridButtonClick}
-            />
-          </section>
+          {SHOW_REFERENCE_DOCS_TAB && (
+            <section className="workspace-page__grid" style={{ marginBottom: 16 }}>
+              <EntryGrid
+                config={refGridConfig}
+                tabs={REF_GRID_TABS}
+                activeTab="reference"
+                readOnly
+                initialRows={refRows}
+                headerControls={
+                  <>
+                    {refFetched && (
+                      <span className="doclog-modal__count">
+                        {refRows.length} record{refRows.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="eg-tab-btn"
+                      onClick={handleFetchReferenceDocs}
+                      disabled={refLoading}
+                      title="Fetch reference documents for this transaction"
+                    >
+                      <FolderSearch size={12} strokeWidth={2.5} />
+                      {refLoading ? "Loading…" : "Reference Document"}
+                    </button>
+                  </>
+                }
+                hideBottomPanel
+                emptyMessage={refLoading ? "Loading…" : "No reference documents found. Click Reference Document above."}
+                onButtonClick={handleGridButtonClick}
+              />
+            </section>
+          )}
 
           <section className="workspace-page__grid">
             <EntryGrid
@@ -410,6 +507,7 @@ export default function DocumentLogModal({
               tabs={DOCS_GRID_TABS}
               activeTab="docs"
               existingRecordEdit={false}
+              initialRows={pendingRows}
               eventColumns={DOCTYPE_EVENT_COLUMNS}
               onCellEvent={handleDocTypeCellEvent}
               headerControls={
@@ -452,4 +550,6 @@ export default function DocumentLogModal({
       )}
     </Modal>
   );
-}
+});
+
+export default DocumentLogModal;

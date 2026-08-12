@@ -828,11 +828,22 @@ export default function GoodsReceivedNoteForm() {
   // track the promise so handleSave can await it — otherwise Save immediately
   // after editing an event column (without tabbing away) POSTs before the
   // fire-event response updates the row.
+  //
+  // Keyed by rowId: editing two event columns on the SAME row in quick
+  // succession (e.g. Qty then Rate, as happens filling a picker-inserted row)
+  // fires two independent requests for that row with no guaranteed response
+  // order. isLatest() drops a late-arriving response from an OLDER request
+  // once a newer request for the same row has already started, so a stale
+  // recalculation (still reflecting the pre-edit Rate) can't land after and
+  // overwrite the correct, already-applied one — live-verified 2026-08-11
+  // as the actual cause of GRN's "Amount stuck at 0.00 after inserting/
+  // editing multiple rows quickly" report.
   const handleCellEvent = useCallback(
     ({ rowId, colKey, rowData }) =>
-      trackCellEvent(async () => {
+      trackCellEvent(async (isLatest) => {
         const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
         if (!result || !itemGridRef.current) return;
+        if (!isLatest()) return;
         const responseRow = result?.[0];
         if (!responseRow) return;
         const errCode = responseRow.errcode;
@@ -842,7 +853,7 @@ export default function GoodsReceivedNoteForm() {
         }
         const { errcode, errmsg, ...updatedFields } = responseRow;
         itemGridRef.current.updateRow?.(rowId, updatedFields);
-      }),
+      }, rowId),
     [fireCellEvent, trackCellEvent]
   );
 

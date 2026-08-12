@@ -40,6 +40,7 @@ import {
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
+import { useUser } from "../../context/UserContext";
 import { buildGridColumns, isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol, editRecordGridColumnOpts, syncEditGridDropdownValues } from "../../utils/gridUtils";
 import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
@@ -115,6 +116,7 @@ export default function PurchaseIndentForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { user } = useUser();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
@@ -199,11 +201,19 @@ export default function PurchaseIndentForm() {
 
   // Document Log modal (F6) — scoped to this indent's record id, gated on
   // the session's Document Log permission flags (set at login — see
-  // extractDmConfigPermissions in session/userSession.js). Read once here;
-  // dmConfig only changes on a fresh login, which remounts the whole tree.
+  // extractDmConfigPermissions in session/userSession.js).
+  // 2026-08-10 (/pm): read reactively through useUser(), NOT a one-off
+  // getUserSession() snapshot — RequireAuth (App.jsx) re-fetches DM_Config
+  // asynchronously on EVERY full page reload (not just a fresh login), and
+  // does not block rendering <Outlet/> while that fetch is in flight. A
+  // static snapshot read here could catch dmConfig still null on a hard
+  // reload landed directly on this page, and — since it's a plain function
+  // call, not a subscribed context value — this component would never
+  // re-render once the fetch resolved, permanently hiding the Documents
+  // button for that page instance even though the backend allows it.
   // User-confirmed rule 2026-07-30: BOTH flags must be "Y" — isdmdbbased is
   // only meaningful once isdmrequired is already "Y" (short-circuit AND).
-  const dmConfig = getUserSession().dmConfig;
+  const dmConfig = user.dmConfig;
   const dmConfigAllows = dmConfig?.isdmrequired === "Y" && dmConfig?.isdmdbbased === "Y";
 
   // Document Log button visibility — a 3rd, ADDITIVE gate on top of
@@ -224,11 +234,10 @@ export default function PurchaseIndentForm() {
   // before "Add" is clicked on a new one), and becomes usable as soon as
   // Add/Edit mode is entered — including on a brand-new, still-unsaved
   // record (tranid=0), since documents can be staged against the temporary
-  // docGuid before the transaction itself is saved. NOTE: this REOPENS the
-  // "Add-mode linking gap" documented on linkDocsToTransaction below — an
-  // Add-mode session can now stage documents, but linking them still only
-  // fires on Edit-mode saves (no known tranid to link against after an Add
-  // save) — flagged there again, not silently resolved.
+  // docGuid before the transaction itself is saved. The "Add-mode linking
+  // gap" this reopened (documents staged pre-save on a new record had no
+  // known tranid to link against after the Add save) was resolved 2026-08-10
+  // — see linkDocsToTransaction below.
   //
   // 2026-08-08 (Indent-only instruction): the app-wide convention of
   // rendering this button disabled-with-explanatory-title was replaced, for
@@ -238,6 +247,11 @@ export default function PurchaseIndentForm() {
   const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES" && isEditMode;
 
   const [docModalOpen, setDocModalOpen] = useState(false);
+  // Ref to the Documents modal — used only to call its imperative
+  // saveDocuments() (see DocumentLogModal.jsx) right after this form's own
+  // Save succeeds, so document rows staged there don't require a separate
+  // explicit click on the modal's own Save button.
+  const docModalRef = useRef(null);
   const handleOpenDocuments = useCallback(() => {
     if (!isDocumentLogEnabled) return;
     setDocModalOpen(true);
@@ -290,29 +304,27 @@ export default function PurchaseIndentForm() {
     }
   }, [postSave]);
 
-  // Links any documents uploaded/saved against docGuid (before this
-  // transaction had a real TranID) to the now-real, just-saved tranid — per
-  // explicit user spec 2026-07-30: "on save GUID to be passed in save and at
-  // the end we need to store and pass that guid in relevant module to link."
-  // Live-confirmed body shape (real Indent values): {prmtrantypeid,
-  // prmguid, prmtranid, prmyearid, prmloginid, prmdivisionid} →
-  // {"ErrCode":"1","ErrMsg":"Document(s) saved with Transaction Successfully !"}.
+  // Links any documents saved against docGuid (before this transaction had a
+  // real TranID) to the now-real, just-saved tranid.
+  //
+  // 2026-08-11 (/pm): a same-day attempt to REPLACE this with re-POSTing the
+  // document's original DM_DocSave payload (idnumber+tranid corrected) —
+  // theory being a non-zero idnumber makes the backend treat it as an update
+  // — was live-verified AGAINST THE REAL BACKEND and found NOT to work: the
+  // resend returns 200/success with no error and doesn't duplicate the row,
+  // but SILENTLY fails to persist the tranid correction — the doc stays
+  // permanently stuck at tranid=0 and is invisible under the real
+  // transaction (confirmed by querying fn_tbl_rb_dm_tranwisedocs_showdoclist
+  // directly under both tranid values). Reverted back to this dedicated
+  // linking endpoint, which WAS live-confirmed working 2026-07-30 (real
+  // Indent values: {prmtrantypeid, prmguid, prmtranid, prmyearid,
+  // prmloginid, prmdivisionid} → {"ErrCode":"1","ErrMsg":"Document(s) saved
+  // with Transaction Successfully !"}). If the resend-as-update approach is
+  // wanted again, it needs a backend fix to Post_RB_DM_Doc_Save first — the
+  // client-side code alone can't make it work.
+  //
   // Best-effort: a failure here must never block the Indent's own save
   // success (the transaction itself already saved fine by this point).
-  //
-  // KNOWN GAP — Add-mode only (REOPENED 2026-07-31, 2nd correction same day):
-  // isDocumentLogEnabled was briefly gated on isEditRoute, which made the
-  // Documents modal unreachable during Add mode and incidentally closed this
-  // gap — then corrected to gate on isEditMode instead ("before Add OR Edit
-  // mode active the button will be disabled"), which means a brand-new,
-  // still-unsaved record CAN now open Documents and stage files against the
-  // temporary docGuid. This function still only fires for EDIT saves, where
-  // recordId is already the real tranid — there is still no established way
-  // in this codebase to learn a newly-created Indent's tranid from an Add
-  // save's response (grepped every module, none exists), so documents staged
-  // during an Add-mode session are NOT currently linked once that Add save
-  // completes. Left unresolved rather than guessed — needs either a backend
-  // change (return the new ID) or a different flow.
   const linkDocsToTransaction = useCallback(
     async (realTranId) => {
       if (!docGuid || !realTranId) return;
@@ -832,14 +844,43 @@ export default function PurchaseIndentForm() {
     setIsSavingIndent(true);
     try {
       const result = await postSave(IND_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
-      // Link any documents uploaded/saved under docGuid to this now-saved
-      // transaction. Edit-mode only for now — recordId is the real tranid
-      // here; see linkDocsToTransaction's own comment for why Add-mode
-      // (where the new tranid isn't known client-side) isn't covered yet.
-      if (isEditRoute) linkDocsToTransaction(recordId);
+      // The save response's own message carries the real tranid — e.g.
+      // "Data Inserted/Updated Successfully with ID[ 44]!!!!" — parsed via
+      // extractSavedIdFromMessage (see utils/apiResponse.js). This is what
+      // closes the previously-documented Add-mode gap: recordId is only the
+      // real tranid on an EDIT save (Add is always 0 here, route hasn't
+      // changed), but `newId` is the real tranid either way. Falls back to
+      // recordId so an Edit save still works even if the message wording
+      // ever changes and the regex stops matching.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      // Save any document rows staged in the Documents modal but never
+      // explicitly submitted via ITS OWN Save button — same DM_DocSave call
+      // that button triggers, piggy-backed onto this Save so the user isn't
+      // forced into a second explicit save step. No-op when nothing is
+      // staged. Best-effort: a failure here must never be treated as the
+      // Indent's own save having failed — it already succeeded by this point.
+      try {
+        const docResult = await docModalRef.current?.saveDocuments?.(savedTranId);
+        if (docResult?.success === false) {
+          notify.error(docResult.message || "Document save failed.");
+        } else if (docResult?.count) {
+          notify.success(`Saved ${docResult.count} document row(s).`);
+        }
+      } catch (err) {
+        console.warn("[Indent] Document save failed:", err);
+      }
+      // Link any documents saved under docGuid (before this transaction
+      // existed — Add-mode staging via the Documents modal's own Save
+      // button, tranid=0 at that point) to this now-saved transaction. Covers
+      // Add-mode too, since savedTranId comes from this save's own response
+      // rather than the (Add-mode-stale) recordId. See linkDocsToTransaction's
+      // own comment for why this dedicated endpoint is used instead of
+      // resending DM_DocSave — that alternative was tried and live-verified
+      // NOT to work against the real backend.
+      if (savedTranId) linkDocsToTransaction(savedTranId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -1068,6 +1109,7 @@ export default function PurchaseIndentForm() {
 
       <Suspense fallback={null}>
         <DocumentLogModal
+          ref={docModalRef}
           isOpen={docModalOpen}
           onClose={() => setDocModalOpen(false)}
           tranId={recordId}

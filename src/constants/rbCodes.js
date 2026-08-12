@@ -115,6 +115,12 @@ export const RB_CODES = Object.freeze({
   CALL_REPORTING: "rb_mnt_clrpt",
   MAINTENANCE_CONTRACT_RENEWAL: "rb_mntamcrnwmst",
   MAINTENANCE_NEW_CONTRACT: "rb_mntamcnewmst",
+
+  // ── Workflow ────────────────────────────────────────────────────
+  // MRD_Template4WorkFlowDashBoard.docx (Richa, 08-Aug-2026) — read-only
+  // multi-level approval dashboard, no header RB (fixed controls per the
+  // MRD's own Section 2 note), grid columns driven by this detail RB.
+  WORKFLOW_DASHBOARD: "rb_wkfdashboard",
 });
 
 /**
@@ -185,6 +191,8 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.COMPLAINT_REGISTER]: "/complaint-register",
   [RB_CODES.MAINTENANCE_CONTRACT_RENEWAL]: "/maintenance-contract-renewal",
   [RB_CODES.MAINTENANCE_NEW_CONTRACT]: "/maintenance-new-contract",
+
+  [RB_CODES.WORKFLOW_DASHBOARD]: "/workflow-dashboard",
 });
 
 /** Absolute public base path for a module (e.g. `/purchase-indent`). */

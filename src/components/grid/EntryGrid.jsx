@@ -287,12 +287,35 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   useImperativeHandle(
     ref,
     () => ({
+      // Every mutator below does BOTH of these, deliberately:
+      //  1. Mutate rowsRef.current SYNCHRONOUSLY, with a plain assignment, right
+      //     here — a functional setRows updater is NOT called synchronously by
+      //     React (it runs whenever React processes the queued update, which for
+      //     updates queued from a resolved promise continuation — e.g. a
+      //     cell-event's `await fireCellEvent(...)` — is deferred, not inline).
+      //     Code that reads rowsRef.current immediately after calling one of
+      //     these (getRows() for Save, fireCellEventForColumn's/makeCellBlur's
+      //     own rowsRef.current.find() row-snapshot below) needs that value
+      //     available NOW, not after React's next flush.
+      //  2. ALSO pass a FUNCTIONAL setRows((prev) => ...) that re-derives the
+      //     same transform from React's own `prev`, rather than blindly handing
+      //     React the value already computed from rowsRef.current. This is what
+      //     makes it safe against another update queued around the same time
+      //     (e.g. the dropdown-resync effect's own setRows((prev) => ...)
+      //     below, or a SECOND concurrent updateRow call for a different row) —
+      //     React always applies queued functional updates in order against the
+      //     actual latest `prev`, so this composes correctly no matter what
+      //     else is queued, instead of one plain-value setRows silently
+      //     overwriting the other. rowsRef.current is re-synced inside the
+      //     updater too, so it converges on whatever React actually ends up
+      //     rendering even if a second update was interleaved ahead of this one.
       addRow(blankRow) {
-        // Mutate rowsRef first — setState updaters are not sync, and Save/getRows
-        // must see the row immediately after imperative add/update.
-        const next = [...rowsRef.current, blankRow];
-        rowsRef.current = next;
-        setRows(next);
+        rowsRef.current = [...rowsRef.current, blankRow];
+        setRows((prev) => {
+          const next = [...prev, blankRow];
+          rowsRef.current = next;
+          return next;
+        });
       },
       getRows() {
         return rowsRef.current;
@@ -301,24 +324,33 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         return rowsRef.current.filter((r) => selectedIds.has(String(r.id)));
       },
       updateRow(rowId, fields) {
-        // Mutate rowsRef first — setState updaters run later; awaiting a cell-event
-        // then calling getRows() must already see the new qty/amounts.
-        const next = rowsRef.current.map((r) =>
-          String(r.id) === String(rowId) ? { ...r, ...fields } : r
-        );
-        rowsRef.current = next;
-        setRows(next);
+        const apply = (list) =>
+          list.map((r) => (String(r.id) === String(rowId) ? { ...r, ...fields } : r));
+        rowsRef.current = apply(rowsRef.current);
+        setRows((prev) => {
+          const next = apply(prev);
+          rowsRef.current = next;
+          return next;
+        });
       },
       updateAllRows(fields) {
-        const next = rowsRef.current.map((r) => ({ ...r, ...fields }));
-        rowsRef.current = next;
-        setRows(next);
+        const apply = (list) => list.map((r) => ({ ...r, ...fields }));
+        rowsRef.current = apply(rowsRef.current);
+        setRows((prev) => {
+          const next = apply(prev);
+          rowsRef.current = next;
+          return next;
+        });
       },
       removeRows(rowIds) {
         const removeSet = new Set(rowIds.map(String));
-        const next = rowsRef.current.filter((r) => !removeSet.has(String(r.id)));
-        rowsRef.current = next;
-        setRows(next);
+        const apply = (list) => list.filter((r) => !removeSet.has(String(r.id)));
+        rowsRef.current = apply(rowsRef.current);
+        setRows((prev) => {
+          const next = apply(prev);
+          rowsRef.current = next;
+          return next;
+        });
         setSelectedIds((prev) => {
           const nextSel = new Set(prev);
           rowIds.forEach((id) => nextSel.delete(String(id)));
@@ -530,12 +562,21 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   }, []);
 
   // ── Cell change ───────────────────────────────────────────────────
+  // Same dual-update reasoning as the imperative handle above — sync
+  // rowsRef.current immediately (makeCellBlur/fireCellEventForColumn below
+  // read it right after this call, in the same synchronous blur handler,
+  // before React would ever get around to running a functional updater) AND
+  // queue a functional setRows so this composes correctly against any other
+  // update queued around the same time instead of silently overwriting it.
   const handleCellChange = useCallback((rowId, colKey, value) => {
-    const next = rowsRef.current.map((r) =>
-      String(r.id) === String(rowId) ? { ...r, [colKey]: value } : r
-    );
-    rowsRef.current = next;
-    setRows(next);
+    const apply = (list) =>
+      list.map((r) => (String(r.id) === String(rowId) ? { ...r, [colKey]: value } : r));
+    rowsRef.current = apply(rowsRef.current);
+    setRows((prev) => {
+      const next = apply(prev);
+      rowsRef.current = next;
+      return next;
+    });
   }, []);
 
   const validateAndCommitCell = useCallback(

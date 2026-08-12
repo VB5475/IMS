@@ -44,6 +44,7 @@ import {
   UserCheck,
   Scale,
   Wrench,
+  Workflow,
   Cog,
   Settings,
   PanelLeftClose,
@@ -75,7 +76,10 @@ const NAV_SECTIONS = [
   {
     label: "Home",
     icon: LayoutDashboard,
-    items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
+    items: [
+      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
+      { to: rbRoutePath(RB_CODES.WORKFLOW_DASHBOARD), icon: Workflow, label: "Workflow Dashboard", end: false },
+    ],
   },
 
 
