@@ -797,15 +797,14 @@ export default function PurchaseRateContractForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      loginid: getUserSession().loginId,
     });
-    mstRow.loginid = getUserSession().loginId;
 
     const sessionFields = { loginid: getUserSession().loginId };
     const detRows = detailRows.map(({ id, ...rest }) =>
