@@ -21,6 +21,7 @@ import {
   API_BASE_URL_IMS,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -686,24 +687,21 @@ export default function AssetsReturnableGatePassOutForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = applyArgoHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: ARGO_CONFIG.FRM_TYPE,
+      issuetypeid: ARGO_CONFIG.ISSUE_TYPE_ID,
+      loginid: getUserSession().loginId,
     });
-    mstRow.frmtype = ARGO_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = ARGO_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = getUserSession().loginId;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: getUserSession().loginId };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: ARGO_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),

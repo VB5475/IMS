@@ -1365,16 +1365,15 @@ export default function PurchaseInquiryForm() {
       }
 
       // ── Master ────────────────────────────────────────────────────────
-      const mstRow = {};
-      headerColumns.forEach((col) => {
-        mstRow[col.colname] = getColDefault(col.coldatatype);
-      });
-      Object.entries(hv).forEach(([k, v]) => {
-        if (k !== "id") mstRow[k] = v;
-      });
       const session = getUserSession();
-      mstRow.loginid = session.loginId;
-      mstRow.userid = session.userId;
+      const masterColumnDefs = headerColumns.map((col) => ({
+        key: col.colname,
+        colDataType: col.coldatatype,
+      }));
+      const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+        loginid: session.loginId,
+        userid: session.userId,
+      });
 
       // ── Detail ────────────────────────────────────────────────────────
       const sessionFields = { loginid: session.loginId, userid: session.userId };
