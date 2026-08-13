@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { FileStack } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
@@ -14,6 +14,7 @@ import { DOCSUBTYPE_CONFIG } from "./constants";
 import "./DocumentSubTypeMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildDocSubTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -40,6 +41,7 @@ export default function DocumentSubTypeMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -129,6 +131,11 @@ export default function DocumentSubTypeMasterPage() {
     [data, fieldDefs, handleEdit]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Document_SubType_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page docsubtype-list-page">
       <section className="docsubtype-list-panel docsubtype-list-panel--fill">
@@ -142,11 +149,13 @@ export default function DocumentSubTypeMasterPage() {
             ...PRINT_REPORT_CONFIG["document-subtype-master"],
             buildParams: buildDocSubTypeReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

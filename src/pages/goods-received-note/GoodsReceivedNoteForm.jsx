@@ -28,9 +28,12 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { useGoodsReceivedNote } from "../../hooks/useGoodsReceivedNote";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -72,7 +75,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
-  getMissingItemPickerHeaderFields,
   resolveItemPickerRbCode,
   resolveItemPickerSpName,
 } from "./constants";
@@ -273,6 +275,20 @@ export default function GoodsReceivedNoteForm() {
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this GRN's record id, gated on the
+  // session's Document Log permission flags. Mirrors PurchaseIndentForm.jsx's
+  // docLog wiring (see useDocumentLogAccess.js for the full mechanics).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: GRN_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave: post,
+    logLabel: "[GRN]",
+  });
+
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const activeSelectionCount = itemSelectionCount;
   const [approvedFilter, setApprovedFilter] = useState("all");
@@ -390,6 +406,7 @@ export default function GoodsReceivedNoteForm() {
     clearSuppliers();
     clearTransporters();
     clearIndentDetailMeta();
+    docLog.resetDocGuid();
 
     setApprovedFilter("all");
     setIsGridLoading(false);
@@ -398,6 +415,10 @@ export default function GoodsReceivedNoteForm() {
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
     exitEditMode();
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    if (isNewRoute) docLog.fetchDocGuid();
   }, [
     clearGrnTypes,
     clearSuppliers,
@@ -405,6 +426,9 @@ export default function GoodsReceivedNoteForm() {
     clearIndentDetailMeta,
     clearItemGridState,
     exitEditMode,
+    docLog.resetDocGuid,
+    docLog.fetchDocGuid,
+    isNewRoute,
   ]);
 
   const completeSuccessfulSave = useCallback(() => {
@@ -730,11 +754,15 @@ export default function GoodsReceivedNoteForm() {
   // module — see BASED_ON_OPTIONS — so only these two branches are live.)
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerErrorMap = validateApiColumnsByField(headerValues, visibleHeaderColumns, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     const loginId = getUserSession().loginId;
     const rbCode = resolveItemPickerRbCode(headerValues.basedonid);
@@ -795,7 +823,7 @@ export default function GoodsReceivedNoteForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
+  }, [getLive, visibleHeaderColumns, groupFilter]);
 
   // Direct Select Item (fn_tbl_rb_purgrnselonlyitem) — trailing AEI filter args + Item Name.
   // PO/Indent-based picker SPs keep their existing payloads unchanged.
@@ -857,11 +885,22 @@ export default function GoodsReceivedNoteForm() {
   // track the promise so handleSave can await it — otherwise Save immediately
   // after editing an event column (without tabbing away) POSTs before the
   // fire-event response updates the row.
+  //
+  // Keyed by rowId: editing two event columns on the SAME row in quick
+  // succession (e.g. Qty then Rate, as happens filling a picker-inserted row)
+  // fires two independent requests for that row with no guaranteed response
+  // order. isLatest() drops a late-arriving response from an OLDER request
+  // once a newer request for the same row has already started, so a stale
+  // recalculation (still reflecting the pre-edit Rate) can't land after and
+  // overwrite the correct, already-applied one — live-verified 2026-08-11
+  // as the actual cause of GRN's "Amount stuck at 0.00 after inserting/
+  // editing multiple rows quickly" report.
   const handleCellEvent = useCallback(
     ({ rowId, colKey, rowData }) =>
-      trackCellEvent(async () => {
+      trackCellEvent(async (isLatest) => {
         const result = await fireCellEvent(colKey, rowData, headerValuesRef.current);
         if (!result || !itemGridRef.current) return;
+        if (!isLatest()) return;
         const responseRow = result?.[0];
         if (!responseRow) return;
         const errCode = responseRow.errcode;
@@ -871,7 +910,7 @@ export default function GoodsReceivedNoteForm() {
         }
         const { errcode, errmsg, ...updatedFields } = responseRow;
         itemGridRef.current.updateRow?.(rowId, updatedFields);
-      }),
+      }, rowId),
     [fireCellEvent, trackCellEvent]
   );
 
@@ -1018,9 +1057,21 @@ export default function GoodsReceivedNoteForm() {
       setIsSaving(true);
       try {
         const result = await post(GRN_CONFIG.SAVE_ENDPOINT, payload);
-        const { success, message } = parseApiErrMsg(result);
+        const { success, message, newId } = parseApiErrMsg(result);
         if (!success) { setFormErrors([message]); return false; }
         notify.success(message);
+        // The save response's own message carries the real tranid. Falls back
+        // to recordId so an Edit save still works even if the message wording
+        // ever changes and the regex stops matching (see PurchaseIndentForm's
+        // handleSave for the full reasoning).
+        const savedTranId = newId ?? (isEditRoute ? recordId : null);
+        // Saves any document rows staged in the Documents modal but never
+        // explicitly submitted via ITS OWN Save button, then links any docs
+        // staged under docGuid (before this transaction existed) to the
+        // now-saved transaction — see useDocumentLogAccess.finalizeSave.
+        // Best-effort: a failure here must never be treated as the GRN's own
+        // save having failed — it already succeeded by this point.
+        await docLog.finalizeSave(savedTranId);
         if (!skipPostSave) completeSuccessfulSave();
         return true;
       } catch (err) {
@@ -1042,6 +1093,8 @@ export default function GoodsReceivedNoteForm() {
       post,
       completeSuccessfulSave,
       isEditRoute,
+      recordId,
+      docLog.finalizeSave,
       flushPendingCellEvents,
     ]
   );
@@ -1096,7 +1149,7 @@ export default function GoodsReceivedNoteForm() {
     isLoadingLocations;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -1106,10 +1159,17 @@ export default function GoodsReceivedNoteForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const grnExtraButtons = useMemo(
     () => [
+      // Show/hide only, never a disabled state — docLog.documentsButtonEntry
+      // already encodes this (null when permission gates say no), spread
+      // in/out of the array so ActionBar's own `showAlways || isEditMode`
+      // filter hides/shows it with Add/Edit mode the same way every other
+      // extra button does (mirrors Purchase Indent).
+      ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
         label: "Save & Print",
@@ -1132,7 +1192,7 @@ export default function GoodsReceivedNoteForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSaving, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSaving, handleSave]
   );
 
   // Direct mode only — PO Base items fetch immediately, no filter step.
@@ -1281,6 +1341,19 @@ export default function GoodsReceivedNoteForm() {
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
           awaitingFilter={itemPickerIsDirect && !groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={GRN_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

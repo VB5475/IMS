@@ -27,6 +27,12 @@ export const IM_CONFIG = {
 
   SAVE_ENDPOINT: "/API/PurItemMst/Post_RB_PurItemMst_Save",
   STORAGE_HEADER_META: "imitemheadermeta",
+
+  // Document Log (F6-equivalent "Documents" button, 2026-08-13 /pm) — Item
+  // Master is an admin/setup master, not a Purchase-department transaction,
+  // so it scopes to DM Department Master id 6 ("ADMIN"), not 1 ("PURCHASE")
+  // like the Purchase-flow transaction forms use.
+  DM_TRAN_TYPE_ID: 30,
 };
 
 /** RB colnames for Sub Group levels (all lowercase — PG returns lowercase keys). */

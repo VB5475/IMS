@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "../api/useApi";
-import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE, buildSaveRowFromColumns, nowStoredValue } from "../api/constants";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, buildSaveRowFromColumns, nowStoredValue } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { resolveDetailColLinks, normalizeDetailColLinks } from "../utils/masterFormUtils";
 import { isErrorOnlyRow } from "../utils/apiResponse";
@@ -88,7 +88,7 @@ export function useDocumentLog() {
    *  2026-07-31 API replacement — see documentLogConfig.js's SP_DOCUMENT_TYPE
    *  note. Caller passes the same values it already threads through for the
    *  Reference Document/Refresh buttons. */
-  const fetchHeaderMeta = useCallback(async ({ refTranTypeId = 0, refDepartmentId = CFG.DEFAULT_REF_DEPARTMENT_ID } = {}) => {
+  const fetchHeaderMeta = useCallback(async ({ refTranTypeId = 0, refDepartmentId = CFG.PURCHASE_REF_DEPARTMENT_ID } = {}) => {
     setMetaFetching(true);
     setMetaError(null);
     try {
@@ -191,24 +191,24 @@ export function useDocumentLog() {
   /** Reference Documents — fetched ONLY on explicit "Reference Document"
    *  button click (no auto-load on modal open, per the user's spec: the
    *  grid starts empty and stays empty until this is called). Scoped to
-   *  (login, transaction type, GUID, tranid) — a plain 4-named-arg FUNCTION,
-   *  live-confirmed on IMS_LIVE (executes cleanly; returns `[ ]` — table is
-   *  empty, brand-new feature). Not deployed on IMS_PGLIVE yet. */
+   *  (login, transaction type, tranid).
+   *
+   *  2026-08-12 /pm: swapped from the FN_Fetch_Data/
+   *  fn_tbl_rb_dm_trnwisedocs_fetch_DocData function call to a dedicated
+   *  POST endpoint (DM_DOC_LIST_REF), same request/response shape as
+   *  DM_HANDLE_GUID/DM_HANDLE_BUTTON_VISIBILITY (api/constants.js) — plain
+   *  JSON object body, lowercase field names, no guid param. Response shape
+   *  not yet live-verified; resolveDetailColLinks tolerates a bare array, an
+   *  object with a top-level `.Table`, or `.Links`, so this stays defensive
+   *  either way — adjust here once the real shape is confirmed. */
   const fetchReferenceDocs = useCallback(
-    async ({ refTranTypeId = 0, guid = "", tranId = 0 } = {}) => {
+    async ({ refTranTypeId = 0, tranId = 0 } = {}) => {
       const session = getUserSession();
       try {
-        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: CFG.SP_FETCH_DOC_DATA,
-          JSon: JSON.stringify([{
-            prmloginid: session.loginId,
-            prmref_trantypeid: Number(refTranTypeId) || 0,
-            prmguid: guid || "",
-            prmtranid: Number(tranId) || 0,
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
+        const res = await post(ENDPOINTS.DM_DOC_LIST_REF, {
+          prmloginid: session.loginId,
+          prmref_trantypeid: Number(refTranTypeId) || 0,
+          prmtranid: Number(tranId) || 0,
         });
         const rows = resolveDetailColLinks(res) || [];
         // The function returns a bare {ErrCode,ErrMsg} envelope as its one
@@ -222,29 +222,28 @@ export function useDocumentLog() {
         return [];
       }
     },
-    [get]
+    [post]
   );
 
   /** "Refresh" button (Docs section) — fetches documents ALREADY uploaded
    *  for this transaction, appended into the same Docs grid (tagged and
-   *  excluded from Save, see DocumentLogModal.jsx). See
-   *  documentLogConfig.js's SP_SHOW_UPLOADED_DOCS note for the confirmed
-   *  4-arg shape — GUID-based (prmstrgenguid), not session-based. */
+   *  excluded from Save, see DocumentLogModal.jsx).
+   *
+   *  2026-08-12 /pm: swapped from the FN_Fetch_Data/
+   *  fn_tbl_rb_dm_tranwisedocs_showdoclist function call to a dedicated POST
+   *  endpoint (DM_DOC_LIST), same shape as DM_DOC_LIST_REF above but keeps
+   *  prmtranguid (unlike Reference Documents) — Refresh still needs to match
+   *  documents staged against a not-yet-saved record's GUID. Response shape
+   *  not yet live-verified; see fetchReferenceDocs' note above. */
   const fetchUploadedDocs = useCallback(
     async ({ refTranTypeId = 0, tranId = 0, guid = "" } = {}) => {
       const session = getUserSession();
       try {
-        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: CFG.SP_SHOW_UPLOADED_DOCS,
-          JSon: JSON.stringify([{
-            prmloginid: session.loginId,
-            prmref_trantypeid: Number(refTranTypeId) || 0,
-            prmref_tranid: Number(tranId) || 0,
-            prmstrgenguid: guid || "",
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
+        const res = await post(ENDPOINTS.DM_DOC_LIST, {
+          prmloginid: session.loginId,
+          prmref_trantypeid: Number(refTranTypeId) || 0,
+          prmtranid: Number(tranId) || 0,
+          prmtranguid: guid || "",
         });
         const rows = resolveDetailColLinks(res) || [];
         if (rows.length === 1 && isErrorOnlyRow(rows[0])) return [];
@@ -254,7 +253,7 @@ export function useDocumentLog() {
         return [];
       }
     },
-    [get]
+    [post]
   );
 
   /** Sub Type per-row cascade — called from DocumentLogModal's onCellEvent
@@ -265,7 +264,7 @@ export function useDocumentLog() {
    *  round trip). Cached per documentTypeId since refTranTypeId/
    *  refDepartmentId don't change within one modal session. */
   const fetchDocSubTypeOptions = useCallback(
-    async ({ refTranTypeId = 0, refDepartmentId = CFG.DEFAULT_REF_DEPARTMENT_ID, documentTypeId = 0 } = {}) => {
+    async ({ refTranTypeId = 0, refDepartmentId = CFG.PURCHASE_REF_DEPARTMENT_ID, documentTypeId = 0 } = {}) => {
       const docTypeId = Number(documentTypeId) || 0;
       if (!docTypeId) return [];
       const cacheKey = `${refTranTypeId}:${refDepartmentId}:${docTypeId}`;
@@ -323,7 +322,7 @@ export function useDocumentLog() {
    *  staging time, so they flow through via buildSaveRowFromColumns' own
    *  row-field passthrough — no separate derivation needed here. */
   const saveDocs = useCallback(
-    async (rows, tranId = 0, divisionId = 0, refTranTypeId = 0, guid = "") => {
+    async (rows, tranId = 0, divisionId = 0, refTranTypeId = 0, guid = "", refDepartmentId = CFG.PURCHASE_REF_DEPARTMENT_ID) => {
       setIsSaving(true);
       try {
         const session = getUserSession();
@@ -340,7 +339,7 @@ export function useDocumentLog() {
             // Newly-mandatory on the RB (see documentLogConfig.js's "RB
             // CHANGED UPSTREAM" note) — must be supplied explicitly now.
             ref_trantypeid: Number(refTranTypeId) || 0,
-            ref_departmentid: CFG.DEFAULT_REF_DEPARTMENT_ID,
+            ref_departmentid: Number(refDepartmentId) || 0,
             // Confirmed via the real stored-proc signature 2026-07-30 (see
             // documentLogConfig.js) — idnumber/createdby/createddate/
             // updatedby/updatedate were previously never sent at all.
@@ -405,6 +404,21 @@ export function useDocumentLog() {
     [post]
   );
 
+  /** "Delete" button — plain JSON object body (not array), same gotcha as
+   *  DM_HANDLE_GUID/DM_HANDLE_BUTTON_VISIBILITY. Success/failure both come
+   *  back as the familiar {ErrCode,ErrMsg} envelope — parseApiErrMsg
+   *  already handles it, no special-casing needed like viewDoc's blob. */
+  const deleteDoc = useCallback(
+    async (docId) => {
+      const session = getUserSession();
+      return post(CFG.DELETE_ENDPOINT, {
+        prmdocid: Number(docId) || 0,
+        prmloginid: session.loginId,
+      });
+    },
+    [post]
+  );
+
   /** NEW per the DM API doc — links documents uploaded against a temporary
    *  GUID (before the parent transaction had a real TranID) to the real
    *  TranID once the transaction actually saves. Built for availability;
@@ -439,6 +453,7 @@ export function useDocumentLog() {
     fetchDocSubTypeOptions,
     saveDocs,
     viewDoc,
+    deleteDoc,
     updateDocsOnTranSave,
     isSaving,
   };

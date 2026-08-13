@@ -12,6 +12,9 @@ export const PAGE_TITLE_NEW = "New Maintenance Contract Renewal";
 export const MACR_CONFIG = {
   RB_MASTER: RB_CODES.MAINTENANCE_CONTRACT_RENEWAL,
   ROUTE_PATH: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL),
+  // Document Log (F6) — not a Purchase-department transaction, uses ADMIN
+  // (documentLogConfig.js's ADMIN_REF_DEPARTMENT_ID), per user confirmation.
+  DM_TRAN_TYPE_ID: 322,
   RB_DETAIL: "rb_mntamcrnwdet",
   RB_TERMS_DETAIL: "rb_mntamcrnwtncdet",
   RB_ITEM_PICKER: "rb_mntamcrnwselonly",

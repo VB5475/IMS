@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -13,6 +13,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildPurchaseInquiryReportParams() {
   return [
@@ -49,6 +50,7 @@ export default function PurchaseInquiryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Purchase Inquiry",
@@ -89,6 +91,11 @@ export default function PurchaseInquiryPage() {
     navigate(`${PI_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Purchase_Inquiries_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page pi-list-page">
       <section className="pi-list-panel pi-list-panel--compact pi-list-panel--fill">
@@ -103,11 +110,13 @@ export default function PurchaseInquiryPage() {
             ...PRINT_REPORT_CONFIG["purchase-inquiry"],
             buildParams: buildPurchaseInquiryReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

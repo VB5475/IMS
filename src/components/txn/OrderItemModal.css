@@ -102,24 +102,6 @@
   color: var(--text-secondary);
 }
 
-.oim-error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 16px;
-  padding: 10px 12px;
-  font-size: 12px;
-  color: #93000a;
-  background: #ffdad6;
-  border: 1px solid rgba(186, 26, 26, 0.2);
-  border-radius: var(--radius-sm);
-}
-
-.oim-error svg {
-  flex-shrink: 0;
-  color: #ba1a1a;
-}
-
 /* ── Grid shell ── */
 .oim-grid-wrap {
   display: flex;

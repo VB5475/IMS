@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Building2 } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { getUserSession } from "../../session/userSession";
@@ -16,6 +16,7 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DepartmentMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildDepartmentMasterReportParams() {
   return [
@@ -61,6 +62,7 @@ export default function DepartmentMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -142,6 +144,11 @@ export default function DepartmentMasterPage() {
     [data, fieldDefs, handleEdit]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Department_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page dm-list-page">
       <section className="dm-list-panel dm-list-panel--fill">
@@ -155,11 +162,13 @@ export default function DepartmentMasterPage() {
             ...PRINT_REPORT_CONFIG["department-master"],
             buildParams: buildDepartmentMasterReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

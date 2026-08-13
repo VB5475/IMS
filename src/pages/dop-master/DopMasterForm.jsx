@@ -83,6 +83,7 @@ function mapHeaderValuesToFilterValues(headerValues) {
     trancode: headerValues.trancode ?? "",
     tranid: String(headerValues.tranid ?? ""),
     configurationid: String(headerValues.configurationid ?? ""),
+    divisionid: String(headerValues.divisionid ?? ""),
     departmentid: String(headerValues.departmentid ?? ""),
     companyid: String(headerValues.companyid ?? ""),
     dopisamountbased: Number(headerValues.dopisamountbased) === 1 ? 1 : 0,
@@ -112,7 +113,7 @@ export default function DopMasterForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    tranTypeOptions, entityOptions, departmentOptions, companyOptions,
+    tranTypeOptions, entityOptions, divisionOptions, departmentOptions, companyOptions,
     fetchEntityOptions, clearEntityOptions,
     amountColumns, amountAllColumns, amountFetching, amountMetaError,
     fetchAmountDetailMeta, fetchAmountGridColumns,
@@ -132,8 +133,15 @@ export default function DopMasterForm() {
     trancode: "",
     tranid: 0,
     configurationid: 0,
+    divisionid: 0,
     departmentid: 0,
-    companyid: 0,
+    // Not a user-pick field — same non-selectable session default every other
+    // module uses (e.g. CWIPToFAForm.jsx's headerValuesRef). Company IS
+    // technically an RB header column with its own dropdown wiring (kept, in
+    // case it's ever visible on a different environment/RB config), but it
+    // isn't shown in the live UI (2026-08-12 bug report — payload was sending
+    // 0 because nothing ever set it), so it must default from session.
+    companyid: getUserSession().companyId,
     dopisamountbased: 0,
     funccode: DOP_CONFIG.RB_MASTER,
     tranmstgenid: 0,
@@ -296,9 +304,10 @@ export default function DopMasterForm() {
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     tranid: tranTypeOptions,
     configurationid: entityOptions,
+    divisionid: divisionOptions,
     departmentid: departmentOptions,
     companyid: companyOptions,
-  }), [tranTypeOptions, entityOptions, departmentOptions, companyOptions]);
+  }), [tranTypeOptions, entityOptions, divisionOptions, departmentOptions, companyOptions]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
@@ -566,7 +575,10 @@ export default function DopMasterForm() {
           prmStrUserJSON: JSON.stringify(userDetRows),
         },
       }),
-      { divisionId: 0, isEdit: isEditRoute }
+      // hv.divisionid — the header's actual selected Division — not a
+      // hardcoded 0 (2026-08-12 fix; same pattern as CWIPToFAForm.jsx's
+      // `{ divisionId: hv.divisionid, isEdit }`).
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);

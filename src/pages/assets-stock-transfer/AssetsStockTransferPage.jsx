@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftRight } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -10,6 +10,7 @@ import { AST_CONFIG, ENTRY_FORM_LABEL, buildAstListJsonPayload } from "./constan
 import "./AssetsStockTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -36,6 +37,7 @@ export default function AssetsStockTransferPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Stock Transfer",
@@ -77,6 +79,11 @@ export default function AssetsStockTransferPage() {
     [navigate]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Stock_Transfer_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page ast-list-page">
       <section className="ast-list-panel ast-list-panel--fill">
@@ -91,11 +98,13 @@ export default function AssetsStockTransferPage() {
             ...PRINT_REPORT_CONFIG["assets-stock-transfer"],
             buildParams: buildAstReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

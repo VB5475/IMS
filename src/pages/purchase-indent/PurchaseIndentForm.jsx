@@ -16,7 +16,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save, FileText } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -29,6 +29,7 @@ import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documen
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -61,7 +62,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatIndentTranDate,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseIndentPage.css";
@@ -198,143 +198,35 @@ export default function PurchaseIndentForm() {
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
 
+  // isEditMode — the single flag driven by clicking either "Add" (new
+  // record) or "Edit" (existing record), via enterEditModeWithFocus. Declared
+  // here (hoisted up from its original spot further down, see "Edit-mode
+  // gate" below) purely so useDocumentLogAccess can read it.
+  const [isEditMode, setIsEditMode] = useState(false);
+
   // Document Log modal (F6) — scoped to this indent's record id, gated on
   // the session's Document Log permission flags (set at login — see
-  // extractDmConfigPermissions in session/userSession.js). Read once here;
-  // dmConfig only changes on a fresh login, which remounts the whole tree.
-  // User-confirmed rule 2026-07-30: BOTH flags must be "Y" — isdmdbbased is
-  // only meaningful once isdmrequired is already "Y" (short-circuit AND).
-  const dmConfig = getUserSession().dmConfig;
-  const dmConfigAllows = dmConfig?.isdmrequired === "Y" && dmConfig?.isdmdbbased === "Y";
-
-  // Document Log button visibility — a 3rd, ADDITIVE gate on top of
-  // dmConfigAllows above, from ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY
-  // (per-trantype, not per-user like dmConfig). Defaults to "NO" (safe
-  // default-deny) until the fetch resolves or if it fails.
-  const [docBtnVisible, setDocBtnVisible] = useState("NO");
-  // isEditMode is declared here (hoisted up from its original spot further
-  // down, see "Edit-mode gate" below) purely so isDocumentLogEnabled can read
-  // it — the state itself is unchanged, still the single flag driven by
-  // clicking either "Add" (new record) or "Edit" (existing record), via
-  // enterEditModeWithFocus.
-  const [isEditMode, setIsEditMode] = useState(false);
-  // REVERSED 2026-07-31 (explicit user instruction, 2nd correction same day):
-  // gated on isEditRoute (existing-record-only) a moment ago — corrected to
-  // isEditMode instead: "before Add OR Edit mode active the button will be
-  // disabled." So the button is unavailable while merely VIEWING a record (or
-  // before "Add" is clicked on a new one), and becomes usable as soon as
-  // Add/Edit mode is entered — including on a brand-new, still-unsaved
-  // record (tranid=0), since documents can be staged against the temporary
-  // docGuid before the transaction itself is saved. NOTE: this REOPENS the
-  // "Add-mode linking gap" documented on linkDocsToTransaction below — an
-  // Add-mode session can now stage documents, but linking them still only
-  // fires on Edit-mode saves (no known tranid to link against after an Add
-  // save) — flagged there again, not silently resolved.
+  // extractDmConfigPermissions in session/userSession.js). All of the
+  // permission-gate/GUID/button-visibility/post-save-linking logic lives in
+  // the shared useDocumentLogAccess hook now (2026-08-13 /pm, extracted here
+  // first before rolling out to 8 more modules) — see that file for the
+  // reasoning behind reading dmConfig reactively via useUser(), the
+  // lowercase-field DM_HANDLE_GUID gotcha, and the dedicated
+  // DM_Doc_UpdateOnTranSave linking endpoint.
   //
   // 2026-08-08 (Indent-only instruction): the app-wide convention of
-  // rendering this button disabled-with-explanatory-title was replaced, for
-  // this module only, with hide/show — see indExtraButtons below. This flag
-  // is still used as the keyboard-shortcut guard (Alt+shortcut can fire even
-  // while the button itself isn't rendered).
-  const isDocumentLogEnabled = dmConfigAllows && docBtnVisible === "YES" && isEditMode;
-
-  const [docModalOpen, setDocModalOpen] = useState(false);
-  const handleOpenDocuments = useCallback(() => {
-    if (!isDocumentLogEnabled) return;
-    setDocModalOpen(true);
-  }, [isDocumentLogEnabled]);
-
-  // Document-log GUID — issued so documents can be associated with this
-  // transaction before/regardless of it having been saved. Per-form state,
-  // not session (see ENDPOINTS.DM_HANDLE_GUID). Best-effort: a failure here
-  // must never block the page or the form. **Live-confirmed 2026-07-30**:
-  // the endpoint is deployed on IMS_LIVE, but expects LOWERCASE field names
-  // (prmguid/prmref_trantypeid/prmtranid) — the DM API doc's own example
-  // used mixed case (prmGUID/prmRef_TranTypeID/prmTranID), which 500s; only
-  // the lowercase shape actually works and returns a real GUID + success
-  // message. Confirmed via direct curl re-test the same day the doc's other
-  // endpoints went live — the doc's casing was simply wrong here, don't
-  // "fix" it back to match the doc without re-testing first.
-  const [docGuid, setDocGuid] = useState("");
-  // tranId: the real recordId in edit mode, 0 for a new/unsaved record —
-  // fires on every Indent page load (Add and Edit both), not just Add.
-  const fetchDocGuid = useCallback(async (tranId = 0) => {
-    try {
-      const res = await postSave(ENDPOINTS.DM_HANDLE_GUID, {
-        prmguid: "1",
-        prmref_trantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
-        prmtranid: Number(tranId) || 0,
-      });
-      const row = Array.isArray(res) ? res[0] : res;
-      const guid = row?.guid ?? row?.Guid ?? row?.GUID ?? row?.guId;
-      if (guid) setDocGuid(String(guid));
-    } catch (err) {
-      console.warn("[Indent] DM HandleGUID fetch failed:", err);
-    }
-  }, [postSave]);
-
-  // Live-confirmed 2026-07-30: plain JSON object body (not array, despite
-  // the reference screenshot) — same gotcha as DM_HANDLE_GUID. Response is
-  // an array of one row: [{ isdmbtnvisible: "YES"|"NO", ... }].
-  const fetchDocBtnVisible = useCallback(async () => {
-    try {
-      const res = await postSave(ENDPOINTS.DM_HANDLE_BUTTON_VISIBILITY, {
-        prmref_trantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
-        prmloginid: getUserSession().loginId,
-      });
-      const row = Array.isArray(res) ? res[0] : res;
-      const visible = row?.isdmbtnvisible ?? row?.IsDMBtnVisible;
-      setDocBtnVisible(visible === "YES" ? "YES" : "NO");
-    } catch (err) {
-      console.warn("[Indent] DM HandleButtonVisibility fetch failed:", err);
-      setDocBtnVisible("NO");
-    }
-  }, [postSave]);
-
-  // Links any documents uploaded/saved against docGuid (before this
-  // transaction had a real TranID) to the now-real, just-saved tranid — per
-  // explicit user spec 2026-07-30: "on save GUID to be passed in save and at
-  // the end we need to store and pass that guid in relevant module to link."
-  // Live-confirmed body shape (real Indent values): {prmtrantypeid,
-  // prmguid, prmtranid, prmyearid, prmloginid, prmdivisionid} →
-  // {"ErrCode":"1","ErrMsg":"Document(s) saved with Transaction Successfully !"}.
-  // Best-effort: a failure here must never block the Indent's own save
-  // success (the transaction itself already saved fine by this point).
-  //
-  // KNOWN GAP — Add-mode only (REOPENED 2026-07-31, 2nd correction same day):
-  // isDocumentLogEnabled was briefly gated on isEditRoute, which made the
-  // Documents modal unreachable during Add mode and incidentally closed this
-  // gap — then corrected to gate on isEditMode instead ("before Add OR Edit
-  // mode active the button will be disabled"), which means a brand-new,
-  // still-unsaved record CAN now open Documents and stage files against the
-  // temporary docGuid. This function still only fires for EDIT saves, where
-  // recordId is already the real tranid — there is still no established way
-  // in this codebase to learn a newly-created Indent's tranid from an Add
-  // save's response (grepped every module, none exists), so documents staged
-  // during an Add-mode session are NOT currently linked once that Add save
-  // completes. Left unresolved rather than guessed — needs either a backend
-  // change (return the new ID) or a different flow.
-  const linkDocsToTransaction = useCallback(
-    async (realTranId) => {
-      if (!docGuid || !realTranId) return;
-      try {
-        const session = getUserSession();
-        const result = await postSave(DOC_LOG_CFG.UPDATE_ON_TRAN_SAVE_ENDPOINT, {
-          prmtrantypeid: IND_CONFIG.DM_TRAN_TYPE_ID,
-          prmguid: docGuid,
-          prmtranid: Number(realTranId) || 0,
-          prmyearid: session.yearId,
-          prmloginid: session.loginId,
-          prmdivisionid: Number(headerValuesRef.current?.divisionid) || 0,
-        });
-        const { success, message } = parseApiErrMsg(result);
-        if (!success) console.warn("[Indent] DM_Doc_UpdateOnTranSave failed:", message);
-      } catch (err) {
-        console.warn("[Indent] DM_Doc_UpdateOnTranSave failed:", err);
-      }
-    },
-    [postSave, docGuid]
-  );
+  // rendering the Documents button disabled-with-explanatory-title was
+  // replaced, for this module only, with hide/show — see indExtraButtons
+  // below (docLog.documentsButtonEntry already encodes this).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: IND_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[Indent]",
+  });
 
   // Item picker modal
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -352,8 +244,8 @@ export default function PurchaseIndentForm() {
   });
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
-  // isEditMode itself now lives up near dmConfig/docBtnVisible (see there) —
-  // declared early so isDocumentLogEnabled can read it.
+  // isEditMode itself is declared up near the useDocumentLogAccess call
+  // (see there) — hoisted early so that hook can read it.
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -393,15 +285,12 @@ export default function PurchaseIndentForm() {
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
+  // (docGuid/docBtnVisible fetches now self-fire inside useDocumentLogAccess,
+  // keyed on recordId — no longer spliced in here.)
   useEffect(() => {
     fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
-    // Both Add and Edit — recordId is 0 for a new/unsaved record, the real
-    // id for an existing one (available immediately from the route param,
-    // no need to wait for loadEditRecord to finish).
-    fetchDocGuid(recordId);
-    fetchDocBtnVisible();
-  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute, recordId, fetchDocGuid, fetchDocBtnVisible]);
+  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
 
   // Phase 3 (new route only): pre-load grid columns after detail meta loads
   useEffect(() => {
@@ -608,11 +497,14 @@ export default function PurchaseIndentForm() {
   // handleApplyItemFilter below). Client instruction 2026-07-28.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
     const { divisionid, configid } = headerValues;
     const divisionID = divisionid ?? 0;
 
@@ -801,12 +693,12 @@ export default function PurchaseIndentForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
-    extraClearFns: [clearIndentTypes, () => setDocGuid("")],
+    extraClearFns: [clearIndentTypes, docLog.resetDocGuid],
     // Back to a blank new-entry state (post-save, or Cancel on a new record)
     // — re-issue a fresh GUID for whatever the user enters next, same as the
     // initial mount fetch. No-op on an edit route (isNewRoute is false there).
     extraReset: () => {
-      if (isNewRoute) fetchDocGuid();
+      if (isNewRoute) docLog.fetchDocGuid();
       setFieldErrors({});
     },
   });
@@ -857,14 +749,27 @@ export default function PurchaseIndentForm() {
     setIsSavingIndent(true);
     try {
       const result = await postSave(IND_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
-      // Link any documents uploaded/saved under docGuid to this now-saved
-      // transaction. Edit-mode only for now — recordId is the real tranid
-      // here; see linkDocsToTransaction's own comment for why Add-mode
-      // (where the new tranid isn't known client-side) isn't covered yet.
-      if (isEditRoute) linkDocsToTransaction(recordId);
+      // The save response's own message carries the real tranid — e.g.
+      // "Data Inserted/Updated Successfully with ID[ 44]!!!!" — parsed via
+      // extractSavedIdFromMessage (see utils/apiResponse.js). This is what
+      // closes the previously-documented Add-mode gap: recordId is only the
+      // real tranid on an EDIT save (Add is always 0 here, route hasn't
+      // changed), but `newId` is the real tranid either way. Falls back to
+      // recordId so an Edit save still works even if the message wording
+      // ever changes and the regex stops matching.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted via ITS OWN Save button, then links any docs
+      // staged under docGuid (before this transaction existed) to the
+      // now-saved transaction — see useDocumentLogAccess.finalizeSave. Covers
+      // Add-mode too, since savedTranId comes from this save's own response
+      // rather than the (Add-mode-stale) recordId. Best-effort throughout: a
+      // failure here must never be treated as the Indent's own save having
+      // failed — it already succeeded by this point.
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -873,7 +778,7 @@ export default function PurchaseIndentForm() {
     } finally {
       setIsSavingIndent(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, recordId, linkDocsToTransaction, completeSuccessfulSave, flushPendingCellEvents]);
+  }, [headerColumns, allColumns, columns, isEditRoute, recordId, docLog.finalizeSave, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -896,7 +801,7 @@ export default function PurchaseIndentForm() {
   const filterBusy = headerFetching || isLoadingIndentTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || docModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving: isSavingIndent,
     addDisabled: filterBusy,
@@ -906,29 +811,18 @@ export default function PurchaseIndentForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
-    onDocuments: handleOpenDocuments,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const indExtraButtons = useMemo(
     () => [
       // Show/hide only, never a disabled state (2026-08-08, Indent-only
-      // instruction). Permission gates (dmConfigAllows/docBtnVisible) decide
-      // whether this entry exists in the array at all; when it does,
-      // omitting showAlways lets ActionBar's own `showAlways || isEditMode`
-      // filter hide/show it with Add/Edit mode the same way every other
-      // extra button already does — no separate disabled/title-explaining-why
-      // state needed.
-      ...(dmConfigAllows && docBtnVisible === "YES"
-        ? [{
-            key: "documents",
-            label: "Documents",
-            Icon: FileText,
-            variant: "secondary",
-            onClick: handleOpenDocuments,
-            title: FORM_SHORTCUT_TITLES.documents,
-          }]
-        : []),
+      // instruction) — docLog.documentsButtonEntry already encodes this
+      // (null when permission gates say no), spread in/out of the array so
+      // ActionBar's own `showAlways || isEditMode` filter hides/shows it
+      // with Add/Edit mode the same way every other extra button does.
+      ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
         label: "Save & Print",
@@ -950,7 +844,7 @@ export default function PurchaseIndentForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [dmConfigAllows, docBtnVisible, handleOpenDocuments, handleSaveAndPrint, isSavingIndent, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingIndent, handleSave]
   );
 
   const itemGridConfig = {
@@ -1098,12 +992,14 @@ export default function PurchaseIndentForm() {
 
       <Suspense fallback={null}>
         <DocumentLogModal
-          isOpen={docModalOpen}
-          onClose={() => setDocModalOpen(false)}
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
           tranId={recordId}
           divisionId={headerValuesRef.current?.divisionid}
           tranTypeId={IND_CONFIG.DM_TRAN_TYPE_ID}
-          guid={docGuid}
+          refDepartmentId={DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

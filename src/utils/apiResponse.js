@@ -87,6 +87,18 @@ export function isErrorOnlyRow(row) {
 }
 
 /**
+ * Several save endpoints (e.g. DM_DocSave, PurIndtMst_Save) don't return the
+ * newly inserted/updated row's id as its own JSON field — it's embedded in
+ * the success message text instead, e.g. "Data Inserted/Updated Successfully
+ * with ID[ 44]!!!!" or "Document uploaded Successfully with ID[ 55555]!!!!".
+ * Returns null when the message doesn't contain this pattern.
+ */
+export function extractSavedIdFromMessage(message) {
+  const match = String(message ?? "").match(/ID\s*\[\s*(\d+)\s*\]/i);
+  return match ? Number(match[1]) : null;
+}
+
+/**
  * Parses IMS save/API responses:
  * { ErrMsg: [{ ErrCode: "1"|"-1", ErrMsg: "..." }] }
  * ErrCode 1 = success, -1 = error — always show the backend ErrMsg text.
@@ -100,6 +112,7 @@ export function parseApiErrMsg(result) {
       success: false,
       errCode: null,
       message: "Unexpected response from server.",
+      newId: null,
     };
   }
 
@@ -111,5 +124,6 @@ export function parseApiErrMsg(result) {
     success: errCode === 1,
     errCode,
     message: message || `Request failed (ErrCode ${errCode}).`,
+    newId: extractSavedIdFromMessage(message),
   };
 }

@@ -73,6 +73,10 @@ export const GRN_CONFIG = {
   ROUTE_PATH: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE),
   DELETE_PROC_NAME: "pr_rb_purgrnmst_delete",
 
+  // Document Log (F6) — this module's own DM Tran Type id (DM Tran Type Link
+  // module), mirrors Purchase Indent's IND_CONFIG.DM_TRAN_TYPE_ID.
+  DM_TRAN_TYPE_ID: 2,
+
   RB_DETAIL: "rb_purgrndet",
 
   RB_INDT_DETAIL: "rb_purgrnindtdet",

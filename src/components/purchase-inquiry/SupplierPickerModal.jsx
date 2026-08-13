@@ -9,9 +9,10 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import Modal from "../ui/Modal";
 import EntryGrid from "../grid/EntryGrid";
 import Loader from "../ui/Loader";
+import AlertPanel from "../ui/AlertPanel";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { normalizePickerGridColumns } from "../../utils/dateFormat";
-import { Truck, CheckCheck, Users, AlertCircle } from "lucide-react";
+import { Truck, CheckCheck, Users } from "lucide-react";
 import "../txn/OrderItemModal.css";
 
 export default function SupplierPickerModal({
@@ -27,10 +28,18 @@ export default function SupplierPickerModal({
   const cancelBtnRef = useRef(null);
   const insertBtnRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
+  // Same dismissible-banner pattern the Save button's validation already
+  // uses (AlertPanel) instead of this modal's own bespoke single-string
+  // strip — see OrderItemModal.jsx for the original fix this mirrors.
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
+
+  useEffect(() => {
+    setErrorDismissed(false);
+  }, [isOpen, error]);
 
   const gridConfig = useMemo(
     () => ({
@@ -136,11 +145,8 @@ export default function SupplierPickerModal({
           </div>
         )}
 
-        {!isLoading && error && (
-          <div className="oim-error" role="alert">
-            <AlertCircle size={16} strokeWidth={2} />
-            <span>{error}</span>
-          </div>
+        {!isLoading && error && !errorDismissed && (
+          <AlertPanel errors={[error]} onDismiss={() => setErrorDismissed(true)} />
         )}
 
         {!isLoading && !error && items.length === 0 && (

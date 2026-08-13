@@ -69,6 +69,35 @@ export const ENDPOINTS = {
   // is what actually works, same gotcha as DM_HANDLE_GUID above). Response
   // is an array of one row: [{ isdmbtnvisible: "YES"|"NO", errcode, errmsg }].
   DM_HANDLE_BUTTON_VISIBILITY: "/API/DM_HandleButtonVisibility/Post_RB_DM_HandleButtonVisibility",
+
+  // Workflow (WKF) approval — "Approval Initiator" button, first rolled out
+  // on Purchase Order (2026-08-12 /pm). Same shape/gotchas as the DM_*
+  // pair above (plain JSON object body, not an array).
+  // Live-confirmed 2026-08-12: works — POST {prmref_is_trantypeid,
+  // prmloginid} → [{ iswkfbtnvisible: "YES"|"NO", errcode, errmsg }].
+  WKF_HANDLE_BUTTON_VISIBILITY: "/API/WKF_HandleButtonVisibility/Post_RB_WKF_HandleButtonVisibility",
+  // ⚠️ NOT YET LIVE on IMS_LIVE as of 2026-08-12 — this exact URL (given by
+  // /pm, re-verified twice) 404s: {"Message":"No HTTP resource was found
+  // that matches the request URI '.../API/WKF_App_Send4Approval/
+  // Post_RB_WKF_App_Send4Approval'."}. Wired up per spec (POST
+  // {prmref_is_trantypeid, prmtranid, prmcolnamesoftranid, prmyearid,
+  // prmloginid, prmdivisionid}) so the click handler is ready the moment
+  // this deploys — but calling it today will fail. Needs backend deployment,
+  // not a client-side fix.
+  WKF_SEND_FOR_APPROVAL: "/API/WKF_App_Send4Approval/Post_RB_WKF_App_Send4Approval",
+
+  // Document Log "Docs" grid — Refresh button (2026-08-12 /pm). Replaces the
+  // old FN_Fetch_Data/fn_tbl_rb_dm_tranwisedocs_showdoclist call. Same
+  // dedicated-POST shape as DM_HANDLE_GUID above — plain JSON object body,
+  // lowercase field names, not yet live-verified. Carries prmtranguid
+  // (unlike DM_DOC_LIST_REF below) since Refresh needs to match documents
+  // staged against a not-yet-saved record's GUID.
+  DM_DOC_LIST: "/API/DM_DocList/Post_RB_DM_DocList",
+  // Document Log "Reference Documents" grid button (2026-08-12 /pm).
+  // Replaces the old FN_Fetch_Data/fn_tbl_rb_dm_trnwisedocs_fetch_DocData
+  // call. Deliberately has no guid param, unlike DM_DOC_LIST — reference
+  // docs are looked up by tranid alone.
+  DM_DOC_LIST_REF: "/API/DM_DocListRef/Post_RB_DM_DocListRef",
 };
 
 // ── Shared request defaults (used across pages) ────────────────────────

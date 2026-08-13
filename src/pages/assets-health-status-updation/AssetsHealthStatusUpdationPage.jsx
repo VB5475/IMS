@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { HeartPulse } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -10,6 +10,7 @@ import { AHS_CONFIG, ENTRY_FORM_LABEL, buildAhsListJsonPayload } from "./constan
 import "./AssetsHealthStatusUpdationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -36,6 +37,7 @@ export default function AssetsHealthStatusUpdationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Health Status Updation",
@@ -77,6 +79,11 @@ export default function AssetsHealthStatusUpdationPage() {
     [navigate]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Health_Status_Updation_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page ahs-list-page">
       <section className="ahs-list-panel ahs-list-panel--fill">
@@ -91,11 +98,13 @@ export default function AssetsHealthStatusUpdationPage() {
             ...PRINT_REPORT_CONFIG["assets-health-status-updation"],
             buildParams: buildAhsReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

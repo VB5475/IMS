@@ -3,7 +3,7 @@
 // Clicking Add New → /purchase-indent/new  (PurchaseIndentForm in new mode)
 // Clicking Edit   → /purchase-indent/:id/edit (PurchaseIndentForm in edit mode)
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -19,6 +19,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 // Selected row (via the grid's single-select checkbox) narrows the print to
 // just that record — prmidnumber omitted entirely prints the full list, same
@@ -61,6 +62,7 @@ export default function PurchaseIndentPage() {
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedId, setSelectedId] = useState(null);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Purchase Indents",
@@ -106,6 +108,11 @@ export default function PurchaseIndentPage() {
     [selectedId]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Purchase_Indents_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page ind-list-page">
       <section className="ind-list-panel ind-list-panel--fill">
@@ -120,11 +127,13 @@ export default function PurchaseIndentPage() {
             ...PRINT_REPORT_CONFIG["purchase-indent"],
             buildParams: handlePrintParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Building2 } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
@@ -14,6 +14,7 @@ import { DMDEPT_CONFIG } from "./constants";
 import "./DMDepartmentMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildDMDeptReportParams() {
   return [buildCompanyReportParam()];
@@ -39,6 +40,7 @@ export default function DMDepartmentMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -128,6 +130,11 @@ export default function DMDepartmentMasterPage() {
     [data, fieldDefs, handleEdit]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Department_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page dmdept-list-page">
       <section className="dmdept-list-panel dmdept-list-panel--fill">
@@ -141,11 +148,13 @@ export default function DMDepartmentMasterPage() {
             ...PRINT_REPORT_CONFIG["dm-department-master"],
             buildParams: buildDMDeptReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

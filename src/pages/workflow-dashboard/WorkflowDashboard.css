@@ -1,0 +1,77 @@
+@import "../../theme/workspace-base.css";
+
+.workflow-dashboard {
+  gap: 10px;
+  background: var(--background);
+}
+
+.workflow-dashboard .workspace-page__filters {
+  max-height: none;
+  flex-shrink: 0;
+}
+
+.workflow-dashboard__status-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #e6f1fc;
+  box-shadow: var(--shadow-sm);
+}
+
+.workflow-dashboard__status-btn {
+  min-height: 30px;
+  padding: 5px 16px;
+  border: 1px solid #b8cfe4;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #1a4572;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.workflow-dashboard__status-btn:hover:not(.workflow-dashboard__status-btn--active) {
+  border-color: #0660a7;
+  background: #dceaf7;
+}
+
+.workflow-dashboard__status-btn--active {
+  border-color: #045091;
+  background: #0660a7;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.workflow-dashboard__grid {
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  .workflow-dashboard.workspace-page--fill {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .workflow-dashboard .workspace-page__filters {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .workflow-dashboard__grid {
+    min-height: 520px;
+  }
+
+  .workflow-dashboard__status-bar {
+    flex-wrap: wrap;
+  }
+}

@@ -54,7 +54,6 @@ import {
   PRC_FILTER_CASCADE_RESETS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
-  getMissingItemPickerHeaderFields,
   buildItemPickerJsonPayload,
   buildTermsPickerJsonPayload,
 } from "./constants";
@@ -541,11 +540,14 @@ export default function PurchaseRateContractForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setItemModalOpen(true);
     setItemModalItems([]);

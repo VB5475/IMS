@@ -109,6 +109,7 @@ const MaintenanceNewContractForm = lazy(
   () => import("./pages/maintenance-new-contract/MaintenanceNewContractForm")
 );
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
+const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
 );
@@ -423,6 +424,7 @@ const router = createBrowserRouter([
             form: <MaintenanceNewContractForm />,
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
+          rbLeaf({ rb: RB.WORKFLOW_DASHBOARD, element: <WorkflowDashboard /> }),
 
           // Admin — Master modules
           rbLeaf({ rb: RB.MAIN_GROUP_MASTER, element: <MainGroupMasterPage /> }),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { FileText } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
@@ -14,6 +14,7 @@ import { DOCTYPE_CONFIG } from "./constants";
 import "./DocumentTypeMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildDocTypeReportParams() {
   return [buildCompanyReportParam()];
@@ -39,6 +40,7 @@ export default function DocumentTypeMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -128,6 +130,11 @@ export default function DocumentTypeMasterPage() {
     [data, fieldDefs, handleEdit]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Document_Type_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page doctype-list-page">
       <section className="doctype-list-panel doctype-list-panel--fill">
@@ -141,11 +148,13 @@ export default function DocumentTypeMasterPage() {
             ...PRINT_REPORT_CONFIG["document-type-master"],
             buildParams: buildDocTypeReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

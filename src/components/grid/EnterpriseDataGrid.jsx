@@ -6,7 +6,7 @@
 //   • filterType on each column controls which filter UI renders
 //     ('list' | 'date' | 'number' | 'text')
 
-import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { ChevronLeft, ChevronRight, Filter, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../api/useApi";
@@ -154,7 +154,12 @@ function EnterpriseDataGrid({
   onSelectionChange,
   getRowKey = (row, index) =>
     String(row?.IDNUMBER ?? row?.idnumber ?? row?.IDNumber ?? row?.MasterID ?? index),
-}) {
+  // (row) => { statusKey, locked, selectable } — e.g. useApprovalRowStatus(moduleKey).
+  // statusKey adds a `ng-row--status-<statusKey>` class; locked disables that
+  // row's Edit/Delete actions. Rows it returns a no-op state for (or when this
+  // prop is omitted) render exactly as before. See src/config/approvalStatusConfig.js.
+  getRowState = null,
+}, ref) {
   const navigate = useNavigate();
   const notify = useNotification();
   const moduleRights = useModuleRights();
@@ -380,6 +385,20 @@ function EnterpriseDataGrid({
     return data;
   }, [filteredData, sortConfig, displayColumns]);
 
+  // CSV Export (ListPanelHeader's onExportCsv, see project_csv_export_master_lists.md)
+  // reads the fully search+filter+sort-applied dataset — sortedData is exactly
+  // that, just not yet paginated — so the exported file matches what the user
+  // is actually looking at, not merely the current page slice. Action/select
+  // columns are stripped since they're UI affordances, not real data.
+  useImperativeHandle(ref, () => ({
+    getExportData: () => ({
+      rows: sortedData,
+      columns: displayColumns
+        .filter((c) => !isActionColumn(c) && !isSelectColumn(c))
+        .map((c) => ({ key: c.key, label: c.label })),
+    }),
+  }), [sortedData, displayColumns]);
+
   const handleSort = useCallback((key) => {
     setSortConfig((prev) => ({
       key,
@@ -441,6 +460,7 @@ function EnterpriseDataGrid({
   /* ── Cell renderer ────────────────────────────────────────────────── */
   const renderCell = (col, row, rowIndex) => {
     const value = resolveRowFieldValue(row, col.key) ?? row[col.key];
+    const rowLocked = Boolean(getRowState?.(row)?.locked);
     if (col.actionType === "select") {
       const key = String(getRowKey(row, rowIndex));
       return (
@@ -460,13 +480,14 @@ function EnterpriseDataGrid({
         <button
           type="button"
           className={col.actionClassName}
-          title={meta.title ?? "Edit record"}
+          title={rowLocked ? "Locked — cannot edit while in this approval status" : meta.title ?? "Edit record"}
           aria-label={meta.ariaLabel ?? "Edit record"}
           onClick={(e) => {
             e.stopPropagation();
             if (meta.onClick) meta.onClick();
             else if (meta.navigateTo) navigate(meta.navigateTo, { state: meta.navigateState });
           }}
+          disabled={rowLocked}
         >
           <Pencil size={13} strokeWidth={2} />
         </button>
@@ -480,13 +501,13 @@ function EnterpriseDataGrid({
         <button
           type="button"
           className={col.actionClassName}
-          title={meta.title ?? "Delete record"}
+          title={rowLocked ? "Locked — cannot delete while in this approval status" : meta.title ?? "Delete record"}
           aria-label={meta.ariaLabel ?? "Delete record"}
           onClick={(e) => {
             e.stopPropagation();
             openDeleteConfirm(row, meta);
           }}
-          disabled={isDeleting || !deleteProcName}
+          disabled={isDeleting || !deleteProcName || rowLocked}
         >
           <Trash2 size={13} strokeWidth={2} />
         </button>
@@ -503,13 +524,14 @@ function EnterpriseDataGrid({
             <button
               type="button"
               className={col.editClassName}
-              title={editMeta.title ?? "Edit record"}
+              title={rowLocked ? "Locked — cannot edit while in this approval status" : editMeta.title ?? "Edit record"}
               aria-label={editMeta.ariaLabel ?? "Edit record"}
               onClick={(e) => {
                 e.stopPropagation();
                 if (editMeta.onClick) editMeta.onClick();
                 else if (editMeta.navigateTo) navigate(editMeta.navigateTo, { state: editMeta.navigateState });
               }}
+              disabled={rowLocked}
             >
               <Pencil size={13} strokeWidth={2} />
             </button>
@@ -518,13 +540,13 @@ function EnterpriseDataGrid({
             <button
               type="button"
               className={col.deleteClassName}
-              title={deleteMeta.title ?? "Delete record"}
+              title={rowLocked ? "Locked — cannot delete while in this approval status" : deleteMeta.title ?? "Delete record"}
               aria-label={deleteMeta.ariaLabel ?? "Delete record"}
               onClick={(e) => {
                 e.stopPropagation();
                 openDeleteConfirm(row, deleteMeta);
               }}
-              disabled={isDeleting || !deleteProcName}
+              disabled={isDeleting || !deleteProcName || rowLocked}
             >
               <Trash2 size={13} strokeWidth={2} />
             </button>
@@ -726,9 +748,11 @@ function EnterpriseDataGrid({
                   {currentData.length > 0 ? (
                     currentData.map((row, ri) => {
                       const rowSelected = selectedKeySet.has(String(getRowKey(row, ri)));
+                      const rowStatusKey = getRowState?.(row)?.statusKey;
                       const rowClasses = [
                         rowIsClickable ? "ng-row--clickable" : "",
                         rowSelected ? "ng-row--selected" : "",
+                        rowStatusKey ? `ng-row--status-${rowStatusKey}` : "",
                       ].filter(Boolean).join(" ");
                       return (
                         <tr
@@ -834,4 +858,4 @@ function EnterpriseDataGrid({
   );
 }
 
-export default EnterpriseDataGrid;
+export default forwardRef(EnterpriseDataGrid);

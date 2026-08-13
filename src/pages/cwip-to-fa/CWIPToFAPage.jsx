@@ -2,7 +2,7 @@
 // Clicking Add New → /cwip-to-fa/new    (CWIPToFAForm — new mode)
 // Clicking Edit   → /cwip-to-fa/:id/edit (CWIPToFAForm — edit mode)
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layers, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -11,6 +11,7 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { createListActionsColumn } from "../../utils/listGridUtils";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -105,6 +106,7 @@ export default function CWIPToFAPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "CWIP To FA",
@@ -133,6 +135,11 @@ export default function CWIPToFAPage() {
 
   const handleAddNew = useCallback(() => navigate(`${C2F_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "CWIP_To_FA_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page c2f-list-page">
       <section className="c2f-list-panel c2f-list-panel--fill">
@@ -147,11 +154,13 @@ export default function CWIPToFAPage() {
             ...PRINT_REPORT_CONFIG["cwip-to-fa"],
             buildParams: buildCWIPToFAReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

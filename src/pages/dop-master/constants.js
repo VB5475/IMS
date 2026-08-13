@@ -64,7 +64,13 @@ export const DOP_CONFIG = {
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_TRAN_TYPE: "fn_tbl_fetch_rb_wkf_dopmst_trantype",
   SP_ENTITY: "fn_tbl_fetch_rb_wkf_dopmst_entity",
-  SP_DEPARTMENT: "fn_tbl_fetch_department",
+  // Division (colname: divisionid) — live RB has it as a visible/mandatory
+  // header field (2026-08-12 /pm bug report), contradicting the older
+  // "no Division/Location cascade" assumption in useDopMaster.js. Wired the
+  // same way as every other module's plain (non-cascading) Division dropdown
+  // — the user-scoped division list, not tied to Department.
+  SP_DIVISION: "fn_tbl_fetchuserwsdivision",
+  SP_DEPARTMENT: "fn_tbl_fetch_rb_wkf_department",
   SP_COMPANY: "fn_tbl_fetch_rb_wkf_dopmst_company",
   SP_USER: "fn_tbl_genusermst", // CONFIRM — MRD only says "auto fill from Gen_UserMaster"
 

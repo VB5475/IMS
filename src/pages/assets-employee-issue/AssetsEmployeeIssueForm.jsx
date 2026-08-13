@@ -55,7 +55,6 @@ import {
   AEI_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
-  getMissingItemPickerHeaderFields,
   buildAeiItemPickerJsonPayload,
   normalizeAeiQrSearchJson,
   applyAeiHardcodedHeaderValues,
@@ -670,11 +669,14 @@ export default function AssetsEmployeeIssueForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -824,13 +826,16 @@ export default function AssetsEmployeeIssueForm() {
     }
 
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
       setScanQrOpen(false);
-      setFormErrors(missingFields);
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       restoreHeaderScanFocus();
       return;
     }
+    setFormErrors([]);
 
     setScanQrError(null);
 

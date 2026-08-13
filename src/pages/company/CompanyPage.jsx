@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Building } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { getUserSession } from "../../session/userSession";
@@ -14,6 +14,7 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./CompanyPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildCompanyReportParams() {
   return [
@@ -58,6 +59,7 @@ export default function CompanyPage() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
@@ -111,6 +113,11 @@ export default function CompanyPage() {
     [data, fieldDefs, handleEdit]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns: exportCols } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, exportCols, "Company_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page co-list-page">
       <section className="co-list-panel co-list-panel--fill">
@@ -123,11 +130,13 @@ export default function CompanyPage() {
             ...PRINT_REPORT_CONFIG["company"],
             buildParams: buildCompanyReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

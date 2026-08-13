@@ -7,9 +7,10 @@ import React, { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspens
 import Modal from "../ui/Modal";
 const EntryGrid = lazy(() => import("../grid/EntryGrid"));
 import Loader from "../ui/Loader";
+import AlertPanel from "../ui/AlertPanel";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { normalizePickerGridColumns } from "../../utils/dateFormat";
-import { FileText, CheckCheck, ClipboardList, AlertCircle } from "lucide-react";
+import { FileText, CheckCheck, ClipboardList } from "lucide-react";
 import "../txn/OrderItemModal.css";
 
 function lowercaseRowKeys(row) {
@@ -31,10 +32,18 @@ export default function TermsPickerModal({
   const cancelBtnRef = useRef(null);
   const insertBtnRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
+  // Same dismissible-banner pattern the Save button's validation already
+  // uses (AlertPanel) instead of this modal's own bespoke single-string
+  // strip — see OrderItemModal.jsx for the original fix this mirrors.
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
+
+  useEffect(() => {
+    setErrorDismissed(false);
+  }, [isOpen, error]);
 
   const handleInsert = useCallback(() => {
     if (!gridRef.current) return;
@@ -143,11 +152,8 @@ export default function TermsPickerModal({
           </div>
         )}
 
-        {!isLoading && error && (
-          <div className="oim-error" role="alert">
-            <AlertCircle size={16} strokeWidth={2} />
-            <span>{error}</span>
-          </div>
+        {!isLoading && error && !errorDismissed && (
+          <AlertPanel errors={[error]} onDismiss={() => setErrorDismissed(true)} />
         )}
 
         {!isLoading && !error && !hasColumns && (

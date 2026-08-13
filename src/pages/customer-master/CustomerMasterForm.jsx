@@ -8,14 +8,17 @@
 // still sent as an empty array since the save proc's parameter contract
 // still expects it.)
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { AlertCircle, Save, Pencil, UserCheck } from "lucide-react";
+import React, { useEffect, useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { AlertCircle, Save, Pencil, UserCheck, FileText } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MasterFormField from "../../components/forms/MasterFormField";
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useNotification } from "../../context/NotificationContext";
 import { useApi } from "../../api/useApi";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import {
   API_BASE_URL_IMS,
   DEFAULT_SESSION_ID,
@@ -147,6 +150,19 @@ export default function CustomerMasterForm({
   const [isEditMode, setIsEditMode] = useState(isAddMode);
   const [isSaving, setIsSaving] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
+
+  // Document Log ("Documents" button, 2026-08-13 /pm) — recordId is this
+  // master's own idnumber, already passed in as a prop (0/falsy for a
+  // not-yet-saved Add record, same semantic as a transaction's tranid=0).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: CM_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    recordId: Number(recordId) || 0,
+    getDivisionId: () => 0, // Customer Master isn't division-scoped (see handleSave's own divisionId: 0)
+    isEditMode,
+    postSave: post,
+    logLabel: "[CustomerMaster]",
+  });
 
   // Reset form state each time the modal opens
   useEffect(() => {
@@ -306,9 +322,14 @@ export default function CustomerMasterForm({
     setIsSaving(true);
     try {
       const result = await post(CM_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      // Same Add-mode gap this closes for transaction forms: recordId (the
+      // prop) is only the real id on an Edit save; newId is the real saved
+      // id either way.
+      const savedTranId = newId ?? (!isAddMode ? Number(recordId) || null : null);
+      await docLog.finalizeSave(savedTranId);
       onSaved?.();
       return true;
     } catch (err) {
@@ -318,7 +339,7 @@ export default function CustomerMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [formValues, visibleFields, headerColumns, isAddMode, session, post, notify, onSaved]);
+  }, [formValues, visibleFields, headerColumns, isAddMode, recordId, session, post, notify, onSaved, docLog.finalizeSave]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -332,26 +353,56 @@ export default function CustomerMasterForm({
   }, [discardAction, isAddMode, onClose]);
 
   const handleClose = useCallback(() => {
+    // This form's own Modal instance stays mounted across opens (parent
+    // page toggles `isOpen`), so the Documents sub-modal must be explicitly
+    // closed here — it wouldn't otherwise, and would linger stacked over
+    // whatever the parent list page renders once this modal hides.
+    docLog.setDocModalOpen(false);
     if (!isEditMode) { onClose?.(); return; }
     setDiscardAction("close");
-  }, [isEditMode, onClose]);
+  }, [isEditMode, onClose, docLog.setDocModalOpen]);
 
   const handleCancelEdit = useCallback(() => setDiscardAction("cancel"), []);
 
   const combinedError = headerError || recordLoadError;
   const isLoading = headerFetching || recordLoading;
 
+  // Documents button — rendered whenever Document Log is enabled for this
+  // login + trantype (dmConfigAllows/docBtnVisible), always visible once
+  // that's true (unlike Purchase Indent's hide/show carve-out), disabled
+  // with an explanatory title until Add/Edit mode is actually entered —
+  // the app-wide default convention for gated buttons in this codebase.
+  const documentsButton = useMemo(
+    () =>
+      docLog.dmConfigAllows && docLog.docBtnVisible === "YES" ? (
+        <button
+          type="button"
+          className="master-modal-btn master-modal-btn--secondary"
+          onClick={docLog.handleOpenDocuments}
+          disabled={!docLog.isDocumentLogEnabled}
+          title={docLog.isDocumentLogEnabled ? "Document Log (F6)" : "Enter Add/Edit mode to manage documents"}
+        >
+          <FileText size={13} strokeWidth={2} /> Documents
+        </button>
+      ) : null,
+    [docLog.dmConfigAllows, docLog.docBtnVisible, docLog.isDocumentLogEnabled, docLog.handleOpenDocuments]
+  );
+
   const footer = useMemo(() => {
     if (!isEditMode) {
       return (
-        <button type="button" className="master-modal-btn master-modal-btn--edit"
-                onClick={() => setIsEditMode(true)}>
-          <Pencil size={13} strokeWidth={2} /> Edit
-        </button>
+        <div className="master-modal-footer-actions">
+          {documentsButton}
+          <button type="button" className="master-modal-btn master-modal-btn--edit"
+                  onClick={() => setIsEditMode(true)}>
+            <Pencil size={13} strokeWidth={2} /> Edit
+          </button>
+        </div>
       );
     }
     return (
       <div className="master-modal-footer-actions">
+        {documentsButton}
         <button type="button" className="master-modal-btn master-modal-btn--save"
                 onClick={handleSave} disabled={isSaving}>
           <Save size={13} strokeWidth={2} />
@@ -363,7 +414,7 @@ export default function CustomerMasterForm({
         </button>
       </div>
     );
-  }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
+  }, [isEditMode, isSaving, handleCancelEdit, handleSave, documentsButton]);
 
   return (
     <Modal
@@ -431,6 +482,19 @@ export default function CustomerMasterForm({
           </div>
         </>
       )}
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={Number(recordId) || 0}
+          divisionId={0}
+          tranTypeId={CM_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
+        />
+      </Suspense>
     </Modal>
   );
 }

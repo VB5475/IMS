@@ -29,8 +29,11 @@ import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilter
 import { useNotification } from "../../context/NotificationContext";
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { usePurchaseVoucher } from "../../hooks/usePurchaseVoucher";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -65,7 +68,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatPVTranDate,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseVoucherPage.css";
@@ -241,6 +243,19 @@ export default function PurchaseVoucherForm() {
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this voucher's record id, gated on
+  // the session's Document Log permission flags. Mirrors Purchase Indent's
+  // rollout (see useDocumentLogAccess.js for the shared implementation).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: PV_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[PV]",
+  });
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -614,11 +629,15 @@ export default function PurchaseVoucherForm() {
   // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerErrorMap = validateApiColumnsByField(headerValues, visibleHeaderColumns, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
     const { divisionid, configid, trandate, basedonid, supplierid, locationid } = headerValues;
     const divisionID = divisionid ?? 0;
     const basedOnNum = Number(basedonid);
@@ -705,7 +724,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
+  }, [getLive, headerColumns, visibleHeaderColumns, groupFilter]);
 
   // Direct Select Item (fn_tbl_rb_purpvselonlyitem) — trailing AEI filter args + Item Name.
   // GRN/PO-based picker SPs keep their existing payloads unchanged.
@@ -869,8 +888,12 @@ export default function PurchaseVoucherForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearPvTypes],
+    extraClearFns: [clearPvTypes, docLog.resetDocGuid],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
     extraReset: () => {
+      if (isNewRoute) docLog.fetchDocGuid();
       setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
       // null (not blank strings) — billno/billdate are ordinary RB header
       // fields already blank in the New-record initialValues; a blank merge
@@ -937,9 +960,22 @@ export default function PurchaseVoucherForm() {
     setIsSavingPV(true);
     try {
       const result = await postSave(PV_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      // The save response's own message carries the real tranid (see
+      // extractSavedIdFromMessage in utils/apiResponse.js). recordId is only
+      // the real tranid on an EDIT save (Add is always 0 here, route hasn't
+      // changed), but `newId` is the real tranid either way — closes the
+      // Add-mode document-linking gap, same as Purchase Indent.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted via ITS OWN Save button, then links any docs
+      // staged under docGuid (before this transaction existed) to the
+      // now-saved transaction — see useDocumentLogAccess.finalizeSave.
+      // Best-effort: a failure here must never be treated as the PV's own
+      // save having failed — it already succeeded by this point.
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -948,7 +984,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setIsSavingPV(false);
     }
-  }, [headerColumns, visibleHeaderColumns, allColumns, columns, isEditRoute, completeSuccessfulSave, flushPendingCellEvents]);
+  }, [headerColumns, visibleHeaderColumns, allColumns, columns, isEditRoute, recordId, docLog.finalizeSave, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -980,7 +1016,7 @@ export default function PurchaseVoucherForm() {
   const filterBusy = headerFetching || isLoadingPvTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving: isSavingPV,
     addDisabled: filterBusy,
@@ -990,10 +1026,17 @@ export default function PurchaseVoucherForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const pvExtraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state — docLog.documentsButtonEntry
+    // already encodes this (null when permission gates say no), spread in/out
+    // of the array so ActionBar's own `showAlways || isEditMode` filter
+    // hides/shows it with Add/Edit mode the same way every other extra
+    // button does. Mirrors Purchase Indent's rollout.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSavingPV,
@@ -1004,7 +1047,7 @@ export default function PurchaseVoucherForm() {
       onClick: handleSave, disabled: isSavingPV, loading: isSavingPV,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, isSavingPV, handleSave]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPV, handleSave]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
@@ -1152,6 +1195,19 @@ export default function PurchaseVoucherForm() {
           filterBar={itemFilterBar}
           awaitingFilter={itemPickerIsDirect && !groupFilter.filterApplied}
           isRowDisabled={isGrnPickerRowDisabled}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={PV_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

@@ -1,7 +1,7 @@
 // PurchaseRateContractPage.jsx — Purchase Rate Contract listing
 // Add New → /purchase-rate-contract/new
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -15,6 +15,7 @@ import "./PurchaseRateContractPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildReportParams() {
   return [buildCompanyReportParam()];
@@ -49,6 +50,7 @@ export default function PurchaseRateContractPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: PAGE_TITLE,
@@ -89,6 +91,11 @@ export default function PurchaseRateContractPage() {
     navigate(`${PRC_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Purchase_Rate_Contracts_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page prc-list-page">
       <section className="prc-list-panel prc-list-panel--fill">
@@ -104,11 +111,13 @@ export default function PurchaseRateContractPage() {
             reportFileName: "TODO_PurchaseRateContract.rpt",
             buildParams: buildReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

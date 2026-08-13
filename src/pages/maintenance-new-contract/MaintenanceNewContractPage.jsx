@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -6,6 +6,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import { MACNG_CONFIG, ENTRY_FORM_LABEL, buildMacngListJsonPayload } from "./constants";
 import "./MaintenanceNewContractPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -28,6 +29,7 @@ export default function MaintenanceNewContractPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Maintenance Contract (New)",
@@ -69,6 +71,11 @@ export default function MaintenanceNewContractPage() {
     [navigate]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Maintenance_Contract_(New)_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page macng-list-page">
       <section className="macng-list-panel macng-list-panel--fill">
@@ -79,11 +86,13 @@ export default function MaintenanceNewContractPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

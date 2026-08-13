@@ -59,6 +59,11 @@ export const ARGO_CONFIG = {
 
   STORAGE_HEADER_META: "argoHeaderMeta",
   STORAGE_ENTRY_META: "argoEntryMeta",
+
+  // Document Log (F6) — this module isn't a Purchase-department transaction,
+  // so it scopes to DM Department Master's "ADMIN" row (id=6) via
+  // documentLogConfig's ADMIN_REF_DEPARTMENT_ID, not PURCHASE_REF_DEPARTMENT_ID.
+  DM_TRAN_TYPE_ID: 318,
 };
 
 export const ARGO_GRID_TABS = [{ id: "items", label: "Item Grid" }];

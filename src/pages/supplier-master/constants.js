@@ -71,6 +71,12 @@ export const SM_CONFIG = {
   // leftover from the template); using an SM-specific key avoids a localStorage collision.
   STORAGE_HEADER_META: "smHeaderMeta",
   STORAGE_ENTRY_META: "smEntryMeta",
+
+  // Document Log ("Documents" button, 2026-08-13 /pm) — Supplier Master is
+  // an admin/setup master, not a Purchase-department transaction, so it
+  // scopes to DM Department Master id 6 ("ADMIN"), not 1 ("PURCHASE") like
+  // the Purchase-flow transaction forms use.
+  DM_TRAN_TYPE_ID: 64,
 };
 
 // ── Header field blocks — live schema all comes from one flat GetDetailColData

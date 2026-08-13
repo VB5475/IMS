@@ -33,9 +33,12 @@ import { useNotification } from "../../context/NotificationContext";
 import SupplierPickerModal from "../../components/purchase-inquiry/SupplierPickerModal";
 import TermsPickerModal from "../../components/purchase-inquiry/TermsPickerModal";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseInquiry } from "../../hooks/usePurchaseInquiry";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -80,7 +83,6 @@ import {
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
   buildTermsPickerJsonPayload,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseInquiryForm.css";
@@ -299,6 +301,23 @@ export default function PurchaseInquiryForm() {
   // edit mode; "Cancel" (or the action-bar Cancel) returns to read-only.
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // Document Log modal (F6) — scoped to this inquiry's record id, gated on
+  // the session's Document Log permission flags (set at login). All of the
+  // permission-gate/GUID/button-visibility/post-save-linking logic lives in
+  // the shared useDocumentLogAccess hook — see that file for the reasoning
+  // behind reading dmConfig reactively via useUser(), the lowercase-field
+  // DM_HANDLE_GUID gotcha, and the dedicated DM_Doc_UpdateOnTranSave linking
+  // endpoint. Ported from PurchaseIndentForm.jsx's docLog wiring.
+  const docLog = useDocumentLogAccess({
+    tranTypeId: PI_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[Inquiry]",
+  });
+
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
     if (fields.length === 0) return false;
@@ -361,6 +380,7 @@ export default function PurchaseInquiryForm() {
 
     clearInquiryTypes();
     clearSaveError();
+    docLog.resetDocGuid();
 
     setActiveTab("items");
     setApprovedFilter("all");
@@ -397,7 +417,12 @@ export default function PurchaseInquiryForm() {
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
     exitEditMode();
-  }, [clearInquiryTypes, clearSaveError, exitEditMode]);
+
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    if (isNewRoute) docLog.fetchDocGuid();
+  }, [clearInquiryTypes, clearSaveError, exitEditMode, isNewRoute, docLog.resetDocGuid, docLog.fetchDocGuid]);
 
   const completeSuccessfulSave = useCallback(() => {
     if (isEditRoute) {
@@ -849,11 +874,17 @@ export default function PurchaseInquiryForm() {
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     const loginId = getUserSession().loginId;
     const BasedOnID = headerValues.basedonid;
@@ -1102,11 +1133,17 @@ export default function PurchaseInquiryForm() {
   // of reading them from the RB, unlike every sibling picker in this form.
   const handleSelectSupplier = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setSupplierModalOpen(true);
     setSupplierModalItems([]);
@@ -1192,11 +1229,17 @@ export default function PurchaseInquiryForm() {
   // in the MRD, so columns are entirely RB-driven (no hardcoded field names).
   const handleSelectTerms = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setTermsModalOpen(true);
     setTermsModalItems([]);
@@ -1367,9 +1410,21 @@ export default function PurchaseInquiryForm() {
       setIsSavingPI(true);
       try {
         const result = await postSave(PI_CONFIG.SAVE_ENDPOINT, payload);
-        const { success, message } = parseApiErrMsg(result);
+        const { success, message, newId } = parseApiErrMsg(result);
         if (!success) { setFormErrors([message]); return false; }
         notify.success(message);
+        // The save response's own message carries the real tranid — see
+        // useDocumentLogAccess.finalizeSave / apiResponse.js's
+        // extractSavedIdFromMessage. Falls back to recordId so an Edit save
+        // still works even if the message wording ever changes.
+        const savedTranId = newId ?? (isEditRoute ? recordId : null);
+        // Saves any document rows staged in the Documents modal but never
+        // explicitly submitted via ITS OWN Save button, then links any docs
+        // staged under docGuid (before this transaction existed) to the
+        // now-saved transaction. Best-effort: a failure here must never be
+        // treated as the Inquiry's own save having failed — it already
+        // succeeded by this point.
+        await docLog.finalizeSave(savedTranId);
 
         if (!skipPostSave) completeSuccessfulSave();
         return true;
@@ -1395,6 +1450,8 @@ export default function PurchaseInquiryForm() {
       postSave,
       completeSuccessfulSave,
       isEditRoute,
+      recordId,
+      docLog.finalizeSave,
       flushPendingCellEvents,
     ]
   );
@@ -1455,7 +1512,7 @@ export default function PurchaseInquiryForm() {
   const filterBusy = filterPanelLoading || isLoadingInquiryTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || supplierModalOpen || termsModalOpen,
+    blocked: itemModalOpen || supplierModalOpen || termsModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving: isSavingPI,
     addDisabled: filterBusy,
@@ -1465,11 +1522,18 @@ export default function PurchaseInquiryForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   // Extra buttons visible in the ActionBar while in edit mode
   const piExtraButtons = useMemo(
     () => [
+      // Show/hide only, never a disabled state — docLog.documentsButtonEntry
+      // already encodes this (null when permission gates say no), spread
+      // in/out of the array so ActionBar's own `showAlways || isEditMode`
+      // filter hides/shows it with Add/Edit mode the same way every other
+      // extra button does. Mirrors PurchaseIndentForm.jsx's indExtraButtons.
+      ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
         label: "Save & Print",
@@ -1492,7 +1556,7 @@ export default function PurchaseInquiryForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSavingPI, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPI, handleSave]
   );
 
   // Direct mode only — Indent-wise items fetch immediately, no filter step.
@@ -1723,6 +1787,19 @@ export default function PurchaseInquiryForm() {
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
           awaitingFilter={!itemPickerIsIndentWise && !groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={PI_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

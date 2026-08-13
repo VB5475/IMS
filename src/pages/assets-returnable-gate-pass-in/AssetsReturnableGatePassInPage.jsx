@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DoorClosed } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -8,6 +8,7 @@ import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { resolveListRowId } from "../../utils/listColumns";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import { ARGI_CONFIG, ENTRY_FORM_LABEL, buildArgiListJsonPayload } from "./constants";
 import "./AssetsReturnableGatePassInPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -37,6 +38,7 @@ export default function AssetsReturnableGatePassInPage() {
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedId, setSelectedId] = useState(null);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Returnable Gate Pass In",
@@ -83,6 +85,11 @@ export default function AssetsReturnableGatePassInPage() {
     [selectedId]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Returnable_Gate_Pass_In_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page argi-list-page">
       <section className="argi-list-panel argi-list-panel--fill">
@@ -97,11 +104,13 @@ export default function AssetsReturnableGatePassInPage() {
             ...PRINT_REPORT_CONFIG["assets-returnable-gate-pass-in"],
             buildParams: handlePrintParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

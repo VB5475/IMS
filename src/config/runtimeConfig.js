@@ -5,13 +5,14 @@
 // `apiMode` is one of:
 //   "IMS_LIVE"   — pin the app to the IMS_LIVE backend, hide the switcher
 //   "IMS_PGLIVE" — pin the app to the IMS_PGLIVE backend, hide the switcher
-//   "ALL"        — show the switcher and let the user pick; the choice is
-//                  remembered in localStorage
+//   "MV_WSLIVE"  — pin the app to the MV_WSLIVE backend, hide the switcher
+//   "ALL"        — show the switcher and let the user pick from all of the
+//                  above; the choice is remembered in localStorage
 //
 // loadRuntimeConfig() MUST resolve before anything imports src/api/constants.js,
 // which reads the base project once at module scope — see src/main.jsx.
 
-export const BASE_PROJECTS = Object.freeze(["IMS_LIVE", "IMS_PGLIVE"]);
+export const BASE_PROJECTS = Object.freeze(["IMS_LIVE", "IMS_PGLIVE", "MV_WSLIVE"]);
 export const API_MODES = Object.freeze([...BASE_PROJECTS, "ALL"]);
 export const UI_GUARD_OPTIONS = Object.freeze(["Yes", "No"]);
 
