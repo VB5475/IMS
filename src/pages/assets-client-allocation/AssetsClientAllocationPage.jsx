@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Handshake } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -6,6 +6,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import { ACA_CONFIG, ENTRY_FORM_LABEL, buildAcaListJsonPayload } from "./constants";
 import "./AssetsClientAllocationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -36,6 +37,7 @@ export default function AssetsClientAllocationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Client Allocation",
@@ -77,6 +79,11 @@ export default function AssetsClientAllocationPage() {
     [navigate]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Client_Allocation_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page aca-list-page">
       <section className="aca-list-panel aca-list-panel--fill">
@@ -91,11 +98,13 @@ export default function AssetsClientAllocationPage() {
             ...PRINT_REPORT_CONFIG["assets-client-allocation"],
             buildParams: buildAcaReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

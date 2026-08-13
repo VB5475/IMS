@@ -12,6 +12,7 @@
 //     onRefresh={fetchIndents}
 //     refreshing={loading}
 //     print={{ reportTitle, reportFileName, buildParams }}
+//     onExportCsv={handleExportCsv}
 //     pageSize={pageSize}
 //     onPageSizeChange={setPageSize}
 //   />
@@ -27,6 +28,7 @@ import React, { useId } from "react";
 import { Plus } from "lucide-react";
 import PrintReportButton from "../ui/PrintReportButton";
 import RefreshButton from "../ui/RefreshButton";
+import ExportCsvButton from "../ui/ExportCsvButton";
 import { useModuleRights } from "../../hooks/useModuleRights";
 import { PAGE_SIZE_OPTIONS } from "../../constants/tableConfig";
 import "./ListPanelHeader.css";
@@ -39,6 +41,11 @@ export default function ListPanelHeader({
   onRefresh,
   refreshing = false,
   print,
+  // Plain callback, same shape as onAdd/onRefresh — the page owns gathering
+  // the rows (via its EnterpriseDataGrid ref's getExportData()) and building
+  // the CSV; this component only renders the button. See
+  // project_csv_export_master_lists.md for why.
+  onExportCsv,
   pageSize,
   onPageSizeChange,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
@@ -69,6 +76,7 @@ export default function ListPanelHeader({
             buildParams={print.buildParams}
           />
         )}
+        {onExportCsv && <ExportCsvButton onClick={onExportCsv} />}
         {children}
         {showPageSize && (
           <>

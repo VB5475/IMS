@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Tag } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
@@ -15,6 +15,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildMainGroupReportParams(selectedId) {
   const params = [buildCompanyReportParam()];
@@ -59,6 +60,7 @@ export default function MainGroupMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -112,6 +114,11 @@ export default function MainGroupMasterPage() {
     [selectedId]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Main_Group_Master_export.csv");
+  }, []);
+
   const columns = useMemo(
     () => [
       ...buildListColumnsFromApi({ data, fieldDefs }),
@@ -141,11 +148,13 @@ export default function MainGroupMasterPage() {
             ...PRINT_REPORT_CONFIG["main-group-master"],
             buildParams: handlePrintParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

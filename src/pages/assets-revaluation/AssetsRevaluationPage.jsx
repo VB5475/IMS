@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -10,6 +10,7 @@ import { ARV_CONFIG, ENTRY_FORM_LABEL, buildArvListJsonPayload } from "./constan
 import "./AssetsRevaluationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -36,6 +37,7 @@ export default function AssetsRevaluationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Revaluation",
@@ -77,6 +79,11 @@ export default function AssetsRevaluationPage() {
     [navigate]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Revaluation_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page arv-list-page">
       <section className="arv-list-panel arv-list-panel--fill">
@@ -91,11 +98,13 @@ export default function AssetsRevaluationPage() {
             ...PRINT_REPORT_CONFIG["assets-revaluation"],
             buildParams: buildArvReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

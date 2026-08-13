@@ -2,7 +2,7 @@
 // Clicking Add New → /admin/master/transporter-master/new
 // Clicking Edit   → /admin/master/transporter-master/:id/edit
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck, Plus } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -20,6 +20,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 const PRINT_CONFIG = PRINT_REPORT_CONFIG["transporter-master"];
 function buildTransporterMasterReportParams() {
@@ -60,6 +61,7 @@ export default function TransporterMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Transporter Master",
@@ -98,6 +100,11 @@ export default function TransporterMasterPage() {
     navigate(`${TM_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Transporter_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page tm-list-page">
       <section className="tm-list-panel tm-list-panel--fill">
@@ -112,11 +119,13 @@ export default function TransporterMasterPage() {
             ...PRINT_CONFIG,
             buildParams: buildTransporterMasterReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

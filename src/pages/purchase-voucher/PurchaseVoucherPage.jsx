@@ -3,7 +3,7 @@
 // Clicking Add New → /purchase-voucher/new  (PurchaseVoucherForm in new mode)
 // Clicking Edit   → /purchase-voucher/:id/edit (PurchaseVoucherForm in edit mode)
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Receipt } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -18,6 +18,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildPurchaseVoucherReportParams() {
   return [
@@ -54,6 +55,7 @@ export default function PurchaseVoucherPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Purchase Vouchers",
@@ -92,6 +94,11 @@ export default function PurchaseVoucherPage() {
 
   const handleAddNew = useCallback(() => navigate(`${PV_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Purchase_Vouchers_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page pv-list-page">
       <section className="pv-list-panel pv-list-panel--fill">
@@ -106,11 +113,13 @@ export default function PurchaseVoucherPage() {
             ...PRINT_REPORT_CONFIG["purchase-voucher"],
             buildParams: buildPurchaseVoucherReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

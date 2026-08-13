@@ -1,6 +1,6 @@
 // AssetsEmployeeIssuePage.jsx — Assets Employee Issue listing page
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserRound } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -11,6 +11,7 @@ import {
 } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import { AEI_CONFIG, ENTRY_FORM_LABEL, buildAeiListJsonPayload } from "./constants";
 import "./AssetsEmployeeIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -42,6 +43,7 @@ export default function AssetsEmployeeIssuePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Employee Issue",
@@ -80,6 +82,11 @@ export default function AssetsEmployeeIssuePage() {
 
   const handleAddNew = useCallback(() => navigate(`${AEI_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Employee_Issue_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page aei-list-page">
       <section className="aei-list-panel aei-list-panel--fill">
@@ -94,11 +101,13 @@ export default function AssetsEmployeeIssuePage() {
             ...PRINT_REPORT_CONFIG["assets-employee-issue"],
             buildParams: buildAeiReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

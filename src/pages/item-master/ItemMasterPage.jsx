@@ -21,6 +21,7 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ItemMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 // prmisactive is always "1" (active only) — confirmed business rule, not a
 // live filter value: this list page has no Active/Inactive toggle to read from.
@@ -79,6 +80,7 @@ export default function ItemMasterPage() {
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedId, setSelectedId] = useState(null);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -303,6 +305,11 @@ export default function ItemMasterPage() {
     [selectedId]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Item_Master_export.csv");
+  }, []);
+
   const columns = useMemo(
     () => [
       ...buildListColumnsFromApi({ data, fieldDefs }),
@@ -328,11 +335,13 @@ export default function ItemMasterPage() {
             ...PRINT_REPORT_CONFIG["item-master"],
             buildParams: handlePrintParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

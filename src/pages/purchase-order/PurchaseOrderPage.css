@@ -53,9 +53,14 @@
   cursor: pointer;
 }
 
-.po-list__edit-btn:hover {
+.po-list__edit-btn:hover:not(:disabled) {
   background: #eef3fa;
   border-color: var(--primary);
+}
+
+.po-list__edit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* "Approval Initiator" — beside Entry Form in the list header toolbar

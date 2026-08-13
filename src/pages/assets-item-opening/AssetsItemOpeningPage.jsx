@@ -2,7 +2,7 @@
 // Clicking Add New → /assets-item-opening/new
 // Clicking Edit   → /assets-item-opening/:id/edit
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Package2, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -15,6 +15,7 @@ import { AOP_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsItemOpeningPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -100,6 +101,7 @@ export default function AssetsItemOpeningPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Item Opening",
@@ -128,6 +130,11 @@ export default function AssetsItemOpeningPage() {
 
   const handleAddNew = useCallback(() => navigate(`${AOP_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Item_Opening_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page aop-list-page">
       <section className="aop-list-panel aop-list-panel--fill">
@@ -142,11 +149,13 @@ export default function AssetsItemOpeningPage() {
             ...PRINT_REPORT_CONFIG["assets-item-opening"],
             buildParams: buildAopReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

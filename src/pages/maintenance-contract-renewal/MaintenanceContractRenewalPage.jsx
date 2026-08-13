@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -6,6 +6,7 @@ import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import { MACR_CONFIG, ENTRY_FORM_LABEL, buildMacrListJsonPayload } from "./constants";
 import "./MaintenanceContractRenewalPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
@@ -28,6 +29,7 @@ export default function MaintenanceContractRenewalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Maintenance Contract Renewal",
@@ -69,6 +71,11 @@ export default function MaintenanceContractRenewalPage() {
     [navigate]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Maintenance_Contract_Renewal_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page macr-list-page">
       <section className="macr-list-panel macr-list-panel--fill">
@@ -79,11 +86,13 @@ export default function MaintenanceContractRenewalPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

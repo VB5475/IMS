@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Network } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { getUserSession } from "../../session/userSession";
@@ -16,6 +16,7 @@ import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./DivisionMasterPage.css";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildDivisionMasterReportParams() {
   return [
@@ -61,6 +62,7 @@ export default function DivisionMasterPage() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
@@ -133,6 +135,11 @@ export default function DivisionMasterPage() {
     [data, fieldDefs, handleEdit]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Division_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page dv-list-page">
       <section className="dv-list-panel dv-list-panel--fill">
@@ -145,11 +152,13 @@ export default function DivisionMasterPage() {
             ...PRINT_REPORT_CONFIG["division-master"],
             buildParams: buildDivisionMasterReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

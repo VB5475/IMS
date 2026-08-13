@@ -2,7 +2,7 @@
 // Clicking Add New → /admin/dop-master/new
 // Clicking Edit   → /admin/dop-master/:id/edit
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -17,6 +17,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildDopMasterReportParams() {
   return [buildCompanyReportParam()];
@@ -29,9 +30,9 @@ function buildListParams() {
     ObjName: DOP_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        prmcompanyid: session.companyId,
-        prmdivisionid: DOP_CONFIG.LIST_DIVISION_ID,
-        prmloginid: session.loginId,
+        // prmcompanyid: session.companyId,
+        // prmdivisionid: DOP_CONFIG.LIST_DIVISION_ID,
+        // prmloginid: session.loginId,
       },
     ]),
     p_ErrCode: -1,
@@ -47,6 +48,7 @@ export default function DopMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "DOP Master",
@@ -85,6 +87,11 @@ export default function DopMasterPage() {
     navigate(`${DOP_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "DOP_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page dop-list-page">
       <section className="dop-list-panel dop-list-panel--fill">
@@ -99,11 +106,13 @@ export default function DopMasterPage() {
             ...PRINT_REPORT_CONFIG["dop-master"],
             buildParams: buildDopMasterReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

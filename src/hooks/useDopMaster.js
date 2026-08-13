@@ -9,9 +9,11 @@
 //   fetchAmountGridColumns → GET_FILTER_DETAIL dropdowns + buildGridColumns (lazy on first Add New)
 //   fetchUserDetailMeta / fetchUserGridColumns — same, for RB_USER_DETAIL
 //
-// DOP-specific vs C2F/PV: no TranDate, no Division/Location cascade, no
+// DOP-specific vs C2F/PV: no TranDate, no Location cascade, no
 // EnterpriseSummaryPanel, no cell events (no computed columns per MRD).
-// Entity cascades from Tran Type (fetchEntityOptions).
+// Entity cascades from Tran Type (fetchEntityOptions). Division IS present
+// on the live header RB (2026-08-12 bug fix) — fetched the same
+// non-cascading way as Department/Company, not tied to any other field.
 
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "../api/useApi";
@@ -71,6 +73,12 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
   return { meta, apiColumns: colData || [] };
 }
 
+// Read-only regardless of buildGridColumns' allEditable:true — srno is
+// auto-numbered by DopMasterForm.jsx (handleAddEmployeeToBand, step of
+// DOP_SRNO_STEP per band), never a real user input, on either detail grid.
+// Same override pattern as useDMTranTypeLink.js's GRID_READ_ONLY_COLS.
+const DETAIL_GRID_READ_ONLY_COLS = new Set(["srno"]);
+
 /** One detail-grid pipeline (meta fetch + lazy column build) — used twice, for
  *  Amount Detail and Employee Detail, so the two grids stay fully independent. */
 function useDetailGridPipeline(get, rbCode, storageKey) {
@@ -123,7 +131,9 @@ function useDetailGridPipeline(get, rbCode, storageKey) {
           filterable: false,
           allEditable: true,
           existingRecordEdit,
-        });
+        }).map((col) =>
+          DETAIL_GRID_READ_ONLY_COLS.has(col.key) ? { ...col, isEditAllow: false } : col
+        );
         setColumns(gridColumns);
         return gridColumns;
       } catch (err) {
@@ -146,6 +156,7 @@ export function useDopMaster(baseURL = API_BASE_URL) {
 
   const [tranTypeOptions, setTranTypeOptions] = useState([]);
   const [entityOptions, setEntityOptions] = useState([]);
+  const [divisionOptions, setDivisionOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [companyOptions, setCompanyOptions] = useState([]);
 
@@ -211,9 +222,18 @@ export function useDopMaster(baseURL = API_BASE_URL) {
       });
       setHeaderColumns(colData || []);
 
-      const [tranTypeRes, deptRes, companyRes] = await Promise.all([
+      const [tranTypeRes, divisionRes, deptRes, companyRes] = await Promise.all([
         get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2, ObjName: DOP_CONFIG.SP_TRAN_TYPE, JSon: JSON.stringify([{}]),
+          p_ErrCode: -1, p_ErrMsg: "",
+        }).catch(() => null),
+        get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: 2, ObjName: DOP_CONFIG.SP_DIVISION,
+          JSon: JSON.stringify([{
+            prmuserid: session.loginId,
+            prmcompanyid: session.companyId,
+            prmyearid: session.yearId,
+          }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch(() => null),
         get(ENDPOINTS.FN_FETCH_DATA, {
@@ -234,6 +254,12 @@ export function useDopMaster(baseURL = API_BASE_URL) {
           // look up the code for the selected id (Entity fetch needs the
           // code, not the idnumber — see fetchEntityOptions).
           code: String(r.code ?? ""),
+        }))
+      );
+      setDivisionOptions(
+        (divisionRes || []).map((r) => ({
+          value: String(r.divisionid),
+          label: r.divisionname,
         }))
       );
       setDepartmentOptions(
@@ -299,7 +325,7 @@ export function useDopMaster(baseURL = API_BASE_URL) {
   return {
     // Header
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    tranTypeOptions, entityOptions, departmentOptions, companyOptions,
+    tranTypeOptions, entityOptions, divisionOptions, departmentOptions, companyOptions,
     fetchEntityOptions, clearEntityOptions,
     // Amount Detail grid
     amountColumns: amountGrid.columns,

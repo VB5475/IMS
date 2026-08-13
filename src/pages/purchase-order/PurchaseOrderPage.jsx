@@ -3,7 +3,7 @@
 // Clicking Add New → /purchase-order/new (PurchaseOrderForm in new mode)
 // Clicking Edit   → /purchase-order/:id/edit (PurchaseOrderForm in edit mode)
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Send } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -16,11 +16,13 @@ import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUti
 import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 // PO's report SP takes its own param casing (@prmCompanyID/@prmloginID), not
 // the shared lowercase @prmcompanyid used by buildCompanyReportParam — don't
@@ -69,6 +71,7 @@ export default function PurchaseOrderPage() {
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedId, setSelectedId] = useState(null);
+  const gridRef = useRef(null);
 
   // "Approval Initiator" button (WKF) — visibility is a per-login,
   // per-trantype backend flag, same pattern as the DMS "Documents" button.
@@ -80,6 +83,9 @@ export default function PurchaseOrderPage() {
   // but Send4Approval needs prmdivisionid — fetched once here to resolve the
   // selected row's division name back to its id.
   const [divisionNameToId, setDivisionNameToId] = useState({});
+
+  // appstatusid-driven row color + Edit/Delete lock, per src/config/approvalStatusConfig.js.
+  const getRowState = useApprovalRowStatus("purchase-order");
 
   usePageHeader({
     title: "Purchase Orders",
@@ -163,6 +169,11 @@ export default function PurchaseOrderPage() {
     [selectedId]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Purchase_Orders_export.csv");
+  }, []);
+
   const handleSendForApproval = useCallback(async () => {
     if (!selectedId) {
       notify.error("Select a purchase order before sending it for approval.");
@@ -211,6 +222,7 @@ export default function PurchaseOrderPage() {
             ...PRINT_REPORT_CONFIG["purchase-order"],
             buildParams: handlePrintParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         >
@@ -229,6 +241,7 @@ export default function PurchaseOrderPage() {
         </ListPanelHeader>
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}
@@ -249,6 +262,7 @@ export default function PurchaseOrderPage() {
           selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
           onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
           getRowKey={(row) => String(resolveListRowId(row) ?? "")}
+          getRowState={getRowState}
         />
       </section>
     </div>

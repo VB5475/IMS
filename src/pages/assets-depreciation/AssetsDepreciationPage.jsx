@@ -2,7 +2,7 @@
 // Clicking Add New → /assets-depreciation/new    (AssetsDepreciationForm — new mode)
 // Clicking Edit   → /assets-depreciation/:id/edit (AssetsDepreciationForm — edit mode)
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layers, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -15,6 +15,7 @@ import { DPC_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./AssetsDepreciationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -107,6 +108,7 @@ export default function AssetsDepreciationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Company Act Depreciation",
@@ -135,6 +137,11 @@ export default function AssetsDepreciationPage() {
 
   const handleAddNew = useCallback(() => navigate(`${DPC_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Company_Act_Depreciation_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page dpc-list-page">
       <section className="dpc-list-panel dpc-list-panel--fill">
@@ -149,11 +156,13 @@ export default function AssetsDepreciationPage() {
             ...PRINT_REPORT_CONFIG["assets-depreciation"],
             buildParams: buildDpcReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

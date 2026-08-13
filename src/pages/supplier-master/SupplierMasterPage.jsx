@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Truck } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
@@ -15,6 +15,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildSupplierMasterReportParams() {
   return [
@@ -73,6 +74,7 @@ export default function SupplierMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -126,6 +128,11 @@ export default function SupplierMasterPage() {
 
   const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns: exportCols } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, exportCols, "Supplier_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page sm-list-page">
       <section className="sm-list-panel sm-list-panel--compact sm-list-panel--fill">
@@ -140,11 +147,13 @@ export default function SupplierMasterPage() {
             ...PRINT_REPORT_CONFIG["supplier-master"],
             buildParams: buildSupplierMasterReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

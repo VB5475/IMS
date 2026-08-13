@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -13,6 +13,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildPurchaseQuotationReportParams() {
   return [
@@ -57,6 +58,7 @@ export default function PurchaseQuotationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Purchase Quotation",
@@ -97,6 +99,11 @@ export default function PurchaseQuotationPage() {
     navigate(`${QTN_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Purchase_Quotations_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page pq-list-page">
       <section className="pq-list-panel pq-list-panel--compact pq-list-panel--fill">
@@ -111,11 +118,13 @@ export default function PurchaseQuotationPage() {
             ...PRINT_REPORT_CONFIG["purchase-quotation"],
             buildParams: buildPurchaseQuotationReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

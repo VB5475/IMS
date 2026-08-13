@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Package } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
@@ -13,6 +13,7 @@ import "./SubGroupMasterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 // Sub Group Master's report takes no parameters — unlike Main Group / Sub
 // Main Group, which scope by Company (buildCompanyReportParam).
@@ -89,6 +90,7 @@ export default function SubGroupMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -138,6 +140,11 @@ export default function SubGroupMasterPage() {
 
   const columns = useMemo(() => buildColumnsFromData(data, handleEdit), [data, handleEdit]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Sub_Group_Master_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page sgm-list-page">
       <section className="sgm-list-panel sgm-list-panel--fill">
@@ -152,11 +159,13 @@ export default function SubGroupMasterPage() {
             ...PRINT_REPORT_CONFIG["sub-group-master"],
             buildParams: buildSubGroupReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

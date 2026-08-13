@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -13,6 +13,7 @@ import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfi
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { exportRowsToCsv } from "../../utils/csvExport";
 
 function buildGoodsReceivedNoteReportParams() {
   return [
@@ -56,6 +57,7 @@ export default function GoodsReceivedNotePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Goods Received Note",
@@ -96,6 +98,11 @@ export default function GoodsReceivedNotePage() {
     navigate(`${GRN_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Goods_Received_Notes_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page grn-list-page">
       <section className="grn-list-panel grn-list-panel--compact grn-list-panel--fill">
@@ -110,11 +117,13 @@ export default function GoodsReceivedNotePage() {
             ...PRINT_REPORT_CONFIG["goods-received-note"],
             buildParams: buildGoodsReceivedNoteReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}

@@ -401,6 +401,28 @@
   cursor: pointer;
 }
 
+/* ─── Approval-status row coloring (getRowState prop, see
+   src/config/approvalStatusConfig.js) ─────────────────────────────── */
+.ng-table tbody tr.ng-row--status-approved td,
+.ng-table tbody tr.ng-row--status-approved td.ng-col--action {
+  background: #d1fae5;
+}
+
+.ng-table tbody tr.ng-row--status-approved:hover td,
+.ng-table tbody tr.ng-row--status-approved:hover td.ng-col--action {
+  background: #a7f3d0;
+}
+
+.ng-table tbody tr.ng-row--status-inApproval td,
+.ng-table tbody tr.ng-row--status-inApproval td.ng-col--action {
+  background: #fef3c7;
+}
+
+.ng-table tbody tr.ng-row--status-inApproval:hover td,
+.ng-table tbody tr.ng-row--status-inApproval:hover td.ng-col--action {
+  background: #fde68a;
+}
+
 /* ─── Link cell (isLink columns) ──────────────────────────────────── */
 .ng-link {
   color: var(--primary);

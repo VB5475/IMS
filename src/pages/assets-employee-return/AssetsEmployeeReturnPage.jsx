@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { RotateCcw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
@@ -13,6 +13,7 @@ import { AER_CONFIG, ENTRY_FORM_LABEL, buildAerListJsonPayload } from "./constan
 import "./AssetsEmployeeReturnPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { buildCompanyReportParam } from "../../utils/reportParams";
+import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -40,6 +41,7 @@ export default function AssetsEmployeeReturnPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const gridRef = useRef(null);
 
   usePageHeader({
     title: "Assets Employee Return",
@@ -78,6 +80,11 @@ export default function AssetsEmployeeReturnPage() {
 
   const handleAddNew = useCallback(() => navigate(`${AER_CONFIG.ROUTE_PATH}/new`), [navigate]);
 
+  const handleExportCsv = useCallback(() => {
+    const { rows, columns } = gridRef.current?.getExportData() ?? {};
+    exportRowsToCsv(rows, columns, "Assets_Employee_Return_export.csv");
+  }, []);
+
   return (
     <div className="workspace-page aer-list-page">
       <section className="aer-list-panel aer-list-panel--fill">
@@ -92,11 +99,13 @@ export default function AssetsEmployeeReturnPage() {
             ...PRINT_REPORT_CONFIG["assets-employee-return"],
             buildParams: buildAerReportParams,
           }}
+          onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         />
 
         <EnterpriseDataGrid
+          ref={gridRef}
           title=""
           columns={columns}
           data={data}
