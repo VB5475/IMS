@@ -113,6 +113,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_REVALUATION), icon: FileText, label: "Assets Revaluation", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_ALLOCATION), icon: Handshake, label: "Assets Client Allocation", end: false },
+      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_RELEASE), icon: Handshake, label: "Assets Client Release", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT), icon: DoorOpen, label: "Assets Returnable Gate Pass Out", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },

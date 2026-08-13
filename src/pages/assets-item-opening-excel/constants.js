@@ -19,7 +19,7 @@ export const AIME_CONFIG = {
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
 
-  SAVE_ENDPOINT: "/API/assetitmopnexl/Post_RB_assetitmopnexl_Save",
+  SAVE_ENDPOINT: "/API/XLAssetItmOpnUpload/Post_XLUploadAstItemOpn_Save",
 
   STORAGE_ENTRY_META: "aimeEntryMeta",
 };

@@ -13,6 +13,7 @@ export const PRINT_REPORT_CONFIG = {
   "account-group-master": { reportTitle: "Account Group Master Report", reportFileName: "AccountGroupMaster.rpt" },
   "account-master": { reportTitle: "Account Master Report", reportFileName: "AccountMaster.rpt" },
   "assets-client-allocation": { reportTitle: "Assets Client Allocation Report", reportFileName: "AssetsClientAllocation.rpt" },
+  "assets-client-release": { reportTitle: "Assets Client Release Report", reportFileName: "AssetsClientRelease.rpt" },
   "assets-department-issue": { reportTitle: "Assets Department Issue Report", reportFileName: "AssetsDepartmentIssue.rpt" },
   "assets-depreciation": { reportTitle: "Company Act Depreciation Report", reportFileName: "AssetsDepreciation.rpt" },
   "assets-employee-issue": { reportTitle: "Assets Employee Issue Report", reportFileName: "AssetsEmployeeIssue.rpt" },
