@@ -76,7 +76,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./PurchaseQuotationForm.css";
 
@@ -594,11 +593,22 @@ export default function PurchaseQuotationForm() {
   //   4. Fetch item rows via SP_ITEM_PICKER_DIRECT | SP_ITEM_PICKER_INQUIRY
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    // Same validation call + display pattern as handleSave's own header
+    // check below (inline fieldErrors highlighting + generic banner),
+    // instead of the old bullet-list-of-labels-only banner — also fixes a
+    // real gap the old path had: it never passed zeroValidFields, so
+    // Based On=0 ("Direct") was wrongly flagged missing even when set.
+    const headerFieldNames = new Set(QTN_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     const { basedonid: BasedOnID } = headerValues;
     const loginId = getUserSession().loginId;

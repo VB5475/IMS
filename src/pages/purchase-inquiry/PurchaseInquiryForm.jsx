@@ -83,7 +83,6 @@ import {
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
   buildTermsPickerJsonPayload,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseInquiryForm.css";
@@ -875,11 +874,17 @@ export default function PurchaseInquiryForm() {
   //   5. Open modal — EntryGrid in readOnly mode with those columns + rows
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     const loginId = getUserSession().loginId;
     const BasedOnID = headerValues.basedonid;
@@ -1128,11 +1133,17 @@ export default function PurchaseInquiryForm() {
   // of reading them from the RB, unlike every sibling picker in this form.
   const handleSelectSupplier = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setSupplierModalOpen(true);
     setSupplierModalItems([]);
@@ -1218,11 +1229,17 @@ export default function PurchaseInquiryForm() {
   // in the MRD, so columns are entirely RB-driven (no hardcoded field names).
   const handleSelectTerms = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerFieldNames = new Set(PI_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setTermsModalOpen(true);
     setTermsModalItems([]);

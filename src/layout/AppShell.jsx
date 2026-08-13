@@ -95,7 +95,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.PURCHASE_RATE_CONTRACT), icon: FileText, label: "Purchase Rate Contract", end: false },
       { to: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE), icon: PackageCheck, label: "Goods Received Note", end: false },
       { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false },
-      { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false },
+      // { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false },
     ],
   },
   {

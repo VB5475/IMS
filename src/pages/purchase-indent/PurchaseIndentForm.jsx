@@ -62,7 +62,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatIndentTranDate,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseIndentPage.css";
@@ -498,11 +497,14 @@ export default function PurchaseIndentForm() {
   // handleApplyItemFilter below). Client instruction 2026-07-28.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
     const { divisionid, configid } = headerValues;
     const divisionID = divisionid ?? 0;
 

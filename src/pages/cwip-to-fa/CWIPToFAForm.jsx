@@ -65,7 +65,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatC2FTranDate,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import "./CWIPToFAPage.css";
 
@@ -515,11 +514,14 @@ export default function CWIPToFAForm() {
   // ── Select Item ────────────────────────────────────────────────────────────
   const handleSelectItem = useCallback(async () => {
     const headerValues    = headerValuesRef.current;
-    const missingFields   = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     const { divisionid, locationid, cwipaccid, trandate, puttouseinstdate } = headerValues;
 

@@ -68,7 +68,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatPVTranDate,
-  getMissingItemPickerHeaderFields,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseVoucherPage.css";
@@ -630,11 +629,15 @@ export default function PurchaseVoucherForm() {
   // unchanged. Client instruction 2026-07-28, same rollout as Purchase Indent.
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerErrorMap = validateApiColumnsByField(headerValues, visibleHeaderColumns, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
     const { divisionid, configid, trandate, basedonid, supplierid, locationid } = headerValues;
     const divisionID = divisionid ?? 0;
     const basedOnNum = Number(basedonid);
@@ -721,7 +724,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
+  }, [getLive, headerColumns, visibleHeaderColumns, groupFilter]);
 
   // Direct Select Item (fn_tbl_rb_purpvselonlyitem) — trailing AEI filter args + Item Name.
   // GRN/PO-based picker SPs keep their existing payloads unchanged.

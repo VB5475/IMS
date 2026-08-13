@@ -52,7 +52,6 @@ import {
   ARGO_FRM_TYPE_OPTIONS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
-  getMissingItemPickerHeaderFields,
   buildArgoItemPickerJsonPayload,
   applyArgoHardcodedHeaderValues,
   buildArgoCascadeResets,
@@ -494,11 +493,14 @@ export default function AssetsReturnableGatePassOutForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setItemModalOpen(true);
     setItemModalItems([]);

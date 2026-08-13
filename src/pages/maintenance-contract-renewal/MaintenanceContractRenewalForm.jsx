@@ -45,8 +45,6 @@ import {
   MACR_GRID_TABS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
-  getMissingItemPickerHeaderFields,
-  getMissingTermsPickerHeaderFields,
   buildMacrItemPickerJsonPayload,
   buildMacrTermsPickerJsonPayload,
   applyMacrHardcodedHeaderValues,
@@ -556,11 +554,14 @@ export default function MaintenanceContractRenewalForm() {
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields.map((label) => `${label} is required before selecting items.`));
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setPickerMode("items");
     openPickerModal();
@@ -604,11 +605,14 @@ export default function MaintenanceContractRenewalForm() {
 
   const handleSelectTerms = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingTermsPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields.map((label) => `${label} is required before selecting terms.`));
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     setPickerMode("terms");
     openPickerModal();

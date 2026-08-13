@@ -75,7 +75,6 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
-  getMissingItemPickerHeaderFields,
   resolveItemPickerRbCode,
   resolveItemPickerSpName,
 } from "./constants";
@@ -755,11 +754,15 @@ export default function GoodsReceivedNoteForm() {
   // module — see BASED_ON_OPTIONS — so only these two branches are live.)
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
-    const missingFields = getMissingItemPickerHeaderFields(headerValues, headerColumns);
-    if (missingFields.length > 0) {
-      setFormErrors(missingFields);
+    const headerErrorMap = validateApiColumnsByField(headerValues, visibleHeaderColumns, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
+    setFormErrors([]);
 
     const loginId = getUserSession().loginId;
     const rbCode = resolveItemPickerRbCode(headerValues.basedonid);
@@ -820,7 +823,7 @@ export default function GoodsReceivedNoteForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
+  }, [getLive, visibleHeaderColumns, groupFilter]);
 
   // Direct Select Item (fn_tbl_rb_purgrnselonlyitem) — trailing AEI filter args + Item Name.
   // PO/Indent-based picker SPs keep their existing payloads unchanged.

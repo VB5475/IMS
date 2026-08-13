@@ -7,9 +7,10 @@ import React, { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspens
 import Modal from "../ui/Modal";
 const EntryGrid = lazy(() => import("../grid/EntryGrid"));
 import Loader from "../ui/Loader";
+import AlertPanel from "../ui/AlertPanel";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { normalizePickerGridColumns } from "../../utils/dateFormat";
-import { ShoppingCart, CheckCheck, Package, AlertCircle } from "lucide-react";
+import { ShoppingCart, CheckCheck, Package } from "lucide-react";
 import "./OrderItemModal.css";
 
 // SP_ITEM_PICKER row field-name casing isn't guaranteed to match the lowercase
@@ -47,10 +48,20 @@ export default function OrderItemModal({
   const cancelBtnRef = useRef(null);
   const insertBtnRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
+  // Same dismissible-banner pattern the Save button's validation already
+  // uses (AlertPanel) instead of this modal's own bespoke single-string
+  // strip. Dismiss state is local/self-contained here (not lifted to the
+  // ~24 parent forms that pass `error` in) — it resets whenever a NEW error
+  // arrives or the modal reopens, so a stale dismiss can't hide a fresh one.
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
     if (isOpen) setSelectedCount(0);
   }, [isOpen]);
+
+  useEffect(() => {
+    setErrorDismissed(false);
+  }, [isOpen, error]);
 
   const normalizedItems = useMemo(() => items.map(lowercaseRowKeys), [items]);
 
@@ -163,11 +174,8 @@ export default function OrderItemModal({
           </div>
         )}
 
-        {!isLoading && error && (
-          <div className="oim-error" role="alert">
-            <AlertCircle size={16} strokeWidth={2} />
-            <span>{error}</span>
-          </div>
+        {!isLoading && error && !errorDismissed && (
+          <AlertPanel errors={[error]} onDismiss={() => setErrorDismissed(true)} />
         )}
 
         {showAwaitingFilterPrompt && (
