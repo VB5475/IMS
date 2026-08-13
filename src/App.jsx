@@ -88,6 +88,12 @@ const AssetsClientAllocationPage = lazy(
 const AssetsClientAllocationForm = lazy(
   () => import("./pages/assets-client-allocation/AssetsClientAllocationForm")
 );
+const AssetsClientReleasePage = lazy(
+  () => import("./pages/assets-client-release/AssetsClientReleasePage")
+);
+const AssetsClientReleaseForm = lazy(
+  () => import("./pages/assets-client-release/AssetsClientReleaseForm")
+);
 const ComplaintRegisterPage = lazy(() => import("./pages/complaint-register/ComplaintRegisterPage"));
 const ComplaintRegisterForm = lazy(() => import("./pages/complaint-register/ComplaintRegisterForm"));
 const MaintenanceContractRenewalPage = lazy(
@@ -380,6 +386,11 @@ const router = createBrowserRouter([
             rb: RB.ASSETS_CLIENT_ALLOCATION,
             list: <AssetsClientAllocationPage />,
             form: <AssetsClientAllocationForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_CLIENT_RELEASE,
+            list: <AssetsClientReleasePage />,
+            form: <AssetsClientReleaseForm />,
           }),
           rbModule({
             rb: RB.ASSETS_RETURNABLE_GATE_PASS_OUT,
