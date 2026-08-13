@@ -124,13 +124,15 @@ export function useItemPickerGroupFilter({ spMainGroup, spSubMainGroup, formTag 
     setSubMainGroupOptions([]);
   }, []);
 
-  /** The 5 extra params to spread into the module's own item-list SP call. */
+  /** Trailing filter params for Direct Select-Item SPs (AEI order). */
   const buildFilterParams = useCallback(() => ({
     prmmaingroupid: Number(mainGroupFilter) || 0,
     prmsubmaingroupid: Number(subMainGroupFilter) || 0,
+    prmitemnamesearch: "",
     prmsearchtext: "",
     prmotherstr: "",
     prmjson: "[]",
+    prmqrjson: "",
   }), [mainGroupFilter, subMainGroupFilter]);
 
   /**

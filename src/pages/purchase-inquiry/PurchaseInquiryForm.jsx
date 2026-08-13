@@ -85,6 +85,7 @@ import {
   buildTermsPickerJsonPayload,
   getMissingItemPickerHeaderFields,
 } from "./constants";
+import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseInquiryForm.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ─────────
@@ -468,6 +469,7 @@ export default function PurchaseInquiryForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemNameFilter, setItemNameFilter] = useState("");
   // Select Item popup filters (Based On = Direct only) — items are only
   // fetched once the user clicks Filter; the Indent-wise branch is untouched.
   const groupFilter = useItemPickerGroupFilter({
@@ -888,6 +890,7 @@ export default function PurchaseInquiryForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemNameFilter("");
     groupFilter.resetFilter();
     setItemPickerIsIndentWise(isIndentWise); // Indent-wise has no filter step to await
 
@@ -939,6 +942,11 @@ export default function PurchaseInquiryForm() {
       } else {
         // Step 4b — Direct: load filter options only, defer the item fetch.
         await groupFilter.fetchMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
+        await groupFilter.fetchSubMainGroupOptions({
+          divisionId: headerValues.divisionid,
+          configId: headerValues.configid,
+          mainGroupId: 0,
+        });
       }
     } catch (err) {
       console.error("[PI] Item picker fetch failed:", err);
@@ -948,34 +956,57 @@ export default function PurchaseInquiryForm() {
     }
   }, [getLive, groupFilter, headerColumns]);
 
-  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
-  // Group ARE now sent to SP_ITEM_PICKER_DIRECT — live-confirmed 2026-07-28
-  // (previously threw "Must declare the scalar variable ..."; that's gone).
+  // Direct Select Item (fn_tbl_rb_purinqselonlyitem) — trailing AEI filter args + Item Name.
+  // Indent-wise picker (fn_tbl_rb_purinqselindtitem) keeps its existing payload.
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const loginId = getUserSession().loginId;
+    const itemName = String(itemNameFilter ?? "").trim();
 
     setItemModalError(null);
     try {
-      await groupFilter.applyFilter(async () => {
-        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: PI_CONFIG.SP_ITEM_PICKER_DIRECT,
-          JSon: JSON.stringify([{
-            ...buildItemPickerJsonPayload(headerValues, loginId),
-            prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
-            prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        setItemModalItems(rowRes || []);
-      });
+      await groupFilter.applyFilter(
+        async (groupParams) => {
+          const hasMain = Boolean(groupFilter.mainGroupFilter);
+          const hasSub = Boolean(groupFilter.subMainGroupFilter);
+          const hasItemName = itemName.length >= 3;
+          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: PI_CONFIG.SP_ITEM_PICKER_DIRECT,
+            JSon: JSON.stringify([{
+              ...buildItemPickerJsonPayload(headerValues, loginId),
+              ...buildDirectItemPickerFilterParams({
+                maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
+                subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
+                itemNameSearch: hasItemName ? itemName : "",
+              }),
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          });
+          setItemModalItems(rowRes || []);
+        },
+        {
+          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
+            const hasMain = Boolean(mainGroupFilter);
+            const hasSub = Boolean(subMainGroupFilter);
+            const hasItemName = itemName.length >= 3;
+            if (itemName.length > 0 && itemName.length < 3) {
+              throw new Error("Item Name must be at least 3 characters.");
+            }
+            if (!hasMain && !hasSub && !hasItemName) {
+              throw new Error(
+                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
+              );
+            }
+          },
+        }
+      );
     } catch (err) {
       console.error("[PI] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     }
-  }, [getLive, groupFilter]);
+  }, [getLive, groupFilter, itemNameFilter]);
 
   const handleCellEvent = useCallback(
     ({ rowId, colKey, rowData }) =>
@@ -1521,10 +1552,15 @@ export default function PurchaseInquiryForm() {
       onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
         divisionId: headerValuesRef.current.divisionid,
         configId: headerValuesRef.current.configid,
+        defaultMaGroupId: 0,
       })}
       onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
       onFilter={handleApplyItemFilter}
       filterLoading={groupFilter.filterLoading}
+      subMainAlwaysEnabled
+      showItemName
+      itemNameValue={itemNameFilter}
+      onItemNameChange={setItemNameFilter}
     />
   );
 

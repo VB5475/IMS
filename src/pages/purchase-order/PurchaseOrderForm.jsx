@@ -69,6 +69,7 @@ import {
   formatTranDate,
   getMissingItemPickerHeaderFields,
 } from "./constants";
+import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseOrderPage.css";
 
@@ -281,6 +282,7 @@ export default function PurchaseOrderForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemNameFilter, setItemNameFilter] = useState("");
   // Select Item popup filters (Based On = Direct only) — items are only
   // fetched once the user clicks Filter; Indent-wise/Quotation branches
   // are untouched.
@@ -651,6 +653,7 @@ export default function PurchaseOrderForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemNameFilter("");
     groupFilter.resetFilter();
     setItemPickerIsDirect(isDirect); // non-Direct modes have no filter step to await
 
@@ -686,6 +689,11 @@ export default function PurchaseOrderForm() {
 
       if (isDirect) {
         await groupFilter.fetchMainGroupOptions({ divisionId: divisionID, configId: configid });
+        await groupFilter.fetchSubMainGroupOptions({
+          divisionId: divisionID,
+          configId: configid,
+          mainGroupId: 0,
+        });
       } else {
         const spItemPicker = basedOnNum === 2 ? PO_CONFIG.SP_ITEM_PICKER_INDENT : PO_CONFIG.SP_ITEM_PICKER_QUOT;
         const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -716,47 +724,67 @@ export default function PurchaseOrderForm() {
     }
   }, [getLive, headerColumns, groupFilter]);
 
-  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
-  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
-  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
-  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
-  // threw "Must declare the scalar variable ..."; that's gone). Only these 2
-  // filter params are sent (not the Assets modules' full 5-param signature).
+  // Direct Select Item (fn_tbl_rb_purposelonlyitem) — trailing AEI filter args + Item Name.
+  // Indent/Quotation picker SPs keep their existing payloads unchanged.
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const { divisionid, configid, trandate } = headerValues;
     const divisionID = divisionid ?? 0;
+    const itemName = String(itemNameFilter ?? "").trim();
 
     setItemModalError(null);
     try {
-      await groupFilter.applyFilter(async () => {
-        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: PO_CONFIG.SP_ITEM_PICKER_DIRECT,
-          JSon: JSON.stringify([
-            {
-              prmdivisionid: Number(divisionID),
-              prmyearid: getUserSession().yearId,
-              prmloginid: getUserSession().loginId,
-              prmtrandate: formatTranDate(trandate),
-              prmconfigid: Number(configid ?? 0),
-              prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
-              prmtranbook: PO_CONFIG.TRAN_BOOK,
-              prmfrmoption: 0,
-              prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
-              prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
-            },
-          ]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        setItemModalItems(rowRes || []);
-      });
+      await groupFilter.applyFilter(
+        async (groupParams) => {
+          const hasMain = Boolean(groupFilter.mainGroupFilter);
+          const hasSub = Boolean(groupFilter.subMainGroupFilter);
+          const hasItemName = itemName.length >= 3;
+          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: PO_CONFIG.SP_ITEM_PICKER_DIRECT,
+            JSon: JSON.stringify([
+              {
+                prmdivisionid: Number(divisionID),
+                prmyearid: getUserSession().yearId,
+                prmloginid: getUserSession().loginId,
+                prmtrandate: formatTranDate(trandate),
+                prmconfigid: Number(configid ?? 0),
+                prmsupplierid: Number(headerValuesRef.current?.supplierid ?? 0),
+                prmtranbook: PO_CONFIG.TRAN_BOOK,
+                prmfrmoption: 0,
+                ...buildDirectItemPickerFilterParams({
+                  maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
+                  subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
+                  itemNameSearch: hasItemName ? itemName : "",
+                }),
+              },
+            ]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          });
+          setItemModalItems(rowRes || []);
+        },
+        {
+          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
+            const hasMain = Boolean(mainGroupFilter);
+            const hasSub = Boolean(subMainGroupFilter);
+            const hasItemName = itemName.length >= 3;
+            if (itemName.length > 0 && itemName.length < 3) {
+              throw new Error("Item Name must be at least 3 characters.");
+            }
+            if (!hasMain && !hasSub && !hasItemName) {
+              throw new Error(
+                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
+              );
+            }
+          },
+        }
+      );
     } catch (err) {
       console.error("[PO] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     }
-  }, [getLive, groupFilter]);
+  }, [getLive, groupFilter, itemNameFilter]);
 
   const handleInsertItems = useCallback(
     async (selectedItems) => {
@@ -1083,10 +1111,15 @@ export default function PurchaseOrderForm() {
       onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
         divisionId: headerValuesRef.current.divisionid,
         configId: headerValuesRef.current.configid,
+        defaultMaGroupId: 0,
       })}
       onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
       onFilter={handleApplyItemFilter}
       filterLoading={groupFilter.filterLoading}
+      subMainAlwaysEnabled
+      showItemName
+      itemNameValue={itemNameFilter}
+      onItemNameChange={setItemNameFilter}
     />
   );
 
