@@ -33,6 +33,33 @@ export function buildItemPickerJsonPayload(headerValues, loginId, { configYearId
 }
 
 /**
+ * Trailing Select-Item filter args for Direct-only picker SPs, in SP order:
+ * prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext,
+ * prmotherstr, prmjson, prmqrjson.
+ *
+ * Use only with Direct obj names (e.g. fn_tbl_rb_purindtselitem,
+ * fn_tbl_rb_purinqselonlyitem, fn_tbl_rb_purposelonlyitem,
+ * fn_tbl_rb_purgrnselonlyitem, fn_tbl_rb_purpvselonlyitem).
+ * Indent/PO/Quotation/GRN-based picker SPs keep their existing payloads.
+ */
+export function buildDirectItemPickerFilterParams({
+  maGroupId = 0,
+  subMaGroupId = 0,
+  itemNameSearch = "",
+  qrJson = "",
+} = {}) {
+  return {
+    prmmaingroupid: Number(maGroupId) || 0,
+    prmsubmaingroupid: Number(subMaGroupId) || 0,
+    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    prmsearchtext: "",
+    prmotherstr: "",
+    prmjson: "[]",
+    prmqrjson: String(qrJson ?? "").trim(),
+  };
+}
+
+/**
  * Resolve RB code or SP name from BasedOnID using a module route table.
  * @param {number|string} basedOnId
  * @param {{ routes: Array<{ when?: number, default?: boolean, code: string }> }} config
