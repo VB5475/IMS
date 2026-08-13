@@ -3,7 +3,7 @@
 // MRD flow:
 //   1. fetchDetailMeta  → rb_assetitmopnexl → grid column metadata (read-only)
 //   2. Upload Excel     → clears existing rows, loads parsed spreadsheet data
-//   3. Save             → POST prmStrDetJSON only
+//   3. Save             → POST prmStrMstJSON only
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
@@ -192,7 +192,8 @@ export default function AssetsItemOpeningExcelForm() {
       return false;
     }
 
-    const detRows = detailRows.map(({ id, __excelRowNo, ...rest }) => {
+    // Save API takes prmStrMstJSON (not Det) — each Excel row is a master row.
+    const mstRows = detailRows.map(({ id, __excelRowNo, ...rest }) => {
       const row = {};
       allColumns.forEach(({ key, colDataType }) => {
         row[key] = getColDefault(colDataType);
@@ -201,7 +202,7 @@ export default function AssetsItemOpeningExcelForm() {
     });
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AIME_CONFIG.FORM_TAG, det: detRows }),
+      buildSaveJsonFields({ label: AIME_CONFIG.FORM_TAG, mst: mstRows }),
       { divisionId: 0, isEdit: false },
     );
 
