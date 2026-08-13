@@ -76,6 +76,7 @@ import {
   resolveItemPickerRbCode,
   resolveItemPickerSpName,
 } from "./constants";
+import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./GoodsReceivedNoteForm.css";
 
 let _grnTempId = -1;
@@ -285,6 +286,7 @@ export default function GoodsReceivedNoteForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemNameFilter, setItemNameFilter] = useState("");
   // Select Item popup filters (Based On = Direct only) — items are only
   // fetched once the user clicks Filter; PO Base branch is untouched.
   const groupFilter = useItemPickerGroupFilter({
@@ -744,6 +746,7 @@ export default function GoodsReceivedNoteForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemNameFilter("");
     groupFilter.resetFilter();
     setItemPickerIsDirect(isDirect);
 
@@ -768,6 +771,11 @@ export default function GoodsReceivedNoteForm() {
 
       if (isDirect) {
         await groupFilter.fetchMainGroupOptions({ divisionId: headerValues.divisionid, configId: headerValues.configid });
+        await groupFilter.fetchSubMainGroupOptions({
+          divisionId: headerValues.divisionid,
+          configId: headerValues.configid,
+          mainGroupId: 0,
+        });
       } else {
         // fn_tbl_rb_purgrnselpodet (SP_ITEM_PICKER_PO) doesn't take
         // prmtrandate either — same as the Direct picker above.
@@ -789,40 +797,61 @@ export default function GoodsReceivedNoteForm() {
     }
   }, [getLive, headerColumns, groupFilter]);
 
-  // Direct-mode item fetch — deferred until Filter is clicked. Main/Sub Main
-  // Group aren't sent to SP_ITEM_PICKER_DIRECT yet — see constants.js
-  // DBA-CONFIRM note (SP doesn't accept these params yet, live-confirmed).
-  // Main/Sub Main Group ARE now sent — live-confirmed 2026-07-28 (previously
-  // threw "Must declare the scalar variable ..."; that's gone).
+  // Direct Select Item (fn_tbl_rb_purgrnselonlyitem) — trailing AEI filter args + Item Name.
+  // PO/Indent-based picker SPs keep their existing payloads unchanged.
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const loginId = getUserSession().loginId;
+    const itemName = String(itemNameFilter ?? "").trim();
 
     setItemModalError(null);
     try {
-      await groupFilter.applyFilter(async () => {
-        // fn_tbl_rb_purgrnselonlyitem (SP_ITEM_PICKER_DIRECT) doesn't take
-        // prmtrandate — drop it here rather than in the shared
-        // buildItemPickerJsonPayload (other purchase modules still need it).
-        const { prmtrandate: _prmtrandate, ...directPayload } = buildItemPickerJsonPayload(headerValues, loginId);
-        const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: OBJ_TYPE.FUNCTION,
-          ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
-          JSon: JSON.stringify([{
-            ...directPayload,
-            prmmaingroupid: Number(groupFilter.mainGroupFilter) || 0,
-            prmsubmaingroupid: Number(groupFilter.subMainGroupFilter) || 0,
-          }]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        });
-        setItemModalItems(rowRes || []);
-      });
+      await groupFilter.applyFilter(
+        async (groupParams) => {
+          const hasMain = Boolean(groupFilter.mainGroupFilter);
+          const hasSub = Boolean(groupFilter.subMainGroupFilter);
+          const hasItemName = itemName.length >= 3;
+          // fn_tbl_rb_purgrnselonlyitem (SP_ITEM_PICKER_DIRECT) doesn't take
+          // prmtrandate — drop it here rather than in the shared
+          // buildItemPickerJsonPayload (other purchase modules still need it).
+          const { prmtrandate: _prmtrandate, ...directPayload } = buildItemPickerJsonPayload(headerValues, loginId);
+          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: GRN_CONFIG.SP_ITEM_PICKER_DIRECT,
+            JSon: JSON.stringify([{
+              ...directPayload,
+              ...buildDirectItemPickerFilterParams({
+                maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
+                subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
+                itemNameSearch: hasItemName ? itemName : "",
+              }),
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          });
+          setItemModalItems(rowRes || []);
+        },
+        {
+          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
+            const hasMain = Boolean(mainGroupFilter);
+            const hasSub = Boolean(subMainGroupFilter);
+            const hasItemName = itemName.length >= 3;
+            if (itemName.length > 0 && itemName.length < 3) {
+              throw new Error("Item Name must be at least 3 characters.");
+            }
+            if (!hasMain && !hasSub && !hasItemName) {
+              throw new Error(
+                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
+              );
+            }
+          },
+        }
+      );
     } catch (err) {
       console.error("[GRN] Item filter fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     }
-  }, [getLive, groupFilter]);
+  }, [getLive, groupFilter, itemNameFilter]);
 
   // Fire-and-forget from EntryGrid's blur (it never awaits onCellEvent), but
   // track the promise so handleSave can await it — otherwise Save immediately
@@ -1116,10 +1145,15 @@ export default function GoodsReceivedNoteForm() {
       onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
         divisionId: headerValuesRef.current.divisionid,
         configId: headerValuesRef.current.configid,
+        defaultMaGroupId: 0,
       })}
       onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
       onFilter={handleApplyItemFilter}
       filterLoading={groupFilter.filterLoading}
+      subMainAlwaysEnabled
+      showItemName
+      itemNameValue={itemNameFilter}
+      onItemNameChange={setItemNameFilter}
     />
   );
 
