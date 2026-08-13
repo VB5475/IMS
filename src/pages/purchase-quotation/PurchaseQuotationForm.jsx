@@ -787,17 +787,16 @@ export default function PurchaseQuotationForm() {
       }
 
       // ── Master ────────────────────────────────────────────────────────
-      const mstRow = {};
-      headerColumns.forEach((col) => {
-        mstRow[col.colname] = getColDefault(col.coldatatype);
-      });
-      Object.entries(hv).forEach(([k, v]) => {
-        if (k !== "id") mstRow[k] = v;
-      });
-      Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
       const userSession = getUserSession();
-      mstRow.loginid = userSession.loginId;
-      mstRow.userid = userSession.userId;
+      const masterColumnDefs = headerColumns.map((col) => ({
+        key: col.colname,
+        colDataType: col.coldatatype,
+      }));
+      const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+        ...(summaryRef.current?.getSummary?.() ?? {}),
+        loginid: userSession.loginId,
+        userid: userSession.userId,
+      });
 
       // ── Detail ────────────────────────────────────────────────────────
       const sessionFields = { loginid: userSession.loginId, userid: userSession.userId };

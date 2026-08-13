@@ -20,6 +20,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -717,30 +718,23 @@ export default function MaintenanceNewContractForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = applyMacngHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
-    });
-    mstRow.loginid = getUserSession().loginId;
-
-    const itemRowsWithoutId = (itemGridRef.current?.getRows?.() ?? []).map((row) => {
-      const rest = stripRowId(row);
-      const seeded = {};
-      allColumns.forEach(({ key, colDataType }) => { seeded[key] = getColDefault(colDataType); });
-      return { ...seeded, ...rest, loginid: getUserSession().loginId };
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      loginid: getUserSession().loginId,
     });
 
-    const termsRowsWithoutId = (termsGridRef.current?.getRows?.() ?? []).map((row) => {
-      const rest = stripRowId(row);
-      const seeded = {};
-      allTermsColumns.forEach(({ key, colDataType }) => { seeded[key] = getColDefault(colDataType); });
-      return { ...seeded, ...rest, loginid: getUserSession().loginId };
-    });
+    const itemRowsWithoutId = (itemGridRef.current?.getRows?.() ?? []).map((row) =>
+      buildSaveRowFromColumns(stripRowId(row), allColumns, { loginid: getUserSession().loginId })
+    );
+
+    const termsRowsWithoutId = (termsGridRef.current?.getRows?.() ?? []).map((row) =>
+      buildSaveRowFromColumns(stripRowId(row), allTermsColumns, { loginid: getUserSession().loginId })
+    );
 
     const payload = await withSaveContextFields(
       {

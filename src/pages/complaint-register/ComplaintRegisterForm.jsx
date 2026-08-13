@@ -18,6 +18,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -526,23 +527,20 @@ export default function ComplaintRegisterForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = applyMcrHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: MCR_CONFIG.FRM_TYPE,
+      loginid: getUserSession().loginId,
     });
-    mstRow.frmtype = MCR_CONFIG.FRM_TYPE;
-    mstRow.loginid = getUserSession().loginId;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: getUserSession().loginId };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: MCR_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),

@@ -37,7 +37,7 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 import { useDopMaster } from "../../hooks/useDopMaster";
 import { useApi } from "../../api/useApi";
-import { API_BASE_URL, API_BASE_URL_IMS, getColDefault } from "../../api/constants";
+import { API_BASE_URL, API_BASE_URL_IMS, getColDefault, buildSaveRowFromColumns } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol } from "../../utils/gridUtils";
 import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
@@ -534,17 +534,21 @@ export default function DopMasterForm() {
     const allErrors = [...headerErrors, ...amountErrors, ...employeeErrors, ...rangeErrors, ...statusErrors];
     if (allErrors.length > 0) { setFormErrors(allErrors); return false; }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
-    mstRow.loginid = getUserSession().loginId;
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      loginid: getUserSession().loginId,
+    });
 
     const buildRow = (row, cols, funccode) => {
       const { id, ...rest } = row;
-      const out = {};
-      cols.forEach(({ key, colDataType }) => { out[key] = getColDefault(colDataType); });
-      return { ...out, ...rest, funccode, loginid: getUserSession().loginId };
+      return buildSaveRowFromColumns(rest, cols, {
+        funccode,
+        loginid: getUserSession().loginId,
+      });
     };
 
     // Two flat parallel arrays — confirmed live 2026-07-27. New employee rows

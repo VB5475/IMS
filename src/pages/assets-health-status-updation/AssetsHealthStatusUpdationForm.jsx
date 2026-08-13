@@ -20,6 +20,7 @@ import {
   DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
@@ -593,24 +594,21 @@ export default function AssetsHealthStatusUpdationForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = applyAhsHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const headerColDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
+      frmtype: AHS_CONFIG.FRM_TYPE,
+      issuetypeid: AHS_CONFIG.ISSUE_TYPE_ID,
+      loginid: getUserSession().loginId,
     });
-    mstRow.frmtype = AHS_CONFIG.FRM_TYPE;
-    mstRow.issuetypeid = AHS_CONFIG.ISSUE_TYPE_ID;
-    mstRow.loginid = getUserSession().loginId;
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: getUserSession().loginId };
-    });
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: AHS_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),

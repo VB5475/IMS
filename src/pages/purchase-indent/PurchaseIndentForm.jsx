@@ -727,15 +727,14 @@ export default function PurchaseIndentForm() {
       return false;
     }
 
-    const mstRow = {};
-    headerColumns.forEach((col) => {
-      mstRow[col.colname] = getColDefault(col.coldatatype);
-    });
     const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => {
-      if (k !== "id") mstRow[k] = v;
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      loginid: getUserSession().loginId,
     });
-    mstRow.loginid = getUserSession().loginId;
 
     const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
       buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })

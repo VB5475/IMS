@@ -36,6 +36,7 @@ import {
   API_BASE_URL_IMS,
   DEFAULT_SESSION_ID,
   getColDefault,
+  buildSaveRowFromColumns,
   OBJ_TYPE,
 } from "../../api/constants";
 import {
@@ -680,18 +681,19 @@ export default function CWIPToFAForm() {
     }
 
     const loginId = getUserSession().loginId;
-    const mstRow = {};
-    headerColumns.forEach((col) => { mstRow[col.colname] = getColDefault(col.coldatatype); });
     const hv = headerValuesRef.current;
-    Object.entries(hv).forEach(([k, v]) => { if (k !== "id") mstRow[k] = v; });
-    Object.assign(mstRow, summaryRef.current?.getSummary?.() ?? {});
-    mstRow.loginid = loginId;
-
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) => {
-      const row = {};
-      allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
-      return { ...row, ...rest, loginid: loginId };
+    const masterColumnDefs = headerColumns.map((col) => ({
+      key: col.colname,
+      colDataType: col.coldatatype,
+    }));
+    const mstRow = buildSaveRowFromColumns(hv, masterColumnDefs, {
+      ...(summaryRef.current?.getSummary?.() ?? {}),
+      loginid: loginId,
     });
+
+    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+      buildSaveRowFromColumns(rest, allColumns, { loginid: loginId })
+    );
 
     const payload = await withSaveContextFields(
       buildSaveJsonFields({ label: "C2F", mst: mstRow, det: detRows }),
