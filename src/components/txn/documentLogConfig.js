@@ -204,6 +204,15 @@ export const DOCUMENT_LOG_CONFIG = {
   // matters), left for an explicit follow-up ask rather than done silently.
   UPDATE_ON_TRAN_SAVE_ENDPOINT: "/API/DM_Doc_UpdateOnTranSave/Post_RB_DM_Doc_Upd",
 
+  // "Delete" grid button (2026-08-13 /pm) — live-confirmed against IMS_LIVE:
+  // POST { prmdocid, prmloginid } → [{"ErrCode":"1","ErrMsg":"Document
+  // deleted Successfully !"}], same {ErrCode,ErrMsg} envelope parseApiErrMsg
+  // already handles. Only ever called for rows with a real, already-saved
+  // idnumber — a row staged but never saved has nothing server-side to
+  // delete, so DocumentLogModal.jsx's handleDelete skips the API call for
+  // those and just drops the local row (same guard pattern handleView uses).
+  DELETE_ENDPOINT: "/API/DM_Doc_Delete/Post_RB_DM_Doc_Del",
+
   DOCTYPE_COL: "ref_documenttypeid",
   SUBTYPE_COL: "ref_documentsubtypeid",
   CATEGORY_COL: "ref_categoryid",

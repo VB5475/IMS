@@ -8,7 +8,10 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useMntContractRenewal } from "../../hooks/useMntContractRenewal";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -213,6 +216,19 @@ export default function MaintenanceContractRenewalForm() {
   const [itemModalError, setItemModalError] = useState(null);
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log (F6) — mirrors PurchaseIndentForm.jsx's useDocumentLogAccess
+  // wiring; ADMIN department (not PURCHASE), since MACR isn't a Purchase-
+  // department transaction (user-confirmed).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: MACR_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[MACR]",
+  });
 
   const cascadeResets = useMemo(() => buildMacrCascadeResets(headerColumns), [headerColumns]);
 
@@ -741,12 +757,17 @@ export default function MaintenanceContractRenewalForm() {
     setIsSaving(true);
     try {
       const result = await postSave(MACR_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // Real tranid comes from the save response's own message on either an
+      // Add or an Edit save (see PurchaseIndentForm.jsx's identical comment
+      // for the full rationale); falls back to recordId on an Edit save.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      await docLog.finalizeSave(savedTranId);
       return true;
     } catch (err) {
       console.error("[MACR Save] Failed:", err);
@@ -762,9 +783,11 @@ export default function MaintenanceContractRenewalForm() {
     allColumns,
     allTermsColumns,
     isEditRoute,
+    recordId,
     notify,
     postSave,
     flushPendingCellEvents,
+    docLog.finalizeSave,
   ]);
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -819,7 +842,12 @@ export default function MaintenanceContractRenewalForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
     setFieldErrors({});
-  }, [clearSaveError, exitEditMode, todayISO]);
+    // Back to a blank new-entry state — re-issue a fresh GUID for whatever
+    // the user enters next, same as PurchaseIndentForm.jsx's extraReset.
+    // No-op on an edit route (isNewRoute is false there).
+    docLog.resetDocGuid();
+    if (isNewRoute) docLog.fetchDocGuid();
+  }, [clearSaveError, exitEditMode, todayISO, isNewRoute, docLog.resetDocGuid, docLog.fetchDocGuid]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -839,7 +867,7 @@ export default function MaintenanceContractRenewalForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -848,9 +876,13 @@ export default function MaintenanceContractRenewalForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only (Indent-only convention carried over) — null when the
+    // permission gates say no, spread in/out of the array.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -861,7 +893,7 @@ export default function MaintenanceContractRenewalForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const termsGridConfig = {
@@ -1033,6 +1065,19 @@ export default function MaintenanceContractRenewalForm() {
           isLoading={itemModalLoading}
           error={itemModalError}
           onInsert={handleInsertPickerRows}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={MACR_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

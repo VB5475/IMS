@@ -12,6 +12,8 @@ export const PAGE_TITLE_NEW = "New Maintenance Contract";
 export const MACNG_CONFIG = {
   RB_MASTER: RB_CODES.MAINTENANCE_NEW_CONTRACT,
   ROUTE_PATH: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT),
+  // Document Log (F6) — this module's own DM tran type id.
+  DM_TRAN_TYPE_ID: 321,
   RB_DETAIL: "rb_mntamcnewdet",
   RB_TERMS_DETAIL: "rb_mntamcnewtncdet",
   RB_ITEM_PICKER: "rb_mntamcnewselonly",

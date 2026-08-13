@@ -404,6 +404,21 @@ export function useDocumentLog() {
     [post]
   );
 
+  /** "Delete" button — plain JSON object body (not array), same gotcha as
+   *  DM_HANDLE_GUID/DM_HANDLE_BUTTON_VISIBILITY. Success/failure both come
+   *  back as the familiar {ErrCode,ErrMsg} envelope — parseApiErrMsg
+   *  already handles it, no special-casing needed like viewDoc's blob. */
+  const deleteDoc = useCallback(
+    async (docId) => {
+      const session = getUserSession();
+      return post(CFG.DELETE_ENDPOINT, {
+        prmdocid: Number(docId) || 0,
+        prmloginid: session.loginId,
+      });
+    },
+    [post]
+  );
+
   /** NEW per the DM API doc — links documents uploaded against a temporary
    *  GUID (before the parent transaction had a real TranID) to the real
    *  TranID once the transaction actually saves. Built for availability;
@@ -438,6 +453,7 @@ export function useDocumentLog() {
     fetchDocSubTypeOptions,
     saveDocs,
     viewDoc,
+    deleteDoc,
     updateDocsOnTranSave,
     isSaving,
   };

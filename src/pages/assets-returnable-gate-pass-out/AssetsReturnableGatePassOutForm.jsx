@@ -8,9 +8,12 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstRgo } from "../../hooks/useAstRgo";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -188,6 +191,22 @@ export default function AssetsReturnableGatePassOutForm() {
   const [itemNameFilter, setItemNameFilter] = useState("");
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this record's id, gated on the
+  // session's Document Log permission flags (set at login). This module is
+  // an Assets/Admin-department transaction (not Purchase), so it scopes to
+  // DM Department Master's "ADMIN" row via ADMIN_REF_DEPARTMENT_ID — see
+  // useDocumentLogAccess.js for the full permission-gate/GUID/button-
+  // visibility/post-save-linking logic (shared, ported from Purchase Indent).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: ARGO_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.fromdivisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[ARGO]",
+  });
 
   const cascadeResets = useMemo(() => buildArgoCascadeResets(headerColumns), [headerColumns]);
 
@@ -639,7 +658,14 @@ export default function AssetsReturnableGatePassOutForm() {
     setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
-    extraClearFns: [() => setFieldErrors({})],
+    extraClearFns: [docLog.resetDocGuid],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    extraReset: () => {
+      if (isNewRoute) docLog.fetchDocGuid();
+      setFieldErrors({});
+    },
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
@@ -685,12 +711,25 @@ export default function AssetsReturnableGatePassOutForm() {
     setIsSaving(true);
     try {
       const result = await postSave(ARGO_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // newId carries the real tranid from the save response's own message
+      // (see extractSavedIdFromMessage in utils/apiResponse.js) — recordId is
+      // only the real tranid on an EDIT save (Add is always 0, route hasn't
+      // changed), but newId is the real tranid either way. Falls back to
+      // recordId so an Edit save still works if the message wording changes.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted via ITS OWN Save button, then links any docs
+      // staged under docGuid (before this transaction existed) to the
+      // now-saved transaction — see useDocumentLogAccess.finalizeSave.
+      // Best-effort: a failure here must never be treated as this form's own
+      // save having failed — it already succeeded by this point.
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
@@ -700,7 +739,7 @@ export default function AssetsReturnableGatePassOutForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState, flushPendingCellEvents]);
+  }, [headerColumns, columns, allColumns, isEditRoute, recordId, notify, resetFormToInitialState, docLog.finalizeSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -734,7 +773,7 @@ export default function AssetsReturnableGatePassOutForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -743,9 +782,16 @@ export default function AssetsReturnableGatePassOutForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state (matches Purchase Indent's
+    // convention) — docLog.documentsButtonEntry already encodes this (null
+    // when permission gates say no), spread in/out of the array so
+    // ActionBar's own `showAlways || isEditMode` filter hides/shows it with
+    // Add/Edit mode the same way every other extra button does.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -756,7 +802,7 @@ export default function AssetsReturnableGatePassOutForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
@@ -895,6 +941,19 @@ export default function AssetsReturnableGatePassOutForm() {
             />
           }
           awaitingFilter={!groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.fromdivisionid}
+          tranTypeId={ARGO_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

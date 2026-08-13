@@ -8,7 +8,10 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useMntNewContractGeneration } from "../../hooks/useMntNewContractGeneration";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -213,6 +216,21 @@ export default function MaintenanceNewContractForm() {
   const [itemModalError, setItemModalError] = useState(null);
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — permission-gate/GUID/button-visibility/
+  // post-save-linking logic all lives in the shared useDocumentLogAccess hook
+  // (see PurchaseIndentForm.jsx for the original wiring). Maintenance
+  // Contract (New) isn't a Purchase-department transaction, so it scopes to
+  // the ADMIN department (id=6) rather than PURCHASE_REF_DEPARTMENT_ID.
+  const docLog = useDocumentLogAccess({
+    tranTypeId: MACNG_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[MACNG]",
+  });
 
   const cascadeResets = useMemo(() => buildMacngCascadeResets(headerColumns), [headerColumns]);
 
@@ -732,12 +750,23 @@ export default function MaintenanceNewContractForm() {
     setIsSaving(true);
     try {
       const result = await postSave(MACNG_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // newId carries the real tranid parsed from the save response's own
+      // message (see utils/apiResponse.js) — the only way to know a new
+      // record's id on an Add save, since recordId stays 0 on that route.
+      // Falls back to recordId for an Edit save.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted, then links docs staged under docGuid (before
+      // this transaction existed) to the now-saved transaction. Best-effort:
+      // a failure here must never be treated as this save having failed — it
+      // already succeeded by this point.
+      await docLog.finalizeSave(savedTranId);
       return true;
     } catch (err) {
       console.error("[MACNG Save] Failed:", err);
@@ -753,9 +782,11 @@ export default function MaintenanceNewContractForm() {
     allColumns,
     allTermsColumns,
     isEditRoute,
+    recordId,
     notify,
     postSave,
     flushPendingCellEvents,
+    docLog.finalizeSave,
   ]);
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -810,7 +841,12 @@ export default function MaintenanceNewContractForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
     setFieldErrors({});
-  }, [clearSaveError, exitEditMode, todayISO]);
+    docLog.resetDocGuid();
+    // Back to a blank new-entry state — re-issue a fresh GUID for whatever
+    // the user enters next, same as the initial mount fetch. No-op on an
+    // edit route (isNewRoute is false there).
+    if (isNewRoute) docLog.fetchDocGuid();
+  }, [clearSaveError, exitEditMode, todayISO, docLog.resetDocGuid, docLog.fetchDocGuid, isNewRoute]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -830,7 +866,7 @@ export default function MaintenanceNewContractForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -839,9 +875,13 @@ export default function MaintenanceNewContractForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state — docLog.documentsButtonEntry
+    // already encodes this (null when permission gates say no).
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -852,7 +892,7 @@ export default function MaintenanceNewContractForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const termsGridConfig = {
@@ -1024,6 +1064,19 @@ export default function MaintenanceNewContractForm() {
           isLoading={itemModalLoading}
           error={itemModalError}
           onInsert={handleInsertPickerRows}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={MACNG_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

@@ -17,6 +17,11 @@ export const AST_CONFIG = {
   RB_MASTER: RB_CODES.ASSETS_STOCK_TRANSFER,
   ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER),
   DELETE_PROC_NAME: "pr_rb_astissstktrmst_delete",
+  // Document Log (F6) — this module's own DM Tran Type id, used by
+  // useDocumentLogAccess. Not a Purchase-department transaction, so it
+  // scopes to DM Department Master's "ADMIN" row (see documentLogConfig.js's
+  // ADMIN_REF_DEPARTMENT_ID) rather than PURCHASE.
+  DM_TRAN_TYPE_ID: 320,
   RB_DETAIL: "rb_astissstktrdet",
   RB_ITEM_PICKER: "rb_astisstktrselonly",
 

@@ -117,8 +117,11 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     fetchDocSubTypeOptions,
     saveDocs,
     viewDoc,
+    deleteDoc,
     isSaving,
   } = useDocumentLog();
+
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [refRows, setRefRows] = useState([]);
   const [refLoading, setRefLoading] = useState(false);
@@ -287,6 +290,37 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     [notify, viewDoc]
   );
 
+  // "Delete" — calls the real DM_Doc_Delete API for rows that have already
+  // been saved (a real idnumber, same guard handleView uses above). A row
+  // that was only ever staged locally (added/uploaded but never saved) has
+  // nothing server-side to delete, so it's just dropped from the grid.
+  const handleDelete = useCallback(
+    async (row) => {
+      const docId = Number(row.idnumber ?? row.IDNumber ?? row.id);
+      if (!Number.isFinite(docId) || docId <= 0) {
+        docGridRef.current?.removeRows([row.id]);
+        return;
+      }
+      setIsDeleting(true);
+      try {
+        const result = await deleteDoc(docId);
+        const { success, message } = parseApiErrMsg(result);
+        if (!success) {
+          notify.error(message || "Failed to delete document.");
+          return;
+        }
+        notify.success(message || "Document deleted.");
+        docGridRef.current?.removeRows([row.id]);
+      } catch (err) {
+        console.error("[DocumentLogModal] Delete failed:", err);
+        notify.error(err?.message || "Failed to delete document.");
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [deleteDoc, notify]
+  );
+
   // Upload — opens the native file picker for the clicked row. REVERSED
   // 2026-07-31 (explicit user instruction): Upload no longer calls the save
   // API immediately by itself — it only STAGES the file locally on the row
@@ -330,10 +364,10 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       } else if (col.key === CFG.VIEW_COL) {
         handleView(row);
       } else if (col.key === CFG.DELETE_COL) {
-        docGridRef.current?.removeRows([row.id]);
+        handleDelete(row);
       }
     },
-    [handleUploadClick, handleView]
+    [handleUploadClick, handleView, handleDelete]
   );
 
   const handleSave = useCallback(async () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, ListPlus, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
@@ -7,7 +7,10 @@ import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useAstRgi } from "../../hooks/useAstRgi";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -166,6 +169,21 @@ export default function AssetsReturnableGatePassInForm() {
   const [isFillingDetail, setIsFillingDetail] = useState(false);
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this record's id, gated on the
+  // session's Document Log permission flags. This module isn't a
+  // Purchase-department transaction, so it uses the ADMIN ref department
+  // (DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID) — see useDocumentLogAccess for the
+  // full permission-gate/GUID/button-visibility/post-save-linking logic.
+  const docLog = useDocumentLogAccess({
+    tranTypeId: ARGI_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.fromdivisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[ARGI]",
+  });
 
   const cascadeResets = useMemo(() => buildArgiCascadeResets(headerColumns), [headerColumns]);
 
@@ -526,7 +544,13 @@ export default function AssetsReturnableGatePassInForm() {
     setItemSelectionCount,
     setFilterResetKey,
     setLoadedFilterValues,
-    extraClearFns: [() => setFieldErrors({})],
+    extraClearFns: [() => setFieldErrors({}), docLog.resetDocGuid],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    extraReset: () => {
+      if (isNewRoute) docLog.fetchDocGuid();
+    },
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
@@ -572,12 +596,19 @@ export default function AssetsReturnableGatePassInForm() {
     setIsSaving(true);
     try {
       const result = await postSave(ARGI_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // newId carries the real tranid from the save response (works for both
+      // Add and Edit); falls back to recordId, which is only real on an Edit
+      // save (Add is always 0 here, route hasn't changed). See
+      // useDocumentLogAccess.finalizeSave — best-effort, never treated as
+      // this save having failed since it already succeeded by this point.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
@@ -587,7 +618,7 @@ export default function AssetsReturnableGatePassInForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, resetFormToInitialState, flushPendingCellEvents]);
+  }, [headerColumns, columns, allColumns, isEditRoute, recordId, docLog.finalizeSave, notify, resetFormToInitialState, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -621,7 +652,7 @@ export default function AssetsReturnableGatePassInForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: isFillingDetail,
+    blocked: isFillingDetail || docLog.docModalOpen,
     isEditMode,
     isSaving: isSaving || isFillingDetail,
     addDisabled: filterBusy,
@@ -630,9 +661,16 @@ export default function AssetsReturnableGatePassInForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state — docLog.documentsButtonEntry
+    // already encodes this (null when permission gates say no), spread
+    // in/out of the array so ActionBar's own showAlways || isEditMode filter
+    // hides/shows it with Add/Edit mode the same way every other extra
+    // button does.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -643,7 +681,7 @@ export default function AssetsReturnableGatePassInForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
@@ -751,6 +789,18 @@ export default function AssetsReturnableGatePassInForm() {
         extraButtons={extraButtons}
       />
 
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.fromdivisionid}
+          tranTypeId={ARGI_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
+        />
+      </Suspense>
     </div>
   );
 }

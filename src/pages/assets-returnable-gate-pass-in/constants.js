@@ -52,6 +52,11 @@ export const ARGI_CONFIG = {
 
   SAVE_ENDPOINT: "/API/AstIssRGIMst/Post_RB_AstIssRGIMst_Save",
 
+  // Document Log (F6) — this module isn't a Purchase-department transaction,
+  // so it scopes to the ADMIN ref department (see DOCUMENT_LOG_CONFIG in
+  // components/txn/documentLogConfig.js), user-confirmed.
+  DM_TRAN_TYPE_ID: 319,
+
   LIST_OBJ_TYPE: 2,
   SP_LIST: "fn_tbl_rb_astissrgimst_list",
   LIST_TO_DIVISION_ID: 15,
