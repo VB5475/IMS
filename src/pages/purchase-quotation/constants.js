@@ -56,6 +56,11 @@ export const QTN_CONFIG = {
   DELETE_PROC_NAME: "pr_rb_purqtnmst_delete",
   RB_DETAIL: "rb_purqtndet",
 
+  // Document Log (F6) — this module's own DM_TRAN_TYPE_ID, passed to
+  // useDocumentLogAccess. See src/pages/purchase-indent/constants.js /
+  // IND_CONFIG for the same convention on the reference implementation.
+  DM_TRAN_TYPE_ID: 6,
+
   FORM_TAG: "PQ",
   TRAN_BOOK: "PURQTN",
 

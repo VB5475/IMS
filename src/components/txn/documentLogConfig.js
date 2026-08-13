@@ -229,6 +229,7 @@ export const DOCUMENT_LOG_CONFIG = {
     "remarks",
     "uploaddoc",
     "viewdoc",
+    "deletedoc",
   ],
 
   // Newly-mandatory system columns (see "RB CHANGED UPSTREAM" above) that
@@ -239,11 +240,19 @@ export const DOCUMENT_LOG_CONFIG = {
   // Purchase Indent is a Purchase-department transaction, confirmed via
   // AskUserQuestion 2026-07-30 (matches the DMS Department Master's
   // "PURCHASE" id=1, already used to confirm IND_CONFIG.DM_TRAN_TYPE_ID via
-  // fn_tbl_fetch_trantype(@prmdepartmentid=1) earlier this session). Revisit
-  // this constant (or make it a caller-supplied prop like tranTypeId) once
-  // PO/PV/etc. get their own Document Log wiring — they may not all be
-  // Purchase-department transactions.
-  DEFAULT_REF_DEPARTMENT_ID: 1,
+  // fn_tbl_fetch_trantype(@prmdepartmentid=1) earlier this session).
+  // 2026-08-13 (/pm): renamed from DEFAULT_REF_DEPARTMENT_ID and demoted to a
+  // reference/fallback value only — now that Document Log is rolling out to
+  // the master modules (Item/Supplier/Customer, DM Department Master id=6
+  // "ADMIN", not Purchase), every caller supplies its own refDepartmentId
+  // explicitly via useDocumentLogAccess/DocumentLogModal instead of relying
+  // on this implicit default.
+  PURCHASE_REF_DEPARTMENT_ID: 1,
+  // Item/Supplier/Customer Master aren't Purchase-department transactions —
+  // user-confirmed via AskUserQuestion 2026-08-13 to use DM Department
+  // Master's "ADMIN" row (live-fetched id=6, alongside PURCHASE=1 and
+  // QC-JAIPUR=46) for these admin/setup masters instead.
+  ADMIN_REF_DEPARTMENT_ID: 6,
 
   // "Refresh" button (Docs section) — appends documents ALREADY uploaded for
   // this transaction into the same Docs grid (tagged `_isUploaded`, excluded
@@ -271,4 +280,9 @@ export const DOCUMENT_LOG_CONFIG = {
   // reference-only row doesn't make sense.
   VIEW_COL: "viewdoc",
   UPLOAD_COL: "uploaddoc",
+  // Local-only row removal (2026-08-13, /pm) — no DM_Doc delete endpoint is
+  // confirmed yet, so this behaves like the header "Delete" button (removes
+  // the row client-side) rather than calling a backend API. Revisit once a
+  // real delete contract is confirmed for already-saved documents.
+  DELETE_COL: "deletedoc",
 };

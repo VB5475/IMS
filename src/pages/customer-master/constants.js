@@ -68,4 +68,11 @@ export const CM_CONFIG = {
   // Own storage keys — must not collide with Supplier Master's cached RB meta.
   STORAGE_HEADER_META: "cmHeaderMeta",
   STORAGE_ENTRY_META: "cmEntryMeta",
+
+  // Document Log ("Documents" button, 2026-08-13 /pm) — own trantype id,
+  // overriding the one inherited via ...SM_CONFIG above (Supplier Master's
+  // is 64). Same DM Department Master scope though (ADMIN=6, see
+  // DOCUMENT_LOG_CONFIG.ADMIN_REF_DEPARTMENT_ID) — Customer Master is an
+  // admin/setup master too, not a Purchase-department transaction.
+  DM_TRAN_TYPE_ID: 65,
 };

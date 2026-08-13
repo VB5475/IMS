@@ -88,7 +88,7 @@ export function useDocumentLog() {
    *  2026-07-31 API replacement — see documentLogConfig.js's SP_DOCUMENT_TYPE
    *  note. Caller passes the same values it already threads through for the
    *  Reference Document/Refresh buttons. */
-  const fetchHeaderMeta = useCallback(async ({ refTranTypeId = 0, refDepartmentId = CFG.DEFAULT_REF_DEPARTMENT_ID } = {}) => {
+  const fetchHeaderMeta = useCallback(async ({ refTranTypeId = 0, refDepartmentId = CFG.PURCHASE_REF_DEPARTMENT_ID } = {}) => {
     setMetaFetching(true);
     setMetaError(null);
     try {
@@ -264,7 +264,7 @@ export function useDocumentLog() {
    *  round trip). Cached per documentTypeId since refTranTypeId/
    *  refDepartmentId don't change within one modal session. */
   const fetchDocSubTypeOptions = useCallback(
-    async ({ refTranTypeId = 0, refDepartmentId = CFG.DEFAULT_REF_DEPARTMENT_ID, documentTypeId = 0 } = {}) => {
+    async ({ refTranTypeId = 0, refDepartmentId = CFG.PURCHASE_REF_DEPARTMENT_ID, documentTypeId = 0 } = {}) => {
       const docTypeId = Number(documentTypeId) || 0;
       if (!docTypeId) return [];
       const cacheKey = `${refTranTypeId}:${refDepartmentId}:${docTypeId}`;
@@ -322,7 +322,7 @@ export function useDocumentLog() {
    *  staging time, so they flow through via buildSaveRowFromColumns' own
    *  row-field passthrough — no separate derivation needed here. */
   const saveDocs = useCallback(
-    async (rows, tranId = 0, divisionId = 0, refTranTypeId = 0, guid = "") => {
+    async (rows, tranId = 0, divisionId = 0, refTranTypeId = 0, guid = "", refDepartmentId = CFG.PURCHASE_REF_DEPARTMENT_ID) => {
       setIsSaving(true);
       try {
         const session = getUserSession();
@@ -339,7 +339,7 @@ export function useDocumentLog() {
             // Newly-mandatory on the RB (see documentLogConfig.js's "RB
             // CHANGED UPSTREAM" note) — must be supplied explicitly now.
             ref_trantypeid: Number(refTranTypeId) || 0,
-            ref_departmentid: CFG.DEFAULT_REF_DEPARTMENT_ID,
+            ref_departmentid: Number(refDepartmentId) || 0,
             // Confirmed via the real stored-proc signature 2026-07-30 (see
             // documentLogConfig.js) — idnumber/createdby/createddate/
             // updatedby/updatedate were previously never sent at all.

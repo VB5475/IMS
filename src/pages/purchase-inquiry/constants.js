@@ -46,6 +46,9 @@ export const PI_CONFIG = {
 
   RB_MASTER: RB_CODES.PURCHASE_INQUIRY,
   ROUTE_PATH: rbRoutePath(RB_CODES.PURCHASE_INQUIRY),
+  // Document Log (F6) — this module's own DM_TranTypeID, used by
+  // useDocumentLogAccess (see PurchaseInquiryForm.jsx's docLog hook call).
+  DM_TRAN_TYPE_ID: 4,
   DELETE_PROC_NAME: "pr_rb_purinquirymst_delete",
   RB_DETAIL: "rb_purinquirydet",
   RB_INDT_DETAIL: "rb_purinquiryindtdet",

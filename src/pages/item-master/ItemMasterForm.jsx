@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Package, Save, Pencil, AlertCircle, RefreshCw, Plus } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import { Package, Save, Pencil, AlertCircle, RefreshCw, Plus, FileText } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import SearchSelect from "../../components/ui/SearchSelect";
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import {
   API_BASE_URL_IMS,
   DEFAULT_SESSION_ID,
@@ -12,6 +14,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumnsByField } from "../../utils/columnValidation";
@@ -86,6 +89,22 @@ export default function ItemMasterForm({
   const [fieldErrors, setFieldErrors] = useState({});
   const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
   const [discardAction, setDiscardAction] = useState(null);
+
+  // Document Log ("Documents" button, 2026-08-13 /pm) — this master's own
+  // idnumber IS its "tranId" (0/blank before the first save, same semantic
+  // as a transaction's unsaved tranid=0). No separate reset wiring is
+  // needed for a fresh Add after save: resetting formValues below already
+  // drives idnumber back to 0, and useDocumentLogAccess's own internal
+  // effect (keyed on recordId) re-issues a fresh docGuid automatically.
+  const docLog = useDocumentLogAccess({
+    tranTypeId: IM_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    recordId: Number(formValues.idnumber) || 0,
+    getDivisionId: () => 0, // Item Master isn't division-scoped (see handleSave's own divisionId: 0)
+    isEditMode,
+    postSave: post,
+    logLabel: "[ItemMaster]",
+  });
 
   const buildEmptyFromColumns = useCallback(() => {
     const session = getUserSession();
@@ -342,9 +361,14 @@ export default function ItemMasterForm({
         { divisionId: 0, isEdit: !isAddMode }
       );
       const result = await post(IM_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return; }
       notify.success(message);
+      // Same Add-mode gap this closes for transaction forms: idnumber is
+      // only known on an Edit save (Add is 0 here, formValues hasn't been
+      // reset yet), but newId is the real saved id either way.
+      const savedTranId = newId ?? (!isAddMode ? Number(formValues.idnumber) || null : null);
+      await docLog.finalizeSave(savedTranId);
       setFormValues(buildEmptyFromColumns());
       setFormErrors([]);
       setSaveError(null);
@@ -355,7 +379,7 @@ export default function ItemMasterForm({
     } finally {
       setIsSaving(false);
     }
-  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify]);
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify, docLog.finalizeSave]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;
@@ -370,28 +394,58 @@ export default function ItemMasterForm({
   }, [discardAction, isAddMode, onClose]);
 
   const handleClose = useCallback(() => {
+    // This form's own Modal instance stays mounted across opens (parent
+    // page toggles `isOpen`), so the Documents sub-modal must be explicitly
+    // closed here — it wouldn't otherwise, and would linger stacked over
+    // whatever the parent list page renders once this modal hides.
+    docLog.setDocModalOpen(false);
     if (!isEditMode) { onClose(); return; }
     setDiscardAction("close");
-  }, [isEditMode, onClose]);
+  }, [isEditMode, onClose, docLog.setDocModalOpen]);
 
   const handleCancelEdit = useCallback(() => {
     setDiscardAction("cancel");
   }, []);
 
+  // Documents button — rendered whenever Document Log is enabled for this
+  // login + trantype (dmConfigAllows/docBtnVisible), always visible once
+  // that's true (unlike Purchase Indent's hide/show carve-out), disabled
+  // with an explanatory title until Add/Edit mode is actually entered —
+  // the app-wide default convention for gated buttons in this codebase.
+  const documentsButton = useMemo(
+    () =>
+      docLog.dmConfigAllows && docLog.docBtnVisible === "YES" ? (
+        <button
+          type="button"
+          className="master-modal-btn master-modal-btn--secondary"
+          onClick={docLog.handleOpenDocuments}
+          disabled={!docLog.isDocumentLogEnabled}
+          title={docLog.isDocumentLogEnabled ? "Document Log (F6)" : "Enter Add/Edit mode to manage documents"}
+        >
+          <FileText size={13} strokeWidth={2} /> Documents
+        </button>
+      ) : null,
+    [docLog.dmConfigAllows, docLog.docBtnVisible, docLog.isDocumentLogEnabled, docLog.handleOpenDocuments]
+  );
+
   const footer = useMemo(() => {
     if (!isEditMode) {
       return (
-        <button
-          type="button"
-          className="master-modal-btn master-modal-btn--edit"
-          onClick={() => setIsEditMode(true)}
-        >
-          <Pencil size={13} strokeWidth={2} /> Edit
-        </button>
+        <div className="master-modal-footer-actions">
+          {documentsButton}
+          <button
+            type="button"
+            className="master-modal-btn master-modal-btn--edit"
+            onClick={() => setIsEditMode(true)}
+          >
+            <Pencil size={13} strokeWidth={2} /> Edit
+          </button>
+        </div>
       );
     }
     return (
       <div className="master-modal-footer-actions">
+        {documentsButton}
         <button
           type="button"
           className="master-modal-btn master-modal-btn--save"
@@ -411,7 +465,7 @@ export default function ItemMasterForm({
         </button>
       </div>
     );
-  }, [isEditMode, isSaving, handleCancelEdit, handleSave]);
+  }, [isEditMode, isSaving, handleCancelEdit, handleSave, documentsButton]);
 
   const isLoading = defsLoading || recordLoading;
   const combinedErr = defsError || recordLoadError;
@@ -488,6 +542,19 @@ export default function ItemMasterForm({
           )}
         </>
       )}
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={Number(formValues.idnumber) || 0}
+          divisionId={0}
+          tranTypeId={IM_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
+        />
+      </Suspense>
     </Modal>
   );
 }

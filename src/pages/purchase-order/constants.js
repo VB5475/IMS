@@ -110,6 +110,12 @@ export const PO_CONFIG = {
   // beside Entry Form (2026-08-12 /pm, MRD_Template4WorkFlowDashBoard.docx's
   // companion feature). User-confirmed value.
   WKF_TRAN_TYPE_ID: 1,
+
+  // Document Log (F6) — this module's own DM_TRAN_TYPE_ID, distinct from
+  // (and unrelated to) WKF_TRAN_TYPE_ID above even though both currently
+  // equal 1. See useDocumentLogAccess / PurchaseIndentForm.jsx for the
+  // pattern this was ported from.
+  DM_TRAN_TYPE_ID: 1,
 };
 
 export const PO_MASTER = {

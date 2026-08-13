@@ -24,8 +24,11 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseQuotation } from "../../hooks/usePurchaseQuotation";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -216,6 +219,20 @@ export default function PurchaseQuotationForm() {
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — see PurchaseIndentForm.jsx's docLog for the
+  // full reasoning (permission gates, GUID issuance, button-visibility
+  // fetch, post-save document linking all live in the shared
+  // useDocumentLogAccess hook now).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: QTN_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[Quotation]",
+  });
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -708,13 +725,17 @@ export default function PurchaseQuotationForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearQuotationTypes, clearSuppliers],
+    extraClearFns: [clearQuotationTypes, clearSuppliers, docLog.resetDocGuid],
     extraReset: () => {
       setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
       setApprovedFilter("all");
       setLoadedMasterRow(null);
       summaryRef.current?.resetOverrides?.();
       setFieldErrors({});
+      // Back to a blank new-entry state — re-issue a fresh GUID for whatever
+      // the user enters next, same as the initial mount fetch. No-op on an
+      // edit route (isNewRoute is false there).
+      if (isNewRoute) docLog.fetchDocGuid();
     },
   });
 
@@ -782,9 +803,20 @@ export default function PurchaseQuotationForm() {
       setIsSavingQtn(true);
       try {
         const result = await postSave(QTN_CONFIG.SAVE_ENDPOINT, payload);
-        const { success, message } = parseApiErrMsg(result);
+        const { success, message, newId } = parseApiErrMsg(result);
         if (!success) { setFormErrors([message]); return false; }
         notify.success(message);
+
+        // Saves any document rows staged in the Documents modal but never
+        // explicitly submitted via its own Save button, then links any docs
+        // staged under docGuid (before this transaction existed) to the
+        // now-saved transaction — see useDocumentLogAccess.finalizeSave.
+        // Covers Add-mode too, since savedTranId comes from this save's own
+        // response rather than the (Add-mode-stale) recordId. Best-effort:
+        // a failure here must never be treated as the Quotation's own save
+        // having failed — it already succeeded by this point.
+        const savedTranId = newId ?? (isEditRoute ? recordId : null);
+        await docLog.finalizeSave(savedTranId);
 
         if (!skipPostSave) completeSuccessfulSave();
         return true;
@@ -796,7 +828,7 @@ export default function PurchaseQuotationForm() {
         setIsSavingQtn(false);
       }
     },
-    [headerColumns, allColumns, columns, postSave, completeSuccessfulSave, isEditRoute, flushPendingCellEvents]
+    [headerColumns, allColumns, columns, postSave, completeSuccessfulSave, isEditRoute, recordId, docLog.finalizeSave, flushPendingCellEvents]
   );
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -845,7 +877,7 @@ export default function PurchaseQuotationForm() {
   const filterBusy = filterPanelLoading || isLoadingQuotationTypes || isLoadingSuppliers;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving: isSavingQtn,
     addDisabled: filterBusy,
@@ -855,11 +887,18 @@ export default function PurchaseQuotationForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   // Extra buttons visible in the ActionBar while in edit mode
   const qtnExtraButtons = useMemo(
     () => [
+      // Show/hide only, never a disabled state (matches Indent's convention)
+      // — docLog.documentsButtonEntry already encodes this (null when
+      // permission gates say no), spread in/out of the array so ActionBar's
+      // own `showAlways || isEditMode` filter hides/shows it with Add/Edit
+      // mode the same way every other extra button does.
+      ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
         label: "Save & Print",
@@ -882,7 +921,7 @@ export default function PurchaseQuotationForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSavingQtn, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingQtn, handleSave]
   );
 
   return (
@@ -1032,6 +1071,19 @@ export default function PurchaseQuotationForm() {
           isLoading={itemModalLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={QTN_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

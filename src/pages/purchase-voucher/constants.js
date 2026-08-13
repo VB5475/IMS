@@ -22,6 +22,10 @@ export const PV_CONFIG = {
   DELETE_PROC_NAME: "pr_rb_purpvmst_delete",
   RB_DETAIL: "rb_purpvdet",
 
+  // Document Log (F6) — this module's own DM_TranTypeID, mirrors Purchase
+  // Indent's IND_CONFIG.DM_TRAN_TYPE_ID rollout pattern.
+  DM_TRAN_TYPE_ID: 121,
+
   FORM_TAG: "PV",
   TRAN_BOOK: "PR",
 

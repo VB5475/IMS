@@ -269,6 +269,14 @@
 }
 .master-modal-btn--edit:hover:not(:disabled) { filter: brightness(1.08); }
 
+.master-modal-btn--secondary {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border-dark, #c3c6d0);
+  margin-right: auto;
+}
+.master-modal-btn--secondary:hover:not(:disabled) { background: #f0f4f8; }
+
 .master-modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Modal body states ─────────────────────────────────────────────── */

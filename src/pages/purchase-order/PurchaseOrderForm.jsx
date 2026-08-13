@@ -26,10 +26,13 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseOrder } from "../../hooks/usePurchaseOrder";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -218,6 +221,18 @@ export default function PurchaseOrderForm() {
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — same pattern as Purchase Indent (see
+  // PurchaseIndentForm.jsx / useDocumentLogAccess.js for the full reasoning).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: PO_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.divisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[PO]",
+  });
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -877,7 +892,7 @@ export default function PurchaseOrderForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearPoTypes],
+    extraClearFns: [clearPoTypes, docLog.resetDocGuid],
     extraReset: () => {
       sessionStorage.removeItem(PO_CONFIG.STORAGE_HEADER_META);
       sessionStorage.removeItem(PO_CONFIG.STORAGE_ENTRY_META);
@@ -888,6 +903,7 @@ export default function PurchaseOrderForm() {
       summaryRef.current?.resetOverrides?.();
       setFieldErrors({});
       setItemCellErrors(null);
+      if (isNewRoute) docLog.fetchDocGuid();
     },
   });
 
@@ -963,9 +979,13 @@ export default function PurchaseOrderForm() {
     setIsSavingPO(true);
     try {
       const result = await postSave(PO_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) { setFormErrors([message]); return false; }
       notify.success(message);
+      // Same Add-mode-gap fix as Purchase Indent — see
+      // PurchaseIndentForm.jsx's handleSave for the full reasoning.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -975,7 +995,7 @@ export default function PurchaseOrderForm() {
     } finally {
       setIsSavingPO(false);
     }
-  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, completeSuccessfulSave, postSave, flushPendingCellEvents]);
+  }, [headerColumns, allColumns, childRowsMap, columns, childColumns, isEditRoute, recordId, completeSuccessfulSave, docLog.finalizeSave, postSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -1001,7 +1021,7 @@ export default function PurchaseOrderForm() {
   const filterBusy = headerFetching || isLoadingPoTypes;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving: isSavingPO,
     addDisabled: filterBusy,
@@ -1011,11 +1031,17 @@ export default function PurchaseOrderForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onToggleCollapsible: handleToggleCollapsible,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   // ── Extra ActionBar buttons ────────────────────────────────────────
   const poExtraButtons = useMemo(
     () => [
+      // Show/hide only, never a disabled state — matches Purchase Indent's
+      // convention (docLog.documentsButtonEntry is null when permission
+      // gates say no, so spreading it in/out hides/shows it with Add/Edit
+      // mode the same way every other extra button does).
+      ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
         label: "Save & Print",
@@ -1038,7 +1064,7 @@ export default function PurchaseOrderForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [handleSaveAndPrint, isSavingPO, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPO, handleSave]
   );
 
   const itemGridConfig = {
@@ -1229,6 +1255,19 @@ export default function PurchaseOrderForm() {
           onInsert={handleInsertItems}
           filterBar={itemFilterBar}
           awaitingFilter={itemPickerIsDirect && !groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.divisionid}
+          tranTypeId={PO_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.PURCHASE_REF_DEPARTMENT_ID}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

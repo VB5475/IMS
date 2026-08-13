@@ -71,11 +71,15 @@ function buildBlankRow(columns) {
   return row;
 }
 
-// Reference Documents is read-only by design — its RB-flagged "Upload"
-// button column doesn't belong there even though the RB marks it visible
-// (uploading to a reference-only row makes no sense). Docs keeps both.
+// Reference Documents is read-only by design — its RB-flagged "Upload" and
+// "Delete" button columns don't belong there even though the RB marks both
+// visible (uploading/deleting a reference-only row makes no sense; also,
+// EntryGrid renders button columns as clickable regardless of `readOnly`,
+// and this grid has no row-removal ref of its own — a stray Delete click
+// would otherwise hit docGridRef, the WRONG grid). Docs keeps both; View
+// stays here since viewing a referenced document is valid.
 function withoutUploadColumn(columns) {
-  return columns.filter((c) => c.key !== CFG.UPLOAD_COL);
+  return columns.filter((c) => c.key !== CFG.UPLOAD_COL && c.key !== CFG.DELETE_COL);
 }
 
 const DocumentLogModal = forwardRef(function DocumentLogModal({
@@ -87,6 +91,13 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
   // fetched via DM_HandleGUID (see PurchaseIndentForm.jsx) — both scope the
   // "Reference Document" button's fetch (fn_tbl_rb_dm_trnwisedocs_fetch_DocData).
   tranTypeId = 0,
+  // Document Log scope's 2nd axis (alongside tranTypeId) — which DM
+  // Department Master row (fn_tbl_dm_department_list) this record belongs
+  // to, e.g. 1="PURCHASE" for the Purchase-flow forms, 6="ADMIN" for the
+  // master modules (Item/Supplier/Customer). No longer defaulted internally
+  // (see documentLogConfig.js's PURCHASE_REF_DEPARTMENT_ID note) — every
+  // caller must supply its own.
+  refDepartmentId = 0,
   guid = "",
 }, ref) {
   const notify = useNotification();
@@ -133,8 +144,8 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     }
     if (loadedForTranRef.current === tranId) return;
     loadedForTranRef.current = tranId;
-    fetchHeaderMeta({ refTranTypeId: tranTypeId, refDepartmentId: CFG.DEFAULT_REF_DEPARTMENT_ID });
-  }, [isOpen, tranId, tranTypeId, fetchHeaderMeta]);
+    fetchHeaderMeta({ refTranTypeId: tranTypeId, refDepartmentId });
+  }, [isOpen, tranId, tranTypeId, refDepartmentId, fetchHeaderMeta]);
 
   const handleAddRow = useCallback(() => {
     if (!docsColumns.length) return;
@@ -175,7 +186,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
         if (existingDocTypeId) {
           fetchDocSubTypeOptions({
             refTranTypeId: tranTypeId,
-            refDepartmentId: CFG.DEFAULT_REF_DEPARTMENT_ID,
+            refDepartmentId,
             documentTypeId: existingDocTypeId,
           }).then((opts) => {
             docGridRef.current?.updateRow(rowId, { [CFG.SUBTYPE_ROW_OPTIONS_KEY]: opts });
@@ -186,7 +197,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     } finally {
       setUploadedLoading(false);
     }
-  }, [fetchUploadedDocs, fetchDocSubTypeOptions, tranTypeId, tranId, guid, notify]);
+  }, [fetchUploadedDocs, fetchDocSubTypeOptions, tranTypeId, refDepartmentId, tranId, guid, notify]);
 
   // Docs grid — Document Type cascades Sub Type per row (see
   // documentLogConfig.js's SP_DOCUMENT_SUBTYPE note + the "Live per-row
@@ -209,12 +220,12 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       if (!documentTypeId) return;
       const opts = await fetchDocSubTypeOptions({
         refTranTypeId: tranTypeId,
-        refDepartmentId: CFG.DEFAULT_REF_DEPARTMENT_ID,
+        refDepartmentId,
         documentTypeId,
       });
       docGridRef.current?.updateRow(rowId, { [CFG.SUBTYPE_ROW_OPTIONS_KEY]: opts });
     },
-    [fetchDocSubTypeOptions, tranTypeId]
+    [fetchDocSubTypeOptions, tranTypeId, refDepartmentId]
   );
 
   // "Reference Document" — the ONLY way this grid ever gets data; no popup,
@@ -318,6 +329,8 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
         handleUploadClick(row);
       } else if (col.key === CFG.VIEW_COL) {
         handleView(row);
+      } else if (col.key === CFG.DELETE_COL) {
+        docGridRef.current?.removeRows([row.id]);
       }
     },
     [handleUploadClick, handleView]
@@ -350,7 +363,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     }
 
     try {
-      const results = await saveDocs(rows, tranId, divisionId, tranTypeId, guid);
+      const results = await saveDocs(rows, tranId, divisionId, tranTypeId, guid, refDepartmentId);
       const parsed = results.map((r) => parseApiErrMsg(r));
       const failed = parsed.filter((p) => !p.success);
       if (failed.length > 0) {
@@ -365,7 +378,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       console.error("[DocumentLogModal] Save failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
     }
-  }, [saveDocs, tranId, divisionId, tranTypeId, guid, notify, onClose]);
+  }, [saveDocs, tranId, divisionId, tranTypeId, refDepartmentId, guid, notify, onClose]);
 
   // Fires on every path that closes this modal (X, Cancel, Escape) — grabs
   // whatever's currently in the Docs grid before <Modal> unmounts it and
@@ -395,7 +408,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     if (pendingRows.length === 0) return { success: true, count: 0 };
     const effectiveTranId = overrideTranId != null ? overrideTranId : tranId;
     try {
-      const results = await saveDocs(pendingRows, effectiveTranId, divisionId, tranTypeId, guid);
+      const results = await saveDocs(pendingRows, effectiveTranId, divisionId, tranTypeId, guid, refDepartmentId);
       const parsed = results.map((r) => parseApiErrMsg(r));
       const failed = parsed.filter((p) => !p.success);
       if (failed.length > 0) {
@@ -408,7 +421,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       console.error("[DocumentLogModal] saveDocuments (via parent Save) failed:", err);
       return { success: false, message: err?.message || "Document save failed." };
     }
-  }, [pendingRows, saveDocs, tranId, divisionId, tranTypeId, guid]);
+  }, [pendingRows, saveDocs, tranId, divisionId, tranTypeId, refDepartmentId, guid]);
 
   useImperativeHandle(ref, () => ({ saveDocuments }), [saveDocuments]);
 

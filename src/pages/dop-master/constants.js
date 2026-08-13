@@ -70,7 +70,7 @@ export const DOP_CONFIG = {
   // same way as every other module's plain (non-cascading) Division dropdown
   // — the user-scoped division list, not tied to Department.
   SP_DIVISION: "fn_tbl_fetchuserwsdivision",
-  SP_DEPARTMENT: "fn_tbl_fetch_department",
+  SP_DEPARTMENT: "fn_tbl_fetch_rb_wkf_department",
   SP_COMPANY: "fn_tbl_fetch_rb_wkf_dopmst_company",
   SP_USER: "fn_tbl_genusermst", // CONFIRM — MRD only says "auto fill from Gen_UserMaster"
 
