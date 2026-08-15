@@ -47,6 +47,8 @@ import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
+import { DEFAULT_STICKER_SIZE } from "../../utils/assetQrStickerConstants";
+import { resolveAssetStickerFields } from "../../utils/assetQrUtils";
 import {
   AEI_CONFIG,
   AEI_MULTI_PASTE_COLUMNS,
@@ -109,6 +111,25 @@ function mapPickerToItemRow(item, allColumns) {
 
 function normQrKey(value) {
   return String(value ?? "").trim().toLowerCase();
+}
+
+function resolveToEmployeeName(headerValues, toEmpOptions) {
+  const empId = headerValues?.toempuserid;
+  if (empId == null || empId === "" || empId === 0) return "";
+  const id = String(empId);
+  const match = (toEmpOptions || []).find(
+    (opt) => String(opt.value) === id || String(opt.id) === id
+  );
+  return String(match?.label ?? match?.text ?? "").trim();
+}
+
+function buildStickerRowsFromSelection(selectedRows, headerValues, toEmpOptions) {
+  const headerEmployee = resolveToEmployeeName(headerValues, toEmpOptions);
+  return (selectedRows || []).map((row) => {
+    const sticker = resolveAssetStickerFields(row);
+    if (sticker.employee || !headerEmployee) return row;
+    return { ...row, issued2employee: headerEmployee };
+  });
 }
 
 /** True if grid already has the same itemcode + assetsrno (or srno fallback). */
@@ -220,6 +241,7 @@ export default function AssetsEmployeeIssueForm() {
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
+  const [printingStickers, setPrintingStickers] = useState(false);
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [gridRows, setGridRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -1062,6 +1084,34 @@ export default function AssetsEmployeeIssueForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
+  const getSelectedStickerRows = useCallback(() => {
+    const selected = itemGridRef.current?.getSelectedRows?.() ?? [];
+    return buildStickerRowsFromSelection(
+      selected,
+      headerValuesRef.current,
+      toEmpOptions
+    );
+  }, [toEmpOptions]);
+
+  const handlePrintStickers = useCallback(async () => {
+    const stickerRows = getSelectedStickerRows();
+    if (stickerRows.length === 0) {
+      notify.error("Select at least one row to print stickers.");
+      return;
+    }
+
+    setPrintingStickers(true);
+    try {
+      const { printAssetStickersBrowser } = await import("../../utils/assetQrBrowserPrint");
+      const count = await printAssetStickersBrowser(stickerRows, DEFAULT_STICKER_SIZE);
+      notify.success(`Opened print dialog for ${count} sticker(s).`);
+    } catch (err) {
+      notify.error(err?.message || "Sticker print failed.");
+    } finally {
+      setPrintingStickers(false);
+    }
+  }, [getSelectedStickerRows, notify]);
+
   const buildDefaultHeaderValues = useCallback(() => applyAeiHardcodedHeaderValues({
     trancode: "",
     trandate: getTodayDateInputValue(),
@@ -1093,7 +1143,7 @@ export default function AssetsEmployeeIssueForm() {
     idnumber: 0,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [AEI_CONFIG.STORAGE_HEADER_META, AEI_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -1164,7 +1214,7 @@ export default function AssetsEmployeeIssueForm() {
         return false;
       }
       notify.success(message);
-      if (!skipPostSave) resetFormToInitialState();
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[AEI Save] Failed:", err);
@@ -1173,14 +1223,14 @@ export default function AssetsEmployeeIssueForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState, flushPendingCellEvents]);
+  }, [headerColumns, allColumns, columns, isEditRoute, notify, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-    resetFormToInitialState();
-  }, [handleSave, resetFormToInitialState]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -1366,6 +1416,21 @@ export default function AssetsEmployeeIssueForm() {
 
               <button
                 type="button"
+                className="eg-tab-btn"
+                onClick={handlePrintStickers}
+                disabled={itemSelectionCount === 0 || printingStickers}
+                title={
+                  printingStickers
+                    ? "Preparing stickers…"
+                    : `Print QR stickers${itemSelectionCount ? ` (${itemSelectionCount})` : ""} — TA220 4.26×2.50 in`
+                }
+              >
+                <Printer size={12} strokeWidth={2} />
+                Print QR
+              </button>
+
+              <button
+                type="button"
                 className="eg-tab-btn eg-tab-btn--danger"
                 onClick={handleDeleteSelected}
                 disabled={!isEditMode || itemSelectionCount === 0}
@@ -1377,6 +1442,7 @@ export default function AssetsEmployeeIssueForm() {
             </>
           }
           hideBottomPanel
+          disableSelection={false}
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
           onRowsChange={handleGridRowsChange}

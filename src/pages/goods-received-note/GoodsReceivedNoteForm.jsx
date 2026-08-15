@@ -61,6 +61,7 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   GRN_CONFIG,
@@ -431,11 +432,6 @@ export default function GoodsReceivedNoteForm() {
     isNewRoute,
   ]);
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(GRN_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
-
   usePageHeader({
     title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
     subtitle: isNewRoute
@@ -518,6 +514,16 @@ export default function GoodsReceivedNoteForm() {
     fetchLocationOptions,
     fetchIndentDetailColumns,
   ]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry: resetFormToInitialState,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetFormToInitialState]);
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;

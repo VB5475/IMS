@@ -545,7 +545,7 @@ export default function AssetsDepreciationForm() {
     sessionStorage.removeItem(DPC_CONFIG.STORAGE_ENTRY_META);
   }, []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [DPC_CONFIG.STORAGE_HEADER_META, DPC_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -572,10 +572,6 @@ export default function AssetsDepreciationForm() {
     extraReset: () => setFieldErrors({}),
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(DPC_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     setFormErrors([]);

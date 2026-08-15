@@ -529,7 +529,7 @@ export default function AssetsReturnableGatePassInForm() {
     idnumber: 0,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [ARGI_CONFIG.STORAGE_HEADER_META, ARGI_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -608,7 +608,7 @@ export default function AssetsReturnableGatePassInForm() {
       // this save having failed since it already succeeded by this point.
       const savedTranId = newId ?? (isEditRoute ? recordId : null);
       await docLog.finalizeSave(savedTranId);
-      if (!skipPostSave) resetFormToInitialState();
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[ARGI Save] Failed:", err);
@@ -623,8 +623,8 @@ export default function AssetsReturnableGatePassInForm() {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-    resetFormToInitialState();
-  }, [handleSave, resetFormToInitialState]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

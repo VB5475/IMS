@@ -4,16 +4,36 @@
 // Extracted from the near-identical resetFormToInitialState/handleDiscardConfirm
 // bodies previously copy-pasted into every *Form.jsx.
 //
-// Two behaviors, deliberately kept separate:
-//  - resetFormToInitialState(): always wipes to new-record defaults, in place.
-//    Used after a successful save (Add or Edit) where the product decision is
-//    to let the user keep entering records without leaving the page.
+// Three behaviors, deliberately kept separate:
+//  - resetFormToInitialState(): wipes to new-record defaults, in place, and
+//    exits edit mode. Used by Cancel on a new record and by completeSuccessfulSave
+//    after an Add save.
+//  - completeSuccessfulSave(): after a successful save — on an existing record
+//    re-loads the saved data in view mode; on a new record resets to blank and
+//    exits edit mode (does not leave the user in Add/Edit entry mode).
 //  - discardChanges(): what "Cancel" should do. On a new record this is the
 //    same blank wipe. On an existing record (isEditRoute) it must NOT wipe the
 //    save payload to blanks while the on-screen values still show the loaded
 //    record — instead it re-fetches the record from the server, undoing any
 //    unsaved edits.
 import { useCallback } from "react";
+
+/** Shared post-save handler for forms that do not use useTransactionFormReset. */
+export function completeTransactionSave({
+  isEditRoute,
+  loadEditRecord,
+  exitEditMode,
+  editRecordLoadedRef,
+  resetNewEntry,
+}) {
+  if (isEditRoute && loadEditRecord) {
+    exitEditMode?.();
+    if (editRecordLoadedRef) editRecordLoadedRef.current = false;
+    loadEditRecord();
+    return;
+  }
+  resetNewEntry?.();
+}
 
 export function useTransactionFormReset({
   storageKeys = [],
@@ -89,6 +109,22 @@ export function useTransactionFormReset({
     extraReset,
   ]);
 
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry: resetFormToInitialState,
+    });
+  }, [
+    isEditRoute,
+    loadEditRecord,
+    exitEditMode,
+    editRecordLoadedRef,
+    resetFormToInitialState,
+  ]);
+
   const discardChanges = useCallback(() => {
     if (isEditRoute && loadEditRecord) {
       exitEditMode();
@@ -99,5 +135,5 @@ export function useTransactionFormReset({
     resetFormToInitialState();
   }, [isEditRoute, loadEditRecord, exitEditMode, editRecordLoadedRef, resetFormToInitialState]);
 
-  return { resetFormToInitialState, discardChanges };
+  return { resetFormToInitialState, completeSuccessfulSave, discardChanges };
 }

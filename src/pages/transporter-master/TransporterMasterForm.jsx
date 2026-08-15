@@ -33,6 +33,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol } from "../../utils/gridUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { TM_CONFIG, PAGE_TITLE, PAGE_TITLE_NEW } from "./constants";
 // EntryGrid.css normally loads for free via a direct <EntryGrid> import —
 // imported explicitly here too since it's reached directly, not lazily.
@@ -299,9 +300,14 @@ export default function TransporterMasterForm() {
   }, [isEditRoute, loadEditRecord, resetFormToInitialState]);
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(TM_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry: resetFormToInitialState,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetFormToInitialState]);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {

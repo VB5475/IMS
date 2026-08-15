@@ -8,7 +8,9 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useMntComplaint } from "../../hooks/useMntComplaint";
+import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -38,6 +40,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   MCR_CONFIG,
@@ -187,6 +190,12 @@ export default function ComplaintRegisterForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemNameFilter, setItemNameFilter] = useState("");
+  const groupFilter = useItemPickerGroupFilter({
+    spMainGroup: MCR_CONFIG.SP_ITEM_MAIN_GROUP,
+    spSubMainGroup: MCR_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
+    formTag: MCR_CONFIG.FORM_TAG,
+  });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -282,6 +291,53 @@ export default function ComplaintRegisterForm() {
       setRecordLoading(false);
     }
   }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+
+  const resetNewEntry = useCallback(() => {
+    localStorage.removeItem(MCR_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
+    headerValuesRef.current = applyMcrHardcodedHeaderValues({
+      trancode: "",
+      trandate: getTodayDateInputValue(),
+      divisionid: 0,
+      fromlocationid: 0,
+      fromdeptid: 0,
+      remarks: "",
+      configid: 0,
+      callgenbyuser: callGenByUser,
+      frmtype: MCR_CONFIG.FRM_TYPE,
+      funccode: MCR_CONFIG.RB_MASTER,
+      tranmstgenid: 0,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
+      idnumber: 0,
+    });
+    queuedRowsRef.current = [];
+    gridColumnsLoadedRef.current = false;
+    clearSaveError();
+    setActiveTab("items");
+    setIsGridLoading(false);
+    setItemSelectionCount(0);
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+    itemGridRef.current?.clearRows?.();
+    setFilterResetKey((k) => k + 1);
+    exitEditMode();
+    setFieldErrors({});
+  }, [callGenByUser, clearSaveError, exitEditMode]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetNewEntry]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -455,6 +511,8 @@ export default function ComplaintRegisterForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemNameFilter("");
+    groupFilter.resetFilter();
 
     try {
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
@@ -477,21 +535,69 @@ export default function ComplaintRegisterForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: MCR_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildMcrItemPickerJsonPayload(headerValues)]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      const divisionId = headerValues.divisionid;
+      const configId = headerValues.configid;
+      await groupFilter.fetchMainGroupOptions({ divisionId, configId });
+      await groupFilter.fetchSubMainGroupOptions({
+        divisionId,
+        configId,
+        mainGroupId: 0,
       });
-      setItemModalItems(rowRes || []);
     } catch (err) {
       console.error("[MCR] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns]);
+  }, [getLive, headerColumns, groupFilter]);
+
+  const handleApplyItemFilter = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const itemName = String(itemNameFilter ?? "").trim();
+    setItemModalError(null);
+    try {
+      await groupFilter.applyFilter(
+        async (groupParams) => {
+          const hasMain = Boolean(groupFilter.mainGroupFilter);
+          const hasSub = Boolean(groupFilter.subMainGroupFilter);
+          const hasItemName = itemName.length >= 3;
+          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+            ObjType: OBJ_TYPE.FUNCTION,
+            ObjName: MCR_CONFIG.SP_ITEM_PICKER,
+            JSon: JSON.stringify([{
+              ...buildMcrItemPickerJsonPayload(headerValues, {
+                maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
+                subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
+                itemNameSearch: hasItemName ? itemName : "",
+                qrJson: "",
+              }),
+            }]),
+            p_ErrCode: -1,
+            p_ErrMsg: "",
+          });
+          setItemModalItems(rowRes || []);
+        },
+        {
+          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
+            const hasMain = Boolean(mainGroupFilter);
+            const hasSub = Boolean(subMainGroupFilter);
+            const hasItemName = itemName.length >= 3;
+            if (itemName.length > 0 && itemName.length < 3) {
+              throw new Error("Item Name must be at least 3 characters.");
+            }
+            if (!hasMain && !hasSub && !hasItemName) {
+              throw new Error(
+                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
+              );
+            }
+          },
+        }
+      );
+    } catch (err) {
+      console.error("[MCR] Item filter fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
+    }
+  }, [getLive, groupFilter, itemNameFilter]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
@@ -556,6 +662,7 @@ export default function ComplaintRegisterForm() {
         return false;
       }
       notify.success(message);
+      completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[MCR Save] Failed:", err);
@@ -564,7 +671,7 @@ export default function ComplaintRegisterForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
@@ -576,41 +683,8 @@ export default function ComplaintRegisterForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(MCR_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyMcrHardcodedHeaderValues({
-      trancode: "",
-      trandate: getTodayDateInputValue(),
-      divisionid: 0,
-      fromlocationid: 0,
-      fromdeptid: 0,
-      remarks: "",
-      configid: 0,
-      callgenbyuser: callGenByUser,
-      frmtype: MCR_CONFIG.FRM_TYPE,
-      funccode: MCR_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: getUserSession().companyId,
-      yearid: getUserSession().yearId,
-      loginid: getUserSession().loginId,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-    setFieldErrors({});
-  }, [callGenByUser, clearSaveError, exitEditMode]);
+    completeSuccessfulSave();
+  }, [completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -772,9 +846,30 @@ export default function ComplaintRegisterForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading}
+          isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
+          filterBar={
+            <ItemPickerGroupFilterBar
+              mainGroupOptions={groupFilter.mainGroupOptions}
+              subMainGroupOptions={groupFilter.subMainGroupOptions}
+              mainGroupValue={groupFilter.mainGroupFilter}
+              subMainGroupValue={groupFilter.subMainGroupFilter}
+              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
+                divisionId: headerValuesRef.current.divisionid,
+                configId: headerValuesRef.current.configid,
+                defaultMaGroupId: 0,
+              })}
+              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
+              onFilter={handleApplyItemFilter}
+              filterLoading={groupFilter.filterLoading}
+              subMainAlwaysEnabled
+              showItemName
+              itemNameValue={itemNameFilter}
+              onItemNameChange={setItemNameFilter}
+            />
+          }
+          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>
