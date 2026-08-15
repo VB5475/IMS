@@ -69,6 +69,7 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   PI_CONFIG,
@@ -438,14 +439,6 @@ export default function PurchaseInquiryForm() {
     if (isNewRoute) docLog.fetchDocGuid();
   }, [clearInquiryTypes, clearSaveError, exitEditMode, isNewRoute, docLog.resetDocGuid, docLog.fetchDocGuid]);
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) {
-      navigate(PI_CONFIG.ROUTE_PATH);
-    } else {
-      resetFormToInitialState();
-    }
-  }, [isEditRoute, navigate, resetFormToInitialState]);
-
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("items");
 
@@ -599,6 +592,16 @@ export default function PurchaseInquiryForm() {
     fetchSupplierGridColumns,
     fetchTermsGridColumns,
   ]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry: resetFormToInitialState,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetFormToInitialState]);
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;

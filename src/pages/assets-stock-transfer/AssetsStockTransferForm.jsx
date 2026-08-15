@@ -651,7 +651,7 @@ export default function AssetsStockTransferForm() {
     idnumber: 0,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [AST_CONFIG.STORAGE_HEADER_META, AST_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -739,7 +739,7 @@ export default function AssetsStockTransferForm() {
       // already succeeded by this point.
       const savedTranId = newId ?? (isEditRoute ? recordId : null);
       await docLog.finalizeSave(savedTranId);
-      if (!skipPostSave) resetFormToInitialState();
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[AST Save] Failed:", err);
@@ -754,8 +754,8 @@ export default function AssetsStockTransferForm() {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-    resetFormToInitialState();
-  }, [handleSave, resetFormToInitialState]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

@@ -30,6 +30,9 @@ export const MCR_CONFIG = {
   SP_DEPARTMENT: "fn_gen_fetchdepartmentmaster",
   SP_CONFIG: "fn_tbl_ddl_maintenanceconfiguration",
   SP_ITEM_PICKER: "fn_tbl_rb_mntcpnselonly",
+  // Select Item popup filters — Main / Sub Main / Item Name (AEI order).
+  SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
+  SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
   SP_MASTER_FILL: "fn_tbl_rb_mntcpnmst",
   SP_DETAIL_FILL: "fn_tbl_rb_mntcpndet",
@@ -75,7 +78,7 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
 
 export function buildMcrItemPickerJsonPayload(
   headerValues,
-  { companyId, loginId, yearId } = {}
+  { companyId, loginId, yearId, maGroupId = 0, subMaGroupId = 0, itemNameSearch = "", qrJson = "" } = {}
 ) {
   const session = getUserSession();
   const divisionId = pickHeaderInt(headerValues, "divisionid", "DivisionID");
@@ -93,6 +96,15 @@ export function buildMcrItemPickerJsonPayload(
     prmservicetypeid: 0,
     prmvendorid: 0,
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
+    // Trailing SP args — keep this order:
+    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext, prmotherstr, prmjson, prmqrjson
+    prmmaingroupid: Number(maGroupId) || 0,
+    prmsubmaingroupid: Number(subMaGroupId) || 0,
+    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    prmsearchtext: "",
+    prmotherstr: "",
+    prmjson: "[]",
+    prmqrjson: String(qrJson ?? "").trim(),
   };
 }
 

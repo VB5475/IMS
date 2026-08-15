@@ -727,7 +727,7 @@ export default function PurchaseQuotationForm() {
     ref.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const { resetFormToInitialState } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [QTN_CONFIG.STORAGE_HEADER_META, QTN_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -763,13 +763,6 @@ export default function PurchaseQuotationForm() {
     },
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) {
-      navigate(QTN_CONFIG.ROUTE_PATH);
-    } else {
-      resetFormToInitialState();
-    }
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   // ── Save / Cancel ──────────────────────────────────────────────────
   const [isSavingQtn, setIsSavingQtn] = useState(false);

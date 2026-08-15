@@ -113,6 +113,11 @@ function inferFilterType(key, sampleValue) {
   return "list";
 }
 
+/** Infer EnterpriseDataGrid / ColumnFilter type from column key + sample cell value. */
+export function inferListColumnFilterType(key, sampleValue) {
+  return inferFilterType(key, sampleValue);
+}
+
 /** Human-readable header from API list column key. */
 export function formatListColumnLabel(key) {
   let label = String(key)

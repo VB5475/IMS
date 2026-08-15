@@ -643,7 +643,7 @@ export default function CWIPToFAForm() {
     sessionStorage.removeItem(C2F_CONFIG.STORAGE_ENTRY_META);
   }, []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [C2F_CONFIG.STORAGE_HEADER_META, C2F_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -670,10 +670,6 @@ export default function CWIPToFAForm() {
     extraReset: () => setFieldErrors({}),
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(C2F_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     await flushPendingCellEvents(itemGridSectionRef);

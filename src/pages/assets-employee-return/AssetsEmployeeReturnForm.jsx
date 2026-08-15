@@ -600,7 +600,7 @@ export default function AssetsEmployeeReturnForm() {
     idnumber: 0,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [AER_CONFIG.STORAGE_HEADER_META, AER_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -683,7 +683,7 @@ export default function AssetsEmployeeReturnForm() {
       // already succeeded by this point.
       const savedTranId = newId ?? (isEditRoute ? recordId : null);
       await docLog.finalizeSave(savedTranId);
-      if (!skipPostSave) resetFormToInitialState();
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[AER Save] Failed:", err);
@@ -698,8 +698,8 @@ export default function AssetsEmployeeReturnForm() {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-    resetFormToInitialState();
-  }, [handleSave, resetFormToInitialState]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

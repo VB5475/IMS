@@ -15,9 +15,8 @@ import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { DASHBOARD_ASSIGN_OPTIONS } from "../../pages/dashboard/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
-import { useStickerPrinter } from "../../hooks/useStickerPrinter";
-import { STICKER_SIZES } from "../../utils/assetQrStickerConstants";
 import { resolveAssetQrFields } from "../../utils/assetQrUtils";
+import { DEFAULT_STICKER_SIZE } from "../../utils/assetQrStickerConstants";
 import { rbNewPath, RB_ROUTE_PATHS } from "../../constants/rbCodes";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
 import { useNavigate } from "react-router-dom";
@@ -267,6 +266,7 @@ export default function ReportBoardPanel({
   const [downloadingQr, setDownloadingQr] = useState(false);
   const [printingStickers, setPrintingStickers] = useState(false);
 
+  
   const {
     status: printerStatus,
     printMode,
@@ -610,60 +610,32 @@ export default function ReportBoardPanel({
     setDownloadingQr(true);
     try {
       const { downloadAssetQrCodes } = await import("../../utils/assetQrPrint");
-      const count = await downloadAssetQrCodes(selectedRows, stickerSize);
+      const count = await downloadAssetQrCodes(selectedRows, DEFAULT_STICKER_SIZE);
       notify.success(`Downloaded PDF with ${count} QR code(s).`);
     } catch (err) {
       notify.error(err?.message || "Failed to generate QR codes.");
     } finally {
       setDownloadingQr(false);
     }
-  }, [notify, selectedRows, stickerSize]);
+  }, [notify, selectedRows]);
 
   const handlePrintStickers = useCallback(async () => {
     if (selectedRows.length === 0) {
       notify.error("Select at least one row to print stickers.");
       return;
     }
-    if (!isPrinterReady) {
-      notify.error(
-        printMode === "none"
-          ? "Run: npm run print-bridge — then click QZ to reconnect."
-          : "Select your TSC TA200 printer from the dropdown."
-      );
-      return;
-    }
 
     setPrintingStickers(true);
     try {
-      const { printAssetStickerQrCodes } = await import("../../utils/assetQrStickerPrint");
-      const count = await printAssetStickerQrCodes(selectedRows, {
-        qz: getQz(),
-        printerName: selectedPrinter,
-        sizeKey: stickerSize,
-        printMode,
-      });
-      notify.success(`Printed ${count} sticker(s) on ${selectedPrinter}.`);
+      const { printAssetStickersBrowser } = await import("../../utils/assetQrBrowserPrint");
+      const count = await printAssetStickersBrowser(selectedRows, DEFAULT_STICKER_SIZE);
+      notify.success(`Opened print dialog for ${count} sticker(s).`);
     } catch (err) {
       notify.error(err?.message || "Sticker print failed.");
     } finally {
       setPrintingStickers(false);
     }
-  }, [getQz, isPrinterReady, notify, printMode, selectedPrinter, selectedRows, stickerSize]);
-
-  const printerStatusLabel = useMemo(() => {
-    if (printerStatus === "connecting") return "Checking printer…";
-    if (isPrinterReady && isBridgeConnected) return `Connected: ${selectedPrinter}`;
-    if (isPrinterReady) return `Connected (QZ): ${selectedPrinter}`;
-    if (printerStatus === "connected" && printers.length === 0) return "No printers found";
-    if (printerStatus === "connected") return "Select TSC printer";
-    return "Printer offline";
-  }, [isBridgeConnected, isPrinterReady, printerStatus, printers.length, selectedPrinter]);
-
-  const printerStatusClass = useMemo(() => {
-    if (isPrinterReady) return "ready";
-    if (printerStatus === "connecting") return "checking";
-    return "offline";
-  }, [isPrinterReady, printerStatus]);
+  }, [notify, selectedRows]);
 
   const cartFooter = (
     <div className="rbp-cart__footer">
@@ -689,68 +661,15 @@ export default function ReportBoardPanel({
   const gridBottomControls = useMemo(
     () => (
       <>
-        <div
-          className={`rbp-panel__printer-status rbp-panel__printer-status--${printerStatusClass}`}
-          title={printerError || printerStatusLabel}
-        >
-          <span className="rbp-panel__printer-dot" aria-hidden="true" />
-          <span className="rbp-panel__printer-text">{printerStatusLabel}</span>
-          {!isPrinterReady && printerStatus !== "connecting" && (
-            <button
-              type="button"
-              className="rbp-panel__printer-retry"
-              onClick={reconnectPrinter}
-              title="Reconnect printer (bridge or QZ Tray)"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-        {printerStatus === "connected" && printers.length > 0 && (
-          <select
-            className="ng-select rbp-panel__pagesize-select rbp-panel__printer-select"
-            value={selectedPrinter}
-            onChange={(e) => selectPrinter(e.target.value)}
-            aria-label="Sticker printer"
-            title="Sticker printer"
-          >
-            {printers.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
-        <select
-          className="ng-select rbp-panel__pagesize-select rbp-panel__sticker-size-select"
-          value={stickerSize}
-          onChange={(e) => setStickerSize(e.target.value)}
-          aria-label="Sticker size"
-          title="Must match your physical label roll (width × height mm)"
-        >
-          {Object.entries(STICKER_SIZES)
-            .sort(([, a], [, b]) => b.width * b.height - a.width * a.height)
-            .map(([key, size]) => (
-              <option key={key} value={key}>
-                {size.width}×{size.height} mm
-              </option>
-            ))}
-        </select>
         <button
           type="button"
           className="rbp-panel__icon-btn rbp-panel__print-btn"
           onClick={handlePrintStickers}
-          disabled={printingStickers || !isPrinterReady || selectedRowKeys.length === 0}
+          disabled={printingStickers || selectedRowKeys.length === 0}
           title={
             printingStickers
-              ? "Printing stickers…"
-              : isPrinterReady
-                ? isBridgeConnected
-                  ? `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — TSC via Windows RAW`
-                  : `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — via QZ Tray`
-                : printMode === "none"
-                  ? "Print stickers — run: npm run print-bridge in project folder"
-                  : "Print stickers — select your TSC TA200 printer"
+              ? "Preparing stickers…"
+              : `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — TA220 4.26×2.50 in`
           }
           aria-label={
             printingStickers
@@ -800,22 +719,9 @@ export default function ReportBoardPanel({
       downloadingQr,
       handleDownloadQrCodes,
       handlePrintStickers,
-      isBridgeConnected,
-      isPrinterReady,
       pageSize,
-      printMode,
-      printerError,
-      printerStatus,
-      printerStatusClass,
-      printerStatusLabel,
-      printers,
       printingStickers,
-      reconnectPrinter,
-      selectPrinter,
-      selectedPrinter,
       selectedRowKeys.length,
-      setStickerSize,
-      stickerSize,
     ]
   );
 

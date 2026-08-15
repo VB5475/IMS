@@ -653,7 +653,7 @@ export default function AssetsReturnableGatePassOutForm() {
     idnumber: 0,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [ARGO_CONFIG.STORAGE_HEADER_META, ARGO_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -744,7 +744,7 @@ export default function AssetsReturnableGatePassOutForm() {
       // Best-effort: a failure here must never be treated as this form's own
       // save having failed — it already succeeded by this point.
       await docLog.finalizeSave(savedTranId);
-      if (!skipPostSave) resetFormToInitialState();
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[ARGO Save] Failed:", err);
@@ -759,8 +759,8 @@ export default function AssetsReturnableGatePassOutForm() {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-    resetFormToInitialState();
-  }, [handleSave, resetFormToInitialState]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

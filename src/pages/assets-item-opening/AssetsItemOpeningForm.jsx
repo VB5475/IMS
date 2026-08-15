@@ -440,7 +440,7 @@ export default function AssetsItemOpeningForm() {
     loginid: getUserSession().loginId, idnumber: 0,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [AOP_CONFIG.STORAGE_HEADER_META, AOP_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -461,10 +461,6 @@ export default function AssetsItemOpeningForm() {
     extraClearFns: [clearItemGroupOptions, clearItemOptions, clearAssetsAccOptions, () => setFieldErrors({})],
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(AOP_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     setFormErrors([]);

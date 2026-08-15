@@ -746,7 +746,7 @@ export default function PurchaseRateContractForm() {
     []
   );
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [
       PRC_CONFIG.STORAGE_HEADER_META,
       PRC_CONFIG.STORAGE_ENTRY_META,
@@ -783,10 +783,6 @@ export default function PurchaseRateContractForm() {
     ],
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(PRC_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async () => {
     await flushPendingCellEvents(itemGridSectionRef);

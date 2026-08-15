@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { buildAssetQrPayload, resolveAssetQrFields } from "./assetQrUtils";
+import { buildAssetQrPayload, resolveAssetStickerFields } from "./assetQrUtils";
 
 export async function generateQrDataUrl(text, size = 280) {
   return QRCode.toDataURL(text, {
@@ -11,7 +11,7 @@ export async function generateQrDataUrl(text, size = 280) {
 
 export async function buildAssetQrLabels(rows) {
   const validRows = (rows || [])
-    .map((row) => resolveAssetQrFields(row))
+    .map((row) => resolveAssetStickerFields(row))
     .filter(({ itemcode, srno }) => itemcode && srno);
 
   if (validRows.length === 0) {
@@ -19,10 +19,10 @@ export async function buildAssetQrLabels(rows) {
   }
 
   return Promise.all(
-    validRows.map(async ({ itemcode, itemname, srno }) => {
-      const payload = buildAssetQrPayload(itemcode, srno);
+    validRows.map(async (fields) => {
+      const payload = buildAssetQrPayload(fields.itemcode, fields.srno);
       const dataUrl = await generateQrDataUrl(payload, 320);
-      return { itemcode, itemname, srno, dataUrl };
+      return { ...fields, dataUrl };
     })
   );
 }
