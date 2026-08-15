@@ -14,7 +14,9 @@ import { API_BASE_URL_IMS, ENDPOINTS } from "../../api/constants";
 import { useNotification } from "../../context/NotificationContext";
 import { useModuleRights } from "../../hooks/useModuleRights";
 import { parseApiErrMsg } from "../../utils/apiResponse";
+import { formatListDate, isDateColumnDef } from "../../utils/dateFormat";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
+import { inferListColumnFilterType } from "../../utils/listGridUtils";
 import Loader from "../ui/Loader";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
@@ -30,6 +32,37 @@ function isActionColumn(col) {
 
 function isSelectColumn(col) {
   return col.key === SELECT_COLUMN_KEY || col.actionType === "select";
+}
+
+function findColumnSampleValue(rows, key) {
+  if (!Array.isArray(rows)) return undefined;
+  for (const row of rows) {
+    const val = resolveRowFieldValue(row, key) ?? row?.[key];
+    if (val != null && val !== "" && val !== "-") return val;
+  }
+  return undefined;
+}
+
+/** Ensure date columns use the date-range filter, not the checkbox list filter. */
+function normalizeGridColumnFilter(col, rows) {
+  if (!col?.filterable || isActionColumn(col) || isSelectColumn(col)) return col;
+
+  const sample = findColumnSampleValue(rows, col.key);
+  let filterType = col.filterType;
+  if (filterType === "select") filterType = "list";
+
+  const inferred = inferListColumnFilterType(col.key, sample);
+  if (isDateColumnDef(col) || inferred === "date") {
+    filterType = "date";
+  } else if (!filterType) {
+    filterType = col.dropdownOptions?.length ? "list" : inferred || "text";
+  }
+
+  const next = { ...col, filterType };
+  if (filterType === "date" && !next.render) {
+    next.render = (_value, row) => formatListDate(resolveRowFieldValue(row, col.key) ?? row?.[col.key]);
+  }
+  return next;
 }
 
 /**
@@ -261,8 +294,11 @@ function EnterpriseDataGrid({
   );
 
   const displayColumns = useMemo(
-    () => orderColumnsWithActionsFirst(permittedColumns, selectable),
-    [permittedColumns, selectable]
+    () =>
+      orderColumnsWithActionsFirst(permittedColumns, selectable).map((col) =>
+        normalizeGridColumnFilter(col, data)
+      ),
+    [permittedColumns, selectable, data]
   );
 
   const hasPinnedActions = useMemo(

@@ -2,6 +2,9 @@
  * Resolve the primary key for opening a list row in edit mode.
  * Uses common API id fields — casing may differ per endpoint.
  */
+import { formatListDate } from "./dateFormat";
+import { inferListColumnFilterType, resolveListCellValue } from "./listGridUtils";
+
 export function resolveListRowId(row) {
   if (!row || typeof row !== "object") return null;
   const id =
@@ -71,12 +74,27 @@ export function buildListColumnsFromApi({
 
   const orderedKeys = extractListKeys(data, excludeSet);
 
-  const dataColumns = orderedKeys.map((key) => ({
-    key,
-    label: labelMap.get(key) ?? key,
-    filterable: true,
-    align: "left",
-  }));
+  const dataColumns = orderedKeys.map((key) => {
+    const sampleValue = (() => {
+      for (const row of data) {
+        const val = resolveListCellValue(row, key);
+        if (val != null && val !== "" && val !== "-") return val;
+      }
+      return undefined;
+    })();
+    const filterType = inferListColumnFilterType(key, sampleValue);
+    const col = {
+      key,
+      label: labelMap.get(key) ?? key,
+      filterable: true,
+      align: "left",
+      filterType,
+    };
+    if (filterType === "date") {
+      col.render = (_value, row) => formatListDate(resolveListCellValue(row, key));
+    }
+    return col;
+  });
 
   if (!renderEditCell) return dataColumns;
 
