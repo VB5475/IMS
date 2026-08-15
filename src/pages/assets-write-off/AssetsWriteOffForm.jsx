@@ -586,7 +586,7 @@ export default function AssetsWriteOffForm() {
     funccode: AWF_CONFIG.RB_MASTER,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [AWF_CONFIG.STORAGE_HEADER_META, AWF_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -653,7 +653,7 @@ export default function AssetsWriteOffForm() {
         return false;
       }
       notify.success(message);
-      if (!skipPostSave) resetFormToInitialState();
+      if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[AWF Save] Failed:", err);
@@ -668,8 +668,8 @@ export default function AssetsWriteOffForm() {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
     window.print();
-    resetFormToInitialState();
-  }, [handleSave, resetFormToInitialState]);
+    completeSuccessfulSave();
+  }, [handleSave, completeSuccessfulSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

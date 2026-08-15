@@ -671,7 +671,7 @@ export default function PurchaseIndentForm() {
     funccode: IND_CONFIG.RB_MASTER,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [IND_CONFIG.STORAGE_HEADER_META, IND_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -703,10 +703,6 @@ export default function PurchaseIndentForm() {
     },
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(IND_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     await flushPendingCellEvents(itemGridSectionRef);

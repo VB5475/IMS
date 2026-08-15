@@ -40,6 +40,7 @@ import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   MACNG_CONFIG,
@@ -347,6 +348,66 @@ export default function MaintenanceNewContractForm() {
       setRecordLoading(false);
     }
   }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, fetchTermsGridColumns]);
+
+  const resetNewEntry = useCallback(() => {
+    localStorage.removeItem(MACNG_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(MACNG_CONFIG.STORAGE_ENTRY_META);
+    localStorage.removeItem(MACNG_CONFIG.STORAGE_TERMS_META);
+    headerValuesRef.current = applyMacngHardcodedHeaderValues({
+      contractno: "",
+      contractdate: todayISO,
+      issuedate: todayISO,
+      divisionid: 0,
+      configtypeid: 0,
+      configid: 0,
+      contractfromdate: todayISO,
+      contracttodate: todayISO,
+      supplierid: 0,
+      contracttypeid: 0,
+      frequencyid: 0,
+      remarks: "",
+      funccode: MACNG_CONFIG.RB_MASTER,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
+      idnumber: 0,
+    });
+    queuedRowsRef.current = [];
+    queuedTermsRowsRef.current = [];
+    gridColumnsLoadedRef.current = false;
+    termsColumnsLoadedRef.current = false;
+    clearSaveError();
+    setActiveTab("items");
+    setIsGridLoading(false);
+    setItemSelectionCount(0);
+    setTermsSelectionCount(0);
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+    setPickerMode("items");
+    itemGridRef.current?.clearRows?.();
+    termsGridRef.current?.clearRows?.();
+    setFilterResetKey((k) => k + 1);
+    exitEditMode();
+    setFieldErrors({});
+    docLog.resetDocGuid();
+    // Back to a blank new-entry state — re-issue a fresh GUID for whatever
+    // the user enters next, same as the initial mount fetch. No-op on an
+    // edit route (isNewRoute is false there).
+    if (isNewRoute) docLog.fetchDocGuid();
+  }, [clearSaveError, exitEditMode, todayISO, docLog.resetDocGuid, docLog.fetchDocGuid, isNewRoute]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetNewEntry]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -765,6 +826,7 @@ export default function MaintenanceNewContractForm() {
       // a failure here must never be treated as this save having failed — it
       // already succeeded by this point.
       await docLog.finalizeSave(savedTranId);
+      completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[MACNG Save] Failed:", err);
@@ -785,6 +847,7 @@ export default function MaintenanceNewContractForm() {
     postSave,
     flushPendingCellEvents,
     docLog.finalizeSave,
+    completeSuccessfulSave,
   ]);
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -797,54 +860,8 @@ export default function MaintenanceNewContractForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(MACNG_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(MACNG_CONFIG.STORAGE_ENTRY_META);
-    localStorage.removeItem(MACNG_CONFIG.STORAGE_TERMS_META);
-    headerValuesRef.current = applyMacngHardcodedHeaderValues({
-      contractno: "",
-      contractdate: todayISO,
-      issuedate: todayISO,
-      divisionid: 0,
-      configtypeid: 0,
-      configid: 0,
-      contractfromdate: todayISO,
-      contracttodate: todayISO,
-      supplierid: 0,
-      contracttypeid: 0,
-      frequencyid: 0,
-      remarks: "",
-      funccode: MACNG_CONFIG.RB_MASTER,
-      companyid: getUserSession().companyId,
-      yearid: getUserSession().yearId,
-      loginid: getUserSession().loginId,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    queuedTermsRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    termsColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setTermsSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    setPickerMode("items");
-    itemGridRef.current?.clearRows?.();
-    termsGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-    setFieldErrors({});
-    docLog.resetDocGuid();
-    // Back to a blank new-entry state — re-issue a fresh GUID for whatever
-    // the user enters next, same as the initial mount fetch. No-op on an
-    // edit route (isNewRoute is false there).
-    if (isNewRoute) docLog.fetchDocGuid();
-  }, [clearSaveError, exitEditMode, todayISO, docLog.resetDocGuid, docLog.fetchDocGuid, isNewRoute]);
+    completeSuccessfulSave();
+  }, [completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

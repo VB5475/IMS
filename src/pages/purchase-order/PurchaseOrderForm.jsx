@@ -901,7 +901,7 @@ export default function PurchaseOrderForm() {
     funccode: PO_CONFIG.RB_MASTER,
   }), []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [PO_CONFIG.STORAGE_HEADER_META, PO_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -939,13 +939,6 @@ export default function PurchaseOrderForm() {
     },
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) {
-      navigate(PO_CONFIG.ROUTE_PATH);
-    } else {
-      resetFormToInitialState();
-    }
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     await flushPendingCellEvents(itemGridSectionRef);

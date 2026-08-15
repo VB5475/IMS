@@ -47,6 +47,7 @@ import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   DOP_CONFIG,
@@ -473,9 +474,14 @@ export default function DopMasterForm() {
   }, [isEditRoute, exitEditMode, loadEditRecord, resetFormToInitialState]);
 
   const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(DOP_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry: resetFormToInitialState,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetFormToInitialState]);
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {

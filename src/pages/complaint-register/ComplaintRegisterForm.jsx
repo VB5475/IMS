@@ -40,6 +40,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   MCR_CONFIG,
@@ -290,6 +291,53 @@ export default function ComplaintRegisterForm() {
       setRecordLoading(false);
     }
   }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+
+  const resetNewEntry = useCallback(() => {
+    localStorage.removeItem(MCR_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
+    headerValuesRef.current = applyMcrHardcodedHeaderValues({
+      trancode: "",
+      trandate: getTodayDateInputValue(),
+      divisionid: 0,
+      fromlocationid: 0,
+      fromdeptid: 0,
+      remarks: "",
+      configid: 0,
+      callgenbyuser: callGenByUser,
+      frmtype: MCR_CONFIG.FRM_TYPE,
+      funccode: MCR_CONFIG.RB_MASTER,
+      tranmstgenid: 0,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
+      idnumber: 0,
+    });
+    queuedRowsRef.current = [];
+    gridColumnsLoadedRef.current = false;
+    clearSaveError();
+    setActiveTab("items");
+    setIsGridLoading(false);
+    setItemSelectionCount(0);
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+    itemGridRef.current?.clearRows?.();
+    setFilterResetKey((k) => k + 1);
+    exitEditMode();
+    setFieldErrors({});
+  }, [callGenByUser, clearSaveError, exitEditMode]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetNewEntry]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -614,6 +662,7 @@ export default function ComplaintRegisterForm() {
         return false;
       }
       notify.success(message);
+      completeSuccessfulSave();
       return true;
     } catch (err) {
       console.error("[MCR Save] Failed:", err);
@@ -622,7 +671,7 @@ export default function ComplaintRegisterForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave]);
+  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave, completeSuccessfulSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
@@ -634,41 +683,8 @@ export default function ComplaintRegisterForm() {
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    localStorage.removeItem(MCR_CONFIG.STORAGE_HEADER_META);
-    localStorage.removeItem(MCR_CONFIG.STORAGE_ENTRY_META);
-    headerValuesRef.current = applyMcrHardcodedHeaderValues({
-      trancode: "",
-      trandate: getTodayDateInputValue(),
-      divisionid: 0,
-      fromlocationid: 0,
-      fromdeptid: 0,
-      remarks: "",
-      configid: 0,
-      callgenbyuser: callGenByUser,
-      frmtype: MCR_CONFIG.FRM_TYPE,
-      funccode: MCR_CONFIG.RB_MASTER,
-      tranmstgenid: 0,
-      companyid: getUserSession().companyId,
-      yearid: getUserSession().yearId,
-      loginid: getUserSession().loginId,
-      idnumber: 0,
-    });
-    queuedRowsRef.current = [];
-    gridColumnsLoadedRef.current = false;
-    clearSaveError();
-    setActiveTab("items");
-    setIsGridLoading(false);
-    setItemSelectionCount(0);
-    setItemModalOpen(false);
-    setItemModalItems([]);
-    setItemModalColumns([]);
-    setItemModalLoading(false);
-    setItemModalError(null);
-    itemGridRef.current?.clearRows?.();
-    setFilterResetKey((k) => k + 1);
-    exitEditMode();
-    setFieldErrors({});
-  }, [callGenByUser, clearSaveError, exitEditMode]);
+    completeSuccessfulSave();
+  }, [completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 

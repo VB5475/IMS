@@ -865,7 +865,7 @@ export default function PurchaseVoucherForm() {
     };
   }, []);
 
-  const { resetFormToInitialState, discardChanges } = useTransactionFormReset({
+  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
     storageKeys: [PV_CONFIG.STORAGE_HEADER_META, PV_CONFIG.STORAGE_ENTRY_META],
     buildDefaultHeaderValues,
     headerValuesRef,
@@ -905,10 +905,6 @@ export default function PurchaseVoucherForm() {
     },
   });
 
-  const completeSuccessfulSave = useCallback(() => {
-    if (isEditRoute) navigate(PV_CONFIG.ROUTE_PATH);
-    else resetFormToInitialState();
-  }, [isEditRoute, navigate, resetFormToInitialState]);
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
     // Flush a still-focused item-grid cell before reading final row/summary
