@@ -53,18 +53,31 @@ export function isColumnMandatoryByName(apiColumns, colNames) {
 }
 
 /**
- * Maps a ColCtrlType numeric code to a filter-type string understood by GridForm.
+ * Maps a ColCtrlType numeric code to a filter-type string understood by
+ * ColumnFilter (the shared list/date/number/text popup used by both
+ * EnterpriseDataGrid on list pages and EntryGrid on picker grids).
+ *
+ * 2026-08-14 (/pm): every non-date column now defaults to 'list' — a
+ * distinct-value, searchable checkbox filter for exact-match filtering —
+ * instead of 'text' (plain substring "contains" search). User-requested,
+ * applies everywhere this function is used (i.e. every list page AND the
+ * Select Item picker grid, since both flow through buildGridColumns). Was
+ * previously 'select' for ctrlType 4 (dropdown columns only) with every
+ * other column left on 'text' — returning 'list' directly here (rather than
+ * 'select') also fixes a latent bug: EnterpriseDataGrid's own
+ * toEnterpriseDataGridColumns normalizes 'select'→'list' before use, but
+ * EntryGrid's ColumnFilter integration (picker grids) never did that
+ * conversion, so a dropdown column's filter popup silently rendered with no
+ * header icon (ColumnFilter's ICONS map has no 'select' entry).
  * @param {number} ctrlType
- * @returns {'date'|'select'|'text'}
+ * @returns {'date'|'list'}
  */
 export function deriveFilterType(ctrlType) {
   switch (ctrlType) {
     case 2:
       return "date";
-    case 4:
-      return "select";
     default:
-      return "text";
+      return "list";
   }
 }
 

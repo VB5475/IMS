@@ -27,7 +27,7 @@ export const DOCTYPE_CONFIG = {
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_dm_doctypemst",
   /** Department dropdown — DM's own list, not the org-wide fn_tbl_fetch_department (see note above). */
-  SP_DEPARTMENT: "fn_tbl_dm_department_list",
+  SP_DEPARTMENT: "fn_tbl_rb_dm_doctypemst_deptlist",
 
   LIST_OBJ_TYPE: 2,
   SP_LIST: "fn_tbl_dm_documenttype_list",

@@ -110,6 +110,7 @@ const MaintenanceNewContractForm = lazy(
 );
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
+const WKFMainPage = lazy(() => import("./pages/wkf-main/WKFMainPage"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
 );
@@ -425,6 +426,11 @@ const router = createBrowserRouter([
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
           rbLeaf({ rb: RB.WORKFLOW_DASHBOARD, element: <WorkflowDashboard /> }),
+          // No RB — reached only via a row click on Workflow Dashboard, no
+          // sidebar nav entry (MRD: "New Form Route: Not Present", blank
+          // "Nav Menu Label", confirmed 2026-08-14 /pm). Same plain
+          // param-route pattern as "main/:reportBoardId" above.
+          { path: "wkfmain", element: <WKFMainPage /> },
 
           // Admin — Master modules
           rbLeaf({ rb: RB.MAIN_GROUP_MASTER, element: <MainGroupMasterPage /> }),

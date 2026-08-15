@@ -97,11 +97,20 @@ function looksLikeDateValue(value) {
   );
 }
 
+// 2026-08-14 (/pm): non-date, non-numeric columns now default to 'list' — a
+// distinct-value, searchable checkbox filter for exact-match filtering —
+// instead of 'text' (plain substring "contains" search). User-requested,
+// applies to every list page (this is the column-inference path list pages
+// actually use, built from the list SP's own row keys — see
+// deriveFilterType in gridUtils.js for the parallel fix on the RB-metadata-
+// driven picker-grid path). Numeric columns keep their existing 'number'
+// min/max range filter — already a sensible distinct-filter mechanism for
+// continuous values, not something this ask calls for replacing.
 function inferFilterType(key, sampleValue) {
   if (isDateColumnKey(key)) return "date";
   if (!isNumericListKey(key) && looksLikeDateValue(sampleValue)) return "date";
   if (typeof sampleValue === "number") return "number";
-  return "text";
+  return "list";
 }
 
 /** Human-readable header from API list column key. */

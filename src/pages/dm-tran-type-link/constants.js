@@ -142,7 +142,7 @@ export const TTLINK_CONFIG = {
   /** Department list — only used to enumerate departments for the merged Tran Type picker below, this RB has no departmentid column of its own. */
   SP_DEPARTMENT: "fn_tbl_dm_department_list",
   /** Department-scoped Tran Type list — called once per department, results merged/deduped by idnumber. See file header note. */
-  SP_TRAN_TYPE: "fn_tbl_fetch_trantype",
+  SP_TRAN_TYPE: "fn_tbl_rb_dm_ttmstreln_trantypelist",
   /** Existing link rows for a given "From" Tran Type id — confirmed live, real populated data. */
   SP_GRID_DATA: "fn_tbl_fetch_rb_dm_ttmstreln_gridData",
 

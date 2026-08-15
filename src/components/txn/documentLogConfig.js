@@ -261,7 +261,32 @@ export const DOCUMENT_LOG_CONFIG = {
   // user-confirmed via AskUserQuestion 2026-08-13 to use DM Department
   // Master's "ADMIN" row (live-fetched id=6, alongside PURCHASE=1 and
   // QC-JAIPUR=46) for these admin/setup masters instead.
+  // STILL the fallback/reference value for every module NOT in
+  // REF_DEPARTMENT_ID below (Purchase Indent/Quotation/Voucher/Order/
+  // Inquiry, GRN keep using PURCHASE_REF_DEPARTMENT_ID unchanged).
   ADMIN_REF_DEPARTMENT_ID: 6,
+
+  // 2026-08-14 (/pm): per-module DM Department Master ids, replacing the
+  // shared ADMIN_REF_DEPARTMENT_ID grouping for these modules — user
+  // clarified there's no real "Admin"/"Purchase" category, just each
+  // module's own department id (shared with [[ADMIN_REF_DEPARTMENT_ID]]
+  // above only where they happen to coincide, e.g. Supplier/Customer
+  // Master = 6). Only these modules were repointed; every other caller of
+  // ADMIN_REF_DEPARTMENT_ID/PURCHASE_REF_DEPARTMENT_ID is untouched.
+  REF_DEPARTMENT_ID: {
+    ASSETS_RETURNABLE_GATE_PASS_OUT: 12,
+    ASSETS_RETURNABLE_GATE_PASS_IN: 12,
+    ASSETS_STOCK_TRANSFER: 12,
+    MAINTENANCE_CONTRACT_NEW: 7,
+    MAINTENANCE_CONTRACT_RENEWAL: 7,
+    ITEM_MASTER: 1,
+    SUPPLIER_MASTER: 6,
+    CUSTOMER_MASTER: 6,
+    // 2026-08-14 (/pm), same-day follow-up — first-time Document Log rollout
+    // for these 2 (not a repoint of an existing ADMIN/PURCHASE default).
+    ASSETS_EMPLOYEE_ISSUE: 12,
+    ASSETS_EMPLOYEE_RETURN: 12,
+  },
 
   // "Refresh" button (Docs section) — appends documents ALREADY uploaded for
   // this transaction into the same Docs grid (tagged `_isUploaded`, excluded

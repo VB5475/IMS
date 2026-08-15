@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import Loader from "../ui/Loader";
+import RefreshButton from "../ui/RefreshButton";
 import "./enterprise-filter-query.css";
 
 const COLS = 3;
@@ -583,6 +584,13 @@ export default function EnterpriseFilterPanel({
   onOrderItem = null,
   orderItemLabel = "Order Item",
   OrderItemIcon = null,
+  // "Refresh" button, beside Search (2026-08-14 /pm) — opt-in, same shared
+  // RefreshButton component list pages already use. Distinct from onSearch:
+  // the caller decides what "refresh" means (e.g. Workflow Dashboard calls a
+  // separate refresh endpoint first, then re-runs its own onSearch).
+  onRefresh = null,
+  refreshLabel = "Refresh",
+  isRefreshing = false,
   initialValues = null,
   cascadeResets = null,
   externalValues = null,
@@ -851,6 +859,10 @@ export default function EnterpriseFilterPanel({
     if (onSearch) onSearch(values, filters);
   }, [onSearch, values, filters]);
 
+  const handleRefreshClick = useCallback(() => {
+    if (onRefresh) onRefresh(values, filters);
+  }, [onRefresh, values, filters]);
+
   const handleReset = useCallback(() => {
     setValues({ ...defaults });
   }, [defaults]);
@@ -935,7 +947,7 @@ export default function EnterpriseFilterPanel({
   );
 
   const showToolbarActions =
-    !showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem);
+    !showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem || onRefresh);
 
   const ToolbarActions = showToolbarActions && (
     <div className={isDashboardLayout ? "dfv2-filter-bar__actions" : "efq-command__actions"}>
@@ -969,6 +981,14 @@ export default function EnterpriseFilterPanel({
           <SecondaryIcon size={14} strokeWidth={2.5} />
           {orderItemLabel}
         </button>
+      )}
+      {onRefresh && (
+        <RefreshButton
+          onClick={handleRefreshClick}
+          loading={isRefreshing}
+          label={refreshLabel}
+          disabled={isSearching}
+        />
       )}
       {onSearch && ActionButton}
     </div>

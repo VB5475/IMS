@@ -26,15 +26,25 @@ export default function DMTT2DocTypeMasterPage() {
     fetchHeaderMeta();
   }, [fetchHeaderMeta]);
 
+  // Document Type checklist now needs BOTH department + tran type (2026-08-14
+  // /pm: fn_tbl_fetch_documenttypett2doc(@prmdeptid, @prmreftrantypeid)) — it
+  // can no longer be fetched alongside Tran Type options at Department-change
+  // time (tran type isn't known yet). Department change fetches Tran Type
+  // options only; the checklist fetch moves to Tran Type change instead.
   const handleDepartmentChange = useCallback(
-    async (departmentId, departmentLabel) => {
-      const [tranTypeOptions, documentTypeRows] = await Promise.all([
-        fetchTranTypeOptions(departmentId),
-        fetchDocumentTypeRows(departmentLabel),
-      ]);
-      return { tranTypeOptions, documentTypeRows };
+    async (departmentId) => {
+      const tranTypeOptions = await fetchTranTypeOptions(departmentId);
+      return { tranTypeOptions };
     },
-    [fetchTranTypeOptions, fetchDocumentTypeRows]
+    [fetchTranTypeOptions]
+  );
+
+  const handleTranTypeChange = useCallback(
+    async (departmentId, tranTypeId) => {
+      const documentTypeRows = await fetchDocumentTypeRows(departmentId, tranTypeId);
+      return { documentTypeRows };
+    },
+    [fetchDocumentTypeRows]
   );
 
   return (
@@ -44,6 +54,7 @@ export default function DMTT2DocTypeMasterPage() {
       defsError={headerError}
       departmentOptions={departmentOptions}
       onDepartmentChange={handleDepartmentChange}
+      onTranTypeChange={handleTranTypeChange}
     />
   );
 }

@@ -1138,6 +1138,44 @@
   transition: opacity var(--transition);
 }
 
+/* ===== COLUMN FILTER ICON (opt-in via col.filterable — picker grids) ===== */
+.eg-filter-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity var(--transition), color var(--transition);
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.eg-filter-icon:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.eg-filter-icon--active {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.eg-filter-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+  pointer-events: none;
+}
+
 .erp-table thead th:hover .header-actions {
   opacity: 1;
 }

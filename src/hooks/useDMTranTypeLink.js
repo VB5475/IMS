@@ -137,7 +137,7 @@ export function useDMTranTypeLink() {
           get(ENDPOINTS.FN_FETCH_DATA, {
             ObjType: TTLINK_CONFIG.LIST_OBJ_TYPE,
             ObjName: TTLINK_CONFIG.SP_TRAN_TYPE,
-            JSon: JSON.stringify([{ prmdepartmentid: Number(d.idnumber ?? d.IDNumber) || 0 }]),
+            JSon: JSON.stringify([{  }]),
             p_ErrCode: -1,
             p_ErrMsg: "",
           }).catch(() => [])

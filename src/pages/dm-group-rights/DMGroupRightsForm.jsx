@@ -312,9 +312,14 @@ export default function DMGroupRightsForm({
         }
       }
 
+      // 2026-08-14 (/pm): Get Detail's SP gained a 3rd param, prmishardcoded —
+      // the System Defined / User Define checkbox pair's selected value.
+      // System Defined = 1 ("hardcoded" by the system), User Define = 0.
+      const isHardcoded = getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]) === 1 ? 1 : 0;
       const rows = await onGetDetail(
         headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL],
         headerValues[DMGR_CONFIG.HEADER_GROUP_COL],
+        isHardcoded,
         gridColumns
       );
       const mapped = (rows || []).map((r, i) => ({ ...r, id: r.idnumber ?? r.IDNumber ?? `_row_${i}` }));

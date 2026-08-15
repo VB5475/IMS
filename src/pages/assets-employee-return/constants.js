@@ -17,6 +17,10 @@ export const AER_CONFIG = {
   RB_MASTER: RB_CODES.ASSETS_EMPLOYEE_RETURN,
   ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN),
   DELETE_PROC_NAME: "pr_rb_astempretmst_delete",
+  // Document Log (F6) — this module's own DM Tran Type id, used by
+  // useDocumentLogAccess (2026-08-14, /pm). Department id is DM Department
+  // Master id=12, see documentLogConfig.js's REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_RETURN.
+  DM_TRAN_TYPE_ID: 324,
   RB_DETAIL: "rb_astempretdet",
   RB_ITEM_PICKER: "rb_astempretselonly",
 

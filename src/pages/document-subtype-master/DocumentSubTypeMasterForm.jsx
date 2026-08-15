@@ -60,7 +60,18 @@ export default function DocumentSubTypeMasterForm({
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+
   const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
+
+  // 2026-08-14 (/pm) — fieldValidationFailed (drives the Save button's
+  // "Please fix the highlighted field(s) below." tooltip) is only ever SET
+  // by handleSave; nothing clears it back to false as the user fixes fields
+  // one at a time (the field change handler only clears fieldErrors for the
+  // field just edited) — so the blocked/tooltip state can outlive every
+  // actual field error. Clear it once fieldErrors is genuinely empty.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) setFieldValidationFailed(false);
+  }, [fieldErrors]);
   const [discardAction, setDiscardAction] = useState(null);
 
   const visibleFields = useMemo(() => getVisibleHeaderFields(fieldDefs), [fieldDefs]);

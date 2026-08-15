@@ -39,6 +39,12 @@ export const WKF_DASHBOARD_CONFIG = {
   SP_DATA: "pr_WKF_Get_Dashboard_List_COM_APP",
   DATA_OBJ_TYPE: OBJ_TYPE.PROCEDURE,
 
+  // "Refresh" button (2026-08-14 /pm) — beside Search in the filter panel
+  // header (replaced the old bottom-of-grid RefreshButton, removed same day).
+  // Calls this endpoint FIRST, then re-runs Search — see
+  // WorkflowDashboard.jsx's handleRefresh.
+  REFRESH_ENDPOINT: "/API/WKF_RefreshList/Post_RB_WKF_Refresh",
+
   FORM_TAG: "WKF", // ⚠️ DBA-pending — not in MRD, guessed from TRAN_BOOK
   TRAN_BOOK: "WKF", // MRD-confirmed (Section 7)
   CONFIG_YEAR_ID: 2, // ⚠️ MRD marks this CONFIRM

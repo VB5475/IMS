@@ -1,6 +1,6 @@
 // AssetsEmployeeReturnForm.jsx — Assets Employee Return entry form (Add / Edit)
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, ListPlus, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
@@ -9,7 +9,10 @@ import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useAstEmpReturn } from "../../hooks/useAstEmpReturn";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -98,6 +101,20 @@ export default function AssetsEmployeeReturnForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
@@ -173,6 +190,22 @@ export default function AssetsEmployeeReturnForm() {
   const [isFillingDetail, setIsFillingDetail] = useState(false);
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this record's id, gated on the
+  // session's Document Log permission flags (set at login). Module-wise
+  // department id (2026-08-14, /pm) — DM Department Master id=12 for this
+  // module — see useDocumentLogAccess.js for the full permission-gate/GUID/
+  // button-visibility/post-save-linking logic (shared, ported from Purchase
+  // Indent).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: AER_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_RETURN,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.fromdivisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[AER]",
+  });
 
   const cascadeResets = useMemo(() => buildAerCascadeResets(headerColumns), [headerColumns]);
 
@@ -585,8 +618,14 @@ export default function AssetsEmployeeReturnForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearFromEmpOptions],
-    extraReset: () => setFieldErrors({}),
+    extraClearFns: [clearFromEmpOptions, docLog.resetDocGuid],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    extraReset: () => {
+      if (isNewRoute) docLog.fetchDocGuid();
+      setFieldErrors({});
+    },
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
@@ -628,12 +667,22 @@ export default function AssetsEmployeeReturnForm() {
     setIsSaving(true);
     try {
       const result = await postSave(AER_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted via ITS OWN Save button, then links any docs
+      // staged under docGuid (before this transaction existed) to the
+      // now-saved transaction — see useDocumentLogAccess.finalizeSave. Covers
+      // Add-mode too, since savedTranId comes from this save's own response
+      // rather than the (Add-mode-stale) recordId. Best-effort throughout: a
+      // failure here must never be treated as this save having failed — it
+      // already succeeded by this point.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) resetFormToInitialState();
       return true;
     } catch (err) {
@@ -643,7 +692,7 @@ export default function AssetsEmployeeReturnForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify, resetFormToInitialState, flushPendingCellEvents]);
+  }, [headerColumns, allColumns, columns, isEditRoute, recordId, docLog.finalizeSave, notify, resetFormToInitialState, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -677,7 +726,7 @@ export default function AssetsEmployeeReturnForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: isFillingDetail,
+    blocked: isFillingDetail || docLog.docModalOpen,
     isEditMode,
     isSaving: isSaving || isFillingDetail,
     addDisabled: filterBusy,
@@ -686,9 +735,16 @@ export default function AssetsEmployeeReturnForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state (matches Indent's convention) —
+    // docLog.documentsButtonEntry already encodes this (null when permission
+    // gates say no), spread in/out of the array so ActionBar's own
+    // `showAlways || isEditMode` filter hides/shows it with Add/Edit mode
+    // the same way every other extra button does.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -699,7 +755,7 @@ export default function AssetsEmployeeReturnForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
@@ -808,6 +864,18 @@ export default function AssetsEmployeeReturnForm() {
         extraButtons={extraButtons}
       />
 
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.fromdivisionid}
+          tranTypeId={AER_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_RETURN}
+          guid={docLog.docGuid}
+        />
+      </Suspense>
     </div>
   );
 }

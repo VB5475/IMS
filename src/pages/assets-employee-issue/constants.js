@@ -20,6 +20,10 @@ export const AEI_CONFIG = {
   RB_MASTER: RB_CODES.ASSETS_EMPLOYEE_ISSUE,
   ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE),
   DELETE_PROC_NAME: "pr_rb_astempissmst_delete",
+  // Document Log (F6) — this module's own DM Tran Type id, used by
+  // useDocumentLogAccess (2026-08-14, /pm). Department id is DM Department
+  // Master id=12, see documentLogConfig.js's REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_ISSUE.
+  DM_TRAN_TYPE_ID: 323,
   RB_DETAIL: "rb_astempissdet",
   RB_ITEM_PICKER: "rb_astempissselonly",
 
@@ -213,11 +217,19 @@ export function buildAeiCascadeResets(fieldDefs) {
   const toDept = resolveAeiColKey(fieldDefs, "todeptid");
   const toEmp = resolveAeiColKey(fieldDefs, "toempuserid");
 
+  // 2026-08-14 (/pm): live-verified via Playwright that changing Division or
+  // From Location left "To Employee" showing its stale, pre-change selection
+  // even though AssetsEmployeeIssueForm's own handleFilterChange already
+  // resets headerValuesRef.current.toempuserid to 0 at the data layer for
+  // both cascades — this map (EnterpriseFilterPanel's own display-only
+  // `values` state) is what actually drives what the SearchSelect shows, and
+  // it wasn't clearing toEmp for either cascade. Added here so the visible
+  // field always matches the real (reset) value instead of lagging behind it.
   const resets = {};
   if (fromDiv) {
-    resets[fromDiv] = [fromLoc, fromEmp, fromVendor, fromClient].filter(Boolean);
+    resets[fromDiv] = [fromLoc, fromEmp, fromVendor, fromClient, toEmp].filter(Boolean);
   }
-  if (fromLoc && fromEmp) resets[fromLoc] = [fromEmp];
+  if (fromLoc) resets[fromLoc] = [fromEmp, toEmp].filter(Boolean);
   if (fromDept && fromEmp) resets[fromDept] = [fromEmp];
   if (toDiv) resets[toDiv] = [toLoc, toEmp].filter(Boolean);
   if (toLoc && toEmp) resets[toLoc] = [toEmp];

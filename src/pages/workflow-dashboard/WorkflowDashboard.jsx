@@ -7,21 +7,23 @@
 // 2026-08-11 /pm decision resolving the MRD's legacy ASP.NET
 // Session.Add+Redirect phrasing (no separate "wkflist" route).
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Search, Workflow } from "lucide-react";
 import DashboardFilterPanelV2 from "../../components/filters/DashboardFilterPanelV2";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
-import { API_BASE_URL, ENDPOINTS, OBJ_TYPE } from "../../api/constants";
+import { API_BASE_URL, API_BASE_URL_IMS, ENDPOINTS, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { controlTypeMap } from "../../data/dummyData";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
 import { formatTranDate } from "../../utils/dateFormat";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import { WKF_DASHBOARD_CONFIG, WKF_STATUS_FILTERS, WKF_DEFAULT_STATUS } from "./constants";
+import { buildWkfMainSearch } from "../wkf-main/constants";
 import "./WorkflowDashboard.css";
 
 // Live-confirmed 2026-08-11: pr_WKF_Get_Dashboard_List_COM_APP errors
@@ -94,6 +96,9 @@ function buildFetchParams(objName, jsonRow, objType = OBJ_TYPE.FUNCTION) {
 
 export default function WorkflowDashboard() {
   const { get } = useApi(API_BASE_URL);
+  const { post } = useApi(API_BASE_URL_IMS);
+  const navigate = useNavigate();
+  const location = useLocation();
   const notify = useNotification();
   const session = useMemo(() => getUserSession(), []);
   const initialValues = useMemo(() => ({
@@ -112,6 +117,7 @@ export default function WorkflowDashboard() {
   const [data, setData] = useState([]);
   const [loadingColumns, setLoadingColumns] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [activeStatus, setActiveStatus] = useState(WKF_DEFAULT_STATUS);
@@ -346,10 +352,68 @@ export default function WorkflowDashboard() {
     runSearch(values, activeStatus);
   }, [runSearch, activeStatus]);
 
+  // "Refresh" button, beside Search (2026-08-14 /pm) — replaces the old
+  // bottom-of-grid RefreshButton (removed same day, redundant once this one
+  // existed). Calls WKF_RefreshList first, THEN re-runs Search with whatever
+  // filter values are currently on screen. Best-effort on the refresh call:
+  // a failure there is surfaced but doesn't block Search, since Search is
+  // independently useful either way (same "one step failing must never block
+  // an already-useful next step" convention as this app's other chained
+  // best-effort calls).
+  const handleRefresh = useCallback(async (values) => {
+    setRefreshing(true);
+    try {
+      const result = await post(WKF_DASHBOARD_CONFIG.REFRESH_ENDPOINT, {
+        prmyearid: Number(session.yearId) || 1,
+        prmloginid: Number(session.loginId) || 1,
+        prmcomp: "",
+      });
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) notify.error(message || "Refresh failed.");
+    } catch (err) {
+      console.error("[WorkflowDashboard] refresh failed:", err);
+      notify.error(err?.message || "Refresh failed. Please try again.");
+    } finally {
+      setRefreshing(false);
+    }
+    runSearch(values ?? filterValues, activeStatus);
+  }, [post, session, notify, runSearch, filterValues, activeStatus]);
+
   const handleStatusClick = useCallback((status) => {
     setActiveStatus(status);
     runSearch(filterValues, status);
   }, [filterValues, runSearch]);
+
+  // Row click -> /wkfmain (2026-08-14 /pm) — MRD's "session('wkfdashkey', ...)"
+  // legacy phrasing, ported to query params + router state (see wkf-main's
+  // constants.js). `index` must be the row's position in the FULL
+  // unpaginated `data` array (confirmed via AskUserQuestion), not the
+  // visible page — `data` IS that full array already (EnterpriseDataGrid
+  // paginates it client-side), and `row` is the same object reference
+  // EnterpriseDataGrid read it from, so a plain indexOf finds it correctly.
+  const handleRowClick = useCallback((row) => {
+    const index = data.indexOf(row);
+    navigate(buildWkfMainSearch(row, index >= 0 ? index : 0), {
+      state: { rows: data, filterValues, activeStatus },
+    });
+  }, [data, navigate, filterValues, activeStatus]);
+
+  // Returning from a successful wkfmain action (2026-08-14 /pm, confirmed
+  // via AskUserQuestion) — re-run the same search that was active when the
+  // user left, once, so the list reflects the just-actioned record. Guarded
+  // by a ref (not just checking location.state) so browser back/forward
+  // landing on this same history entry again doesn't re-fire the search.
+  const autoRefreshHandledRef = useRef(false);
+  useEffect(() => {
+    if (autoRefreshHandledRef.current) return;
+    if (!location.state?.autoRefresh) return;
+    autoRefreshHandledRef.current = true;
+    const fv = location.state.filterValues ?? filterValues;
+    const st = location.state.activeStatus ?? activeStatus;
+    setFilterValues(fv);
+    setActiveStatus(st);
+    if (fv?.divisionid) runSearch(fv, st);
+  }, [location.state, filterValues, activeStatus, runSearch]);
 
   return (
     <div className="workspace-page workspace-page--fill workflow-dashboard">
@@ -364,6 +428,8 @@ export default function WorkflowDashboard() {
           isSearching={searching}
           actionLabel="Search"
           ActionIcon={Search}
+          onRefresh={handleRefresh}
+          isRefreshing={refreshing}
         />
       </section>
 
@@ -387,6 +453,7 @@ export default function WorkflowDashboard() {
           icon={<Workflow size={15} strokeWidth={2} />}
           columns={columns}
           data={data}
+          onRowClick={handleRowClick}
           loading={loadingColumns || searching}
           error={error}
           loaderText={
@@ -407,13 +474,6 @@ export default function WorkflowDashboard() {
           variant="dashboard-v2"
           getRowKey={(row, index) =>
             String(row.idnumber ?? row.compuniquekey ?? `workflow-${index}`)
-          }
-          bottomPanelExtras={
-            <RefreshButton
-              onClick={() => runSearch(filterValues, activeStatus)}
-              loading={searching}
-              title="Re-run the last search"
-            />
           }
         />
       </section>

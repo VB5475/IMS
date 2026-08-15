@@ -136,6 +136,20 @@ export default function MaintenanceContractRenewalForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const termsGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
@@ -217,11 +231,11 @@ export default function MaintenanceContractRenewalForm() {
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Document Log (F6) — mirrors PurchaseIndentForm.jsx's useDocumentLogAccess
-  // wiring; ADMIN department (not PURCHASE), since MACR isn't a Purchase-
-  // department transaction (user-confirmed).
+  // wiring. Module-wise department id (2026-08-14, /pm) — DM Department
+  // Master id=7 for this module, no longer the shared ADMIN_REF_DEPARTMENT_ID.
   const docLog = useDocumentLogAccess({
     tranTypeId: MACR_CONFIG.DM_TRAN_TYPE_ID,
-    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.MAINTENANCE_CONTRACT_RENEWAL,
     recordId,
     getDivisionId: () => headerValuesRef.current?.divisionid,
     isEditMode,
@@ -1074,7 +1088,7 @@ export default function MaintenanceContractRenewalForm() {
           tranId={recordId}
           divisionId={headerValuesRef.current?.divisionid}
           tranTypeId={MACR_CONFIG.DM_TRAN_TYPE_ID}
-          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.MAINTENANCE_CONTRACT_RENEWAL}
           guid={docLog.docGuid}
         />
       </Suspense>

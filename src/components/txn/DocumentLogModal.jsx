@@ -31,6 +31,7 @@ import { AlertCircle, Plus, FolderSearch, RefreshCw, Save as SaveIcon, FileText 
 import Modal from "../ui/Modal";
 import EntryGrid from "../grid/EntryGrid";
 import AlertPanel from "../ui/AlertPanel";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import Loader from "../ui/Loader";
 import { getColDefault } from "../../api/constants";
 import { validateGridRowsDetailed } from "../../utils/columnValidation";
@@ -161,10 +162,30 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     docGridRef.current?.addRow(buildBlankRow(docsColumns));
   }, [docsColumns]);
 
+  // Toolbar "Delete" (bulk, checked rows) — confirm before removing, since
+  // this is a single click on however many rows are currently checked (no
+  // per-row undo). The per-row Delete icon (handleDelete below, real
+  // DM_Doc_Delete API call) is unaffected — user-confirmed 2026-08-14 (/pm)
+  // this confirmation only applies to the toolbar bulk action.
+  const pendingDeleteRowIdsRef = useRef([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
   const handleDeleteSelected = useCallback(() => {
     const selected = docGridRef.current?.getSelectedRows?.() ?? [];
     if (!selected.length) return;
-    docGridRef.current?.removeRows(selected.map((r) => r.id));
+    pendingDeleteRowIdsRef.current = selected.map((r) => r.id);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleConfirmDeleteSelected = useCallback(() => {
+    docGridRef.current?.removeRows(pendingDeleteRowIdsRef.current);
+    pendingDeleteRowIdsRef.current = [];
+    setDeleteConfirmOpen(false);
+  }, []);
+
+  const handleCancelDeleteSelected = useCallback(() => {
+    pendingDeleteRowIdsRef.current = [];
+    setDeleteConfirmOpen(false);
   }, []);
 
   // "Refresh" (Docs section) — rebuilds the already-uploaded-documents part
@@ -521,6 +542,16 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
         </>
       }
     >
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        type="danger"
+        message="Are you sure you want to delete record?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteSelected}
+        onCancel={handleCancelDeleteSelected}
+      />
+
       {/* Hidden native file picker, shared by every row's Upload button —
           pendingUploadRowRef tracks which row triggered it. */}
       <input
