@@ -203,7 +203,8 @@ export default function WKFMainPage() {
   const handleAction = useCallback(async (btn) => {
     setActingKey(btn.key);
     try {
-      const { success, message } = await postAction(keys, btn.actionCode);
+      const currSrno = readField(header, "curr_srno");
+      const { success, message } = await postAction(keys, btn.actionCode, currSrno === "—" ? "" : currSrno);
       if (!success) {
         notify.error(message || `${btn.label} failed.`);
         return;
@@ -218,7 +219,7 @@ export default function WKFMainPage() {
     } finally {
       setActingKey(null);
     }
-  }, [keys, postAction, notify, navigate, navFilterValues, navActiveStatus]);
+  }, [keys, header, postAction, notify, navigate, navFilterValues, navActiveStatus]);
 
   const prevRow = navRows && wkfrowindx > 0 ? navRows[wkfrowindx - 1] : null;
   const nextRow = navRows && wkfrowindx < navRows.length - 1 ? navRows[wkfrowindx + 1] : null;
@@ -312,6 +313,7 @@ export default function WKFMainPage() {
               getRowKey={dynamicRowKey}
               selectable={false}
               searchable={false}
+              fill
             />
           </section>
 
@@ -325,13 +327,25 @@ export default function WKFMainPage() {
               <div className="wkf-main__note-list">
                 {notesRows.map((note, i) => (
                   <div key={dynamicRowKey(note, i)} className="wkf-main__note-card">
-                    <div className="wkf-main__note-title">Note No. {i + 1}</div>
+                    <div className="wkf-main__note-title">
+                      Note No. {readField(note, "uniqueno") !== "—" ? readField(note, "uniqueno") : i + 1}
+                    </div>
                     <div className="wkf-main__note-text">
-                      {readField(note, "notetext") !== "—" ? readField(note, "notetext") : readField(note, "remarks")}
+                      {readField(note, "noting") !== "—"
+                        ? readField(note, "noting")
+                        : readField(note, "notetext") !== "—"
+                          ? readField(note, "notetext")
+                          : readField(note, "remarks")}
                     </div>
                     <div className="wkf-main__note-meta">
-                      <span>User Name: {readField(note, "username")}</span>
-                      <span>Note Date: {readField(note, "notedate")}</span>
+                      <span>
+                        User Name:{" "}
+                        {readField(note, "userinfo") !== "—" ? readField(note, "userinfo") : readField(note, "username")}
+                      </span>
+                      <span>
+                        Note Date:{" "}
+                        {readField(note, "notedt") !== "—" ? readField(note, "notedt") : readField(note, "notedate")}
+                      </span>
                     </div>
                   </div>
                 ))}

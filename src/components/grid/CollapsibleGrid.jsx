@@ -105,6 +105,14 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
   const [scrollState, setScrollState] = useState({ left: false, right: false });
   const expanded = expandedProp ?? expandedInternal;
 
+  // Once shown, the body stays mounted forever (hidden via CSS on later
+  // collapses) — EntryGrid holds its rows uncontrolled, so unmounting it on
+  // every collapse would throw that data away instead of just hiding it.
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(isInline || expanded);
+  useEffect(() => {
+    if (expanded) setHasOpenedOnce(true);
+  }, [expanded]);
+
   const setExpanded = useCallback(
     (next) => {
       const value = typeof next === "function" ? next(expanded) : next;
@@ -246,7 +254,7 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
           existingRecordEdit={existingRecordEdit}
           enableKeyboardNav={enableKeyboardNav}
           containerClassName="cg-entry-grid"
-          embedded={isInline}
+          embedded
           {...entryGridRest}
         />
       </Suspense>
@@ -290,7 +298,9 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
         <span className="cg-header__badge">{rowCount}</span>
       </button>
 
-      {showBody && <div className="cg-body">{gridNode}</div>}
+      {hasOpenedOnce && (
+        <div className={`cg-body${expanded ? "" : " cg-body--hidden"}`}>{gridNode}</div>
+      )}
     </div>
   );
 });

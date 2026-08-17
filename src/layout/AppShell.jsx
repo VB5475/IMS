@@ -74,7 +74,7 @@ const BRAND_LOGO_SRC = "/test.png";
 
 const NAV_SECTIONS = [
   {
-    label: "Home",
+    label: "Home", 
     icon: LayoutDashboard,
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },

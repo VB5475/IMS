@@ -15,6 +15,7 @@ import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { DASHBOARD_ASSIGN_OPTIONS } from "../../pages/dashboard/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
+import { useStickerPrinter } from "../../hooks/useStickerPrinter";
 import { resolveAssetQrFields } from "../../utils/assetQrUtils";
 import { DEFAULT_STICKER_SIZE } from "../../utils/assetQrStickerConstants";
 import { rbNewPath, RB_ROUTE_PATHS } from "../../constants/rbCodes";

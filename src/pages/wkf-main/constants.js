@@ -29,13 +29,13 @@ export const WKF_MAIN_CONFIG = {
 
   // ── APIs (Section 5.1 "Form Structure Detail") ──────────────────────
   HEADER_ENDPOINT: "/API/WKF_GUIInfo_Header/POST_WKF_Info4Header",
-  DETAIL_ENDPOINT: "/API/WKF_GUIInfo/POST_WKF_Info4Detail",
-  NOTES_LIST_ENDPOINT: "/API/WKF_GUIInfo/POST_WKF_Info4Notes_List",
-  NOTES_SAVE_ENDPOINT: "/API/WKF_GUIInfo/POST_WKF_Notes_Save",
+  DETAIL_ENDPOINT: "/API/WKF_GUIInfo_Detail/POST_WKF_Info4Detail",
+  NOTES_LIST_ENDPOINT: "/API/WKF_GUIInfo_NotesList/POST_WKF_Info4Notes_List",
+  NOTES_SAVE_ENDPOINT: "/API/WKF_GUIInfo_NotesSave/POST_WKF_Info4Notes_Save",
   BUTTON_VISIBILITY_ENDPOINT: "/API/WKF_GUIInfo_Button/POST_WKF_Info4Button",
-  ACTION_ENDPOINT: "/API/WKF_GUIInfo/POST_WKF_ActClicked",
-  TRACK_LIST_ENDPOINT: "/API/WKF_GUIInfo/POST_WKF_Info4TrackList",
-  PATH_LIST_ENDPOINT: "/API/WKF_GUIInfo/POST_WKF_Info4PathList",
+  ACTION_ENDPOINT: "/API/WKF_GUIInfo_Action/POST_WKF_ActClicked",
+  TRACK_LIST_ENDPOINT: "/API/WKF_GUIInfo_TrackList/Post_WKF_Info4TrackList",
+  PATH_LIST_ENDPOINT: "/API/WKF_GUIInfo_PathList/Post_WKF_Info4PathList",
 };
 
 /** Header panel fields (Section 3 table) — fixed, not RB-driven. All

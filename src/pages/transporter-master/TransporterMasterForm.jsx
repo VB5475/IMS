@@ -357,6 +357,7 @@ export default function TransporterMasterForm() {
   }, [discardChanges]);
 
   const enterEditMode = useCallback(() => setIsEditMode(true), []);
+  const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const combinedError = headerError || detailMetaError;
