@@ -56,6 +56,9 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Globe,
+  MapPinned,
+  Map,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -164,6 +167,9 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.COUNTRY_MASTER), icon: Globe, label: "Country Master", end: false },
+      { to: rbRoutePath(RB_CODES.STATE_MASTER), icon: Map, label: "State Master", end: false },
+      { to: rbRoutePath(RB_CODES.CITY_MASTER), icon: MapPinned, label: "City Master", end: false },
       { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },

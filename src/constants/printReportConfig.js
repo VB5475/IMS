@@ -27,7 +27,10 @@ export const PRINT_REPORT_CONFIG = {
   "assets-revaluation": { reportTitle: "Assets Revaluation Report", reportFileName: "AssetsRevaluation.rpt" },
   "assets-stock-transfer": { reportTitle: "Assets Stock Transfer Report", reportFileName: "AssetsStockTransfer.rpt" },
   "assets-write-off": { reportTitle: "Assets Write Off Report", reportFileName: "AssetsWriteOff.rpt" },
+  "city-master": { reportTitle: "City Master Report", reportFileName: "CityMaster.rpt" }, // ⚠️ CONFIRM with DBA — .rpt name unconfirmed, new module
   "company": { reportTitle: "Company Report", reportFileName: "Company.rpt" },
+  "country-master": { reportTitle: "Country Master Report", reportFileName: "CountryMaster.rpt" }, // ⚠️ CONFIRM with DBA — .rpt name unconfirmed, new module
+  "state-master": { reportTitle: "State Master Report", reportFileName: "StateMaster.rpt" }, // ⚠️ CONFIRM with DBA — .rpt name unconfirmed, new module
   "complaint-register": { reportTitle: "Complaint Register Report", reportFileName: "ComplaintRegister.rpt" },
   "customer-master": { reportTitle: "Customer Master Report", reportFileName: "CustomerMaster.rpt" },
   "cwip-to-fa": { reportTitle: "CWIP To FA Report", reportFileName: "CWIPToFA.rpt" },

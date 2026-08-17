@@ -647,7 +647,7 @@ export default function DopMasterForm() {
   const rowReadOnly = isEditRoute && !isEditMode;
 
   return (
-    <div className="workspace-page workspace-page--fill dop-page">
+    <div className="workspace-page dop-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}

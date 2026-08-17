@@ -26,17 +26,16 @@ import { exportRowsToCsv } from "../../utils/csvExport";
 
 // PO's report SP takes its own param casing (@prmCompanyID/@prmloginID), not
 // the shared lowercase @prmcompanyid used by buildCompanyReportParam — don't
-// reuse that helper here. Selected row narrows to just that record; no
-// selection omits @prmidnumber entirely and prints the full list.
+// reuse that helper here. Print only ever runs against a selected row (2026-08-17
+// /pm — the earlier "no selection = print full list" fallback was removed;
+// PurchaseOrderPage's handlePrintParams now blocks + notifies instead).
 function buildPurchaseOrderReportParams(selectedId) {
   const session = getUserSession();
-  const params = [];
-  if (selectedId != null) {
-    params.push({ paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) });
-  }
-params.push({ paramtitle: "Company", paramname: "@prmCompanyID", paramval: String(session.companyId), paramtext: session.company?.companyname ?? session.company?.CompanyName ?? "" });
-params.push({ paramtitle: "Login", paramname: "@prmloginID", paramval: String(session.loginId), paramtext: session.userName ?? "" });
-  return params;
+  return [
+    { paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) },
+    { paramtitle: "Company", paramname: "@prmCompanyID", paramval: String(session.companyId), paramtext: session.company?.companyname ?? session.company?.CompanyName ?? "" },
+    { paramtitle: "Login", paramname: "@prmloginID", paramval: String(session.loginId), paramtext: session.userName ?? "" },
+  ];
 }
 
 function buildListParams() {
@@ -164,10 +163,13 @@ export default function PurchaseOrderPage() {
     navigate(`${PO_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
-  const handlePrintParams = useCallback(
-    () => buildPurchaseOrderReportParams(selectedId),
-    [selectedId]
-  );
+  const handlePrintParams = useCallback(() => {
+    if (selectedId == null) {
+      notify.error("Select the row to Print.");
+      return null;
+    }
+    return buildPurchaseOrderReportParams(selectedId);
+  }, [selectedId, notify]);
 
   const handleExportCsv = useCallback(() => {
     const { rows, columns } = gridRef.current?.getExportData() ?? {};

@@ -1,0 +1,139 @@
+/* CountryMasterPage.css — scoped to .ctm-* namespace */
+
+/* ── Listing page ──────────────────────────────────────────────────── */
+.ctm-list-page { flex: 1; min-height: 0; }
+
+.ctm-list-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.ctm-list-panel--fill { flex: 1; min-height: 0; }
+
+/* ── Modal form layout ─────────────────────────────────────────────── */
+.ctm-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border, #d8dee8);
+  border-top: 1px solid var(--border, #d8dee8);
+}
+
+.ctm-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 14px;
+  background: #fff;
+}
+
+.ctm-form-label {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
+  user-select: none;
+}
+
+.ctm-form-label--required::after { content: " *"; color: #e53e3e; font-size: 10px; }
+
+.ctm-form-control {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ctm-form-input--error {
+  border-color: var(--danger, #dc2626) !important;
+}
+
+.ctm-form-input--error:focus {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15) !important;
+}
+
+.ctm-form-field-error {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .ctm-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .ctm-form { grid-template-columns: 1fr; }
+}
+
+.ctm-form-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  background: #fff;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.ctm-form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(30,74,122,0.12); }
+.ctm-form-input[readonly] { background: var(--field-view-bg, #e6f1fc); cursor: default; }
+
+/* ── Modal footer buttons ──────────────────────────────────────────── */
+.master-modal-footer-actions { display: flex; align-items: center; gap: 8px; }
+
+.master-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.master-modal-btn--save { background: var(--primary); color: #fff; }
+.master-modal-btn--save:hover:not(:disabled) { filter: brightness(1.08); }
+.master-modal-btn--cancel { background: var(--surface); color: var(--text-secondary); border-color: var(--border-dark, #c3c6d0); }
+.master-modal-btn--cancel:hover:not(:disabled) { background: #f0f4f8; }
+.master-modal-btn--edit { background: var(--primary); color: #fff; }
+.master-modal-btn--edit:hover:not(:disabled) { filter: brightness(1.08); }
+.master-modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Modal body states ─────────────────────────────────────────────── */
+.master-modal-loader { padding: 40px 24px; text-align: center; font-size: 13px; color: var(--text-secondary); }
+
+.master-modal-error,
+.master-modal-save-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+}

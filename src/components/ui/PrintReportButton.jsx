@@ -21,11 +21,16 @@ export default function PrintReportButton({
   const notify = useNotification();
 
   const handleClick = useCallback(async () => {
+    // buildParams() may return null to abort the print (e.g. a page that
+    // requires a row selection has already shown its own validation
+    // message) — undefined still means "no params needed," not an abort.
+    const params = buildParams?.();
+    if (params === null) return;
     try {
       await printReport({
         reportTitle,
         reportFileName,
-        jsonParameters: buildParams?.() ?? [],
+        jsonParameters: params ?? [],
       });
     } catch (err) {
       notify.error(err?.message || "Failed to generate report.");
