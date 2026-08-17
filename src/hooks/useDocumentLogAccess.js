@@ -12,13 +12,18 @@
 // - "Transaction" forms (Indent + Purchase Inquiry/Quotation/Order/GRN/
 //   Voucher) have an ActionBar `extraButtons` array and F6 via
 //   useEntryFormKeyboard's `onDocuments` — they spread `documentsButtonEntry`
-//   into their buttons array (hide/show, an explicit Indent-only convention
-//   that carried over here) and wire `handleOpenDocuments` to `onDocuments`.
+//   into their buttons array and wire `handleOpenDocuments` to `onDocuments`.
 // - "Master" forms (Item/Supplier/Customer) have no ActionBar/F6 — they build
-//   their own footer button from the raw `handleOpenDocuments`/
-//   `isDocumentLogEnabled` fields instead, following the app-wide default
-//   convention (always rendered, disabled + explanatory title) rather than
-//   Indent's hide/show.
+//   their own footer button from `isDocumentLogEnabled` directly instead.
+//
+// 2026-08-17 (/pm): the app-wide convention is now hide/show ONLY — no
+// disabled state anywhere. `documentsButtonEntry` (and every master form's
+// own button) gates on `isDocumentLogEnabled` (rights AND Add/Edit mode
+// active), not just rights alone — a prior version showed the button
+// whenever rights allowed even outside Add/Edit mode (a no-op click), and
+// master forms additionally rendered a disabled+explanatory-title button
+// instead of hiding it. Both are gone now; every consumer shows the button
+// only when it's actually clickable.
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { FileText } from "lucide-react";
@@ -167,9 +172,9 @@ export function useDocumentLogAccess({
   );
 
   // ActionBar-ready descriptor for "transaction"-shaped forms — hide/show
-  // only (no disabled state), matching Indent's existing convention. `null`
-  // when the caller shouldn't render it at all.
-  const documentsButtonEntry = dmConfigAllows && docBtnVisible === "YES"
+  // only, gated on isDocumentLogEnabled (rights AND Add/Edit mode active).
+  // `null` when the caller shouldn't render it at all.
+  const documentsButtonEntry = isDocumentLogEnabled
     ? {
         key: "documents",
         label: "Documents",

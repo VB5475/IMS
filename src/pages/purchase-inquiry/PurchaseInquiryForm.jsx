@@ -1722,7 +1722,7 @@ export default function PurchaseInquiryForm() {
                 title=""
                 hideBottomPanel
                 readOnly={isEditRoute && !isEditMode}
-                emptyMessage="No suppliers added. Click Select Supplier above."
+                emptyMessage="No data found in the list."
                 onSelectionChange={setSupplierSelectionCount}
               />
             ),
@@ -1733,13 +1733,13 @@ export default function PurchaseInquiryForm() {
                 title=""
                 hideBottomPanel
                 readOnly={isEditRoute && !isEditMode}
-                emptyMessage="No terms & conditions added. Click Select Terms above."
+                emptyMessage="No data found in the list."
                 onSelectionChange={setTermsSelectionCount}
               />
             ),
           }}
           readOnly={isEditRoute && !isEditMode}
-          emptyMessage="No items yet. Click Select Item above."
+          emptyMessage="No data found in the list."
           onSelectionChange={setItemSelectionCount}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}

@@ -10,17 +10,16 @@
   flex-shrink: 0;
 }
 
-.workflow-dashboard__status-bar {
-  flex-shrink: 0;
+/* 2026-08-17 (/pm) — status buttons now render inline in the filter panel's
+   own flex-wrap row (see WorkflowDashboard.jsx's DashboardFilterPanelV2
+   children) instead of their own bordered bar below it. This is just the
+   button-group flex wrapper now — no border/background/padding, since the
+   filter panel's own .dfv2-slicers row already provides that framing. */
+.workflow-dashboard__status-group {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: #e6f1fc;
-  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
 .workflow-dashboard__status-btn {
@@ -71,7 +70,7 @@
     min-height: 520px;
   }
 
-  .workflow-dashboard__status-bar {
+  .workflow-dashboard__status-group {
     flex-wrap: wrap;
   }
 }

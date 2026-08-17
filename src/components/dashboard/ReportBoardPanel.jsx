@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
+import GridSearch from "../grid/GridSearch";
 import Modal from "../ui/Modal";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
@@ -287,6 +288,11 @@ export default function ReportBoardPanel({
   // split (8/10, own option arrays) — now the same shared table config every
   // list page uses, in both compact and full-width rendering modes.
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // 2026-08-17 (/pm) — search moved from the grid's own row into this
+  // toolbar, before Division (same "search in the title/toolbar row"
+  // pattern rolled out to every list page, see project_search_titlebar_rollout.md).
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
 
   useEffect(() => {
     if (!selectedDivision) return;
@@ -751,6 +757,12 @@ export default function ReportBoardPanel({
             </button>
           </div>
           <div className="rbp-panel__toolbar">
+            <GridSearch
+              query={searchQuery}
+              onChange={setSearchQuery}
+              matchCount={searchStats.matchCount}
+              totalCount={searchStats.totalCount}
+            />
             <label htmlFor="rbp-division" className="rbp-panel__pagesize-label">
               Division
             </label>
@@ -839,6 +851,10 @@ export default function ReportBoardPanel({
           hideHeader
           fill={fill}
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           selectable
           selectedRowKeys={selectedRowKeys}
           onSelectionChange={handleSelectionChange}

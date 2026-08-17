@@ -29,6 +29,8 @@ export default function MaintenanceContractRenewalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -86,6 +88,10 @@ export default function MaintenanceContractRenewalPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
@@ -105,6 +111,10 @@ export default function MaintenanceContractRenewalPage() {
           emptyMessage="No Maintenance Contract Renewal records found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           onDeleteSuccess={fetchList}
           fill
         />

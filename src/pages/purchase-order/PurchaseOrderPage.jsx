@@ -69,6 +69,8 @@ export default function PurchaseOrderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const [selectedId, setSelectedId] = useState(null);
   const gridRef = useRef(null);
 
@@ -220,6 +222,10 @@ export default function PurchaseOrderPage() {
           onAdd={handleAddNew}
           onRefresh={fetchOrders}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["purchase-order"],
             buildParams: handlePrintParams,
@@ -256,6 +262,10 @@ export default function PurchaseOrderPage() {
           emptyMessage="No purchase orders found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={PO_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchOrders}
           fill

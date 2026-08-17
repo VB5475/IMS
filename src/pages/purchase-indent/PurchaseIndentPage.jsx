@@ -62,6 +62,8 @@ export default function PurchaseIndentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const [selectedId, setSelectedId] = useState(null);
   const gridRef = useRef(null);
 
@@ -127,6 +129,10 @@ export default function PurchaseIndentPage() {
           onAdd={handleAddNew}
           onRefresh={fetchIndents}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["purchase-indent"],
             buildParams: handlePrintParams,
@@ -150,6 +156,10 @@ export default function PurchaseIndentPage() {
           emptyMessage="No purchase indents found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={IND_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchIndents}
           fill

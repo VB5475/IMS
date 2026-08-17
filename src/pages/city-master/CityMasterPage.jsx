@@ -96,6 +96,8 @@ export default function CityMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -161,6 +163,10 @@ export default function CityMasterPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["city-master"],
             buildParams: buildCityReportParams,
@@ -184,6 +190,10 @@ export default function CityMasterPage() {
           emptyMessage="No cities found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={CIM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

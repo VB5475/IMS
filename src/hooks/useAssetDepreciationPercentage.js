@@ -8,7 +8,7 @@ import { useApi } from "../api/useApi";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { buildSaveJsonFields, withSaveContextFields } from "../utils/savePayload";
-import { parseApiErrMsg } from "../utils/apiResponse";
+import { parseApiErrMsg, isErrorOnlyRow } from "../utils/apiResponse";
 import { buildGridColumns, fetchDropdownOptions } from "../utils/gridUtils";
 import { ADP_CONFIG, ADP_RB_SHIM } from "../pages/asset-depreciation-percentage/constants";
 
@@ -23,8 +23,14 @@ function buildMasterDataFillParams() {
   ].join(",");
 }
 
+// 2026-08-17 (/pm) — project-wide sentinel-row fix (see usePurchaseInquiry.js
+// for the original bug write-up). A "no rows" result comes back as a single
+// {ErrCode, ErrMsg} row instead of an empty array; without this guard it was
+// loaded as one phantom blank grid row instead of showing the empty state.
 function mapRowsToGridRows(rows) {
-  return (rows || []).map((row, index) => ({
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 1 && isErrorOnlyRow(list[0])) return [];
+  return list.map((row, index) => ({
     ...row,
     id: String(row.compuniquekey ?? row.idnumber ?? `adp_${index}`),
   }));

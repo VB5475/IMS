@@ -380,25 +380,22 @@ export default function CustomerMasterForm({
   const combinedError = headerError || recordLoadError;
   const isLoading = headerFetching || recordLoading;
 
-  // Documents button — rendered whenever Document Log is enabled for this
-  // login + trantype (dmConfigAllows/docBtnVisible), always visible once
-  // that's true (unlike Purchase Indent's hide/show carve-out), disabled
-  // with an explanatory title until Add/Edit mode is actually entered —
-  // the app-wide default convention for gated buttons in this codebase.
+  // Documents button — hide/show only (2026-08-17 /pm), no disabled state.
+  // Rendered only when Document Log is enabled for this login + trantype
+  // AND Add/Edit mode is actually active; hidden entirely otherwise.
   const documentsButton = useMemo(
     () =>
-      docLog.dmConfigAllows && docLog.docBtnVisible === "YES" ? (
+      docLog.isDocumentLogEnabled ? (
         <button
           type="button"
           className="master-modal-btn master-modal-btn--secondary"
           onClick={docLog.handleOpenDocuments}
-          disabled={!docLog.isDocumentLogEnabled}
-          title={docLog.isDocumentLogEnabled ? "Document Log (F6)" : "Enter Add/Edit mode to manage documents"}
+          title="Document Log (F6)"
         >
           <FileText size={13} strokeWidth={2} /> Documents
         </button>
       ) : null,
-    [docLog.dmConfigAllows, docLog.docBtnVisible, docLog.isDocumentLogEnabled, docLog.handleOpenDocuments]
+    [docLog.isDocumentLogEnabled, docLog.handleOpenDocuments]
   );
 
   const footer = useMemo(() => {

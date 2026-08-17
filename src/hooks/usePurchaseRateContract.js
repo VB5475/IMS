@@ -54,8 +54,17 @@ function mapMasterRowToHeaderValues(master) {
   };
 }
 
+// 2026-08-17 (/pm) — project-wide sentinel-row fix (see usePurchaseInquiry.js
+// for the original bug write-up). A detail-fill SP with nothing to return
+// sends a single {ErrCode, ErrMsg} "no data" row instead of an empty array;
+// without this guard it was loaded as one phantom blank grid row instead of
+// showing the grid's emptyMessage.
+import { isErrorOnlyRow } from "../utils/apiResponse";
+
 function mapDetailRowsToGridRows(rows) {
-  return (rows || []).map((row, index) => ({
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 1 && isErrorOnlyRow(list[0])) return [];
+  return list.map((row, index) => ({
     ...row,
     id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));

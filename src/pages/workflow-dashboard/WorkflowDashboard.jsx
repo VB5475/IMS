@@ -229,14 +229,12 @@ export default function WorkflowDashboard() {
   }, [loadColumns, loadDivisions]);
 
   const filters = useMemo(() => [
-    {
-      FilterParameterID: "divisionid",
-      FilterColName: "divisionid",
-      FilterCaption: "Division",
-      FilterColCtrlType: controlTypeMap.DROPDOWN,
-      staticOptions: divisionOptions,
-      columnMeta: { displayName: "Division", dataKind: "numeric", isMandatory: true },
-    },
+    // 2026-08-17 (/pm) — reordered per explicit UI-clarity request: From
+    // Date, To Date, Division, Transaction No together in one row, then
+    // Transaction Name + Initiate By below. Transaction No switched from
+    // TEXTAREA to TEXTBOX — TEXTAREA forced it onto its own full-width row
+    // (dfv2-slicer--full) in the dashboard layout, which is what was
+    // splitting the first 4 fields across two rows.
     {
       FilterParameterID: "fromdate",
       FilterColName: "fromdate",
@@ -252,10 +250,18 @@ export default function WorkflowDashboard() {
       columnMeta: { displayName: "To Date", dataKind: "date", isMandatory: false },
     },
     {
+      FilterParameterID: "divisionid",
+      FilterColName: "divisionid",
+      FilterCaption: "Division",
+      FilterColCtrlType: controlTypeMap.DROPDOWN,
+      staticOptions: divisionOptions,
+      columnMeta: { displayName: "Division", dataKind: "numeric", isMandatory: true },
+    },
+    {
       FilterParameterID: "transactionno",
       FilterColName: "transactionno",
       FilterCaption: "Transaction No",
-      FilterColCtrlType: controlTypeMap.TEXTAREA,
+      FilterColCtrlType: controlTypeMap.TEXTBOX,
       columnMeta: { displayName: "Transaction No", dataKind: "text", isMandatory: false },
     },
     {
@@ -430,21 +436,24 @@ export default function WorkflowDashboard() {
           ActionIcon={Search}
           onRefresh={handleRefresh}
           isRefreshing={refreshing}
-        />
-      </section>
-
-      <section className="workflow-dashboard__status-bar" aria-label="Approval status">
-        {Object.entries(WKF_STATUS_FILTERS).map(([key, cfg]) => (
-          <button
-            key={key}
-            type="button"
-            className={`workflow-dashboard__status-btn${activeStatus === key ? " workflow-dashboard__status-btn--active" : ""}`}
-            aria-pressed={activeStatus === key}
-            onClick={() => handleStatusClick(key)}
-          >
-            {cfg.label}
-          </button>
-        ))}
+        >
+          {/* 2026-08-17 (/pm) — status buttons moved into the same flex-wrap
+              row as the filter fields (was its own section below); see
+              EnterpriseFilterPanel's dashboard-layout `children` slot. */}
+          <div className="workflow-dashboard__status-group" role="group" aria-label="Approval status">
+            {Object.entries(WKF_STATUS_FILTERS).map(([key, cfg]) => (
+              <button
+                key={key}
+                type="button"
+                className={`workflow-dashboard__status-btn${activeStatus === key ? " workflow-dashboard__status-btn--active" : ""}`}
+                aria-pressed={activeStatus === key}
+                onClick={() => handleStatusClick(key)}
+              >
+                {cfg.label}
+              </button>
+            ))}
+          </div>
+        </DashboardFilterPanelV2>
       </section>
 
       <section className="workspace-page__grid workflow-dashboard__grid">

@@ -36,6 +36,8 @@ export default function AssetsClientReleasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
 
   usePageHeader({
     title: "Assets Client Release",
@@ -87,6 +89,10 @@ export default function AssetsClientReleasePage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["assets-client-release"],
             buildParams: buildAcrReportParams,
@@ -108,6 +114,10 @@ export default function AssetsClientReleasePage() {
           emptyMessage="No Assets Client Release records found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={ACR_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

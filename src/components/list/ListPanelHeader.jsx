@@ -29,6 +29,7 @@ import { Plus } from "lucide-react";
 import PrintReportButton from "../ui/PrintReportButton";
 import RefreshButton from "../ui/RefreshButton";
 import ExportCsvButton from "../ui/ExportCsvButton";
+import GridSearch from "../grid/GridSearch";
 import { useModuleRights } from "../../hooks/useModuleRights";
 import { PAGE_SIZE_OPTIONS } from "../../constants/tableConfig";
 import "./ListPanelHeader.css";
@@ -40,6 +41,18 @@ export default function ListPanelHeader({
   onAdd,
   onRefresh,
   refreshing = false,
+  // Search box — 2026-08-17 (/pm) project-wide rollout: moved out of
+  // EnterpriseDataGrid's own full-width row into the title bar, right after
+  // Entry Form (per explicit placement instruction). Opt-in on
+  // onSearchChange, same as every other control here — pages that don't
+  // pass it render exactly as before. Pairs with the paired
+  // EnterpriseDataGrid's hideSearchBar/searchQuery/onSearchChange/
+  // onSearchStats props (same controlled pattern pageSize/onPageSizeChange
+  // already uses below).
+  searchQuery = "",
+  onSearchChange,
+  matchCount = 0,
+  totalCount = 0,
   print,
   // Plain callback, same shape as onAdd/onRefresh — the page owns gathering
   // the rows (via its EnterpriseDataGrid ref's getExportData()) and building
@@ -67,6 +80,9 @@ export default function ListPanelHeader({
             <Plus size={14} strokeWidth={2.5} />
             {addLabel}
           </button>
+        )}
+        {onSearchChange && (
+          <GridSearch query={searchQuery} onChange={onSearchChange} matchCount={matchCount} totalCount={totalCount} />
         )}
         {onRefresh && <RefreshButton onClick={onRefresh} loading={refreshing} />}
         {print && (

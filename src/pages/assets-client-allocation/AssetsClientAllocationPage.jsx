@@ -37,6 +37,8 @@ export default function AssetsClientAllocationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -94,6 +96,10 @@ export default function AssetsClientAllocationPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["assets-client-allocation"],
             buildParams: buildAcaReportParams,
@@ -117,6 +123,10 @@ export default function AssetsClientAllocationPage() {
           emptyMessage="No Assets Client Allocation records found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={ACA_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

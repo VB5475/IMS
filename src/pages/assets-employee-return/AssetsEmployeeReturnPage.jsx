@@ -41,6 +41,8 @@ export default function AssetsEmployeeReturnPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -95,6 +97,10 @@ export default function AssetsEmployeeReturnPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["assets-employee-return"],
             buildParams: buildAerReportParams,
@@ -118,6 +124,10 @@ export default function AssetsEmployeeReturnPage() {
           emptyMessage="No Assets Employee Return records found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={AER_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

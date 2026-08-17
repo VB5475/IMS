@@ -299,6 +299,12 @@ export default function TransporterMasterForm() {
     resetFormToInitialState();
   }, [isEditRoute, loadEditRecord, resetFormToInitialState]);
 
+  // Declared here (not further down with enterEditMode) — completeSuccessfulSave
+  // below references it directly in its own useCallback body/deps, which
+  // evaluate immediately on render, so a later `const` would throw "Cannot
+  // access 'exitEditMode' before initialization" (TDZ) on every render.
+  const exitEditMode = useCallback(() => setIsEditMode(false), []);
+
   const completeSuccessfulSave = useCallback(() => {
     completeTransactionSave({
       isEditRoute,
@@ -357,7 +363,6 @@ export default function TransporterMasterForm() {
   }, [discardChanges]);
 
   const enterEditMode = useCallback(() => setIsEditMode(true), []);
-  const exitEditMode = useCallback(() => setIsEditMode(false), []);
 
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const combinedError = headerError || detailMetaError;
