@@ -55,6 +55,8 @@ export default function PurchaseVoucherPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -109,6 +111,10 @@ export default function PurchaseVoucherPage() {
           onAdd={handleAddNew}
           onRefresh={fetchVouchers}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["purchase-voucher"],
             buildParams: buildPurchaseVoucherReportParams,
@@ -132,6 +138,10 @@ export default function PurchaseVoucherPage() {
           emptyMessage="No purchase vouchers found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={PV_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchVouchers}
           fill

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Layers, Plus } from "lucide-react";
+import { Layers } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import PrintReportButton from "../../components/ui/PrintReportButton";
-import RefreshButton from "../../components/ui/RefreshButton";
+import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -14,7 +13,6 @@ import { AGM_CONFIG } from "./constants";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import "./AccountGroupMasterPage.css";
-import { useModuleRights } from "../../hooks/useModuleRights";
 
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
@@ -36,7 +34,6 @@ function buildListParams() {
 }
 
 export default function AccountGroupMasterPage() {
-  const { canInsert } = useModuleRights();
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -54,6 +51,8 @@ export default function AccountGroupMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -156,41 +155,24 @@ export default function AccountGroupMasterPage() {
   return (
     <div className="workspace-page agm-list-page">
       <section className="agm-list-panel agm-list-panel--fill">
-        <header className="agm-list-panel__header">
-          <div className="agm-list-panel__title">
-            <Layers size={14} strokeWidth={2} />
-            <span>Account Group Master</span>
-          </div>
-          <div className="agm-list-panel__toolbar">
-            {canInsert && (
-              <button type="button" className="agm-list-panel__add-btn" onClick={handleAddNew}>
-                <Plus size={14} strokeWidth={2.5} /> Add New
-              </button>
-            )}
-            <RefreshButton onClick={fetchList} loading={loading} />
-            <PrintReportButton
-              reportTitle={PRINT_CONFIG.reportTitle}
-              reportFileName={PRINT_CONFIG.reportFileName}
-              buildParams={buildAccountGroupMasterReportParams}
-            />
-            <label htmlFor="agm-list-page-size" className="agm-list-panel__pagesize-label">
-              Rows per page
-            </label>
-            <select
-              id="agm-list-page-size"
-              className="ng-select agm-list-panel__pagesize-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              aria-label="Rows per page"
-            >
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
+        <ListPanelHeader
+          icon={Layers}
+          title="Account Group Master"
+          onAdd={handleAddNew}
+          onRefresh={fetchList}
+          refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
+          print={{
+            reportTitle: PRINT_CONFIG.reportTitle,
+            reportFileName: PRINT_CONFIG.reportFileName,
+            buildParams: buildAccountGroupMasterReportParams,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
 
         <EnterpriseDataGrid
           title=""
@@ -205,6 +187,10 @@ export default function AccountGroupMasterPage() {
           emptyMessage="No account groups found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={AGM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

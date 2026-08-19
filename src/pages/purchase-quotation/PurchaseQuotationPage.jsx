@@ -58,6 +58,8 @@ export default function PurchaseQuotationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -114,6 +116,10 @@ export default function PurchaseQuotationPage() {
           onAdd={handleAddNew}
           onRefresh={fetchQuotations}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["purchase-quotation"],
             buildParams: buildPurchaseQuotationReportParams,
@@ -137,6 +143,10 @@ export default function PurchaseQuotationPage() {
           emptyMessage="No purchase quotations found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={QTN_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchQuotations}
           fill

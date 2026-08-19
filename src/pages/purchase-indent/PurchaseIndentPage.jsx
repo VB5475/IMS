@@ -10,6 +10,7 @@ import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
+import { useNotification } from "../../context/NotificationContext";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { resolveListRowId } from "../../utils/listColumns";
@@ -21,15 +22,14 @@ import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
 
-// Selected row (via the grid's single-select checkbox) narrows the print to
-// just that record — prmidnumber omitted entirely prints the full list, same
-// as before this feature existed.
+// Print only ever runs against a selected row (2026-08-17 /pm — the earlier
+// "no selection = print full list" fallback was removed; PurchaseIndentPage's
+// handlePrintParams now blocks + notifies instead, same as Purchase Order).
 function buildPurchaseIndentReportParams(selectedId) {
-  const params = [buildCompanyReportParam()];
-  if (selectedId != null) {
-    params.push({ paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) });
-  }
-  return params;
+  return [
+    buildCompanyReportParam(),
+    { paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) },
+  ];
 }
 
 function buildListParams() {
@@ -56,11 +56,14 @@ function buildListParams() {
 export default function PurchaseIndentPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
+  const notify = useNotification();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const [selectedId, setSelectedId] = useState(null);
   const gridRef = useRef(null);
 
@@ -103,10 +106,13 @@ export default function PurchaseIndentPage() {
     navigate(`${IND_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
-  const handlePrintParams = useCallback(
-    () => buildPurchaseIndentReportParams(selectedId),
-    [selectedId]
-  );
+  const handlePrintParams = useCallback(() => {
+    if (selectedId == null) {
+      notify.error("Select the row to Print.");
+      return null;
+    }
+    return buildPurchaseIndentReportParams(selectedId);
+  }, [selectedId, notify]);
 
   const handleExportCsv = useCallback(() => {
     const { rows, columns } = gridRef.current?.getExportData() ?? {};
@@ -123,6 +129,10 @@ export default function PurchaseIndentPage() {
           onAdd={handleAddNew}
           onRefresh={fetchIndents}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["purchase-indent"],
             buildParams: handlePrintParams,
@@ -146,6 +156,10 @@ export default function PurchaseIndentPage() {
           emptyMessage="No purchase indents found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={IND_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchIndents}
           fill

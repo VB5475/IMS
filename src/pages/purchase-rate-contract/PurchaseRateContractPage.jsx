@@ -50,6 +50,8 @@ export default function PurchaseRateContractPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -106,6 +108,10 @@ export default function PurchaseRateContractPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             reportTitle: "Purchase Rate Contract Report",
             reportFileName: "TODO_PurchaseRateContract.rpt",
@@ -130,6 +136,10 @@ export default function PurchaseRateContractPage() {
           emptyMessage="No purchase rate contracts found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={PRC_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

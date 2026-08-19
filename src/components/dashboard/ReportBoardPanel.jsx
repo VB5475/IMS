@@ -9,23 +9,21 @@ import {
   Trash2,
 } from "lucide-react";
 import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
+import GridSearch from "../grid/GridSearch";
 import Modal from "../ui/Modal";
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { DASHBOARD_ASSIGN_OPTIONS } from "../../pages/dashboard/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
+import { useStickerPrinter } from "../../hooks/useStickerPrinter";
 import { resolveAssetQrFields } from "../../utils/assetQrUtils";
 import { DEFAULT_STICKER_SIZE } from "../../utils/assetQrStickerConstants";
 import { rbNewPath, RB_ROUTE_PATHS } from "../../constants/rbCodes";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../../constants/tableConfig";
 import "./ReportBoardPanel.css";
-
-const PAGE_SIZE_OPTIONS = {
-  compact: [5, 8, 10, 15, 20],
-  default: [5, 10, 20, 50, 99],
-};
 
 const DEFAULT_MASTER_ID = DASHBOARD_CONFIG.DEFAULT_MASTER_ID;
 const DEFAULT_SESSION_ID = DASHBOARD_CONFIG.DEFAULT_SESSION_ID;
@@ -270,15 +268,31 @@ export default function ReportBoardPanel({
   const [downloadingQr, setDownloadingQr] = useState(false);
   const [printingStickers, setPrintingStickers] = useState(false);
 
-  const pageSizeOptions = useMemo(
-    () => (compact ? PAGE_SIZE_OPTIONS.compact : PAGE_SIZE_OPTIONS.default),
-    [compact]
-  );
-  const [pageSize, setPageSize] = useState(() => (compact ? 8 : 10));
+  
+  const {
+    status: printerStatus,
+    printMode,
+    printers,
+    selectedPrinter,
+    selectPrinter,
+    stickerSize,
+    setStickerSize,
+    isPrinterReady,
+    isBridgeConnected,
+    error: printerError,
+    reconnect: reconnectPrinter,
+    getQz,
+  } = useStickerPrinter();
 
-  useEffect(() => {
-    setPageSize(compact ? 8 : 10);
-  }, [compact]);
+  // 2026-08-14 (/pm): was a locally reinvented compact/default page-size
+  // split (8/10, own option arrays) — now the same shared table config every
+  // list page uses, in both compact and full-width rendering modes.
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // 2026-08-17 (/pm) — search moved from the grid's own row into this
+  // toolbar, before Division (same "search in the title/toolbar row"
+  // pattern rolled out to every list page, see project_search_titlebar_rollout.md).
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
 
   useEffect(() => {
     if (!selectedDivision) return;
@@ -700,7 +714,7 @@ export default function ReportBoardPanel({
           onChange={(e) => setPageSize(Number(e.target.value))}
           aria-label="Rows per page"
         >
-          {pageSizeOptions.map((n) => (
+          {PAGE_SIZE_OPTIONS.map((n) => (
             <option key={n} value={n}>
               {n}
             </option>
@@ -713,7 +727,6 @@ export default function ReportBoardPanel({
       handleDownloadQrCodes,
       handlePrintStickers,
       pageSize,
-      pageSizeOptions,
       printingStickers,
       selectedRowKeys.length,
     ]
@@ -744,6 +757,12 @@ export default function ReportBoardPanel({
             </button>
           </div>
           <div className="rbp-panel__toolbar">
+            <GridSearch
+              query={searchQuery}
+              onChange={setSearchQuery}
+              matchCount={searchStats.matchCount}
+              totalCount={searchStats.totalCount}
+            />
             <label htmlFor="rbp-division" className="rbp-panel__pagesize-label">
               Division
             </label>
@@ -827,11 +846,15 @@ export default function ReportBoardPanel({
           loaderText="Loading Report Boards…"
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
-          pageSizeOptions={pageSizeOptions}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage={selectedDivision ? "No report board data found." : "Select a division."}
           hideHeader
           fill={fill}
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           selectable
           selectedRowKeys={selectedRowKeys}
           onSelectionChange={handleSelectionChange}

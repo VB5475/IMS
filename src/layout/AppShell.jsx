@@ -56,6 +56,11 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Globe,
+  MapPinned,
+  Map,
+  BarChart3,
+  FileBarChart2,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -68,13 +73,15 @@ import {
 } from "../api/constants";
 import { RB_CODES, rbRoutePath } from "../constants/rbCodes";
 import { getRightsForPath } from "../session/moduleRights";
+import { REPORTS_LIST } from "../constants/reportsConfig";
+import ReportFilterModal from "../components/reports/ReportFilterModal";
 import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
 
 const NAV_SECTIONS = [
   {
-    label: "Home",
+    label: "Home", 
     icon: LayoutDashboard,
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
@@ -105,18 +112,18 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Layers, label: "CWIP To FA", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false },
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false },
+      // { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false },
 
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN), icon: RotateCcw, label: "Assets Employee Return", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Building2, label: "Assets Department Issue", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_REVALUATION), icon: FileText, label: "Assets Revaluation", end: false },
+      // { to: rbRoutePath(RB_CODES.ASSETS_REVALUATION), icon: FileText, label: "Assets Revaluation", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_ALLOCATION), icon: Handshake, label: "Assets Client Allocation", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_RELEASE), icon: Handshake, label: "Assets Client Release", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT), icon: DoorOpen, label: "Assets Returnable Gate Pass Out", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },
+      // { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false },
     ],
@@ -164,6 +171,9 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
       { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
+      { to: rbRoutePath(RB_CODES.COUNTRY_MASTER), icon: Globe, label: "Country Master", end: false },
+      { to: rbRoutePath(RB_CODES.STATE_MASTER), icon: Map, label: "State Master", end: false },
+      { to: rbRoutePath(RB_CODES.CITY_MASTER), icon: MapPinned, label: "City Master", end: false },
       { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
@@ -189,6 +199,21 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ITEM_MASTER_UPLOAD_EXCEL), icon: FileSpreadsheet, label: "Item Master Upload Excel", end: false },
     ],
   },
+  {
+    // 2026-08-17 (/pm, verbal spec, no MRD) — each item opens the shared
+    // ReportFilterModal directly (reportKey, no `to`/`end`) rather than
+    // navigating to a route, per explicit user choice over a single
+    // "Reports" hub page. See reportKey handling in renderNavItem below —
+    // this is the one place in NAV_SECTIONS with items that don't navigate.
+    label: "Reports",
+    icon: BarChart3,
+    items: REPORTS_LIST.map((r) => ({
+      key: r.key,
+      reportKey: r.key,
+      icon: FileBarChart2,
+      label: r.label,
+    })),
+  },
 ];
 
 // Mirrors react-router NavLink's own isActive semantics (exact match when
@@ -210,6 +235,51 @@ function findSectionForPath(pathname) {
   return match ? match.label : NAV_SECTIONS[0]?.label ?? null;
 }
 
+/**
+ * Renders one nav item — a routed <NavLink> for the normal case, or a plain
+ * <button> for a `reportKey` item (Reports section — opens ReportFilterModal
+ * directly instead of navigating; see NAV_SECTIONS' "Reports" entry). Shared
+ * by both the expanded accordion list and the collapsed-rail flyout so the
+ * two render paths can't drift out of sync.
+ */
+function renderNavItem(item, { onReportClick, onNavigate } = {}) {
+  const { to, icon: Icon, label, end, reportKey, key } = item;
+  if (!to) {
+    return (
+      <button
+        key={key ?? reportKey ?? label}
+        type="button"
+        className="ent-sidebar__link"
+        onClick={() => {
+          onReportClick?.(reportKey);
+          onNavigate?.();
+        }}
+      >
+        <span className="ent-sidebar__link-icon">
+          <Icon size={16} strokeWidth={1.5} />
+        </span>
+        <span>{label}</span>
+      </button>
+    );
+  }
+  return (
+    <NavLink
+      key={to}
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
+      }
+      onClick={onNavigate}
+    >
+      <span className="ent-sidebar__link-icon">
+        <Icon size={16} strokeWidth={1.5} />
+      </span>
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
 export default function AppShell({ children }) {
   // Standing constraint (/pm): the icon-only collapsed rail must keep working —
   // any new sidebar UI (search, badges, etc.) has to hide/adapt under !collapsed
@@ -223,6 +293,13 @@ export default function AppShell({ children }) {
   // starts on the section containing the current route.
   const [openSection, setOpenSection] = useState(() => findSectionForPath(location.pathname));
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  // Reports section (see reportKey items in NAV_SECTIONS above) — clicking
+  // one opens ReportFilterModal directly, no dedicated route per report.
+  const [activeReportKey, setActiveReportKey] = useState(null);
+  const activeReport = useMemo(
+    () => REPORTS_LIST.find((r) => r.key === activeReportKey) ?? null,
+    [activeReportKey]
+  );
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
   const { userName, userId, logout, menuRights } = useUser();
@@ -470,21 +547,9 @@ export default function AppShell({ children }) {
                   </div>
                 ) : (
                   sectionOpen &&
-                  section.items.map(({ to, icon: Icon, label, end }) => (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      end={end}
-                      className={({ isActive }) =>
-                        `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
-                      }
-                    >
-                      <span className="ent-sidebar__link-icon">
-                        <Icon size={16} strokeWidth={1.5} />
-                      </span>
-                      <span>{label}</span>
-                    </NavLink>
-                  ))
+                  section.items.map((item) =>
+                    renderNavItem(item, { onReportClick: setActiveReportKey })
+                  )
                 )}
               </div>
             );
@@ -503,22 +568,12 @@ export default function AppShell({ children }) {
               onMouseLeave={scheduleFlyoutClose}
             >
               <div className="ent-sidebar__flyout-label">{flyout.label}</div>
-              {flyout.items.map(({ to, icon: Icon, label, end }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={end}
-                  className={({ isActive }) =>
-                    `ent-sidebar__link ${isActive ? "ent-sidebar__link--active" : ""}`
-                  }
-                  onClick={() => setFlyout(null)}
-                >
-                  <span className="ent-sidebar__link-icon">
-                    <Icon size={16} strokeWidth={1.5} />
-                  </span>
-                  <span>{label}</span>
-                </NavLink>
-              ))}
+              {flyout.items.map((item) =>
+                renderNavItem(item, {
+                  onReportClick: setActiveReportKey,
+                  onNavigate: () => setFlyout(null),
+                })
+              )}
             </div>,
             document.body
           )}
@@ -631,6 +686,11 @@ export default function AppShell({ children }) {
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
         onPasswordChanged={handleLogout}
+      />
+
+      <ReportFilterModal
+        report={activeReport}
+        onClose={() => setActiveReportKey(null)}
       />
     </div>
   );

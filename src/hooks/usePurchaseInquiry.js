@@ -23,7 +23,7 @@ import {
   DEFAULT_SESSION_ID,
   OBJ_TYPE,
 } from "../api/constants";
-import { parseApiErrMsg } from "../utils/apiResponse";
+import { parseApiErrMsg, isErrorOnlyRow } from "../utils/apiResponse";
 import { withSaveContextFields, buildSaveJsonFields } from "../utils/savePayload";
 import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 import { PI_CONFIG } from "../pages/purchase-inquiry/constants";
@@ -65,8 +65,17 @@ function mapMasterRowToHeaderValues(master) {
   };
 }
 
+// 2026-08-17 (/pm) — a detail-fill SP with nothing to return (Direct-based
+// PI with no linked Terms, a fresh record with no Supplier rows, etc.)
+// returns a single {ErrCode, ErrMsg} "no data" sentinel row instead of an
+// empty array — mapping it verbatim used to load one blank/dash-filled
+// phantom row into the grid instead of showing its emptyMessage. Same
+// isErrorOnlyRow guard already used by useDMGroupRights/useDocumentLog/
+// useUserWiseGroupRights.
 function mapDetailRowsToGridRows(rows) {
-  return (rows || []).map((row, index) => ({
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 1 && isErrorOnlyRow(list[0])) return [];
+  return list.map((row, index) => ({
     ...row,
     id: String(row.compuniquekey ?? row.idnumber ?? row.masterid ?? `edit_${index}`),
   }));

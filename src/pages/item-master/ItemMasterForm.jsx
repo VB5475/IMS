@@ -87,7 +87,18 @@ export default function ItemMasterForm({
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+
   const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
+
+  // 2026-08-14 (/pm) — fieldValidationFailed (drives the Save button's
+  // "Please fix the highlighted field(s) below." tooltip) is only ever SET
+  // by handleSave; nothing clears it back to false as the user fixes fields
+  // one at a time (the field change handler only clears fieldErrors for the
+  // field just edited) — so the blocked/tooltip state can outlive every
+  // actual field error. Clear it once fieldErrors is genuinely empty.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) setFieldValidationFailed(false);
+  }, [fieldErrors]);
   const [discardAction, setDiscardAction] = useState(null);
 
   // Document Log ("Documents" button, 2026-08-13 /pm) — this master's own
@@ -98,7 +109,9 @@ export default function ItemMasterForm({
   // effect (keyed on recordId) re-issues a fresh docGuid automatically.
   const docLog = useDocumentLogAccess({
     tranTypeId: IM_CONFIG.DM_TRAN_TYPE_ID,
-    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    // Module-wise department id (2026-08-14, /pm) — DM Department Master
+    // id=1 for Item Master, no longer the shared ADMIN_REF_DEPARTMENT_ID.
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ITEM_MASTER,
     recordId: Number(formValues.idnumber) || 0,
     getDivisionId: () => 0, // Item Master isn't division-scoped (see handleSave's own divisionId: 0)
     isEditMode,
@@ -407,25 +420,22 @@ export default function ItemMasterForm({
     setDiscardAction("cancel");
   }, []);
 
-  // Documents button — rendered whenever Document Log is enabled for this
-  // login + trantype (dmConfigAllows/docBtnVisible), always visible once
-  // that's true (unlike Purchase Indent's hide/show carve-out), disabled
-  // with an explanatory title until Add/Edit mode is actually entered —
-  // the app-wide default convention for gated buttons in this codebase.
+  // Documents button — hide/show only (2026-08-17 /pm), no disabled state.
+  // Rendered only when Document Log is enabled for this login + trantype
+  // AND Add/Edit mode is actually active; hidden entirely otherwise.
   const documentsButton = useMemo(
     () =>
-      docLog.dmConfigAllows && docLog.docBtnVisible === "YES" ? (
+      docLog.isDocumentLogEnabled ? (
         <button
           type="button"
           className="master-modal-btn master-modal-btn--secondary"
           onClick={docLog.handleOpenDocuments}
-          disabled={!docLog.isDocumentLogEnabled}
-          title={docLog.isDocumentLogEnabled ? "Document Log (F6)" : "Enter Add/Edit mode to manage documents"}
+          title="Document Log (F6)"
         >
           <FileText size={13} strokeWidth={2} /> Documents
         </button>
       ) : null,
-    [docLog.dmConfigAllows, docLog.docBtnVisible, docLog.isDocumentLogEnabled, docLog.handleOpenDocuments]
+    [docLog.isDocumentLogEnabled, docLog.handleOpenDocuments]
   );
 
   const footer = useMemo(() => {
@@ -551,7 +561,7 @@ export default function ItemMasterForm({
           tranId={Number(formValues.idnumber) || 0}
           divisionId={0}
           tranTypeId={IM_CONFIG.DM_TRAN_TYPE_ID}
-          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ITEM_MASTER}
           guid={docLog.docGuid}
         />
       </Suspense>

@@ -13,9 +13,12 @@ import HardwareQrScanner from "../../components/txn/HardwareQrScanner";
 import { useNotification } from "../../context/NotificationContext";
 import { parseQrItemPayload } from "../../utils/qrScanJson";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstEmpIssue } from "../../hooks/useAstEmpIssue";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -157,6 +160,20 @@ export default function AssetsEmployeeIssueForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
@@ -266,6 +283,22 @@ export default function AssetsEmployeeIssueForm() {
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this record's id, gated on the
+  // session's Document Log permission flags (set at login). Module-wise
+  // department id (2026-08-14, /pm) — DM Department Master id=12 for this
+  // module — see useDocumentLogAccess.js for the full permission-gate/GUID/
+  // button-visibility/post-save-linking logic (shared, ported from Purchase
+  // Indent).
+  const docLog = useDocumentLogAccess({
+    tranTypeId: AEI_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_ISSUE,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.fromdivisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[AEI]",
+  });
 
   const cascadeResets = useMemo(() => buildAeiCascadeResets(headerColumns), [headerColumns]);
 
@@ -1166,8 +1199,14 @@ export default function AssetsEmployeeIssueForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearFromEmpOptions, clearToEmpOptions],
-    extraReset: () => setFieldErrors({}),
+    extraClearFns: [clearFromEmpOptions, clearToEmpOptions, docLog.resetDocGuid],
+    // Back to a blank new-entry state (post-save, or Cancel on a new record)
+    // — re-issue a fresh GUID for whatever the user enters next, same as the
+    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
+    extraReset: () => {
+      if (isNewRoute) docLog.fetchDocGuid();
+      setFieldErrors({});
+    },
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
@@ -1208,12 +1247,22 @@ export default function AssetsEmployeeIssueForm() {
     setIsSaving(true);
     try {
       const result = await postSave(AEI_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted via ITS OWN Save button, then links any docs
+      // staged under docGuid (before this transaction existed) to the
+      // now-saved transaction — see useDocumentLogAccess.finalizeSave. Covers
+      // Add-mode too, since savedTranId comes from this save's own response
+      // rather than the (Add-mode-stale) recordId. Best-effort throughout: a
+      // failure here must never be treated as this save having failed — it
+      // already succeeded by this point.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -1223,7 +1272,7 @@ export default function AssetsEmployeeIssueForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, notify, completeSuccessfulSave, flushPendingCellEvents]);
+  }, [headerColumns, allColumns, columns, isEditRoute, recordId, docLog.finalizeSave, notify, completeSuccessfulSave, flushPendingCellEvents]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
@@ -1257,7 +1306,7 @@ export default function AssetsEmployeeIssueForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || scanQrOpen,
+    blocked: itemModalOpen || scanQrOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -1267,9 +1316,16 @@ export default function AssetsEmployeeIssueForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onScanQr: focusHeaderScanField,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state (matches Indent's convention) —
+    // docLog.documentsButtonEntry already encodes this (null when permission
+    // gates say no), spread in/out of the array so ActionBar's own
+    // `showAlways || isEditMode` filter hides/shows it with Add/Edit mode
+    // the same way every other extra button does.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -1280,7 +1336,7 @@ export default function AssetsEmployeeIssueForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
@@ -1550,6 +1606,19 @@ export default function AssetsEmployeeIssueForm() {
           ) : null}
         </div>
       </Modal>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.fromdivisionid}
+          tranTypeId={AEI_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_ISSUE}
+          guid={docLog.docGuid}
+        />
+      </Suspense>
     </div>
   );
 }

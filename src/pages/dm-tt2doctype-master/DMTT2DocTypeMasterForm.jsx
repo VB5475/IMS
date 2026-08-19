@@ -128,6 +128,7 @@ export default function DMTT2DocTypeMasterForm({
   defsError = null,
   departmentOptions = [],
   onDepartmentChange,
+  onTranTypeChange,
 }) {
   const { post } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
@@ -141,7 +142,18 @@ export default function DMTT2DocTypeMasterForm({
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+
   const [fieldValidationFailed, setFieldValidationFailed] = useState(false);
+
+  // 2026-08-14 (/pm) — fieldValidationFailed (drives the Save button's
+  // "Please fix the highlighted field(s) below." tooltip) is only ever SET
+  // by handleSave; nothing clears it back to false as the user fixes fields
+  // one at a time (the field change handler only clears fieldErrors for the
+  // field just edited) — so the blocked/tooltip state can outlive every
+  // actual field error. Clear it once fieldErrors is genuinely empty.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) setFieldValidationFailed(false);
+  }, [fieldErrors]);
 
   const headerFields = useMemo(() => getHeaderFields(fieldDefs), [fieldDefs]);
   const dropdownOptions = useMemo(
@@ -167,7 +179,6 @@ export default function DMTT2DocTypeMasterForm({
   const handleDepartmentChange = useCallback(
     async (departmentId) => {
       const normalized = Number(departmentId) || 0;
-      const label = departmentOptions.find((o) => o.value === String(normalized))?.label ?? "";
 
       setHeaderValues((prev) => ({
         ...prev,
@@ -175,6 +186,9 @@ export default function DMTT2DocTypeMasterForm({
         [TT2DOCTYPE_CONFIG.HEADER_TRANTYPE_COL]: 0,
       }));
       setTranTypeOptions([]);
+      // Document Type checklist depends on Tran Type too (see
+      // handleTranTypeChange) — Tran Type just got reset to 0 above, so
+      // there's nothing valid to show until the user picks it again.
       setRows([]);
       setSaveError(null);
       setFieldErrors({});
@@ -184,8 +198,35 @@ export default function DMTT2DocTypeMasterForm({
       setGridsLoading(true);
       setGridsError(null);
       try {
-        const { tranTypeOptions: options, documentTypeRows } = await onDepartmentChange(normalized, label);
+        const { tranTypeOptions: options } = await onDepartmentChange(normalized);
         setTranTypeOptions(options ?? []);
+      } catch (err) {
+        setGridsError(err?.message || "Failed to load tran types.");
+      } finally {
+        setGridsLoading(false);
+      }
+    },
+    [onDepartmentChange]
+  );
+
+  // Document Type checklist source now needs BOTH department + tran type
+  // (2026-08-14 /pm, see constants.js) — fetch it here instead of alongside
+  // Tran Type options at Department-change time.
+  const handleTranTypeChange = useCallback(
+    async (tranTypeId) => {
+      const normalized = Number(tranTypeId) || 0;
+      const departmentId = Number(headerValues[TT2DOCTYPE_CONFIG.HEADER_DEPARTMENT_COL]) || 0;
+
+      setHeaderValues((prev) => ({ ...prev, [TT2DOCTYPE_CONFIG.HEADER_TRANTYPE_COL]: normalized }));
+      setRows([]);
+      setSaveError(null);
+
+      if (!normalized || !departmentId || !onTranTypeChange) return;
+
+      setGridsLoading(true);
+      setGridsError(null);
+      try {
+        const { documentTypeRows } = await onTranTypeChange(departmentId, normalized);
         setRows(documentTypeRows ?? []);
       } catch (err) {
         setGridsError(err?.message || "Failed to load document types.");
@@ -193,7 +234,7 @@ export default function DMTT2DocTypeMasterForm({
         setGridsLoading(false);
       }
     },
-    [onDepartmentChange, departmentOptions]
+    [onTranTypeChange, headerValues]
   );
 
   const handleHeaderChange = useCallback(
@@ -209,9 +250,13 @@ export default function DMTT2DocTypeMasterForm({
         delete next[key];
         return next;
       });
+      if (key === TT2DOCTYPE_CONFIG.HEADER_TRANTYPE_COL) {
+        handleTranTypeChange(value);
+        return;
+      }
       setHeaderValues((prev) => ({ ...prev, [key]: value }));
     },
-    [handleDepartmentChange]
+    [handleDepartmentChange, handleTranTypeChange]
   );
 
   const handleSave = useCallback(async () => {
@@ -243,6 +288,7 @@ export default function DMTT2DocTypeMasterForm({
           [TT2DOCTYPE_CONFIG.HEADER_DEPARTMENT_COL]: departmentId,
           [TT2DOCTYPE_CONFIG.HEADER_TRANTYPE_COL]: tranTypeId,
           [TT2DOCTYPE_CONFIG.GRID_DOCTYPE_COL]: row.documenttypeid,
+          [TT2DOCTYPE_CONFIG.GRID_DOCTYPE_NAME_COL]: row.documenttype,
         })
       );
 

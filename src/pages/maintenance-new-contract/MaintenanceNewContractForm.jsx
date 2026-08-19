@@ -137,6 +137,20 @@ export default function MaintenanceNewContractForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const termsGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
@@ -219,12 +233,12 @@ export default function MaintenanceNewContractForm() {
 
   // Document Log modal (F6) — permission-gate/GUID/button-visibility/
   // post-save-linking logic all lives in the shared useDocumentLogAccess hook
-  // (see PurchaseIndentForm.jsx for the original wiring). Maintenance
-  // Contract (New) isn't a Purchase-department transaction, so it scopes to
-  // the ADMIN department (id=6) rather than PURCHASE_REF_DEPARTMENT_ID.
+  // (see PurchaseIndentForm.jsx for the original wiring). Module-wise
+  // department id (2026-08-14, /pm) — DM Department Master id=7 for this
+  // module, no longer the shared ADMIN_REF_DEPARTMENT_ID.
   const docLog = useDocumentLogAccess({
     tranTypeId: MACNG_CONFIG.DM_TRAN_TYPE_ID,
-    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.MAINTENANCE_CONTRACT_NEW,
     recordId,
     getDivisionId: () => headerValuesRef.current?.divisionid,
     isEditMode,
@@ -1090,7 +1104,7 @@ export default function MaintenanceNewContractForm() {
           tranId={recordId}
           divisionId={headerValuesRef.current?.divisionid}
           tranTypeId={MACNG_CONFIG.DM_TRAN_TYPE_ID}
-          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.MAINTENANCE_CONTRACT_NEW}
           guid={docLog.docGuid}
         />
       </Suspense>

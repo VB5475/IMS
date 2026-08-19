@@ -127,6 +127,20 @@ export default function AssetsClientAllocationForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);

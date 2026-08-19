@@ -75,8 +75,14 @@ export function isDateColumnDef(col) {
 }
 
 /**
- * Normalize picker modal columns so date metadata is available for read-only display.
- * Does not mutate row values — display formatting happens in the grid renderer.
+ * Normalize picker modal columns so date metadata is available for read-only
+ * display, and so column-wise filtering (EntryGrid's `col.filterable`, same
+ * feature/UI as the list pages' EnterpriseDataGrid) is turned on — the
+ * caller's own `buildGridColumns` call builds these with `filterable: false`
+ * (correct for an editable transaction-detail grid), but every consumer of
+ * this normalizer is a read-only PICKER grid instead, where the list-page
+ * filter convention applies. Does not mutate row values — display formatting
+ * happens in the grid renderer.
  * @param {object[]} columns
  */
 export function normalizePickerGridColumns(columns) {
@@ -89,6 +95,7 @@ export function normalizePickerGridColumns(columns) {
       ...col,
       colDataType,
       filterType: isDate ? "date" : col.filterType,
+      filterable: true,
     };
   });
 }

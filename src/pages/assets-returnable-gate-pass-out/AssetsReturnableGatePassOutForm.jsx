@@ -107,6 +107,20 @@ export default function AssetsReturnableGatePassOutForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
@@ -193,14 +207,14 @@ export default function AssetsReturnableGatePassOutForm() {
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Document Log modal (F6) — scoped to this record's id, gated on the
-  // session's Document Log permission flags (set at login). This module is
-  // an Assets/Admin-department transaction (not Purchase), so it scopes to
-  // DM Department Master's "ADMIN" row via ADMIN_REF_DEPARTMENT_ID — see
+  // session's Document Log permission flags (set at login). Module-wise
+  // department id (2026-08-14, /pm) — DM Department Master id=12 for this
+  // module, no longer the shared ADMIN_REF_DEPARTMENT_ID — see
   // useDocumentLogAccess.js for the full permission-gate/GUID/button-
   // visibility/post-save-linking logic (shared, ported from Purchase Indent).
   const docLog = useDocumentLogAccess({
     tranTypeId: ARGO_CONFIG.DM_TRAN_TYPE_ID,
-    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_RETURNABLE_GATE_PASS_OUT,
     recordId,
     getDivisionId: () => headerValuesRef.current?.fromdivisionid,
     isEditMode,
@@ -952,7 +966,7 @@ export default function AssetsReturnableGatePassOutForm() {
           tranId={recordId}
           divisionId={headerValuesRef.current?.fromdivisionid}
           tranTypeId={ARGO_CONFIG.DM_TRAN_TYPE_ID}
-          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_RETURNABLE_GATE_PASS_OUT}
           guid={docLog.docGuid}
         />
       </Suspense>

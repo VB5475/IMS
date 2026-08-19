@@ -79,6 +79,8 @@ export default function ItemMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const [selectedId, setSelectedId] = useState(null);
   const gridRef = useRef(null);
 
@@ -331,6 +333,10 @@ export default function ItemMasterPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["item-master"],
             buildParams: handlePrintParams,
@@ -353,6 +359,10 @@ export default function ItemMasterPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No items found."
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           hideHeader
           deleteProcName={IM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}

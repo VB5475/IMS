@@ -110,6 +110,7 @@ const MaintenanceNewContractForm = lazy(
 );
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
+const WKFMainPage = lazy(() => import("./pages/wkf-main/WKFMainPage"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
 );
@@ -128,6 +129,9 @@ const MainGroupMasterPage = lazy(() => import("./pages/main-group-master/MainGro
 const LocationMasterPage = lazy(() => import("./pages/location-master/LocationMasterPage"));
 const SubMainGroupMasterPage = lazy(() => import("./pages/sub-main-group-master/SubMainGroupMasterPage"));
 const SubGroupMasterPage = lazy(() => import("./pages/sub-group-master/SubGroupMasterPage"));
+const CountryMasterPage = lazy(() => import("./pages/country-master/CountryMasterPage"));
+const CityMasterPage = lazy(() => import("./pages/city-master/CityMasterPage"));
+const StateMasterPage = lazy(() => import("./pages/state-master/StateMasterPage"));
 const UserMasterPage = lazy(() => import("./pages/user-master/UserMasterPage"));
 const UserGroupPage = lazy(() => import("./pages/user-group/UserGroupPage"));
 const DivisionWiseRightsPage = lazy(() => import("./pages/division-wise-rights/DivisionWiseRightsPage"));
@@ -425,11 +429,19 @@ const router = createBrowserRouter([
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
           rbLeaf({ rb: RB.WORKFLOW_DASHBOARD, element: <WorkflowDashboard /> }),
+          // No RB — reached only via a row click on Workflow Dashboard, no
+          // sidebar nav entry (MRD: "New Form Route: Not Present", blank
+          // "Nav Menu Label", confirmed 2026-08-14 /pm). Same plain
+          // param-route pattern as "main/:reportBoardId" above.
+          { path: "wkfmain", element: <WKFMainPage /> },
 
           // Admin — Master modules
           rbLeaf({ rb: RB.MAIN_GROUP_MASTER, element: <MainGroupMasterPage /> }),
           rbLeaf({ rb: RB.SUB_MAIN_GROUP_MASTER, element: <SubMainGroupMasterPage /> }),
           rbLeaf({ rb: RB.SUB_GROUP_MASTER, element: <SubGroupMasterPage /> }),
+          rbLeaf({ rb: RB.COUNTRY_MASTER, element: <CountryMasterPage /> }),
+          rbLeaf({ rb: RB.STATE_MASTER, element: <StateMasterPage /> }),
+          rbLeaf({ rb: RB.CITY_MASTER, element: <CityMasterPage /> }),
           rbLeaf({ rb: RB.LOCATION_MASTER, element: <LocationMasterPage /> }),
           rbLeaf({ rb: RB.DIVISION_MASTER, element: <DivisionMasterPage /> }),
           rbLeaf({ rb: RB.ASSETS_ITEM_OPENING_EXCEL, element: <AssetsItemOpeningExcelForm /> }),

@@ -155,11 +155,16 @@ export function useDMGroupRights() {
     [get]
   );
 
-  /** "Get Detail" — Department+Group scoped (2-named-arg FUNCTION, confirmed
-   *  live, see constants.js). Both ids are required — the caller (form's
-   *  `canGetDetail`) already gates on both being selected. */
+  /** "Get Detail" — Department+Group scoped, 2026-08-14 (/pm) now a
+   *  3-named-arg FUNCTION: (prmdepartmentid, prmgroupid, prmishardcoded).
+   *  `prmishardcoded` is the System Defined / User Define checkbox pair's
+   *  selected value — System Defined = 1 ("hardcoded" by the system), User
+   *  Define = 0 — the caller (DMGroupRightsForm's handleGetDetail) derives
+   *  this from headerValues and passes it as the 3rd positional arg. Both
+   *  ids are still required — the caller's `canGetDetail` already gates on
+   *  both being selected. */
   const fetchGridRows = useCallback(
-    async (departmentId, groupId, gridColumnDefs = gridColumns) => {
+    async (departmentId, groupId, isHardcoded, gridColumnDefs = gridColumns) => {
       const normalizedDept = Number(departmentId) || 0;
       const normalizedGroup = Number(groupId) || 0;
       if (!normalizedDept || !normalizedGroup) return [];
@@ -167,7 +172,11 @@ export function useDMGroupRights() {
       const mstRes = await get(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: CFG.SP_GET_DETAIL,
-        JSon: JSON.stringify([{ prmdepartmentid: normalizedDept, prmgroupid: normalizedGroup }]),
+        JSon: JSON.stringify([{
+          prmdepartmentid: normalizedDept,
+          prmgroupid: normalizedGroup,
+          prmishardcoded: Number(isHardcoded) === 1 ? 1 : 0,
+        }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });

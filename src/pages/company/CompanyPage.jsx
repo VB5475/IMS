@@ -59,6 +59,8 @@ export default function CompanyPage() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   const [modalOpen,    setModalOpen]    = useState(false);
@@ -126,6 +128,10 @@ export default function CompanyPage() {
           title="Company"
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["company"],
             buildParams: buildCompanyReportParams,
@@ -148,6 +154,10 @@ export default function CompanyPage() {
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage="No companies found."
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           hideHeader
           fill
         />

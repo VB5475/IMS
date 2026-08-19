@@ -41,6 +41,8 @@ export default function DocumentSubTypeMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -145,6 +147,10 @@ export default function DocumentSubTypeMasterPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["document-subtype-master"],
             buildParams: buildDocSubTypeReportParams,
@@ -168,6 +174,10 @@ export default function DocumentSubTypeMasterPage() {
           emptyMessage="No document subtypes found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           onDeleteSuccess={fetchList}
           fill
         />

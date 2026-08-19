@@ -32,6 +32,13 @@ export const RB_CODES = Object.freeze({
   ACCOUNT_GROUP_MASTER: "rb_acountgroupmst",
   ACCOUNT_MASTER: "rb_accountmst",
   TRANSPORTER_MASTER: "rb_transportermst",
+  // MRD_Template4CountryMaster.docx / MRD_Template4CityMaster.docx (Aditya,
+  // 17-Jun-2026) — flat masters, City cascades off Country (Country -> State).
+  COUNTRY_MASTER: "rb_countrymst",
+  CITY_MASTER: "rb_citymst",
+  // MRD_Template4StateMaster.docx (Aditya, 17-Jun-2026) — Country + State Type
+  // static dropdowns (no cascade between them), same family as Country/City Master.
+  STATE_MASTER: "rb_statemst",
   // ⚠️ CONFIRM with DBA — MRD's Nav/Route labels say "Document Type Master"
   // but the embedded screen design & RB name ("wkf" = workflow, "dop" =
   // Delegation Of Power) both confirm this is DOP Master, an approval-
@@ -148,6 +155,9 @@ export const RB_ROUTE_PATHS = Object.freeze({
   // Master" — literal en-dash, duplicated "Supplier") — using the sibling
   // Supplier/Customer Master route shape instead.
   [RB_CODES.TRANSPORTER_MASTER]: "/admin/master/transporter-master",
+  [RB_CODES.COUNTRY_MASTER]: "/admin/master/item/country-master",
+  [RB_CODES.CITY_MASTER]: "/admin/master/item/city-master",
+  [RB_CODES.STATE_MASTER]: "/admin/master/item/state-master",
   [RB_CODES.DOP_MASTER]: "/admin/dop-master",
 
   // DMS module — namespaced separately from RB_CODES.DEPARTMENT_MASTER's

@@ -360,6 +360,18 @@
     color var(--transition);
 }
 
+/* Reports section items render as <button>, not <NavLink> (they open a
+   modal instead of navigating) — reset native button chrome so they're
+   visually identical to every routed .ent-sidebar__link anchor. */
+button.ent-sidebar__link {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .ent-sidebar__link-icon {
   display: flex;
   align-items: center;

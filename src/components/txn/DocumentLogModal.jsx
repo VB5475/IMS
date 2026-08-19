@@ -31,8 +31,10 @@ import { AlertCircle, Plus, FolderSearch, RefreshCw, Save as SaveIcon, FileText 
 import Modal from "../ui/Modal";
 import EntryGrid from "../grid/EntryGrid";
 import AlertPanel from "../ui/AlertPanel";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import Loader from "../ui/Loader";
 import { getColDefault } from "../../api/constants";
+import { validateGridRowsDetailed } from "../../utils/columnValidation";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useNotification } from "../../context/NotificationContext";
 import { useDocumentLog } from "../../hooks/useDocumentLog";
@@ -128,6 +130,11 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
   const [refFetched, setRefFetched] = useState(false);
   const [uploadedLoading, setUploadedLoading] = useState(false);
   const [formErrors, setFormErrors] = useState([]);
+  // Per-cell RB validation (mandatory/varchar-length/etc., from docsColumns'
+  // own GetDetailColData metadata) — same `${rowId}:${colKey}` Map shape
+  // EntryGrid's `cellErrors` prop already supports, just not yet used by any
+  // other caller in this app.
+  const [cellErrors, setCellErrors] = useState(new Map());
   // Docs grid rows staged (added/uploaded) but not yet explicitly saved via
   // this modal's own Save button — captured on close (see handleModalClose)
   // since the grid itself unmounts with <Modal>. Survives close/reopen and
@@ -155,18 +162,45 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     docGridRef.current?.addRow(buildBlankRow(docsColumns));
   }, [docsColumns]);
 
+  // Delete confirmation — covers BOTH the toolbar "Delete" (bulk, checked
+  // rows) AND the per-row Delete button (Docs grid's Delete column, one per
+  // row). 2026-08-17 (/pm): the per-row button used to fire immediately with
+  // no confirmation at all — for an unsaved row that just meant an
+  // un-confirmed grid-row removal (never a record delete, since there's
+  // nothing saved yet to delete), but for an already-saved row it meant an
+  // un-confirmed real DM_Doc_Delete API call. Both now go through the same
+  // confirm dialog as the toolbar bulk action, one pending-action ref
+  // covering either shape.
+  const pendingDeleteRef = useRef(null); // { type: "bulk", ids } | { type: "row", row }
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
   const handleDeleteSelected = useCallback(() => {
     const selected = docGridRef.current?.getSelectedRows?.() ?? [];
     if (!selected.length) return;
-    docGridRef.current?.removeRows(selected.map((r) => r.id));
+    pendingDeleteRef.current = { type: "bulk", ids: selected.map((r) => r.id) };
+    setDeleteConfirmOpen(true);
   }, []);
 
-  // "Refresh" (Docs section) — appends documents already uploaded for this
-  // transaction straight into the SAME Docs grid (one grid only, per
-  // explicit user correction — an earlier separate "Uploaded Documents"
-  // grid was reverted). Each appended row is tagged `_isUploaded: true` so
-  // it can be told apart from a genuine new draft row: handleSave filters
-  // these out before building the save payload (still never resubmitted/
+  const requestDeleteRow = useCallback((row) => {
+    pendingDeleteRef.current = { type: "row", row };
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleCancelDelete = useCallback(() => {
+    pendingDeleteRef.current = null;
+    setDeleteConfirmOpen(false);
+  }, []);
+
+  // "Refresh" (Docs section) — rebuilds the already-uploaded-documents part
+  // of the Docs grid from scratch on every click (2026-08-13 /pm): any
+  // `_isUploaded` rows left over from a previous Refresh are removed first,
+  // then the freshly fetched set is added — so repeated clicks reflect the
+  // server's current state instead of accumulating duplicate rows. Genuine
+  // in-progress draft rows (never `_isUploaded`) are left untouched, one
+  // grid only per explicit user correction — an earlier separate "Uploaded
+  // Documents" grid was reverted. Each rebuilt row is tagged `_isUploaded:
+  // true` so it can be told apart from a draft row: handleSave filters these
+  // out before building the save payload (still never resubmitted/
   // duplicated). Per explicit user correction 2026-07-30, these rows are
   // otherwise fully NORMAL/editable/selectable — the earlier isRowDisabled
   // greyed-out treatment was removed.
@@ -174,6 +208,12 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     setUploadedLoading(true);
     try {
       const rows = await fetchUploadedDocs({ refTranTypeId: tranTypeId, tranId, guid });
+      const staleUploadedIds = (docGridRef.current?.getRows?.() ?? [])
+        .filter((r) => r._isUploaded)
+        .map((r) => r.id);
+      if (staleUploadedIds.length > 0) {
+        docGridRef.current?.removeRows(staleUploadedIds);
+      }
       (rows || []).forEach((r, i) => {
         const rowId = r.idnumber ?? r.IDNumber ?? `_uploaded_${i}`;
         docGridRef.current?.addRow({
@@ -294,6 +334,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
   // been saved (a real idnumber, same guard handleView uses above). A row
   // that was only ever staged locally (added/uploaded but never saved) has
   // nothing server-side to delete, so it's just dropped from the grid.
+  // Only ever invoked after the user confirms via handleConfirmDelete below.
   const handleDelete = useCallback(
     async (row) => {
       const docId = Number(row.idnumber ?? row.IDNumber ?? row.id);
@@ -320,6 +361,18 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     },
     [deleteDoc, notify]
   );
+
+  const handleConfirmDelete = useCallback(() => {
+    const pending = pendingDeleteRef.current;
+    pendingDeleteRef.current = null;
+    setDeleteConfirmOpen(false);
+    if (!pending) return;
+    if (pending.type === "bulk") {
+      docGridRef.current?.removeRows(pending.ids);
+    } else {
+      handleDelete(pending.row);
+    }
+  }, [handleDelete]);
 
   // Upload — opens the native file picker for the clicked row. REVERSED
   // 2026-07-31 (explicit user instruction): Upload no longer calls the save
@@ -364,18 +417,29 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       } else if (col.key === CFG.VIEW_COL) {
         handleView(row);
       } else if (col.key === CFG.DELETE_COL) {
-        handleDelete(row);
+        requestDeleteRow(row);
       }
     },
-    [handleUploadClick, handleView, handleDelete]
+    [handleUploadClick, handleView, requestDeleteRow]
   );
 
   const handleSave = useCallback(async () => {
     // Exclude already-uploaded rows appended by "Refresh" — those are
     // display-only, never resubmitted (see handleFetchUploadedDocs).
     const rows = (docGridRef.current?.getRows?.() ?? []).filter((r) => !r._isUploaded);
-    if (rows.length === 0) {
-      setFormErrors(["Please add at least one document row before saving."]);
+    // RB-driven validation (mandatory/varchar-length/etc., from docsColumns'
+    // own GetDetailColData metadata) — same validateGridRowsDetailed used by
+    // every transaction form's own detail grid, so a row missing a mandatory
+    // field (e.g. Document Type) is blocked here exactly like it would be
+    // blocked on any other Save button in this app, with the offending
+    // cell(s) highlighted via cellErrors.
+    const { errors, cellErrors: rowCellErrors } = validateGridRowsDetailed(rows, docsColumns, {
+      requireAtLeastOne: true,
+      emptyMessage: "Please add at least one document row before saving.",
+    });
+    setCellErrors(rowCellErrors);
+    if (errors.length > 0) {
+      setFormErrors(errors);
       return;
     }
     setFormErrors([]);
@@ -412,7 +476,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       console.error("[DocumentLogModal] Save failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
     }
-  }, [saveDocs, tranId, divisionId, tranTypeId, refDepartmentId, guid, notify, onClose]);
+  }, [docsColumns, saveDocs, tranId, divisionId, tranTypeId, refDepartmentId, guid, notify, onClose]);
 
   // Fires on every path that closes this modal (X, Cancel, Escape) — grabs
   // whatever's currently in the Docs grid before <Modal> unmounts it and
@@ -422,6 +486,8 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
   const handleModalClose = useCallback(() => {
     const rows = (docGridRef.current?.getRows?.() ?? []).filter((r) => !r._isUploaded);
     setPendingRows(rows);
+    setFormErrors([]);
+    setCellErrors(new Map());
     onClose?.();
   }, [onClose]);
 
@@ -492,6 +558,16 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
         </>
       }
     >
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        type="danger"
+        message="Are you sure you want to delete record?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
+
       {/* Hidden native file picker, shared by every row's Upload button —
           pendingUploadRowRef tracks which row triggered it. */}
       <input
@@ -511,7 +587,13 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
         </div>
       ) : (
         <>
-          <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
+          <AlertPanel
+            errors={formErrors}
+            onDismiss={() => {
+              setFormErrors([]);
+              setCellErrors(new Map());
+            }}
+          />
 
           {SHOW_REFERENCE_DOCS_TAB && (
             <section className="workspace-page__grid" style={{ marginBottom: 16 }}>
@@ -557,6 +639,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
               initialRows={pendingRows}
               eventColumns={DOCTYPE_EVENT_COLUMNS}
               onCellEvent={handleDocTypeCellEvent}
+              cellErrors={cellErrors}
               headerControls={
                 <>
                   <button

@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import Loader from "../ui/Loader";
+import RefreshButton from "../ui/RefreshButton";
 import "./enterprise-filter-query.css";
 
 const COLS = 3;
@@ -471,6 +472,11 @@ function FilterTable({
   fieldTones = null,
   layout = "table",
   fieldErrors = null,
+  // Extra content (e.g. Workflow Dashboard's status buttons, 2026-08-17
+  // /pm) rendered as additional flex items in the SAME row as the filter
+  // controls — dashboard layout only; .dfv2-slicers already flex-wraps, so
+  // this just joins that same row instead of needing its own section below.
+  children = null,
 }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
@@ -506,6 +512,7 @@ function FilterTable({
             error={fieldErrors?.[filter.FilterColName]}
           />
         ))}
+        {children}
       </div>
     );
   }
@@ -583,6 +590,13 @@ export default function EnterpriseFilterPanel({
   onOrderItem = null,
   orderItemLabel = "Order Item",
   OrderItemIcon = null,
+  // "Refresh" button, beside Search (2026-08-14 /pm) — opt-in, same shared
+  // RefreshButton component list pages already use. Distinct from onSearch:
+  // the caller decides what "refresh" means (e.g. Workflow Dashboard calls a
+  // separate refresh endpoint first, then re-runs its own onSearch).
+  onRefresh = null,
+  refreshLabel = "Refresh",
+  isRefreshing = false,
   initialValues = null,
   cascadeResets = null,
   externalValues = null,
@@ -593,6 +607,7 @@ export default function EnterpriseFilterPanel({
   onLastFieldTabForward = null,
   enableKeyboardNav = true,
   apiBaseUrl,
+  children = null,
 }) {
   const { get } = useApi(apiBaseUrl);
 
@@ -851,6 +866,10 @@ export default function EnterpriseFilterPanel({
     if (onSearch) onSearch(values, filters);
   }, [onSearch, values, filters]);
 
+  const handleRefreshClick = useCallback(() => {
+    if (onRefresh) onRefresh(values, filters);
+  }, [onRefresh, values, filters]);
+
   const handleReset = useCallback(() => {
     setValues({ ...defaults });
   }, [defaults]);
@@ -935,7 +954,7 @@ export default function EnterpriseFilterPanel({
   );
 
   const showToolbarActions =
-    !showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem);
+    !showDynamicLoader && !showEntryMetaLoader && !errorMsg && (onSearch || onOrderItem || onRefresh);
 
   const ToolbarActions = showToolbarActions && (
     <div className={isDashboardLayout ? "dfv2-filter-bar__actions" : "efq-command__actions"}>
@@ -969,6 +988,14 @@ export default function EnterpriseFilterPanel({
           <SecondaryIcon size={14} strokeWidth={2.5} />
           {orderItemLabel}
         </button>
+      )}
+      {onRefresh && (
+        <RefreshButton
+          onClick={handleRefreshClick}
+          loading={isRefreshing}
+          label={refreshLabel}
+          disabled={isSearching}
+        />
       )}
       {onSearch && ActionButton}
     </div>
@@ -1064,7 +1091,9 @@ export default function EnterpriseFilterPanel({
               fieldTones={fieldTones}
               layout={layout}
               fieldErrors={fieldErrors}
-            />
+            >
+              {children}
+            </FilterTable>
           </div>
 
           {appliedChips.length > 0 && !isEntryMode && (

@@ -105,6 +105,27 @@
   background: var(--dfv2-wash-alt);
 }
 
+/* "Refresh" (2026-08-14 /pm) — the shared RefreshButton component's own
+   CSS (RefreshButton.css) is styled for list-page toolbars, not this
+   dashboard header, so it visually clashed sitting next to Reset/Search
+   here (smaller height, different border-radius/font tokens). Override to
+   match .dfv2-btn-reset exactly — same secondary-action visual weight. */
+.dashboard-filter-v2 .refresh-btn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border-color: var(--dfv2-border);
+  background: var(--dfv2-surface);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.dashboard-filter-v2 .refresh-btn:hover:not(:disabled) {
+  border-color: var(--secondary);
+  color: var(--dfv2-ink);
+  background: var(--dfv2-wash-alt);
+}
+
 .dashboard-filter-v2 .efq-panel--dashboard .efq-btn-run {
   height: 32px;
   padding: 0 14px;

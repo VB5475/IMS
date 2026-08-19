@@ -44,7 +44,7 @@ export const DOCSUBTYPE_CONFIG = {
   SP_RB_META: "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_dm_docsubtypemst",
   /** Department dropdown — DM's own list (see note above). */
-  SP_DEPARTMENT: "fn_tbl_dm_department_list",
+  SP_DEPARTMENT: "fn_tbl_rb_dm_docsubtypemst_deptlist",
   /** Document Type dropdown — cascades off selected Department, takes prmdepartmentid (see 2026-08-04 header note). */
   SP_DOCUMENT_TYPE: "fn_tbl_fetch_documenttype",
 

@@ -104,6 +104,20 @@ export default function AssetsStockTransferForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
+  // at validation time, into formErrors) doesn't auto-update as the user
+  // fixes fields one at a time (each field's own change handler only clears
+  // fieldErrors for the field just edited) — so a field that's valid again
+  // can still show the stale banner above it. Clearing just the known
+  // header-validation banner string (not touching any other message already
+  // in formErrors, e.g. save-failure/business-rule/detail-grid errors) once
+  // every field error is gone fixes that without hiding unrelated errors.
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length === 0) {
+      setFormErrors((prev) => prev.filter((m) => m !== "Please fix the highlighted field(s) below."));
+    }
+  }, [fieldErrors]);
+
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
@@ -186,15 +200,14 @@ export default function AssetsStockTransferForm() {
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Document Log modal (F6) — scoped to this record's id, gated on the
-  // session's Document Log permission flags. Not a Purchase-department
-  // transaction, so it uses the ADMIN ref department (see
-  // documentLogConfig.js's ADMIN_REF_DEPARTMENT_ID) — user-confirmed via
-  // AskUserQuestion. All permission-gate/GUID/button-visibility/post-save-
-  // linking logic lives in the shared useDocumentLogAccess hook — see that
-  // file for the full contract.
+  // session's Document Log permission flags. Module-wise department id
+  // (2026-08-14, /pm) — DM Department Master id=12 for this module, no
+  // longer the shared ADMIN_REF_DEPARTMENT_ID. All permission-gate/GUID/
+  // button-visibility/post-save-linking logic lives in the shared
+  // useDocumentLogAccess hook — see that file for the full contract.
   const docLog = useDocumentLogAccess({
     tranTypeId: AST_CONFIG.DM_TRAN_TYPE_ID,
-    refDepartmentId: DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_STOCK_TRANSFER,
     recordId,
     getDivisionId: () => headerValuesRef.current?.fromdivisionid,
     isEditMode,
@@ -948,7 +961,7 @@ export default function AssetsStockTransferForm() {
           tranId={recordId}
           divisionId={headerValuesRef.current?.fromdivisionid}
           tranTypeId={AST_CONFIG.DM_TRAN_TYPE_ID}
-          refDepartmentId={DOC_LOG_CFG.ADMIN_REF_DEPARTMENT_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_STOCK_TRANSFER}
           guid={docLog.docGuid}
         />
       </Suspense>

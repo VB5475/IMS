@@ -1,6 +1,8 @@
 // useDMTT2DocTypeMaster.js — Transaction To Document Type Master (DMS module).
 // Direct-form hook: RB header field metadata + Department options up front,
-// then Tran Type + Document Type checklist fetched per selected department.
+// then Tran Type fetched per selected department, then the Document Type
+// checklist fetched once Tran Type is also selected (2026-08-14 /pm — its
+// source SP now takes both department and tran type, see constants.js).
 // See constants.js for the confirmed live-SP gap around round-tripping
 // already-saved checks.
 
@@ -96,33 +98,42 @@ export function useDMTT2DocTypeMaster() {
     [get]
   );
 
-  /** Checklist rows for the grid — filtered client-side by department label.
-   *  `checked` always starts false: see constants.js's confirmed-gap note,
-   *  there is no SP to read back already-saved checks. */
+  /** Checklist rows for the grid — genuinely scoped server-side by department
+   *  + tran type (2026-08-14 /pm: fn_tbl_fetch_documenttypett2doc(@prmdeptid,
+   *  @prmreftrantypeid), replacing the old flat-list-plus-client-side-filter
+   *  approach). Needs both ids; returns [] rather than calling the SP with a
+   *  missing one.
+   *
+   *  Row shape confirmed live (curl against IMS_LIVE, 2026-08-14 /pm):
+   *  { ref_documenttypeid, ref_documenttypename, ischecked } — NOT the old
+   *  flat list's { idnumber, name }. This also closes the "CONFIRMED GAP" in
+   *  constants.js's header comment (no way to read back already-saved
+   *  checks): `ischecked` (1/0) IS the already-mapped flag for this exact
+   *  department+trantype, live-verified with real data (e.g. dept=1/tt=1
+   *  returned "Purchase Indent" with ischecked:1 among ~40 other rows at 0). */
   const fetchDocumentTypeRows = useCallback(
-    async (departmentLabel) => {
+    async (departmentId, tranTypeId) => {
+      if (!departmentId || !tranTypeId) return [];
       try {
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: TT2DOCTYPE_CONFIG.LIST_OBJ_TYPE,
           ObjName: TT2DOCTYPE_CONFIG.SP_DOCUMENT_TYPE,
-          JSon: JSON.stringify([{}]),
+          JSon: JSON.stringify([{
+            prmdeptid: Number(departmentId),
+            prmreftrantypeid: Number(tranTypeId),
+          }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });
         const rows = resolveDetailColLinks(res);
-        const scoped = departmentLabel
-          ? rows.filter(
-              (r) => String(r.department ?? r.Department ?? "").toUpperCase() === departmentLabel.toUpperCase()
-            )
-          : rows;
-        return scoped
+        return rows
           .map((r) => {
-            const idnumber = Number(r.idnumber ?? r.IDNumber) || 0;
+            const idnumber = Number(r.ref_documenttypeid ?? r.Ref_DocumentTypeID) || 0;
             if (!idnumber) return null;
             return {
               documenttypeid: idnumber,
-              documenttype: String(r.name ?? r.Name ?? ""),
-              checked: false,
+              documenttype: String(r.ref_documenttypename ?? r.Ref_DocumentTypeName ?? ""),
+              checked: Number(r.ischecked ?? r.IsChecked) === 1,
             };
           })
           .filter(Boolean);

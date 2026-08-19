@@ -43,6 +43,8 @@ export default function AssetsEmployeeTransferPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -97,6 +99,10 @@ export default function AssetsEmployeeTransferPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["assets-employee-transfer"],
             buildParams: buildAetReportParams,
@@ -120,6 +126,10 @@ export default function AssetsEmployeeTransferPage() {
           emptyMessage="No Employee Location Transfer records found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={AET_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

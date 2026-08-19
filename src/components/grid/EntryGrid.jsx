@@ -27,7 +27,7 @@ import React, {
   lazy,
   Suspense,
 } from "react";
-import { ChevronDown, ChevronRight, StickyNote } from "lucide-react";
+import { ChevronDown, ChevronRight, StickyNote, Filter } from "lucide-react";
 import GridSearch from "./GridSearch";
 const SearchSelect = lazy(() => import("../ui/SearchSelect"));
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
@@ -36,6 +36,7 @@ const GridDatePicker = lazy(() => import("./GridDatePicker"));
 const GridNumberInput = lazy(() => import("./GridNumberInput"));
 import Loader from "../ui/Loader";
 import Modal from "../ui/Modal";
+import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
 import "./EntryGrid.css";
 
 const gridCellLazyFallback = (
@@ -490,9 +491,55 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     setPage(1);
   }, []);
 
+  // ── Column-wise filter (opt-in via col.filterable) ─────────────────
+  // Same shared ColumnFilter popup + applyColumnFilterValue/isFilterActive
+  // used by the list pages' EnterpriseDataGrid — ported here so picker
+  // grids (OrderItemModal/TermsPickerModal/SupplierPickerModal, via
+  // normalizePickerGridColumns forcing filterable:true) get the same
+  // per-column filter UX. Every other EntryGrid caller builds its columns
+  // with filterable:false (buildGridColumns' entry-grid default), so this
+  // is a no-op for them — no icon renders, no behavior change.
+  const [columnFilters, setColumnFilters] = useState({});
+  const [activeFilterCol, setActiveFilterCol] = useState(null);
+
+  const filterButtonRefs = useRef({});
+  const getFilterRef = useCallback((key) => {
+    if (!filterButtonRefs.current[key]) {
+      filterButtonRefs.current[key] = React.createRef();
+    }
+    return filterButtonRefs.current[key];
+  }, []);
+
+  const toggleFilter = useCallback((colKey) => {
+    setActiveFilterCol((prev) => (prev === colKey ? null : colKey));
+  }, []);
+
+  const handleFilterChange = useCallback((colKey, value) => {
+    setColumnFilters((prev) => ({ ...prev, [colKey]: value }));
+    setPage(1);
+  }, []);
+
+  const handleFilterClear = useCallback((colKey) => {
+    setColumnFilters((prev) => {
+      const n = { ...prev };
+      delete n[colKey];
+      return n;
+    });
+    setPage(1);
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    let data = searchedRows;
+    Object.entries(columnFilters).forEach(([key, filterValue]) => {
+      const col = columns.find((c) => c.key === key);
+      data = applyColumnFilterValue(data, key, filterValue, col);
+    });
+    return data;
+  }, [searchedRows, columnFilters, columns]);
+
   // ── Sort ──────────────────────────────────────────────────────────
   const processedRows = useMemo(() => {
-    let data = [...searchedRows];
+    let data = [...filteredRows];
     if (sortConfig.key) {
       data.sort((a, b) => {
         const aVal = a[sortConfig.key] ?? "";
@@ -509,7 +556,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       });
     }
     return data;
-  }, [searchedRows, sortConfig]);
+  }, [filteredRows, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -1076,7 +1123,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               <GridSearch
                 query={searchQuery}
                 onChange={handleSearchChange}
-                matchCount={searchedRows.length}
+                matchCount={filteredRows.length}
                 totalCount={rows.length}
               />
             )}
@@ -1091,7 +1138,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
               <GridSearch
                 query={searchQuery}
                 onChange={handleSearchChange}
-                matchCount={searchedRows.length}
+                matchCount={filteredRows.length}
                 totalCount={rows.length}
               />
             )}
@@ -1104,7 +1151,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             <GridSearch
               query={searchQuery}
               onChange={handleSearchChange}
-              matchCount={searchedRows.length}
+              matchCount={filteredRows.length}
               totalCount={rows.length}
             />
           )}
@@ -1143,7 +1190,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             <table className="erp-table">
               <thead>
                 <tr>
-                  {columns.map((col) => (
+                  {columns.map((col) => {
+                    const filterActive = col.filterable && isFilterActive(columnFilters[col.key]);
+                    const filterRef = col.filterable ? getFilterRef(col.key) : null;
+                    return (
                     <th
                       key={col.id}
                       className={`${cellClass(col) || ""} ${getHeaderThemeClass(col)}`}
@@ -1185,6 +1235,20 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                               </span>
                             )}
                           </span>
+                          {col.filterable && (
+                            <span
+                              ref={filterRef}
+                              className={`eg-filter-icon${filterActive ? " eg-filter-icon--active" : ""}`}
+                              onClick={() => toggleFilter(col.key)}
+                              role="button"
+                              aria-label={filterActive ? `Filter applied on ${col.name}` : `Filter ${col.name}`}
+                              title={filterActive ? `Filter applied on ${col.name}` : `Filter ${col.name}`}
+                              data-filter-active={filterActive ? "true" : "false"}
+                            >
+                              <Filter size={11} strokeWidth={filterActive ? 2.5 : 2} />
+                              {filterActive && <span className="eg-filter-dot" aria-hidden="true" />}
+                            </span>
+                          )}
                         </div>
                       )}
                       <div
@@ -1192,7 +1256,8 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                         onMouseDown={(e) => handleResizeStart(e, col.id)}
                       />
                     </th>
-                  ))}
+                    );
+                  })}
                 </tr>
               </thead>
 
@@ -1475,6 +1540,24 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           )}
         </Modal>
       )}
+
+      {activeFilterCol &&
+        (() => {
+          const col = columns.find((c) => c.key === activeFilterCol);
+          if (!col) return null;
+          return (
+            <ColumnFilter
+              col={col}
+              allRows={searchedRows}
+              value={columnFilters[activeFilterCol]}
+              onChange={handleFilterChange}
+              onClear={handleFilterClear}
+              onClose={() => setActiveFilterCol(null)}
+              anchorRef={getFilterRef(activeFilterCol)}
+              getDisplayLabel={(c, rawVal) => getDropdownLabel(c, rawVal)}
+            />
+          );
+        })()}
     </div>
   );
 });

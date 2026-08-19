@@ -147,6 +147,12 @@
   background: var(--bg-tint);
 }
 
+/* Stays mounted after first expand (see CollapsibleGrid.jsx) so the nested
+   uncontrolled EntryGrid's row data survives later collapses. */
+.cg-body--hidden {
+  display: none;
+}
+
 .cg-scroll-host {
   display: block;
   box-sizing: border-box;

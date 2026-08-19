@@ -99,7 +99,14 @@ export const DMGR_CONFIG = {
   SP_DEPARTMENT_LIST_USER_DEFINED: "fn_tbl_fetch_rb_grouprights_userDefined",
 
   /** "Get Detail" — fetches this Department+Group's existing rights rows.
-   *  2-named-arg FUNCTION, confirmed live: (prmdepartmentid, prmgroupid). */
+   *  UPDATED 2026-08-14 (/pm) — now a 3-named-arg FUNCTION: (prmdepartmentid,
+   *  prmgroupid, prmishardcoded). prmishardcoded is the System Defined / User
+   *  Define checkbox pair's selected value (System Defined=1, User Define=0)
+   *  — see useDMGroupRights.js's fetchGridRows. Live-verified 2026-08-14:
+   *  Group=1/Department=PURCHASE(1)/System Defined returned a full, real,
+   *  populated grid (Purchase Order/Inward/QC/Indent/... rows) — the
+   *  "table is still empty" note elsewhere in this file is now stale for at
+   *  least this combination. */
   SP_GET_DETAIL: "fn_tbl_rb_dm_groupright_getdata",
 
   SAVE_ENDPOINT: "/API/DM_GroupRight/Post_RB_DM_GroupRight_Save",

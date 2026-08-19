@@ -54,6 +54,8 @@ export default function AssetsWriteOffPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   usePageHeader({
@@ -108,6 +110,10 @@ export default function AssetsWriteOffPage() {
           onAdd={handleAddNew}
           onRefresh={fetchList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["assets-write-off"],
             buildParams: buildAwfReportParams,
@@ -131,6 +137,10 @@ export default function AssetsWriteOffPage() {
           emptyMessage="No Assets Write Off records found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={AWF_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchList}
           fill

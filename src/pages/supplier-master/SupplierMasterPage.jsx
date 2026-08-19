@@ -74,6 +74,8 @@ export default function SupplierMasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -143,6 +145,10 @@ export default function SupplierMasterPage() {
           onAdd={handleAddNew}
           onRefresh={fetchSupplierList}
           refreshing={loading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={searchStats.matchCount}
+          totalCount={searchStats.totalCount}
           print={{
             ...PRINT_REPORT_CONFIG["supplier-master"],
             buildParams: buildSupplierMasterReportParams,
@@ -166,6 +172,10 @@ export default function SupplierMasterPage() {
           emptyMessage="No suppliers found."
           hideHeader
           searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           deleteProcName={SM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchSupplierList}
           fill
