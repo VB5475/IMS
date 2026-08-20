@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Plus, Trash2, Package, ClipboardList, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, ClipboardList, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -601,18 +601,6 @@ export default function MaintenanceNewContractForm() {
     }
   }, [termsColumns, allTermsColumns, fetchTermsGridColumns]);
 
-  const handleAddNewItem = useCallback(async () => {
-    if (activeTab === "terms") {
-      const activeCols = await ensureTermsColumns();
-      if (!activeCols?.length) return;
-      addTermsRow(buildGridRow({}, allTermsColumns));
-      return;
-    }
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    addItemRow(buildGridRow({}, allColumns));
-  }, [activeTab, ensureItemColumns, ensureTermsColumns, addItemRow, addTermsRow, allColumns, allTermsColumns]);
-
   const openPickerModal = useCallback(() => {
     setItemModalOpen(true);
     setItemModalItems([]);
@@ -991,17 +979,6 @@ export default function MaintenanceNewContractForm() {
           </div>
 
           <div className="grid-tabbar__controls">
-            <button
-              type="button"
-              className="eg-tab-btn"
-              onClick={handleAddNewItem}
-              disabled={!isEditMode}
-              title={activeTab === "terms" ? "Add a blank terms row" : "Add a blank contract item row"}
-            >
-              <Plus size={12} strokeWidth={2.5} />
-              Add New
-            </button>
-
             {activeTab === "items" ? (
               <button
                 ref={selectItemBtnRef}
@@ -1046,7 +1023,7 @@ export default function MaintenanceNewContractForm() {
             config={itemGridConfig}
             title=""
             hideBottomPanel
-            emptyMessage="No items yet. Click Add New or Select Item above."
+            emptyMessage="No items yet. Click Select Item above."
             onSelectionChange={setItemSelectionCount}
             onCellEvent={(evt) => handleCellEvent({ ...evt, gridRef: itemGridRef })}
             eventColumns={QTY_RATE_EVENT_COLUMNS}
@@ -1062,7 +1039,7 @@ export default function MaintenanceNewContractForm() {
             config={termsGridConfig}
             title=""
             hideBottomPanel
-            emptyMessage="No terms & conditions yet. Click Add New or Select Item above."
+            emptyMessage="No terms & conditions yet. Click Select Item above."
             onSelectionChange={setTermsSelectionCount}
             onCellEvent={(evt) => handleCellEvent({ ...evt, gridRef: termsGridRef })}
             eventColumns={QTY_RATE_EVENT_COLUMNS}
