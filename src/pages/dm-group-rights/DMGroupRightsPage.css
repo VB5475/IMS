@@ -72,25 +72,6 @@
   align-items: center;
 }
 
-.dmgr-form-radio {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 8px 20px 8px 8px;
-  margin-left: auto;
-}
-
-.dmgr-form-radio label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
 .dmgr-get-detail-btn {
   display: inline-flex;
   align-items: center;

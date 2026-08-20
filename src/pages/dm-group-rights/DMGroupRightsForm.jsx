@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Save, AlertCircle, Search } from "lucide-react";
 import MasterFormField from "../../components/forms/MasterFormField";
 import AlertPanel from "../../components/ui/AlertPanel";
@@ -25,20 +25,26 @@ function asDropdownField(col) {
 }
 
 // issystemdefine/isuserdefine come back as ColCtrlType 12 (unmapped in this
-// codebase's control-type set) — forced to CHECKBOX here; mutual exclusivity
-// (only one of the pair "on") is enforced in handleHeaderChange below, since
-// the RB metadata doesn't encode that itself (they're 2 independent columns,
-// not one shared radio-group column).
+// codebase's control-type set) — forced to CHECKBOX here purely so
+// isMasterCheckboxField() recognizes them and validateMasterFormFields skips
+// the mandatory-empty check on them (see 2026-08-20 /pm: neither renders in
+// the UI any more, so nothing would ever satisfy a "required" check on
+// them). Values are fixed, not user-toggleable — see buildEmptyHeaderValues.
 function asCheckboxField(col) {
   if (!col) return null;
   return { ...col, ColCtrlType: controlTypeMap.CHECKBOX };
 }
 
+// 2026-08-20 (/pm): "User Define" is gone from the UI entirely — this module
+// is System Defined only now. System Defined is fixed at 1 (checked) with no
+// visible toggle either; it still travels in the save/Get-Detail payload
+// (both SPs take prmissystemdefine/prmisuserdefine as separate params), just
+// no longer user-editable.
 function buildEmptyHeaderValues() {
   return {
     [DMGR_CONFIG.HEADER_GROUP_COL]: 0,
     [DMGR_CONFIG.HEADER_DEPARTMENT_COL]: 0,
-    [DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]: 0,
+    [DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]: 1,
     [DMGR_CONFIG.HEADER_USER_DEFINE_COL]: 0,
   };
 }
@@ -197,46 +203,21 @@ export default function DMGroupRightsForm({
     return {
       group: byName[DMGR_CONFIG.HEADER_GROUP_COL] ?? null,
       department: byName[DMGR_CONFIG.HEADER_DEPARTMENT_COL] ?? null,
-      systemDefine: byName[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL] ?? null,
-      userDefine: byName[DMGR_CONFIG.HEADER_USER_DEFINE_COL] ?? null,
     };
   }, [effectiveHeaderColumns]);
 
-  const handleHeaderChange = useCallback(
-    (colName, value) => {
-      setHeaderValues((prev) => {
-        const next = { ...prev, [colName]: value };
-        // Mutual exclusivity — 2 independent columns, not one radio-group
-        // column, so enforced here rather than by the RB metadata itself.
-        if (colName === DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL && getCheckboxValue(value) === 1) {
-          next[DMGR_CONFIG.HEADER_USER_DEFINE_COL] = 0;
-        }
-        if (colName === DMGR_CONFIG.HEADER_USER_DEFINE_COL && getCheckboxValue(value) === 1) {
-          next[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL] = 0;
-        }
+  const handleHeaderChange = useCallback((colName, value) => {
+    setHeaderValues((prev) => ({ ...prev, [colName]: value }));
+  }, []);
 
-        // The checkbox pair swaps which catalog feeds the Department
-        // dropdown — the previously-selected department may not exist in
-        // the new catalog, so clear it rather than leave a stale selection.
-        if (colName === DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL || colName === DMGR_CONFIG.HEADER_USER_DEFINE_COL) {
-          const systemOn = getCheckboxValue(next[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]) === 1;
-          const userOn = getCheckboxValue(next[DMGR_CONFIG.HEADER_USER_DEFINE_COL]) === 1;
-          next[DMGR_CONFIG.HEADER_DEPARTMENT_COL] = 0;
-          onDefineModeChange?.(systemOn ? "system" : userOn ? "user" : null);
-        }
-        return next;
-      });
-    },
-    [onDefineModeChange]
-  );
-
-  // Department's option list already swaps by define-type (see
-  // handleHeaderChange/onDefineModeChange above) — this additionally keeps
-  // the dropdown disabled until one of the two is actually chosen, so a
-  // Department can't be picked from the baseline catalog by accident.
-  const isDefineTypeChosen =
-    getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]) === 1 ||
-    getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_USER_DEFINE_COL]) === 1;
+  // This module is System Defined only now — no checkbox pair to pick from
+  // (see buildEmptyHeaderValues), so the Department catalog is always the
+  // System Defined one, fetched once on mount instead of on a checkbox
+  // toggle that no longer exists.
+  useEffect(() => {
+    onDefineModeChange?.("system");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const canGetDetail =
     Number(headerValues[DMGR_CONFIG.HEADER_GROUP_COL]) > 0 &&
@@ -404,25 +385,6 @@ export default function DMGroupRightsForm({
                   options={groupOptions}
                 />
               </div>
-
-              <span className="dmgr-form-radio">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]) === 1}
-                    onChange={(e) => handleHeaderChange(DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL, e.target.checked ? 1 : 0)}
-                  />
-                  {getMasterFieldLabel(fieldsByCol.systemDefine, { [DMGR_CONFIG.HEADER_SYSTEM_DEFINE_COL]: "System Defined" })}
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={getCheckboxValue(headerValues[DMGR_CONFIG.HEADER_USER_DEFINE_COL]) === 1}
-                    onChange={(e) => handleHeaderChange(DMGR_CONFIG.HEADER_USER_DEFINE_COL, e.target.checked ? 1 : 0)}
-                  />
-                  {getMasterFieldLabel(fieldsByCol.userDefine, { [DMGR_CONFIG.HEADER_USER_DEFINE_COL]: "User Define" })}
-                </label>
-              </span>
             </div>
 
             <div className="dmgr-form-row">
@@ -435,8 +397,6 @@ export default function DMGroupRightsForm({
                   value={headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL]}
                   onChange={(val) => handleHeaderChange(DMGR_CONFIG.HEADER_DEPARTMENT_COL, val)}
                   options={departmentOptions}
-                  disabled={!isDefineTypeChosen}
-                  placeholder={isDefineTypeChosen ? undefined : "Select System Defined or User Define first"}
                 />
               </div>
 

@@ -17,6 +17,11 @@ export const AHS_CONFIG = {
   RB_MASTER: RB_CODES.ASSETS_HEALTH_STATUS_UPDATION,
   ROUTE_PATH: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION),
   DELETE_PROC_NAME: "pr_rb_asthealstamst_delete",
+  // Document Log (F6) — this module's own DM Tran Type id, used by
+  // useDocumentLogAccess. Department id is DM Department Master id=12, same
+  // shared Assets-department id as Assets Employee Issue/Return — see
+  // documentLogConfig.js's REF_DEPARTMENT_ID.ASSETS_HEALTH_STATUS_UPDATION.
+  DM_TRAN_TYPE_ID: 325,
   RB_DETAIL: "rb_asthealstadet",
   RB_ITEM_PICKER: "rb_asthealstaselonly",
 

@@ -14,6 +14,14 @@ export const REPORTS_LIST = [
     label: "Fix Asset Register",
     reportTitle: "Fixed Asset Register",
     reportFileName: "RptFixedAssetSummItemMLNWise.rpt",
+    // Confirmed 2026-08-18 (/tl, from RptFixedAssetSummItemMLNWise's own SP
+    // param list) — this pair is proven ONLY for this report, not a generic
+    // report-modal default. Don't copy these onto the other 6 entries below
+    // without the same per-report confirmation.
+    extraParams: [
+      { paramtitle: "Is Division Checked", paramname: "@prmisselectivedivisionchecked", paramval: "1", paramtext: "Is Division Checked" },
+      { paramtitle: "Module Code", paramname: "@prmmodulecode", paramval: "Account", paramtext: "Module Code" },
+    ],
   },
   {
     key: "returnable-out-register",

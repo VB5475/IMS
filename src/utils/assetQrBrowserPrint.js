@@ -17,7 +17,7 @@ function escapeHtml(value) {
 function buildStickerCardHtml(label, logoUrl) {
   const rows = [
     ["Tag", label.tag || label.itemcode],
-    ["Model", label.model || label.itemname],
+    ["Name", label.model || label.itemname],
     ["S/N", label.serial || label.srno],
     ["E", label.employee || ""],
   ];
@@ -29,14 +29,14 @@ function buildStickerCardHtml(label, logoUrl) {
     </div>
     <div class="sticker-card__fields">
       ${rows
-        .map(
-          ([labelText, value]) => `
+      .map(
+        ([labelText, value]) => `
         <div class="sticker-card__row">
           <span class="sticker-card__label">${escapeHtml(labelText)}:</span>
           <span class="sticker-card__value">${escapeHtml(value)}</span>
         </div>`
-        )
-        .join("")}
+      )
+      .join("")}
     </div>
     <div class="sticker-card__logo">
       <img src="${escapeHtml(logoUrl)}" alt="IMS" />
@@ -54,7 +54,10 @@ function buildPrintDocument(labels, size, logoUrl) {
 <meta charset="utf-8" />
 <title>Asset stickers</title>
 <style>
-  @page { size: ${widthIn}in ${heightIn}in; margin: 0; }
+  @page { 
+    size: ${widthIn}in ${heightIn}in; 
+    margin: 0.05in; 
+  }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
@@ -78,20 +81,22 @@ function buildPrintDocument(labels, size, logoUrl) {
     }
   }
   .sticker-card {
-    width: ${widthIn}in;
-    height: ${heightIn}in;
-    page-break-after: always;
+    width: calc(${widthIn}in - 0.1in);
+    height: calc(${heightIn}in - 0.1in);
+    margin: 0 auto;
+    border: 1.5px solid #000;
+    page-break-inside: avoid;
+    break-inside: avoid;
     display: flex;
     align-items: center;
-    gap: 0.18in;
-    padding: 0.16in 0.18in;
+    gap: 0.1in;
+    padding: 0.1in 0.12in;
     background: #fff;
     overflow: hidden;
   }
-  .sticker-card:last-child { page-break-after: auto; }
   .sticker-card__qr {
-    width: 1.7in;
-    height: 1.7in;
+    width: 1.2in;
+    height: 1.2in;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -107,31 +112,36 @@ function buildPrintDocument(labels, size, logoUrl) {
   .sticker-card__fields {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
-    line-height: 1.55;
+    font-size: 9.5px;
+    line-height: 1.3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .sticker-card__row {
     display: flex;
-    gap: 6px;
-    margin-bottom: 3px;
+    gap: 4px;
+    margin-bottom: 2px;
   }
   .sticker-card__label {
     font-weight: 700;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .sticker-card__value {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
   }
   .sticker-card__logo {
-    width: 0.72in;
-    height: 0.72in;
+    width: 0.5in;
+    height: 0.5in;
     flex-shrink: 0;
     border-radius: 50%;
     overflow: hidden;
     align-self: flex-start;
-    margin-top: 0.06in;
+    margin-top: 0.02in;
     background: #fff;
   }
   .sticker-card__logo img {

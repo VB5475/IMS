@@ -286,6 +286,10 @@ export const DOCUMENT_LOG_CONFIG = {
     // for these 2 (not a repoint of an existing ADMIN/PURCHASE default).
     ASSETS_EMPLOYEE_ISSUE: 12,
     ASSETS_EMPLOYEE_RETURN: 12,
+    // 2026-08-19 (/pm) — same shared Assets-family department id as the two
+    // above; this module's own DM_TRAN_TYPE_ID (325) lives in its own
+    // constants.js, not here (matches every other module's split).
+    ASSETS_HEALTH_STATUS_UPDATION: 12,
   },
 
   // "Refresh" button (Docs section) — appends documents ALREADY uploaded for
