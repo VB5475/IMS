@@ -25,10 +25,8 @@ import { createPortal } from "react-dom";
 import { Filter, Calendar, Hash, Type } from "lucide-react";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { sanitizeNativeDateInput } from "../../utils/dateFormat";
+import DateInput from "../ui/DateInput";
 import "./column-filter.css";
-
-const NATIVE_DATE_MIN = "1000-01-01";
-const NATIVE_DATE_MAX = "9999-12-31";
 
 const ICONS = {
   list: <Filter size={13} />,
@@ -209,28 +207,18 @@ export default function ColumnFilter({
       onChange(colKey, { ...base, [field]: sanitizeNativeDateInput(val) });
     };
     const bindDateInput = (field, current) => ({
-      type: "date",
-      min: NATIVE_DATE_MIN,
-      max: NATIVE_DATE_MAX,
       value: current,
-      onChange: (e) => set(field, e.target.value),
-      onInput: (e) => {
-        const raw = e.target.value;
-        const yearPart = String(raw).trim().match(/^(\d+)-/)?.[1];
-        if (!yearPart || yearPart.length <= 4) return;
-        const sanitized = sanitizeNativeDateInput(raw);
-        if (sanitized) set(field, sanitized);
-      },
+      onChange: (next) => set(field, next),
     });
     return (
       <div className="cf-date-range">
         <div className="cf-date-field">
           <label>From</label>
-          <input {...bindDateInput("from", from)} />
+          <DateInput {...bindDateInput("from", from)} />
         </div>
         <div className="cf-date-field">
           <label>To</label>
-          <input {...bindDateInput("to", to)} />
+          <DateInput {...bindDateInput("to", to)} />
         </div>
       </div>
     );

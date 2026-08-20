@@ -148,7 +148,15 @@ function shouldNavigateOnArrow(e) {
     return false;
   }
 
-  if (el.type === "checkbox" || el.type === "date") {
+  if (el.type === "date") {
+    return false;
+  }
+
+  if (el.dataset?.dateSegmentInput === "true") {
+    return false;
+  }
+
+  if (el.type === "checkbox") {
     return true;
   }
 

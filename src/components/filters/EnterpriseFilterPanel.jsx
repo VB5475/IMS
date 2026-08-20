@@ -11,11 +11,11 @@ import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
 import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
 import { selectInputText } from "../../utils/focusUtils";
-import { formatColumnDisplayValue, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
+import { formatColumnDisplayValue, getDateInputConstraints, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
 import GridNumberInput from "../grid/GridNumberInput";
 import RequiredFieldMark from "../ui/RequiredFieldMark";
-import { handleDateArrowKeys } from "../../utils/dateFormat";
+import DateInput from "../ui/DateInput";
 import {
   AlertCircle,
   Search,
@@ -240,30 +240,28 @@ function FilterControl({
           );
         }
         {
-          // Chromium allows 5–6 digit years when max is unset; always bound to 4-digit years.
-          const dateMin = filter.dateMin || "0001-01-01";
-          const dateMax = filter.dateMax || "9999-12-31";
+          const dateConstraints = filter.columnMeta
+            ? getDateInputConstraints(filter.columnMeta)
+            : { min: filter.dateMin ?? null, max: filter.dateMax ?? null };
+          const dateMin = dateConstraints.min || filter.dateMin || "0001-01-01";
+          const dateMax = dateConstraints.max || filter.dateMax || "9999-12-31";
+          const dateInputFormat = filter.columnMeta?.inputFormat ?? "";
           return (
-            <input
+            <DateInput
               id={`efq-${FilterColName}`}
-              type="date"
               className={`efq-cell__input efq-cell__input--date${inputErrorClass}`}
               value={value || ""}
+              inputFormat={dateInputFormat}
+              onChange={(next) => {
+                const yearPart = String(next || "").split("-")[0] || "";
+                if (yearPart.length > 4) return;
+                onChange(FilterColName, next);
+              }}
               onFocus={() => {
                 lastValidValueRef.current = value || "";
               }}
-              onChange={(e) => {
-                const yearPart = String(e.target.value || "").split("-")[0] || "";
-                if (yearPart.length > 4) return;
-                handleChange(e);
-              }}
-              onKeyDown={(e) =>
-                handleDateArrowKeys(e, value || "", (next) => onChange(FilterColName, next), {
-                  nativeInput: true,
-                })
-              }
-              onBlur={(e) => {
-                handleBlurValidate(e.target.value);
+              onBlur={() => {
+                handleBlurValidate(value || "");
               }}
               min={dateMin}
               max={dateMax}
