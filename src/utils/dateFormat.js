@@ -21,7 +21,13 @@ export const MONTH_ABBR = [
 ];
 
 const DEFAULT_DATE_DISPLAY_FORMAT = "DD/MM/YYYY";
-const DEFAULT_DATE_PICKER_FORMAT = "dd/MM/yyyy";
+export const DEFAULT_DATE_PICKER_FORMAT = "dd/MM/yyyy";
+
+/** GET_DETAIL_COL_DATA InputFormat, or dd/MM/yyyy when empty. */
+export function resolveDateInputFormat(inputFormat = "") {
+  const trimmed = String(inputFormat ?? "").trim();
+  return trimmed || DEFAULT_DATE_PICKER_FORMAT;
+}
 
 /** Convert API InputFormat tokens (dd-MMM-yy) to dayjs format tokens. */
 export function inputFormatToDayjs(format) {
@@ -181,10 +187,181 @@ export function getTodayDateInputValue() {
   return `${y}-${m}-${d}`;
 }
 
+/** Convert stored/API date values to yyyy-MM-dd for native date inputs. */
+export function toNativeDateInputValue(value) {
+  const date = parseFlexibleDate(value);
+  if (!date) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /** Shift a native date input value (yyyy-mm-dd) by days. */
 export function shiftNativeDateInputValue(value, days) {
+  return shiftNativeDateInputValueBySegment(value, "day", days);
+}
+
+const nativeDateSegmentByInput = new WeakMap();
+
+/** Visual segment order for the current locale (e.g. dd/mm/yyyy vs mm/dd/yyyy). */
+function getNativeDateInputSegmentOrder() {
+  const parts = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(2000, 0, 15));
+  const order = parts
+    .filter((part) => part.type === "year" || part.type === "month" || part.type === "day")
+    .map((part) => part.type);
+  return order.length === 3 ? order : ["year", "month", "day"];
+}
+
+function getNativeDateInputSegmentFromSelection(input) {
+  const pos = input.selectionStart ?? 0;
+  if (pos <= 4) return "year";
+  if (pos <= 7) return "month";
+  if (pos >= 8) return "day";
+  return null;
+}
+
+/** Infer segment from horizontal click position within a native date input. */
+export function inferNativeDateInputSegmentFromPointer(input, clientX) {
+  const rect = input.getBoundingClientRect();
+  if (!rect.width) return "year";
+  const order = getNativeDateInputSegmentOrder();
+  const ratio = (clientX - rect.left) / rect.width;
+  const idx = ratio < 0.33 ? 0 : ratio < 0.66 ? 1 : 2;
+  return order[idx];
+}
+
+export function setNativeDateInputSegment(input, segment) {
+  if (!(input instanceof HTMLInputElement) || input.type !== "date") return;
+  if (segment !== "year" && segment !== "month" && segment !== "day") return;
+  nativeDateSegmentByInput.set(input, segment);
+  setNativeDateInputSelection(input, segment);
+}
+
+/** Which yyyy-mm-dd segment is active in a native date input (year | month | day). */
+export function getNativeDateInputSegment(input) {
+  if (!(input instanceof HTMLInputElement) || input.type !== "date") return "day";
+  const tracked = nativeDateSegmentByInput.get(input);
+  if (tracked) return tracked;
+  return getNativeDateInputSegmentFromSelection(input) ?? getNativeDateInputSegmentOrder()[0];
+}
+
+/** Track active segment on click/focus — native inputs rarely update selectionStart. */
+export function handleNativeDateInputSegmentInteraction(e) {
+  const input = e.target;
+  if (!(input instanceof HTMLInputElement) || input.type !== "date") return false;
+
+  if (e.type === "click" || e.type === "mouseup") {
+    const clientX = e.clientX;
+    requestAnimationFrame(() => {
+      const fromSelection = getNativeDateInputSegmentFromSelection(input);
+      const segment =
+        fromSelection ?? inferNativeDateInputSegmentFromPointer(input, clientX);
+      setNativeDateInputSegment(input, segment);
+    });
+    return true;
+  }
+
+  if (e.type === "focus") {
+    const order = getNativeDateInputSegmentOrder();
+    if (!nativeDateSegmentByInput.has(input)) {
+      setNativeDateInputSegment(input, order[0]);
+    } else {
+      setNativeDateInputSelection(input, nativeDateSegmentByInput.get(input));
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/** ArrowLeft / ArrowRight move between year, month, and day segments. */
+export function handleNativeDateInputSegmentNavigation(e) {
+  const input = e.target;
+  if (!(input instanceof HTMLInputElement) || input.type !== "date") return false;
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return false;
+
+  e.preventDefault();
+
+  const order = getNativeDateInputSegmentOrder();
+  let segment = getNativeDateInputSegment(input);
+  let idx = order.indexOf(segment);
+  if (idx < 0) idx = 0;
+
+  if (e.key === "ArrowRight") {
+    const nextIdx = (idx + 1) % order.length;
+    setNativeDateInputSegment(input, order[nextIdx]);
+    return true;
+  }
+
+  const nextIdx = (idx - 1 + order.length) % order.length;
+  setNativeDateInputSegment(input, order[nextIdx]);
+  return true;
+}
+
+/** Combined key handler for native date inputs (segment nav + arrow up/down). */
+export function handleNativeDateInputKeyDown(e, currentValue, onChange) {
+  if (handleNativeDateInputSegmentNavigation(e)) {
+    e.stopPropagation();
+    return true;
+  }
+  const liveValue =
+    e.target instanceof HTMLInputElement && e.target.type === "date"
+      ? e.target.value
+      : currentValue;
+  const handled = handleDateArrowKeys(e, liveValue ?? currentValue, onChange, {
+    nativeInput: true,
+  });
+  if (handled) e.stopPropagation();
+  return handled;
+}
+
+/**
+ * Shared event handlers for native `<input type="date">` — click/focus tracking,
+ * Left/Right segment focus, Up/Down value changes.
+ */
+export function getNativeDateInputProps(value, onChange, { onFocus, onBlur } = {}) {
+  const currentValue = value ?? "";
+  return {
+    onFocus: (e) => {
+      onFocus?.(e);
+      handleNativeDateInputSegmentInteraction(e);
+    },
+    onClick: handleNativeDateInputSegmentInteraction,
+    onMouseUp: handleNativeDateInputSegmentInteraction,
+    onKeyDown: (e) => handleNativeDateInputKeyDown(e, currentValue, onChange),
+    ...(onBlur ? { onBlur } : {}),
+  };
+}
+
+/** Restore text selection to a yyyy-mm-dd segment after programmatic value changes. */
+export function setNativeDateInputSelection(input, segment) {
+  if (!(input instanceof HTMLInputElement) || input.type !== "date") return;
+  const len = input.value?.length || 10;
+  if (segment === "year") {
+    input.setSelectionRange(0, 4);
+  } else if (segment === "month") {
+    input.setSelectionRange(5, 7);
+  } else {
+    input.setSelectionRange(8, len);
+  }
+}
+
+/** Shift a native date input value by year, month, or day segment. */
+export function shiftNativeDateInputValueBySegment(value, segment, delta) {
   const base = parseFlexibleDate(value) ?? new Date();
-  const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+  let next;
+  if (segment === "year") {
+    next = new Date(base.getFullYear() + delta, base.getMonth(), base.getDate());
+  } else if (segment === "month") {
+    next = new Date(base.getFullYear(), base.getMonth() + delta, base.getDate());
+  } else {
+    next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + delta);
+  }
   const y = next.getFullYear();
   const m = String(next.getMonth() + 1).padStart(2, "0");
   const d = String(next.getDate()).padStart(2, "0");
@@ -215,7 +392,8 @@ export function sanitizeNativeDateInput(value) {
 }
 
 /** ArrowUp / ArrowDown on date fields — returns true when handled.
- *  With nativeInput, Tab / Shift+Tab leave the control (skip y/m/d segments).
+ *  With nativeInput, shifts the focused yyyy-mm-dd segment (year / month / day).
+ *  Tab / Shift+Tab leave the control (skip y/m/d segments).
  */
 export function handleDateArrowKeys(e, currentValue, onChange, { nativeInput = false } = {}) {
   if (nativeInput && e.key === "Tab") {
@@ -224,11 +402,282 @@ export function handleDateArrowKeys(e, currentValue, onChange, { nativeInput = f
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   e.preventDefault();
   const delta = e.key === "ArrowUp" ? -1 : 1;
-  const next = nativeInput
-    ? shiftNativeDateInputValue(currentValue, delta)
-    : shiftStoredDate(currentValue, delta);
-  onChange(next);
+  if (nativeInput) {
+    const input = e.target;
+    const segment = getNativeDateInputSegment(input);
+    const baseValue = input.value || currentValue || "";
+    const next = shiftNativeDateInputValueBySegment(baseValue, segment, delta);
+    onChange(next);
+    requestAnimationFrame(() => {
+      if (document.activeElement === input) {
+        setNativeDateInputSegment(input, segment);
+      }
+    });
+    return true;
+  }
+  onChange(shiftStoredDate(currentValue, delta));
   return true;
+}
+
+// ── Text-based segmented date input (visible segment focus via setSelectionRange) ──
+
+let cachedLocaleDateDisplayConfig = null;
+const dateDisplayConfigCache = new Map();
+const textDateSegmentByInput = new WeakMap();
+
+function resolveInputDisplayConfig(inputOrFormat) {
+  if (inputOrFormat instanceof HTMLInputElement) {
+    return getDateDisplayConfig(inputOrFormat.dataset.dateInputFormat || "");
+  }
+  return getDateDisplayConfig(typeof inputOrFormat === "string" ? inputOrFormat : "");
+}
+
+/** Locale display pattern + segment positions (e.g. dd/MM/yyyy). */
+export function getLocaleDateDisplayConfig() {
+  if (cachedLocaleDateDisplayConfig) return cachedLocaleDateDisplayConfig;
+
+  const parts = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(2000, 0, 15));
+
+  let pattern = "";
+  const segments = [];
+  let pos = 0;
+
+  for (const part of parts) {
+    if (part.type === "literal") {
+      pattern += part.value;
+      pos += part.value.length;
+    } else if (part.type === "day") {
+      pattern += "dd";
+      segments.push({ type: "day", start: pos, end: pos + 2 });
+      pos += 2;
+    } else if (part.type === "month") {
+      pattern += "MM";
+      segments.push({ type: "month", start: pos, end: pos + 2 });
+      pos += 2;
+    } else if (part.type === "year") {
+      pattern += "yyyy";
+      segments.push({ type: "year", start: pos, end: pos + 4 });
+      pos += 4;
+    }
+  }
+
+  cachedLocaleDateDisplayConfig = {
+    pattern,
+    segments,
+    order: segments.map((seg) => seg.type),
+    inputFormat: "",
+    pickerFormat: inputFormatToDatePicker(""),
+  };
+  return cachedLocaleDateDisplayConfig;
+}
+
+/** Display/segment config from GET_DETAIL_COL_DATA InputFormat, else dd/MM/yyyy. */
+export function getDateDisplayConfig(inputFormat = "") {
+  const resolved = resolveDateInputFormat(inputFormat);
+  if (dateDisplayConfigCache.has(resolved)) return dateDisplayConfigCache.get(resolved);
+
+  const fmt = inputFormatToDatePicker(resolved);
+  const segments = [];
+  let pattern = "";
+  let pos = 0;
+
+  for (let i = 0; i < fmt.length; ) {
+    if (fmt.startsWith("yyyy", i)) {
+      pattern += "yyyy";
+      segments.push({ type: "year", start: pos, end: pos + 4 });
+      pos += 4;
+      i += 4;
+    } else if (fmt.startsWith("MMM", i)) {
+      pattern += "MMM";
+      segments.push({ type: "month", start: pos, end: pos + 3 });
+      pos += 3;
+      i += 3;
+    } else if (fmt.startsWith("MM", i)) {
+      pattern += "MM";
+      segments.push({ type: "month", start: pos, end: pos + 2 });
+      pos += 2;
+      i += 2;
+    } else if (fmt.startsWith("dd", i)) {
+      pattern += "dd";
+      segments.push({ type: "day", start: pos, end: pos + 2 });
+      pos += 2;
+      i += 2;
+    } else {
+      pattern += fmt[i];
+      pos += 1;
+      i += 1;
+    }
+  }
+
+  const cfg = {
+    pattern,
+    segments,
+    order: segments.map((seg) => seg.type),
+    inputFormat: resolved,
+    pickerFormat: fmt,
+  };
+  dateDisplayConfigCache.set(resolved, cfg);
+  return cfg;
+}
+
+/** Clamp yyyy-mm-dd to optional min/max bounds. */
+export function clampNativeDateValue(value, min, max) {
+  const normalized = sanitizeNativeDateInput(value);
+  if (!normalized) return value ?? "";
+  if (min && normalized < min) return min;
+  if (max && normalized > max) return max;
+  return normalized;
+}
+
+/** Format stored value for segmented date text input. */
+export function formatDateInputDisplay(value, inputFormat = "") {
+  const date = parseFlexibleDate(value);
+  if (!date) return "";
+  return dayjs(date).format(inputFormatToDayjs(resolveDateInputFormat(inputFormat)));
+}
+
+/** Parse segmented date text input to yyyy-mm-dd; null when invalid. */
+export function parseDateInputDisplay(display, inputFormat = "") {
+  if (display == null || String(display).trim() === "") return "";
+  const parsed = dayjs(
+    String(display).trim(),
+    inputFormatToDayjs(resolveDateInputFormat(inputFormat)),
+    true
+  );
+  if (!parsed.isValid()) return null;
+  return toNativeDateInputValue(parsed.toDate());
+}
+
+function getTextDateInputSegment(input, config) {
+  const tracked = textDateSegmentByInput.get(input);
+  if (tracked) return tracked;
+  const pos = input.selectionStart ?? 0;
+  for (const seg of config.segments) {
+    if (pos >= seg.start && pos <= seg.end) return seg.type;
+  }
+  return config.order[0];
+}
+
+function setTextDateInputSegment(input, segment, config) {
+  const seg = config.segments.find((s) => s.type === segment);
+  if (!seg) return;
+  textDateSegmentByInput.set(input, segment);
+  input.setSelectionRange(seg.start, seg.end);
+}
+
+function handleTextDateInputSegmentInteraction(e) {
+  const input = e.target;
+  if (!(input instanceof HTMLInputElement)) return false;
+
+  const config = resolveInputDisplayConfig(input);
+
+  if (e.type === "click" || e.type === "mouseup") {
+    requestAnimationFrame(() => {
+      const segment = getTextDateInputSegment(input, config);
+      setTextDateInputSegment(input, segment, config);
+    });
+    return true;
+  }
+
+  if (e.type === "focus") {
+    if (!textDateSegmentByInput.has(input)) {
+      setTextDateInputSegment(input, config.order[0], config);
+    } else {
+      setTextDateInputSegment(input, textDateSegmentByInput.get(input), config);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function handleTextDateInputSegmentNavigation(e) {
+  const input = e.target;
+  if (!(input instanceof HTMLInputElement)) return false;
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return false;
+
+  e.preventDefault();
+  const config = resolveInputDisplayConfig(input);
+  const segment = getTextDateInputSegment(input, config);
+  const idx = config.order.indexOf(segment);
+  const safeIdx = idx < 0 ? 0 : idx;
+  const nextIdx =
+    e.key === "ArrowRight"
+      ? (safeIdx + 1) % config.order.length
+      : (safeIdx - 1 + config.order.length) % config.order.length;
+  const nextSegment = config.order[nextIdx];
+  setTextDateInputSegment(input, nextSegment, config);
+  return true;
+}
+
+function handleTextDateInputKeyDown(e, nativeValue, onChange, { min, max } = {}) {
+  if (handleTextDateInputSegmentNavigation(e)) {
+    e.stopPropagation();
+    return true;
+  }
+
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+
+  e.preventDefault();
+  const input = e.target;
+  const config = resolveInputDisplayConfig(input);
+  const segment = getTextDateInputSegment(input, config);
+  const inputFormat = input.dataset.dateInputFormat || "";
+  const baseValue =
+    nativeValue || parseDateInputDisplay(input.value, inputFormat) || "";
+  const delta = e.key === "ArrowUp" ? -1 : 1;
+  const next = clampNativeDateValue(
+    shiftNativeDateInputValueBySegment(baseValue, segment, delta),
+    min,
+    max
+  );
+
+  onChange(next);
+  requestAnimationFrame(() => {
+    if (document.activeElement === input) {
+      setTextDateInputSegment(input, segment, config);
+    }
+  });
+  e.stopPropagation();
+  return true;
+}
+
+/** Event handlers for text segmented date inputs (visible focus + arrow keys). */
+export function getTextDateInputProps(
+  nativeValue,
+  onChange,
+  { onFocus, onBlur, inputFormat = "", min, max } = {}
+) {
+  const currentValue = nativeValue ?? "";
+  const resolvedFormat = resolveDateInputFormat(inputFormat);
+  const displayConfig = getDateDisplayConfig(resolvedFormat);
+
+  return {
+    "data-date-segment-input": "true",
+    "data-date-input-format": resolvedFormat,
+    maxLength: displayConfig.pattern.length,
+    placeholder: displayConfig.pattern.toLowerCase(),
+    onFocus: (e) => {
+      onFocus?.(e);
+      handleTextDateInputSegmentInteraction(e);
+    },
+    onClick: handleTextDateInputSegmentInteraction,
+    onMouseUp: handleTextDateInputSegmentInteraction,
+    onKeyDown: (e) => {
+      if (e.key === "Tab") {
+        if (handleDateInputTabKey(e)) {
+          e.stopPropagation();
+        }
+        return;
+      }
+      handleTextDateInputKeyDown(e, currentValue, onChange, { min, max });
+    },
+    ...(onBlur ? { onBlur } : {}),
+  };
 }
 
 export function formatDateForDisplay(value, inputFormat = "") {
