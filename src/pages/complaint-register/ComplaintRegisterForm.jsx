@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Plus, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -503,12 +503,6 @@ export default function ComplaintRegisterForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
-  const handleAddNewItem = useCallback(async () => {
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    addItemRow(buildGridRow({}, allColumns));
-  }, [ensureItemColumns, addItemRow, allColumns]);
-
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -800,17 +794,6 @@ export default function ComplaintRegisterForm() {
           headerControls={
             <>
               <button
-                type="button"
-                className="eg-tab-btn"
-                onClick={handleAddNewItem}
-                disabled={!isEditMode}
-                title="Add a blank complaint item row"
-              >
-                <Plus size={12} strokeWidth={2.5} />
-                Add New
-              </button>
-
-              <button
                 ref={selectItemBtnRef}
                 type="button"
                 className="eg-tab-btn"
@@ -835,7 +818,7 @@ export default function ComplaintRegisterForm() {
             </>
           }
           hideBottomPanel
-          emptyMessage="No items yet. Click Add New or Select Item above."
+          emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
