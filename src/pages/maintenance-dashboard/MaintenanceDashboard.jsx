@@ -271,26 +271,7 @@ export default function MaintenanceDashboard() {
       FilterColName: "asondate",
       FilterCaption: "As on Date",
       FilterColCtrlType: controlTypeMap.DATE,
-      columnMeta: { displayName: "As on Date", dataKind: "date", isMandatory: true },
-    },
-    {
-      FilterParameterID: "typeofcalls",
-      FilterColName: "typeofcalls",
-      FilterCaption: "Type of Calls",
-      FilterColCtrlType: controlTypeMap.DROPDOWN,
-      staticOptions: callTypeOptions.map((row) => ({
-        value: String(row.idnumber),
-        label: String(row.calltype ?? ""),
-      })),
-      columnMeta: { displayName: "Type of Calls", dataKind: "numeric", isMandatory: true },
-    },
-    {
-      FilterParameterID: "assetstype",
-      FilterColName: "assetstype",
-      FilterCaption: "Asset Type",
-      FilterColCtrlType: controlTypeMap.DROPDOWN,
-      staticOptions: assetTypeOptions,
-      columnMeta: { displayName: "Asset Type", dataKind: "numeric", isMandatory: false },
+      columnMeta: { displayName: "As on Date", dataKind: "date", isMandatory: false },
     },
     {
       FilterParameterID: "divisionid",
@@ -306,7 +287,7 @@ export default function MaintenanceDashboard() {
       FilterCaption: "Location",
       FilterColCtrlType: controlTypeMap.DROPDOWN,
       staticOptions: locationOptions,
-      columnMeta: { displayName: "Location", dataKind: "numeric", isMandatory: true },
+      columnMeta: { displayName: "Location", dataKind: "numeric", isMandatory: false },
     },
     {
       FilterParameterID: "deptid",
@@ -314,7 +295,26 @@ export default function MaintenanceDashboard() {
       FilterCaption: "Department",
       FilterColCtrlType: controlTypeMap.DROPDOWN,
       staticOptions: departmentOptions,
-      columnMeta: { displayName: "Department", dataKind: "numeric", isMandatory: true },
+      columnMeta: { displayName: "Department", dataKind: "numeric", isMandatory: false },
+    },
+    {
+      FilterParameterID: "typeofcalls",
+      FilterColName: "typeofcalls",
+      FilterCaption: "Type of Calls",
+      FilterColCtrlType: controlTypeMap.DROPDOWN,
+      staticOptions: callTypeOptions.map((row) => ({
+        value: String(row.idnumber),
+        label: String(row.calltype ?? ""),
+      })),
+      columnMeta: { displayName: "Type of Calls", dataKind: "numeric", isMandatory: false },
+    },
+    {
+      FilterParameterID: "assetstype",
+      FilterColName: "assetstype",
+      FilterCaption: "Asset Type",
+      FilterColCtrlType: controlTypeMap.DROPDOWN,
+      staticOptions: assetTypeOptions,
+      columnMeta: { displayName: "Asset Type", dataKind: "numeric", isMandatory: false },
     },
   ], [
     assetTypeOptions,
@@ -361,20 +361,8 @@ export default function MaintenanceDashboard() {
   }, [filterValues, loadAssetTypes, loadDepartments, loadLocations, notify]);
 
   const handleSearch = useCallback(async (values) => {
-    const missing = [
-      ["asondate", "As on Date"],
-      ["divisionid", "Division"],
-      ["locationid", "Location"],
-      ["deptid", "Department"],
-    ]
-      .filter(([key]) => !values[key])
-      .map(([, label]) => label);
-
-    if (callTypeOptions.length > 0 && !values.typeofcalls) {
-      missing.push("Type of Calls");
-    }
-    if (missing.length > 0) {
-      notify.error(`Select ${missing.join(", ")} before searching.`);
+    if (!values.divisionid) {
+      notify.error("Select Division before searching.");
       return;
     }
 
