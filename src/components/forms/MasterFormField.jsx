@@ -10,7 +10,8 @@ import {
   validateColumnValue,
 } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
-import { handleDateArrowKeys, parseFlexibleDate } from "../../utils/dateFormat";
+import DateInput from "../ui/DateInput";
+import { parseDateInputDisplay } from "../../utils/dateFormat";
 import { useNotification } from "../../context/NotificationContext";
 import { selectInputText } from "../../utils/focusUtils";
 import {
@@ -25,15 +26,6 @@ import {
 import "./MasterFormField.css";
 
 const GridNumberInput = lazy(() => import("../grid/GridNumberInput"));
-
-function toNativeDateInputValue(value) {
-  const date = parseFlexibleDate(value);
-  if (!date) return "";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function resolveDropdownLabel(options, value) {
   if (value == null || value === "") return "";
@@ -148,13 +140,20 @@ export default function MasterFormField({
     [onChange, revertOnInvalid]
   );
 
+  const handleDateFocus = useCallback(() => {
+    lastValidRef.current = value;
+  }, [value]);
+
   const handleDateBlur = useCallback(
     (e) => {
-      const next = e.target.value;
-      if (!revertOnInvalid(next)) return;
-      onChange(next);
+      const parsed = parseDateInputDisplay(e.target.value, columnMeta?.inputFormat ?? "");
+      if (parsed === null && String(e.target.value || "").trim() !== "") {
+        // DateInput already reverted invalid display on blur.
+        return;
+      }
+      revertOnInvalid(parsed ?? "");
     },
-    [onChange, revertOnInvalid]
+    [revertOnInvalid, columnMeta?.inputFormat]
   );
 
   // Renders the field's control only — locked/type branching lives here so the
@@ -268,24 +267,16 @@ export default function MasterFormField({
 
     if (controlType === controlTypeMap.DATE || columnMeta?.dataKind === "date") {
       return (
-        <input
-          type="date"
+        <DateInput
           className={effectiveInputClassName}
-          value={toNativeDateInputValue(value)}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={handleFocus}
-          onInput={(e) => {
-            const yearPart = String(e.target.value || "").split("-")[0] || "";
-            if (yearPart.length > 4) onChange(lastValidRef.current ?? "");
-          }}
-          onKeyDown={(e) =>
-            handleDateArrowKeys(e, toNativeDateInputValue(value), onChange, { nativeInput: true })
-          }
+          value={value}
+          inputFormat={columnMeta?.inputFormat ?? ""}
+          onChange={onChange}
+          onFocus={handleDateFocus}
           onBlur={handleDateBlur}
           min={dateConstraints?.min || undefined}
           max={dateConstraints?.max || undefined}
           aria-label={label}
-          autoComplete="off"
         />
       );
     }
