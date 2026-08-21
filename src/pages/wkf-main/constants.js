@@ -43,18 +43,19 @@ export const WKF_MAIN_CONFIG = {
  *  everything else as a readonly boxed field (Control Type "Textbox"),
  *  matching the wireframe screenshot.
  *
- *  NOTE — MRD internal contradiction (2026-08-14 /pm, not asked about,
- *  low-stakes): Section 3's table marks `company`/`division` Is Visible=No,
- *  but the Section 2 wireframe screenshot draws both in the header layout
- *  right where every other visible field sits. Followed the wireframe
- *  (shown) over the table here — flag to Shivani/DBA if that's wrong. */
+ *  `visible: false` on status/company/division (2026-08-20 /pm) — resolves
+ *  the MRD-vs-wireframe contradiction noted below in the MRD's favor:
+ *  Section 3's table marked all three Is Visible=No, but the Section 2
+ *  wireframe screenshot drew them anyway; this had been following the
+ *  wireframe until now. Omitted `visible` defaults to shown, same
+ *  convention as AppShell.jsx's NAV_SECTIONS config. */
 export const WKF_HEADER_FIELDS = [
   { key: "tokenno", label: "Ref. Transaction No." },
   { key: "trandate", label: "On Date" },
   { key: "subject", label: "Subject" },
-  { key: "status", label: "Status" },
-  { key: "company", label: "Company" },
-  { key: "division", label: "Division" },
+  { key: "status", label: "Status", visible: false },
+  { key: "company", label: "Company", visible: false },
+  { key: "division", label: "Division", visible: false },
   { key: "initiatorname", label: "Initiator" },
   { key: "currentholder", label: "Current Holder" },
   { key: "lastsender", label: "Last Sender" },

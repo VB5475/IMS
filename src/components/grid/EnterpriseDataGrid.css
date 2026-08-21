@@ -22,7 +22,7 @@
   justify-content: space-between;
   padding: 12px 16px;
   background: var(--header-gradient);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border);
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -39,27 +39,33 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.22) 50%,
+    rgba(30, 74, 122, 0.18) 50%,
     transparent 100%
   );
 }
 
+/* --header-gradient (enterprise.css) is a LIGHT near-white gradient, not the
+   dark one this title/icon/page-size styling originally assumed — white
+   text on it was barely legible (confirmed live 2026-08-20 /pm: WKF Main's
+   "Detail Section" title and "Show/entries" text both washed out). Every
+   other consumer of the same --header-gradient token (CollapsibleGrid's
+   --cg-header-text, EnterpriseFilterPanel, DOP Master's section titles)
+   already uses dark/primary text on it — matched that here instead of
+   inventing a new color. */
 .ng-card-title {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--primary);
   display: flex;
   align-items: center;
   gap: 8px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .ng-card-icon {
   display: inline-flex;
   align-items: center;
-  opacity: 0.9;
-  filter: brightness(0) invert(1);
+  color: var(--primary);
 }
 
 /* ── Page-size selector (header right) ── */
@@ -68,7 +74,7 @@
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -187,13 +193,20 @@
 
 /* ─── Scrollable table wrapper ────────────────────────────────────── */
 /*
-  Fixed height = 10 body rows (48 px each) + sticky header row (44 px).
-  Content beyond 10 rows scrolls internally.
+  Fixed height = 10 body rows (48 px each) + sticky header row (44 px) + 10px
+  reserved for a horizontal scrollbar (::-webkit-scrollbar height: 8px below)
+  when the table's columns are wider than the wrapper. Without that reserve,
+  a wrapper sized to EXACTLY fit its rows (e.g. --ng-max-rows set to a small
+  real row count, not the 10-row default) has zero slack left for the
+  scrollbar, which then renders as an overlay striking through the last
+  row's text instead of sitting in its own space below it — confirmed live
+  on WKF Main's Detail Section (2026-08-20 /pm) once its wrapper was sized
+  to 1 actual row. Content beyond --ng-max-rows rows scrolls internally.
   Override --ng-max-rows via the style prop if you need a different limit.
 */
 .ng-table-wrapper {
   overflow: auto;
-  height: calc(var(--ng-max-rows, 10) * 48px + 44px);
+  height: calc(var(--ng-max-rows, 10) * 48px + 44px + 10px);
   scrollbar-width: thin;
   scrollbar-color: var(--border-dark) transparent;
 }
@@ -775,6 +788,6 @@
   .ng-table-wrapper {
     /* on mobile, let the wrapper grow rather than clip at 10 rows */
     height: auto;
-    max-height: calc(var(--ng-max-rows, 10) * 48px + 44px);
+    max-height: calc(var(--ng-max-rows, 10) * 48px + 44px + 10px);
   }
 }

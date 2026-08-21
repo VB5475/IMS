@@ -16,9 +16,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, StickyNote, Send, RotateCcw, ArrowLeftCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, StickyNote, Send, RotateCcw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import Loader from "../../components/ui/Loader";
+import AlertPanel from "../../components/ui/AlertPanel";
 import { useNotification } from "../../context/NotificationContext";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useWKFMain } from "../../hooks/useWKFMain";
@@ -238,7 +239,7 @@ export default function WKFMainPage() {
     return (
       <div className="workspace-page wkf-main">
         <div className="wkf-main__error">
-          <AlertBanner text="No transaction reference was provided. Open this page from the Workflow Dashboard." />
+          <AlertPanel errors={["No transaction reference was provided. Open this page from the Workflow Dashboard."]} />
         </div>
       </div>
     );
@@ -284,7 +285,7 @@ export default function WKFMainPage() {
         ))}
       </section>
 
-      {headerError && <AlertBanner text={headerError} />}
+      {headerError && <AlertPanel errors={[headerError]} />}
 
       {activeTab === "main" && (
         <div className="wkf-main__panel">
@@ -293,7 +294,7 @@ export default function WKFMainPage() {
               <Loader text="Loading header…" />
             ) : (
               <div className="wkf-main__header-grid">
-                {WKF_HEADER_FIELDS.map((f) => (
+                {WKF_HEADER_FIELDS.filter((f) => f.visible !== false).map((f) => (
                   <div key={f.key} className="wkf-main__field">
                     <span className="wkf-main__field-label">{f.label}</span>
                     <span className="wkf-main__field-value">{readField(header, f.key)}</span>
@@ -303,7 +304,19 @@ export default function WKFMainPage() {
             )}
           </section>
 
-          <section className="wkf-main__grid-section">
+          <section
+            className="wkf-main__grid-section wkf-main__grid-section--natural"
+            // EnterpriseDataGrid's table wrapper reserves a FIXED height
+            // for 10 rows by design (--ng-max-rows, see EnterpriseDataGrid.css)
+            // — meant to be overridden from an ancestor via inline style
+            // since the component itself doesn't accept a style prop; a CSS
+            // custom property cascades down regardless of component
+            // boundaries. Sized to the actual row count (capped at 1-10) so
+            // a typical 1-3-line Detail Section doesn't reserve a decade of
+            // empty rows' worth of space, while transactions with many
+            // lines still get the normal internal-scroll behavior at 10.
+            style={{ "--ng-max-rows": Math.max(1, Math.min(detailRows.length, 10)) }}
+          >
             <EnterpriseDataGrid
               title="Detail Section"
               columns={detailColumns}
@@ -313,7 +326,6 @@ export default function WKFMainPage() {
               getRowKey={dynamicRowKey}
               selectable={false}
               searchable={false}
-              fill
             />
           </section>
 
@@ -442,15 +454,6 @@ export default function WKFMainPage() {
           </section>
         </div>
       )}
-    </div>
-  );
-}
-
-function AlertBanner({ text }) {
-  return (
-    <div className="wkf-main__alert" role="alert">
-      <ArrowLeftCircle size={14} strokeWidth={2} />
-      <span>{text}</span>
     </div>
   );
 }

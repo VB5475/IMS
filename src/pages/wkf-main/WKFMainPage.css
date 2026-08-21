@@ -131,6 +131,38 @@
   flex-direction: column;
 }
 
+/* Main tab's Detail Section sits between the header panel and the Noting/
+   Direct Stamping Keys sections below it — unlike Track/Path (which are the
+   ONLY content on their tab and correctly flex:1 to fill the page), giving
+   it flex:1 too made it greedily claim all remaining vertical space, leaving
+   a large empty gap under a single data row before the "Showing X of Y"
+   footer. Sizes to its own content instead (EnterpriseDataGrid's default,
+   non-fill row-based max-height), same as every other embedded grid that
+   shares a page with other sections. */
+.wkf-main__grid-section--natural {
+  min-height: 0;
+  flex: none;
+  display: block;
+}
+
+/* Detail/Track/Path columns are fully dynamic (buildListColumnsFromRows,
+   deriving columns straight from whatever fields the API returns — the only
+   caller of that helper, unlike every other EnterpriseDataGrid usage's
+   curated, width-tuned column list), so a long free-text value can land in
+   ANY column, not just the first. The shared grid only wraps its first
+   column by default; every other column is nowrap with no overflow
+   containment, so a long value bleeds unclipped into the next column's
+   opaque background — confirmed live (2026-08-20 /pm): a long Item Name
+   value visually "struck through" partway across, exactly where the HSN
+   column's own border painted on top of the overflow. Scoped to WKF rather
+   than changed on the shared component, since every other list page relies
+   on its curated columns being short enough for nowrap to just work. */
+.wkf-main__grid-section .ng-table tbody td {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 .wkf-main__notes {
   padding: 12px 14px;
   background: var(--surface);
@@ -260,14 +292,3 @@
   color: #fff;
 }
 
-.wkf-main__alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: var(--danger-bg, #fef2f2);
-  border: 1px solid var(--danger-border, #fecaca);
-  border-radius: var(--radius);
-  color: var(--danger, #b91c1c);
-  font-size: 13px;
-}

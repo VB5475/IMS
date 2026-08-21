@@ -1,5 +1,13 @@
 $ErrorActionPreference = "Stop"
 $SCRATCH = "C:\Users\ADMINI~1\AppData\Local\Temp\claude\d--Hardik-Shah-CAI-Projects-IMS\9b86d445-2bbc-48c0-ac9c-e6f00d56604c\scratchpad"
+# Logging via transcript, not an external pipe — the previous run's launch
+# command piped through Tee-Object, and two powershell.exe processes ended up
+# racing the same employee list (confirmed live: several duplicate-key
+# rejections were against rows that had JUST been inserted moments earlier
+# under this exact e<EmployeeID> scheme, which nothing else in this system
+# uses). Duplicate-key rejections are harmless (SQL's own constraint blocked
+# the bad insert, nothing corrupted) but wasteful and confusing to report.
+Start-Transcript -Path "$SCRATCH\zinghr_sync_log2.txt" -Force | Out-Null
 $ZingUrl = "https://portal.zinghr.com/2015/route/EmployeeDetails/GetEmployeeMasterDetails"
 $ZingToken = "c94e40b60ee24e36a35b47796dec2c9d"
 $SaveUrl = "http://122.179.135.100:8095/IMS_LIVE/API/GenUserMst/Post_RB_GenUserMst_Save"
@@ -94,18 +102,24 @@ foreach ($emp in $toSync) {
 
     if ($i % 250 -eq 0 -or $i -eq $toSync.Count) {
         Log "Progress: $i/$($toSync.Count) processed, $successCount succeeded, $failCount failed"
-        $results | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 "$SCRATCH\zinghr_sync_results.json"
+        $results | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 "$SCRATCH\zinghr_sync_results2.json"
     }
 }
 
 $results | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 "$SCRATCH\zinghr_sync_results.json"
 
+$alreadyExisted = ($results | Where-Object { -not $_.success -and $_.reason -match "UNIQUE KEY constraint" }).Count
+$genuineFails = $failCount - $alreadyExisted
+
 Log "=== FINAL SUMMARY ==="
 Log "Total processed: $($results.Count)"
-Log "Success count: $successCount"
-Log "Failed count: $failCount"
+Log "Success count (newly created): $successCount"
+Log "Already existed (skipped safely, not a real failure): $alreadyExisted"
+Log "Genuine failure count: $genuineFails"
 
-$reasonGroups = $results | Where-Object { -not $_.success } | Group-Object reason | Sort-Object Count -Descending
+$reasonGroups = $results | Where-Object { -not $_.success -and $_.reason -notmatch "UNIQUE KEY constraint" } | Group-Object reason | Sort-Object Count -Descending
 foreach ($g in $reasonGroups) {
-    Log "Failure reason ($($g.Count)x): $($g.Name)"
+    Log "Genuine failure reason ($($g.Count)x): $($g.Name)"
 }
+
+Stop-Transcript | Out-Null
