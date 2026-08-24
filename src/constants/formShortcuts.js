@@ -19,7 +19,7 @@ export const FORM_SHORTCUT_TITLES = {
   selectList: "Select from list (Alt+L)",
   toggleCollapsible: "Expand / collapse details (Alt+C)",
   scanQr: "Focus QR scan (Ctrl+Q)",
-  scanHistory: "Scan History",
+  scanHistory: "Manual Search",
   documents: "Document Log (F6)",
   close: "Close",
 };

@@ -1,5 +1,3 @@
-// AssetsEmployeeReturnForm.jsx — Assets Employee Return entry form (Add / Edit)
-
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
@@ -10,15 +8,13 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
-import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
-import { useAstEmpReturn } from "../../hooks/useAstEmpReturn";
-import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
+import { useMntPreventiveInternal } from "../../hooks/useMntPreventiveInternal";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
   API_BASE_URL,
   API_BASE_URL_IMS,
+  DEFAULT_COMPANY_ID,
   DEFAULT_SESSION_ID,
   getColDefault,
   buildSaveRowFromColumns,
@@ -34,65 +30,92 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
-import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { withSaveContextFields } from "../../utils/savePayload";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
-import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
-import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
-import { useTransactionFormReset } from "../../hooks/useTransactionFormReset";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
+import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
-  AER_CONFIG,
-  AER_MULTI_PASTE_COLUMNS,
-  AER_REMARK_COLUMNS,
-  AER_GRID_TABS,
-  AER_FRM_TYPE_OPTIONS,
+  PMI_CONFIG,
+  PMI_GRID_TABS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
-  buildAerItemPickerJsonPayload,
-  applyAerHardcodedHeaderValues,
-  buildAerCascadeResets,
+  buildPmiItemPickerJsonPayload,
+  applyPmiHardcodedHeaderValues,
+  buildPmiCascadeResets,
+  validatePmiBusinessRules,
 } from "./constants";
-import "./AssetsEmployeeReturnPage.css";
+import "./PreventiveMaintenanceInternalPage.css";
 
-let _aerTempId = -1;
-const nextTempId = () => _aerTempId--;
+let _pmiTempId = -1;
+const nextTempId = () => _pmiTempId--;
+
+const QTY_RATE_EVENT_COLUMNS = new Set(["qty", "rate", "Qty", "Rate"]);
+
+function resolveEditLoadParams(recordId, listRecord) {
+  const session = getUserSession();
+  return {
+    companyId: listRecord?.companyid ?? listRecord?.CompanyID ?? session.companyId ?? DEFAULT_COMPANY_ID,
+    yearId: listRecord?.yearid ?? listRecord?.YearID ?? session.yearId ?? PMI_CONFIG.CONFIG_YEAR_ID,
+    loginId: listRecord?.loginid ?? listRecord?.LoginID ?? session.loginId,
+    sessionId: listRecord?.sessionid ?? listRecord?.SessionID ?? listRecord?.SessionId ?? DEFAULT_SESSION_ID,
+    idNumber:
+      listRecord?.mntpmimstid
+      ?? listRecord?.MntPmiMstID
+      ?? listRecord?.idnumber
+      ?? listRecord?.IDNumber
+      ?? recordId,
+  };
+}
 
 function mapHeaderValuesToFilterValues(headerValues) {
   if (!headerValues) return null;
   const str = (v) => (v == null || v === "" ? "" : String(v));
   return {
-    trancode: str(headerValues.trancode),
-    trandate: headerValues.trandate ?? "",
-    issuedate: headerValues.issuedate ?? "",
-    fromdivisionid: str(headerValues.fromdivisionid),
-    tolocationid: str(headerValues.tolocationid),
-    todeptid: str(headerValues.todeptid),
-    fromempuserid: str(headerValues.fromempuserid),
-    configid: str(headerValues.configid),
-    frmtype: str(headerValues.frmtype ?? AER_CONFIG.FRM_TYPE),
-    issuetypeid: str(headerValues.issuetypeid ?? AER_CONFIG.ISSUE_TYPE_ID),
+    contractno: headerValues.contractno ?? "",
+    contractdate: headerValues.contractdate ?? "",
+    divisionid: str(headerValues.divisionid),
+    configtypeid: str(headerValues.configtypeid ?? headerValues.configid),
+    configid: str(headerValues.configid ?? headerValues.configtypeid),
+    contractfromdate: headerValues.contractfromdate ?? "",
+    contracttodate: headerValues.contracttodate ?? "",
+    frequencyid: str(headerValues.frequencyid),
     remarks: headerValues.remarks ?? "",
+    companyid: str(headerValues.companyid),
+    yearid: str(headerValues.yearid),
+    loginid: str(headerValues.loginid),
+    idnumber: str(headerValues.idnumber),
+    funccode: headerValues.funccode ?? PMI_CONFIG.RB_MASTER,
   };
 }
 
-function mapPickerToItemRow(item, allColumns) {
+function queryEditableFilterFields(panel) {
+  if (!panel) return [];
+  return [
+    ...panel.querySelectorAll(
+      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), .search-select__trigger:not([disabled])"
+    ),
+  ].filter((el) => el.offsetParent !== null);
+}
+
+function buildGridRow(source, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => {
     row[key] = getColDefault(colDataType);
   });
-  Object.entries(item).forEach(([k, v]) => {
+  Object.entries(source || {}).forEach(([k, v]) => {
     const lk = k.toLowerCase();
     if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }
 
-export default function AssetsEmployeeReturnForm() {
+export default function PreventiveMaintenanceInternalForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
   const isNewRoute = location.pathname.endsWith("/new") || routeId === "new";
@@ -102,7 +125,6 @@ export default function AssetsEmployeeReturnForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -130,21 +152,13 @@ export default function AssetsEmployeeReturnForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    fromDivisionOptions,
-    toLocationOptions,
-    toDepartmentOptions,
-    fromEmpOptions,
-    configOptions,
-    fetchToLocations,
-    fetchToDepartments,
+    divisionOptions, configOptions, frequencyOptions,
     fetchConfigOptions,
-    fetchFromEmployees,
-    clearFromEmpOptions,
-    columns, allColumns, eventColumns, isFetching, metaError,
+    columns, allColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
     fetchEditRecord, seedOptionsFromMaster, fetchUnlockedHeaderDropdowns,
     clearSaveError,
-  } = useAstEmpReturn(API_BASE_URL);
+  } = useMntPreventiveInternal(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
@@ -152,50 +166,38 @@ export default function AssetsEmployeeReturnForm() {
   const [recordLoadError, setRecordLoadError] = useState(null);
   const editRecordLoadedRef = useRef(false);
 
-  // trandate/issuedate default to today on a new record; existing records keep their loaded date.
-  const headerValuesRef = useRef(applyAerHardcodedHeaderValues({
-    trancode: "",
-    trandate: getTodayDateInputValue(),
-    issuedate: getTodayDateInputValue(),
-    fromdivisionid: 0,
-    tolocationid: 0,
-    todeptid: 0,
-    fromempuserid: 0,
+  const todayISO = getTodayDateInputValue();
+
+  const headerValuesRef = useRef(applyPmiHardcodedHeaderValues({
+    contractno: "",
+    contractdate: todayISO,
+    divisionid: 0,
+    configtypeid: 0,
     configid: 0,
+    contractfromdate: todayISO,
+    contracttodate: todayISO,
+    frequencyid: 0,
     remarks: "",
-    frmtype: AER_CONFIG.FRM_TYPE,
-    issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
-    tranmstgenid: 0,
     companyid: getUserSession().companyId,
     yearid: getUserSession().yearId,
     loginid: getUserSession().loginId,
     idnumber: recordId,
-    funccode: AER_CONFIG.RB_MASTER,
+    funccode: PMI_CONFIG.RB_MASTER,
   }));
 
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
     return {
-      trandate: getTodayDateInputValue(),
-      issuedate: getTodayDateInputValue(),
-      frmtype: String(AER_CONFIG.FRM_TYPE),
-      issuetypeid: String(AER_CONFIG.ISSUE_TYPE_ID),
+      contractdate: todayISO,
+      contractfromdate: todayISO,
+      contracttodate: todayISO,
     };
-  }, [loadedFilterValues]);
+  }, [loadedFilterValues, todayISO]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
-  const [gridRows, setGridRows] = useState([]);
-  const handleItemGridRowsChange = useCallback((rows) => {
-    setGridRows(rows);
-    // Re-validate live once a failed Save has already flagged cell errors,
-    // so fixing a cell clears its inline marker immediately.
-    setDetailCellErrors((prev) => (
-      prev && prev.size > 0 ? validateGridRowsDetailed(rows, columns).cellErrors : prev
-    ));
-  }, [columns]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -206,23 +208,7 @@ export default function AssetsEmployeeReturnForm() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Document Log modal (F6) — scoped to this record's id, gated on the
-  // session's Document Log permission flags (set at login). Module-wise
-  // department id (2026-08-14, /pm) — DM Department Master id=12 for this
-  // module — see useDocumentLogAccess.js for the full permission-gate/GUID/
-  // button-visibility/post-save-linking logic (shared, ported from Purchase
-  // Indent).
-  const docLog = useDocumentLogAccess({
-    tranTypeId: AER_CONFIG.DM_TRAN_TYPE_ID,
-    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_RETURN,
-    recordId,
-    getDivisionId: () => headerValuesRef.current?.fromdivisionid,
-    isEditMode,
-    postSave,
-    logLabel: "[AER]",
-  });
-
-  const cascadeResets = useMemo(() => buildAerCascadeResets(headerColumns), [headerColumns]);
+  const cascadeResets = useMemo(() => buildPmiCascadeResets(headerColumns), [headerColumns]);
 
   const focusFirstEditableFilterField = useCallback(() => {
     const fields = queryEditableFilterFields(filterPanelRef.current);
@@ -256,9 +242,9 @@ export default function AssetsEmployeeReturnForm() {
         ? "Loading record…"
         : recordLoadError
           ? recordLoadError
-          : `Return #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
+          : `Preventive Maintenance Internal #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo: AER_CONFIG.ROUTE_PATH,
+    backTo: PMI_CONFIG.ROUTE_PATH,
   });
 
   useEffect(() => {
@@ -268,18 +254,15 @@ export default function AssetsEmployeeReturnForm() {
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? 0).then((cols) => {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
-      if (itemGridRef.current.loadRows) {
-        itemGridRef.current.loadRows(queuedRowsRef.current);
-      } else {
-        queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
-      }
+      if (itemGridRef.current.loadRows) itemGridRef.current.loadRows(queuedRowsRef.current);
+      else queuedRowsRef.current.forEach((r) => itemGridRef.current.addRow(r));
       queuedRowsRef.current = [];
     }
   }, [columns]);
@@ -288,13 +271,11 @@ export default function AssetsEmployeeReturnForm() {
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
-      const params = resolveEditLoadParams(recordId, listRecord, {
-        idFields: ["astempretid", "AstEmpRetID"],
-      });
+      const params = resolveEditLoadParams(recordId, listRecord);
       const { master, headerValues, details } = await fetchEditRecord(params);
-      if (!master || !headerValues) throw new Error("Assets Employee Return record not found.");
+      if (!master || !headerValues) throw new Error("Preventive Maintenance Internal record not found.");
 
-      headerValuesRef.current = applyAerHardcodedHeaderValues({
+      headerValuesRef.current = applyPmiHardcodedHeaderValues({
         ...headerValuesRef.current,
         ...headerValues,
       });
@@ -305,24 +286,66 @@ export default function AssetsEmployeeReturnForm() {
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
 
-    const divId = headerValues.fromdivisionid ?? 0;
+      const divId = headerValues.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
 
       const syncedDetails = syncEditGridDropdownValues(details, activeCols || []);
-
-      if (itemGridRef.current?.loadRows) {
-        itemGridRef.current.loadRows(syncedDetails);
-      } else {
-        queuedRowsRef.current = syncedDetails;
-      }
+      if (itemGridRef.current?.loadRows) itemGridRef.current.loadRows(syncedDetails);
+      else queuedRowsRef.current = syncedDetails;
     } catch (err) {
-      console.error("[AER] Edit record load failed:", err);
-      setRecordLoadError(err?.message || "Failed to load Assets Employee Return record.");
+      console.error("[PMI] Edit record load failed:", err);
+      setRecordLoadError(err?.message || "Failed to load Preventive Maintenance Internal record.");
     } finally {
       setRecordLoading(false);
     }
   }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+
+  const resetNewEntry = useCallback(() => {
+    localStorage.removeItem(PMI_CONFIG.STORAGE_HEADER_META);
+    localStorage.removeItem(PMI_CONFIG.STORAGE_ENTRY_META);
+    headerValuesRef.current = applyPmiHardcodedHeaderValues({
+      contractno: "",
+      contractdate: todayISO,
+      divisionid: 0,
+      configtypeid: 0,
+      configid: 0,
+      contractfromdate: todayISO,
+      contracttodate: todayISO,
+      frequencyid: 0,
+      remarks: "",
+      funccode: PMI_CONFIG.RB_MASTER,
+      companyid: getUserSession().companyId,
+      yearid: getUserSession().yearId,
+      loginid: getUserSession().loginId,
+      idnumber: 0,
+    });
+    queuedRowsRef.current = [];
+    gridColumnsLoadedRef.current = false;
+    clearSaveError();
+    setActiveTab("items");
+    setIsGridLoading(false);
+    setItemSelectionCount(0);
+    setItemModalOpen(false);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalLoading(false);
+    setItemModalError(null);
+    itemGridRef.current?.clearRows?.();
+    setFilterResetKey((k) => k + 1);
+    exitEditMode();
+    setFieldErrors({});
+  }, [clearSaveError, exitEditMode, todayISO]);
+
+  const completeSuccessfulSave = useCallback(() => {
+    completeTransactionSave({
+      isEditRoute,
+      loadEditRecord,
+      exitEditMode,
+      editRecordLoadedRef,
+      resetNewEntry,
+    });
+  }, [isEditRoute, loadEditRecord, exitEditMode, resetNewEntry]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -332,7 +355,7 @@ export default function AssetsEmployeeReturnForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
     fetchUnlockedHeaderDropdowns(headerValuesRef.current);
-    fetchGridColumns(headerValuesRef.current?.fromdivisionid ?? loadedMasterRow?.fromdivisionid ?? 0, {
+    fetchGridColumns(headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0, {
       existingRecordEdit: true,
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
@@ -344,30 +367,14 @@ export default function AssetsEmployeeReturnForm() {
     else queuedRowsRef.current.push(row);
   }, []);
 
-  // ── Multi-value paste — Sr. No replication ──────────────────────
-  const handleMultiValuePaste = useCallback((sourceRow, colKey, values) => {
-    itemGridRef.current?.updateRow?.(sourceRow.id, { [colKey]: values[0] });
-    values.slice(1).forEach((val) => {
-      addItemRow({ ...sourceRow, id: nextTempId(), [colKey]: val });
-    });
-  }, [addItemRow]);
-
   const dropdownSources = useMemo(() => ({
-    fromdivisionid: fromDivisionOptions,
-    tolocationid: toLocationOptions,
-    todeptid: toDepartmentOptions,
-    fromempuserid: fromEmpOptions,
+    divisionid: divisionOptions,
+    configtypeid: configOptions,
     configid: configOptions,
-    frmtype: AER_FRM_TYPE_OPTIONS,
-  }), [
-    fromDivisionOptions,
-    toLocationOptions,
-    toDepartmentOptions,
-    fromEmpOptions,
-    configOptions,
-  ]);
+    frequencyid: frequencyOptions,
+  }), [divisionOptions, configOptions, frequencyOptions]);
 
-  const DROPDOWN_OPTIONS_BY_COL = useMemo(() => {
+  const dropdownOptionsByCol = useMemo(() => {
     const map = { ...dropdownSources };
     headerColumns.forEach((col) => {
       const key = col.colname;
@@ -385,7 +392,7 @@ export default function AssetsEmployeeReturnForm() {
       .sort((a, b) => Number(a.colseqno) - Number(b.colseqno))
       .map((col) => {
         const lockOnEditMode = isLockOnEditModeCol(col);
-        const staticOptions = DROPDOWN_OPTIONS_BY_COL[col.colname];
+        const staticOptions = dropdownOptionsByCol[col.colname];
         const base = {
           FilterParameterID: col.colname,
           FilterColName: col.colname,
@@ -395,7 +402,7 @@ export default function AssetsEmployeeReturnForm() {
         };
         return syncHeaderFilterWithApiCol(base, col, { lockOnEditMode });
       });
-  }, [headerColumns, DROPDOWN_OPTIONS_BY_COL]);
+  }, [headerColumns, dropdownOptionsByCol]);
 
   const filterFieldTones = useMemo(() => {
     const tones = {};
@@ -424,97 +431,51 @@ export default function AssetsEmployeeReturnForm() {
     setClearRowsOpen(true);
   }, []);
 
-  const handleFilterChange = useCallback(
-    async (colName, val) => {
-      headerValuesRef.current = applyAerHardcodedHeaderValues({
-        ...headerValuesRef.current,
-        [colName]: val,
+  const handleFilterChange = useCallback(async (colName, val) => {
+    headerValuesRef.current = applyPmiHardcodedHeaderValues({
+      ...headerValuesRef.current,
+      [colName]: val,
+    });
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
+    const hv = headerValuesRef.current;
+    const col = String(colName).toLowerCase();
+
+    if (col === "configid" || col === "configtypeid") {
+      hv.configtypeid = val;
+      hv.configid = val;
+    }
+
+    if (col === "divisionid") {
+      requestGridClear("Division", async () => {
+        hv.configtypeid = 0;
+        hv.configid = 0;
+        itemGridRef.current?.clearRows?.();
+        setItemSelectionCount(0);
+        if (Number(val) > 0) {
+          if (hasVisibleCol(headerColumns, "configtypeid") || hasVisibleCol(headerColumns, "configid")) {
+            await fetchConfigOptions(val);
+          }
+          if (hasVisibleCol(headerColumns, "configtypeid")) {
+            focusFieldAfterCascade(filterPanelRef, "configtypeid");
+          } else if (hasVisibleCol(headerColumns, "configid")) {
+            focusFieldAfterCascade(filterPanelRef, "configid");
+          }
+        }
       });
-      setFieldErrors((prev) => {
-        if (!prev[colName]) return prev;
-        const next = { ...prev };
-        delete next[colName];
-        return next;
-      });
-      const hv = headerValuesRef.current;
-      const col = String(colName).toLowerCase();
-
-      if (col === "fromdivisionid") {
-        requestGridClear("From Division", async () => {
-          hv.tolocationid = 0;
-          hv.todeptid = 0;
-          hv.fromempuserid = 0;
-          hv.configid = 0;
-          clearFromEmpOptions();
-          itemGridRef.current?.clearRows?.();
-          if (val && val !== "0") {
-            const fetches = [];
-            if (hasVisibleCol(headerColumns, "tolocationid")) {
-              fetches.push(fetchToLocations(val));
-            }
-            if (hasVisibleCol(headerColumns, "configid")) {
-              fetches.push(fetchConfigOptions(val));
-            }
-            if (fetches.length) await Promise.all(fetches);
-            if (hasVisibleCol(headerColumns, "tolocationid")) {
-              focusFieldAfterCascade(filterPanelRef, "tolocationid");
-            } else if (hasVisibleCol(headerColumns, "configid")) {
-              focusFieldAfterCascade(filterPanelRef, "configid");
-            }
-          }
-        });
-        return;
-      }
-
-      if (col === "tolocationid") {
-        requestGridClear("To Location", async () => {
-          hv.fromempuserid = 0;
-          clearFromEmpOptions();
-          itemGridRef.current?.clearRows?.();
-          if (
-            hasVisibleCol(headerColumns, "fromempuserid")
-            && Number(hv.fromdivisionid) > 0
-            && Number(val) > 0
-            && Number(hv.todeptid) > 0
-          ) {
-            await fetchFromEmployees(hv.fromdivisionid, val, hv.todeptid);
-          }
-        });
-        return;
-      }
-
-      if (col === "todeptid") {
-        requestGridClear("To Department", async () => {
-          hv.fromempuserid = 0;
-          clearFromEmpOptions();
-          itemGridRef.current?.clearRows?.();
-          if (
-            hasVisibleCol(headerColumns, "fromempuserid")
-            && Number(hv.fromdivisionid) > 0
-            && Number(hv.tolocationid) > 0
-            && Number(val) > 0
-          ) {
-            await fetchFromEmployees(hv.fromdivisionid, hv.tolocationid, val);
-          }
-        });
-      }
-    },
-    [
-      headerColumns,
-      requestGridClear,
-      clearFromEmpOptions,
-      fetchConfigOptions,
-      fetchToLocations,
-      fetchFromEmployees,
-    ]
-  );
+    }
+  }, [requestGridClear, headerColumns, fetchConfigOptions]);
 
   const ensureItemColumns = useCallback(async () => {
     if (gridColumnsLoadedRef.current && columns.length > 0) return columns;
     if (allColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const divId = headerValuesRef.current?.fromdivisionid ?? 0;
+      const divId = headerValuesRef.current?.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId);
       if (activeCols?.length > 0) gridColumnsLoadedRef.current = true;
       return activeCols;
@@ -522,19 +483,6 @@ export default function AssetsEmployeeReturnForm() {
       setIsGridLoading(false);
     }
   }, [columns, allColumns, fetchGridColumns]);
-
-  const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
-    return trackCellEvent(async () => {
-      const key = String(colKey).toLowerCase();
-      if (key === "qty" || key === "rate") {
-        const qty = Number(rowData.qty ?? rowData.Qty) || 0;
-        const rate = Number(rowData.rate ?? rowData.Rate) || 0;
-        const patch = { amount: qty * rate };
-        if ("Amount" in rowData) patch.Amount = qty * rate;
-        itemGridRef.current?.updateRow?.(rowId, patch);
-      }
-    });
-  }, [trackCellEvent]);
 
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -554,15 +502,10 @@ export default function AssetsEmployeeReturnForm() {
     setItemModalLoading(true);
 
     try {
-      const activeCols = await ensureItemColumns();
-      if (!activeCols?.length) {
-        throw new Error("Item grid columns could not be loaded.");
-      }
-
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AER_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmrbcode: AER_CONFIG.RB_ITEM_PICKER }]),
+        ObjName: PMI_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmRBCode: PMI_CONFIG.RB_ITEM_PICKER }]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
@@ -581,26 +524,26 @@ export default function AssetsEmployeeReturnForm() {
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: AER_CONFIG.SP_ITEM_PICKER,
-        JSon: JSON.stringify([buildAerItemPickerJsonPayload(headerValues)]),
+        ObjName: PMI_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildPmiItemPickerJsonPayload(headerValues)]),
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      setItemModalItems(Array.isArray(rowRes) ? rowRes : []);
+      setItemModalItems(rowRes || []);
     } catch (err) {
-      console.error("[AER] Item picker fetch failed:", err);
+      console.error("[PMI] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, ensureItemColumns]);
+  }, [getLive, headerColumns]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
     setActiveTab("items");
     const activeCols = await ensureItemColumns();
     if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    selectedItems.forEach((item) => addItemRow(buildGridRow(item, allColumns)));
   }, [ensureItemColumns, allColumns, addItemRow]);
 
   const handleSelectListShortcut = useCallback(() => {
@@ -614,141 +557,99 @@ export default function AssetsEmployeeReturnForm() {
     itemGridRef.current.removeRows?.(selected.map((r) => r.id));
   }, []);
 
-  const buildDefaultHeaderValues = useCallback(() => applyAerHardcodedHeaderValues({
-    trancode: "",
-    trandate: getTodayDateInputValue(),
-    issuedate: getTodayDateInputValue(),
-    fromdivisionid: 0,
-    tolocationid: 0,
-    todeptid: 0,
-    fromempuserid: 0,
-    configid: 0,
-    remarks: "",
-    frmtype: AER_CONFIG.FRM_TYPE,
-    issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
-    funccode: AER_CONFIG.RB_MASTER,
-    tranmstgenid: 0,
-    companyid: getUserSession().companyId,
-    yearid: getUserSession().yearId,
-    loginid: getUserSession().loginId,
-    idnumber: 0,
-  }), []);
+  const handleCellEvent = useCallback(({ rowId, colKey, rowData, gridRef }) => {
+    return trackCellEvent(async () => {
+      const key = String(colKey).toLowerCase();
+      if (key !== "qty" && key !== "rate") return;
+      const qty = Number(rowData?.qty ?? rowData?.Qty) || 0;
+      const rate = Number(rowData?.rate ?? rowData?.Rate) || 0;
+      const amount = qty * rate;
+      const patch = { amount };
+      if ("Amount" in (rowData || {})) patch.Amount = amount;
+      gridRef?.current?.updateRow?.(rowId, patch);
+    });
+  }, [trackCellEvent]);
 
-  const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
-    storageKeys: [AER_CONFIG.STORAGE_HEADER_META, AER_CONFIG.STORAGE_ENTRY_META],
-    buildDefaultHeaderValues,
-    headerValuesRef,
-    queuedRowsRef,
-    gridColumnsLoadedRef,
-    itemGridRef,
-    editRecordLoadedRef,
-    isEditRoute,
-    loadEditRecord,
-    exitEditMode,
-    clearSaveError,
-    setActiveTab,
-    setIsGridLoading,
-    setItemSelectionCount,
-    setItemModalOpen,
-    setItemModalItems,
-    setItemModalColumns,
-    setItemModalLoading,
-    setItemModalError,
-    setFilterResetKey,
-    setLoadedFilterValues,
-    setGridRows,
-    extraClearFns: [clearFromEmpOptions, docLog.resetDocGuid],
-    // Back to a blank new-entry state (post-save, or Cancel on a new record)
-    // — re-issue a fresh GUID for whatever the user enters next, same as the
-    // initial mount fetch. No-op on an edit route (isNewRoute is false there).
-    extraReset: () => {
-      if (isNewRoute) docLog.fetchDocGuid();
-      setFieldErrors({});
-      setDetailCellErrors(null);
-    },
-  });
-
-  const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
+  const handleSave = useCallback(async () => {
     await flushPendingCellEvents(itemGridSectionRef);
+
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrorMap = validateApiColumnsByField(headerValuesRef.current, headerColsToValidate);
     setFieldErrors(headerErrorMap);
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-    const detailRows = itemGridRef.current?.getRows?.() ?? [];
-    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
-    setDetailCellErrors(detailCellErrs);
-    const allErrors = [...headerBannerMsg, ...(detailRows.length === 0 ? detailErrors : [])];
-    if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) {
+    const businessErrors = validatePmiBusinessRules(headerValuesRef.current);
+    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
+    const allErrors = [...headerBannerMsg, ...businessErrors, ...detailErrors];
+    if (allErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
     }
 
-    const hv = applyAerHardcodedHeaderValues(headerValuesRef.current);
+    const hv = applyPmiHardcodedHeaderValues(headerValuesRef.current);
     headerValuesRef.current = hv;
     const headerColDefs = headerColumns.map((col) => ({
       key: col.colname,
       colDataType: col.coldatatype,
     }));
     const mstRow = buildSaveRowFromColumns(hv, headerColDefs, {
-      frmtype: AER_CONFIG.FRM_TYPE,
-      issuetypeid: AER_CONFIG.ISSUE_TYPE_ID,
       loginid: getUserSession().loginId,
     });
 
-    const detRows = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
+    const itemRowsWithoutId = (itemGridRef.current?.getRows?.() ?? []).map(({ id, ...rest }) =>
       buildSaveRowFromColumns(rest, allColumns, { loginid: getUserSession().loginId })
     );
 
     const payload = await withSaveContextFields(
-      buildSaveJsonFields({ label: AER_CONFIG.FORM_TAG, mst: mstRow, det: detRows }),
-      { divisionId: hv.fromdivisionid, isEdit: isEditRoute }
+      {
+        prmStrMstJSON: JSON.stringify([mstRow]),
+        prmStrContractItemDetail: JSON.stringify(itemRowsWithoutId),
+      },
+      { divisionId: hv.divisionid, isEdit: isEditRoute }
     );
 
     setIsSaving(true);
     try {
-      const result = await postSave(AER_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message, newId } = parseApiErrMsg(result);
+      const result = await postSave(PMI_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
-      // Saves any document rows staged in the Documents modal but never
-      // explicitly submitted via ITS OWN Save button, then links any docs
-      // staged under docGuid (before this transaction existed) to the
-      // now-saved transaction — see useDocumentLogAccess.finalizeSave. Covers
-      // Add-mode too, since savedTranId comes from this save's own response
-      // rather than the (Add-mode-stale) recordId. Best-effort throughout: a
-      // failure here must never be treated as this save having failed — it
-      // already succeeded by this point.
-      const savedTranId = newId ?? (isEditRoute ? recordId : null);
-      await docLog.finalizeSave(savedTranId);
-      if (!skipPostSave) completeSuccessfulSave();
+      completeSuccessfulSave();
       return true;
     } catch (err) {
-      console.error("[AER Save] Failed:", err);
+      console.error("[PMI Save] Failed:", err);
       notify.error(err?.message || "Save failed. Please try again.");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, allColumns, columns, isEditRoute, recordId, docLog.finalizeSave, notify, resetFormToInitialState, flushPendingCellEvents]);
+  }, [
+    headerColumns,
+    columns,
+    allColumns,
+    isEditRoute,
+    notify,
+    postSave,
+    flushPendingCellEvents,
+    completeSuccessfulSave,
+  ]);
 
   const handleSaveAndPrint = useCallback(async () => {
-    const saved = await handleSave({ skipPostSave: true });
+    const saved = await handleSave();
     if (!saved) return;
     window.print();
-    completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const handleDiscardConfirm = useCallback(() => {
     setDiscardOpen(false);
-    discardChanges();
-  }, [discardChanges]);
+    completeSuccessfulSave();
+  }, [completeSuccessfulSave]);
 
   const handleCancel = useCallback(() => setDiscardOpen(true), []);
 
@@ -768,7 +669,7 @@ export default function AssetsEmployeeReturnForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || docLog.docModalOpen,
+    blocked: itemModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -777,16 +678,9 @@ export default function AssetsEmployeeReturnForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
-    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
-    // Show/hide only, never a disabled state (matches Indent's convention) —
-    // docLog.documentsButtonEntry already encodes this (null when permission
-    // gates say no), spread in/out of the array so ActionBar's own
-    // `showAlways || isEditMode` filter hides/shows it with Add/Edit mode
-    // the same way every other extra button does.
-    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -797,13 +691,13 @@ export default function AssetsEmployeeReturnForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
+  ], [handleSaveAndPrint, handleSave, isSaving]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
 
   return (
-    <div className="workspace-page workspace-page--fill aer-page">
+    <div className="workspace-page workspace-page--fill pmi-page">
       <AlertPanel errors={formErrors} onDismiss={() => setFormErrors([])} />
       <ConfirmDialog
         isOpen={discardOpen}
@@ -832,7 +726,7 @@ export default function AssetsEmployeeReturnForm() {
           <EnterpriseFilterPanel
             key={filterResetKey}
             panelRef={filterPanelRef}
-            title="Assets Employee Return Detail"
+            title="Preventive Maintenance Internal Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={cascadeResets}
@@ -847,11 +741,11 @@ export default function AssetsEmployeeReturnForm() {
         )}
       </section>
 
-      <section className="aer-grid-section" ref={itemGridSectionRef}>
+      <section className="pmi-grid-section" ref={itemGridSectionRef}>
         <EntryGrid
           ref={itemGridRef}
           config={itemGridConfig}
-          tabs={AER_GRID_TABS}
+          tabs={PMI_GRID_TABS}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           headerControls={
@@ -861,8 +755,8 @@ export default function AssetsEmployeeReturnForm() {
                 type="button"
                 className="eg-tab-btn"
                 onClick={handleSelectItem}
-                disabled={!isEditMode || itemModalLoading}
-                title="Pick return items (Tab here after header fields)"
+                disabled={!isEditMode}
+                title="Pick assets for preventive maintenance"
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
@@ -883,16 +777,11 @@ export default function AssetsEmployeeReturnForm() {
           hideBottomPanel
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
-          onRowsChange={handleItemGridRowsChange}
-          cellErrors={detailCellErrors}
-          onCellEvent={handleCellEvent}
-          eventColumns={eventColumns}
+          onCellEvent={(evt) => handleCellEvent({ ...evt, gridRef: itemGridRef })}
+          eventColumns={QTY_RATE_EVENT_COLUMNS}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
           loading={isGridLoading || isFetching}
-          multiValuePasteColumns={AER_MULTI_PASTE_COLUMNS}
-          onMultiValuePaste={handleMultiValuePaste}
-          remarkModalColumns={AER_REMARK_COLUMNS}
         />
       </section>
 
@@ -916,19 +805,6 @@ export default function AssetsEmployeeReturnForm() {
           isLoading={itemModalLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <DocumentLogModal
-          ref={docLog.docModalRef}
-          isOpen={docLog.docModalOpen}
-          onClose={() => docLog.setDocModalOpen(false)}
-          tranId={recordId}
-          divisionId={headerValuesRef.current?.fromdivisionid}
-          tranTypeId={AER_CONFIG.DM_TRAN_TYPE_ID}
-          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_EMPLOYEE_RETURN}
-          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

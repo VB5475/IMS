@@ -1,5 +1,5 @@
-import * as XLSX from "xlsx";
 import { isTruthyApiFlag } from "./gridUtils";
+import { loadXlsx } from "./xlsxLoader";
 
 function normalizeHeader(value) {
   return String(value ?? "")
@@ -54,7 +54,7 @@ function formatColumnList(columns = []) {
  * `!ref` (hundreds of thousands of blank rows); never expand that full range
  * with blankrows:true — it freezes the tab.
  */
-function readSheetRows(sheet, { maxRows, blankrows = false } = {}) {
+function readSheetRows(XLSX, sheet, { maxRows, blankrows = false } = {}) {
   const ref = sheet?.["!ref"];
   if (!ref) return [];
   const full = XLSX.utils.decode_range(ref);
@@ -77,6 +77,7 @@ function readSheetRows(sheet, { maxRows, blankrows = false } = {}) {
  * @returns {Promise<object[]>}
  */
 export async function parseExcelFileToGridRows(file, apiColumns = []) {
+  const XLSX = await loadXlsx();
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheetName = workbook.SheetNames[0];
@@ -87,7 +88,7 @@ export async function parseExcelFileToGridRows(file, apiColumns = []) {
   const requiredDisplayHeaders = getRequiredDisplayHeaders(apiColumns);
 
   // Only materialize the first two physical rows for header + "row 2 blank" checks.
-  const previewRows = readSheetRows(sheet, {
+  const previewRows = readSheetRows(XLSX, sheet, {
     maxRows: 2,
     blankrows: true,
   });

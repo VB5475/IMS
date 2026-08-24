@@ -1,5 +1,6 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { parseQrItemPayload } from "../../utils/qrScanJson";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
@@ -39,12 +40,8 @@ export const ADI_CONFIG = {
   SP_TO_DEPT: "fn_tbl_fetchtodepartmentdata",
   SP_CONFIG: "Fn_tbl_ddl_prod_configuration",
   SP_ITEM_PICKER: "fn_tbl_rb_astdeptissselonly",
-  // Select Item popup filters — Main Group / Sub Main Group cascading
-  // filter, same rollout as Purchase Indent/GRN (2026-07-28) and the rest
-  // of the Assets suite (2026-07-29). Deferred until "Filter" is clicked;
-  // SP_ITEM_PICKER call also gets prmsearchtext/prmotherstr/prmjson as
-  // safe empty defaults (no dedicated UI for those yet, added per RB
-  // signature widening — unconfirmed live whether they affect filtering).
+  // Select Item popup filters — Main Group / Sub Main Group cascading.
+  // Manual Search modal uses prmotherstr (Sr No). Header QR scan uses prmqrjson.
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
@@ -88,9 +85,33 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
   return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
 }
 
+/**
+ * Parse pasted/scanned QR JSON for Select Item (prmqrjson).
+ * Accepts any key casing (ItemCode, SrNo, …) and normalizes to
+ * { "itemcode": "...", "srno": "..." }.
+ */
+export function normalizeAdiQrSearchJson(rawText) {
+  const trimmed = String(rawText ?? "").trim();
+  if (!trimmed) return { error: "Enter both Item Code and Sr No." };
+  const parsed = parseQrItemPayload(trimmed);
+  if (!parsed) {
+    return { error: "Invalid JSON. Expected itemcode and srno (any key casing)." };
+  }
+  return { qrJson: JSON.stringify(parsed) };
+}
+
 export function buildAdiItemPickerJsonPayload(
   headerValues,
-  { companyId, loginId, yearId, maGroupId = 0, subMaGroupId = 0, itemNameSearch = "", qrJson = "" } = {}
+  {
+    companyId,
+    loginId,
+    yearId,
+    maGroupId = 0,
+    subMaGroupId = 0,
+    itemNameSearch = "",
+    qrJson = "",
+    otherStr = "",
+  } = {}
 ) {
   const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
@@ -120,7 +141,7 @@ export function buildAdiItemPickerJsonPayload(
     prmsubmaingroupid: Number(subMaGroupId) || 0,
     prmitemnamesearch: String(itemNameSearch ?? "").trim(),
     prmsearchtext: "",
-    prmotherstr: "",
+    prmotherstr: String(otherStr ?? "").trim(),
     prmjson: "[]",
     prmqrjson: String(qrJson ?? "").trim(),
   };

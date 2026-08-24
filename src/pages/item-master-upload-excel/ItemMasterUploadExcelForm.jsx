@@ -6,7 +6,6 @@
 //   3. Save             → POST prmStrDetJSON only
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
 import { AlertCircle, Trash2, FileSpreadsheet, Save, Upload, Download } from "lucide-react";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
@@ -25,6 +24,7 @@ import { validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { parseExcelFileToGridRows } from "../../utils/excelImport";
+import { loadXlsx } from "../../utils/xlsxLoader";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
@@ -139,7 +139,7 @@ export default function ItemMasterUploadExcelForm() {
       .filter((col) => col.key && col.header)
   ), [apiColumns]);
 
-  const handleExportExcel = useCallback(() => {
+  const handleExportExcel = useCallback(async () => {
     const exportHeaders = getExportHeaders();
 
     if (!exportHeaders.length) {
@@ -147,11 +147,12 @@ export default function ItemMasterUploadExcelForm() {
       return;
     }
 
+    const XLSX = await loadXlsx();
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
     const exportRows = detailRows.length
       ? detailRows.map(({ id, ...rest }) =>
-          Object.fromEntries(exportHeaders.map(({ key, header }) => [header, rest[key] ?? ""]))
-        )
+        Object.fromEntries(exportHeaders.map(({ key, header }) => [header, rest[key] ?? ""]))
+      )
       : [Object.fromEntries(exportHeaders.map(({ header }) => [header, ""]))];
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows, {
@@ -162,7 +163,7 @@ export default function ItemMasterUploadExcelForm() {
     XLSX.writeFile(workbook, "item_master_upload_excel_export.xlsx");
   }, [getExportHeaders]);
 
-  const handleDownloadTemplate = useCallback(() => {
+  const handleDownloadTemplate = useCallback(async () => {
     const exportHeaders = getExportHeaders();
 
     if (!exportHeaders.length) {
@@ -170,6 +171,7 @@ export default function ItemMasterUploadExcelForm() {
       return;
     }
 
+    const XLSX = await loadXlsx();
     const worksheet = XLSX.utils.json_to_sheet(
       [Object.fromEntries(exportHeaders.map(({ header }) => [header, ""]))],
       { header: exportHeaders.map(({ header }) => header) }

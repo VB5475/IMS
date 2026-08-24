@@ -1,7 +1,14 @@
-import QRCode from "qrcode";
 import { buildAssetQrPayload, resolveAssetStickerFields } from "./assetQrUtils";
 
+let qrcodePromise = null;
+
+function loadQRCode() {
+  if (!qrcodePromise) qrcodePromise = import("qrcode");
+  return qrcodePromise;
+}
+
 export async function generateQrDataUrl(text, size = 280) {
+  const QRCode = (await loadQRCode()).default;
   return QRCode.toDataURL(text, {
     errorCorrectionLevel: "M",
     margin: 1,

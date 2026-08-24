@@ -9,6 +9,8 @@ import "./HardwareQrScanner.css";
 export default function HardwareQrScanner({
   disabled = false,
   showHistory = true,
+  /** When true, only Sr No is entered; onScan receives the plain serial string. */
+  srNoOnly = false,
   /** @type {{ id?: string|number, itemcode?: string, srno?: string }[]} */
   history = [],
   onRemoveHistory,
@@ -23,18 +25,29 @@ export default function HardwareQrScanner({
 
   const commitScanPayload = useCallback((code, serial) => {
     if (disabled) return;
-    const nextCode = String(code ?? "").trim();
     const nextSrno = String(serial ?? "").trim();
+    if (srNoOnly) {
+      if (!nextSrno) return;
+      console.log("[QR Scan] sr-only commit", { srno: nextSrno });
+      setSrno("");
+      onScan?.(nextSrno);
+      return;
+    }
+    const nextCode = String(code ?? "").trim();
     if (!nextCode || !nextSrno) return;
     console.log("[QR Scan] manual commit", { itemcode: nextCode, srno: nextSrno });
     setItemcode("");
     setSrno("");
     onScan?.(JSON.stringify({ itemcode: nextCode, srno: nextSrno }));
-  }, [disabled, onScan]);
+  }, [disabled, onScan, srNoOnly]);
 
   const commitManual = useCallback(() => {
+    if (srNoOnly) {
+      commitScanPayload("", srno);
+      return;
+    }
     commitScanPayload(itemcode, srno);
-  }, [commitScanPayload, itemcode, srno]);
+  }, [commitScanPayload, itemcode, srno, srNoOnly]);
 
   const handleManualKeyDown = (e) => {
     if (e.key !== "Enter") return;
@@ -44,6 +57,10 @@ export default function HardwareQrScanner({
 
     const code = String(itemcode).trim();
     const serial = String(srno).trim();
+    if (srNoOnly) {
+      if (serial) commitManual();
+      return;
+    }
     if (code && serial) {
       commitManual();
       return;
@@ -60,40 +77,51 @@ export default function HardwareQrScanner({
   const handleManualPaste = (e) => {
     if (disabled) return;
     const text = e.clipboardData?.getData("text") ?? "";
+    const trimmed = String(text).trim();
+    if (!trimmed) return;
+    if (srNoOnly) {
+      e.preventDefault();
+      const parsed = parseQrItemPayload(trimmed);
+      setSrno(parsed?.srno ?? trimmed);
+      return;
+    }
     const parsed = parseQrItemPayload(text);
     if (!parsed) return;
     e.preventDefault();
     commitScanPayload(parsed.itemcode, parsed.srno);
   };
 
-  const bothReady = Boolean(String(itemcode).trim() && String(srno).trim());
+  const srReady = Boolean(String(srno).trim());
+  const bothReady = srNoOnly ? srReady : Boolean(String(itemcode).trim() && srReady);
 
   return (
     <div className={`hw-qr${disabled ? " hw-qr--disabled" : ""}`}>
       <div className="hw-qr__manual">
-        <div className="hw-qr__fields">
-          <div className="hw-qr__field">
-            <label className="hw-qr__label" htmlFor="hw-qr-itemcode">
-              Item Code
-            </label>
-            <input
-              id="hw-qr-itemcode"
-              ref={itemcodeRef}
-              type="text"
-              className="hw-qr__input"
-              value={itemcode}
-              onChange={(e) => setItemcode(e.target.value)}
-              onKeyDown={handleManualKeyDown}
-              onPaste={handleManualPaste}
-              placeholder="e.g. ASS000595"
-              disabled={disabled}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              autoFocus={autoFocusItemcode}
-              aria-label="Item code"
-            />
-          </div>
+        <div className={`hw-qr__fields${srNoOnly ? " hw-qr__fields--sr-only" : ""}`}>
+          {!srNoOnly ? (
+            <div className="hw-qr__field">
+              <label className="hw-qr__label" htmlFor="hw-qr-itemcode">
+                Item Code
+              </label>
+              <input
+                id="hw-qr-itemcode"
+                ref={itemcodeRef}
+                type="text"
+                className="hw-qr__input"
+                value={itemcode}
+                onChange={(e) => setItemcode(e.target.value)}
+                onKeyDown={handleManualKeyDown}
+                onPaste={handleManualPaste}
+                placeholder="e.g. ASS000595"
+                disabled={disabled}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                autoFocus={autoFocusItemcode}
+                aria-label="Item code"
+              />
+            </div>
+          ) : null}
 
           <div className="hw-qr__field">
             <label className="hw-qr__label" htmlFor="hw-qr-srno">
@@ -108,11 +136,12 @@ export default function HardwareQrScanner({
               onChange={(e) => setSrno(e.target.value)}
               onKeyDown={handleManualKeyDown}
               onPaste={handleManualPaste}
-              placeholder="e.g. S4EUNZ0R200413"
+              placeholder={srNoOnly ? "Enter or scan serial number" : "e.g. S4EUNZ0R200413"}
               disabled={disabled}
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
+              autoFocus={srNoOnly || !autoFocusItemcode}
               aria-label="Serial number"
             />
           </div>
@@ -146,10 +175,12 @@ export default function HardwareQrScanner({
                 <li key={item.id ?? `${item.itemcode}-${item.srno}-${index}`} className="hw-qr__history-item">
                   <span className="hw-qr__history-index">{index + 1}</span>
                   <div className="hw-qr__history-meta">
-                    <div className="hw-qr__history-row">
-                      <span className="hw-qr__history-key">Item</span>
-                      <strong className="hw-qr__history-val">{item.itemcode || "—"}</strong>
-                    </div>
+                    {!srNoOnly || item.itemcode ? (
+                      <div className="hw-qr__history-row">
+                        <span className="hw-qr__history-key">Item</span>
+                        <strong className="hw-qr__history-val">{item.itemcode || "—"}</strong>
+                      </div>
+                    ) : null}
                     <div className="hw-qr__history-row">
                       <span className="hw-qr__history-key">Sr No</span>
                       <strong className="hw-qr__history-val">{item.srno || "—"}</strong>

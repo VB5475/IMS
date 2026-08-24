@@ -110,6 +110,12 @@ const MaintenanceNewContractPage = lazy(
 const MaintenanceNewContractForm = lazy(
   () => import("./pages/maintenance-new-contract/MaintenanceNewContractForm")
 );
+const PreventiveMaintenanceInternalPage = lazy(
+  () => import("./pages/preventive-maintenance-internal/PreventiveMaintenanceInternalPage")
+);
+const PreventiveMaintenanceInternalForm = lazy(
+  () => import("./pages/preventive-maintenance-internal/PreventiveMaintenanceInternalForm")
+);
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
 const WKFMainPage = lazy(() => import("./pages/wkf-main/WKFMainPage"));
@@ -433,6 +439,11 @@ const router = createBrowserRouter([
             rb: RB.MAINTENANCE_NEW_CONTRACT,
             list: <MaintenanceNewContractPage />,
             form: <MaintenanceNewContractForm />,
+          }),
+          rbModule({
+            rb: RB.PREVENTIVE_MAINTENANCE_INTERNAL,
+            list: <PreventiveMaintenanceInternalPage />,
+            form: <PreventiveMaintenanceInternalForm />,
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
           rbLeaf({ rb: RB.WORKFLOW_DASHBOARD, element: <WorkflowDashboard /> }),

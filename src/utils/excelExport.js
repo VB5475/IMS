@@ -2,7 +2,7 @@
 // which is import-only). Kept generic (rows + headers in, .xlsx file out) so any
 // future module can reuse it, not just Purchase Quotation Comparison.
 
-import * as XLSX from "xlsx";
+import { loadXlsx } from "./xlsxLoader";
 
 /**
  * @param {object[]} rows — plain objects; each key becomes a column
@@ -10,7 +10,8 @@ import * as XLSX from "xlsx";
  * @param {string} filename — without extension
  * @param {string} [sheetName]
  */
-export function exportRowsToExcel(rows, columns, filename, sheetName = "Sheet1") {
+export async function exportRowsToExcel(rows, columns, filename, sheetName = "Sheet1") {
+  const XLSX = await loadXlsx();
   const data = rows.map((row) => {
     const out = {};
     columns.forEach(({ key, label }) => {
