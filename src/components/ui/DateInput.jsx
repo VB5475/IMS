@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import DatePicker from "react-datepicker";
 import { Calendar } from "lucide-react";
-import "react-datepicker/dist/react-datepicker.css";
 import {
   clampNativeDateValue,
   formatDateInputDisplay,
@@ -68,6 +66,7 @@ export default function DateInput({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [popperStyle, setPopperStyle] = useState(null);
   const [draftText, setDraftText] = useState(null);
+  const [DatePickerComponent, setDatePickerComponent] = useState(null);
   const isEditing = draftText !== null;
 
   const resolvedFormat = useMemo(() => resolveDateInputFormat(inputFormat), [inputFormat]);
@@ -210,6 +209,18 @@ export default function DateInput({
 
   const showCalendar = !readOnly && !disabled;
 
+  useEffect(() => {
+    if (!calendarOpen || DatePickerComponent) return undefined;
+    let cancelled = false;
+    Promise.all([
+      import("react-datepicker"),
+      import("react-datepicker/dist/react-datepicker.css"),
+    ]).then(([mod]) => {
+      if (!cancelled) setDatePickerComponent(() => mod.default);
+    });
+    return () => { cancelled = true; };
+  }, [calendarOpen, DatePickerComponent]);
+
   const calendarPopper =
     showCalendar && calendarOpen && popperStyle
       ? createPortal(
@@ -218,15 +229,21 @@ export default function DateInput({
             className="date-input-calendar-popper"
             style={popperStyle}
           >
-            <DatePicker
-              inline
-              selected={selected}
-              onChange={handleCalendarSelect}
-              minDate={minDate ?? undefined}
-              maxDate={maxDate ?? undefined}
-              dateFormat={pickerFormat}
-              calendarClassName="date-input-calendar"
-            />
+            {DatePickerComponent ? (
+              <DatePickerComponent
+                inline
+                selected={selected}
+                onChange={handleCalendarSelect}
+                minDate={minDate ?? undefined}
+                maxDate={maxDate ?? undefined}
+                dateFormat={pickerFormat}
+                calendarClassName="date-input-calendar"
+              />
+            ) : (
+              <div className="date-input-calendar-loading" role="status">
+                Loading calendar…
+              </div>
+            )}
           </div>,
           document.body
         )

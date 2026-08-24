@@ -1,4 +1,3 @@
-import { jsPDF } from "jspdf";
 import { buildAssetQrLabels } from "./assetQrLabels";
 import { ASSET_STICKER_FIELD_LABELS } from "./assetQrUtils";
 import {
@@ -11,6 +10,13 @@ export { buildAssetQrPayload, resolveAssetQrFields, resolveAssetStickerFields } 
 export { generateQrDataUrl, buildAssetQrLabels } from "./assetQrLabels";
 
 const MM_PER_IN = 25.4;
+
+let jsPdfPromise = null;
+
+function loadJsPdf() {
+  if (!jsPdfPromise) jsPdfPromise = import("jspdf");
+  return jsPdfPromise;
+}
 
 function buildDownloadFilename() {
   const now = new Date();
@@ -90,7 +96,7 @@ function drawLabel(doc, label, size, logoDataUrl) {
   });
 }
 
-function buildAssetQrPdf(labels, size, logoDataUrl) {
+function buildAssetQrPdf(jsPDF, labels, size, logoDataUrl) {
   const orientation = pageOrientation(size);
   const format = [size.width, size.height];
   const doc = new jsPDF({ orientation, unit: "mm", format });
@@ -115,9 +121,10 @@ export async function downloadAssetQrCodes(rows, sizeKey = DEFAULT_STICKER_SIZE)
     widthIn: size.widthIn ?? size.width / MM_PER_IN,
     heightIn: size.heightIn ?? size.height / MM_PER_IN,
   };
+  const { jsPDF } = await loadJsPdf();
   const labels = await buildAssetQrLabels(rows);
   const logoDataUrl = await loadLogoDataUrl();
-  const doc = buildAssetQrPdf(labels, normalized, logoDataUrl);
+  const doc = buildAssetQrPdf(jsPDF, labels, normalized, logoDataUrl);
   doc.save(buildDownloadFilename());
   return labels.length;
 }

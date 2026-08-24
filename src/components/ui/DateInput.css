@@ -99,3 +99,9 @@
 .cell-datepicker-input.date-input-field {
   width: 100%;
 }
+
+.date-input-calendar-loading {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}

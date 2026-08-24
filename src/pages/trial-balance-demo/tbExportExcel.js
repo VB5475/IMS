@@ -1,5 +1,5 @@
-import * as XLSX from "xlsx";
 import { flattenFullTree } from "./tbHierarchy";
+import { loadXlsx } from "../../utils/xlsxLoader";
 
 /** Spaces per hierarchy level — matches TB_Hierarchy_Grouping.xlsx indentation. */
 const INDENT_SPACES = 3;
@@ -64,10 +64,12 @@ function applyHierarchyOutline(worksheet, tree) {
  *
  * @param {{ rows: object[], meta?: object, fileName?: string }} options
  */
-export function exportTrialBalanceToExcel({ rows, meta = {}, fileName }) {
+export async function exportTrialBalanceToExcel({ rows, meta = {}, fileName }) {
   if (!Array.isArray(rows) || rows.length === 0) {
     throw new Error("No trial balance rows to export.");
   }
+
+  const XLSX = await loadXlsx();
 
   const tree = flattenFullTree(rows);
   const headers = [

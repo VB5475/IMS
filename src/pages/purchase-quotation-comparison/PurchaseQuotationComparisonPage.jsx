@@ -124,7 +124,7 @@ export default function PurchaseQuotationComparisonPage() {
     setSelections((prev) => ({ ...prev, [itemId]: supplierId }));
   }, []);
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     const rows = [];
     pivoted.items.forEach((item) => {
       pivoted.suppliers.forEach((s) => {
@@ -148,7 +148,7 @@ export default function PurchaseQuotationComparisonPage() {
       return;
     }
 
-    exportRowsToExcel(
+    await exportRowsToExcel(
       rows,
       [
         { key: "item", label: "Item" },
