@@ -22,6 +22,27 @@ export const APPROVAL_STATUS_CONFIG = {
       100: { statusKey: "inApproval", locked: true, selectable: true },
     },
   },
+  "purchase-indent": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "purchase-voucher": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "goods-received-note": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
 };
 
 const NO_OP_STATE = { statusKey: null, locked: false, selectable: true };

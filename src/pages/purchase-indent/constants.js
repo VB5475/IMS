@@ -40,6 +40,11 @@ export const IND_CONFIG = {
   // Not a guess — the real DMS TranType master row for this module.
   DM_TRAN_TYPE_ID: 5,
 
+  // Workflow (WKF) approval — "Approval Initiator" button on the list page,
+  // same pattern as Purchase Order's PO_CONFIG.WKF_TRAN_TYPE_ID. User-confirmed
+  // value, distinct from (and unrelated to) DM_TRAN_TYPE_ID above.
+  WKF_TRAN_TYPE_ID: 4,
+
   SP_ITEM_PICKER: "fn_tbl_rb_purindtselitem",
   SP_GRID_EVENT: "fn_tbl_rb_purindtdet_event",
   SP_LOCATION: "fn_tbl_fetch_divwslocation",

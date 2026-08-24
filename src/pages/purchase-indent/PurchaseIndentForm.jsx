@@ -87,16 +87,23 @@ function mapHeaderValuesToFilterValues(headerValues) {
   };
 }
 
-// The item picker SP echoes the header params it was called with back on every
-// row — prmexpdeldate returns as "expecteddeliverydate", which is also the
-// detail RB's own date column — so overlaying it made each row inherit the
-// master's Expected Date. Grid date cells are seeded with today and kept out
-// of the overlay instead (getColDefault leaves date columns null).
-function mapPickerToItemRow(item, allColumns, dateColKeys = new Set()) {
+// The item picker SP echoes EVERY header param it was called with back on
+// every row (not just delivery date) — overlaying the raw echo wholesale
+// would make each row inherit stray master-header values it shouldn't, so
+// date columns are excluded from the generic overlay below and set
+// explicitly instead. "expecteddeliverydate" is a deliberate exception: it's
+// the detail RB's own Delivery Date column, meant to inherit the header's
+// Expected Delivery Date on insert (still editable per-row afterward) — the
+// user confirmed this is existing intended behavior, not the bug the overlay
+// exclusion above was written to prevent. Any other date column (if this grid
+// ever gets one) still seeds with today, same as before.
+function mapPickerToItemRow(item, allColumns, dateColKeys = new Set(), expectedDeliveryDate = "") {
   const row = { id: nextTempId() };
   const today = dateToStoredValue(new Date());
+  const deliveryDate = expectedDeliveryDate || today;
   allColumns.forEach(({ key, colDataType }) => {
-    row[key] = dateColKeys.has(key) ? today : getColDefault(colDataType);
+    if (!dateColKeys.has(key)) { row[key] = getColDefault(colDataType); return; }
+    row[key] = key === "expecteddeliverydate" ? deliveryDate : today;
   });
   Object.entries(item).forEach(([k, v]) => {
     const lk = k.toLowerCase();
@@ -636,7 +643,9 @@ export default function PurchaseIndentForm() {
       const activeCols = await ensureItemColumns();
       if (!activeCols?.length) return;
       const dateColKeys = new Set(activeCols.filter(isDateColumnDef).map((col) => col.key));
-      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns, dateColKeys));
+      const headerExpectedDate = headerValuesRef.current?.expecteddate;
+      const expectedDeliveryDate = headerExpectedDate ? dateToStoredValue(new Date(headerExpectedDate)) : "";
+      const rows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns, dateColKeys, expectedDeliveryDate));
       rows.forEach((row) => addItemRow(row));
       // Fire the same qty/rate recalc a manual blur would trigger, so a
       // picker-inserted row's calculated amounts are correct immediately

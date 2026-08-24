@@ -41,3 +41,31 @@
   background: var(--primary-lighter);
   border-color: var(--primary);
 }
+
+/* "Approval Initiator" — beside Entry Form in the list header toolbar,
+ * same pattern as Purchase Order's .po-list__wkf-btn. */
+.grn-list__wkf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.grn-list__wkf-btn:hover:not(:disabled) {
+  background: var(--primary-lighter);
+}
+
+.grn-list__wkf-btn:disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}

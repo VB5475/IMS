@@ -168,8 +168,8 @@ export function computeStickerLayout(size) {
 }
 
 export async function buildTsplStickerCommands(fields, size) {
-  const { itemcode, srno } = fields;
-  const payload = buildAssetQrPayload(itemcode, srno);
+  const { itemcode, itemname, srno } = fields;
+  const payload = buildAssetQrPayload(itemcode, itemname, srno);
   const layout = computeStickerLayout(size);
 
   const bitmapCmd = await buildQrBitmapTsplCommand(

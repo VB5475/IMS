@@ -77,6 +77,12 @@ export const GRN_CONFIG = {
   // module), mirrors Purchase Indent's IND_CONFIG.DM_TRAN_TYPE_ID.
   DM_TRAN_TYPE_ID: 2,
 
+  // Workflow (WKF) approval — "Approval Initiator" button on the list page,
+  // same pattern as Purchase Order's PO_CONFIG.WKF_TRAN_TYPE_ID. User-confirmed
+  // value, distinct from (and unrelated to) DM_TRAN_TYPE_ID above (both happen
+  // to be 2, coincidentally — separate namespaces).
+  WKF_TRAN_TYPE_ID: 2,
+
   RB_DETAIL: "rb_purgrndet",
 
   RB_INDT_DETAIL: "rb_purgrnindtdet",

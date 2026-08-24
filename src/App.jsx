@@ -51,6 +51,8 @@ const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
+const AssetsDepreciationITActPage = lazy(() => import("./pages/assets-depreciation-it-act/AssetsDepreciationITActPage"));
+const AssetsDepreciationITActForm = lazy(() => import("./pages/assets-depreciation-it-act/AssetsDepreciationITActForm"));
 const AssetDepreciationPercentagePage = lazy(
   () => import("./pages/asset-depreciation-percentage/AssetDepreciationPercentagePage")
 );
@@ -345,6 +347,11 @@ const router = createBrowserRouter([
             rb: RB.ASSETS_DEPRECIATION,
             list: <AssetsDepreciationPage />,
             form: <AssetsDepreciationForm />,
+          }),
+          rbModule({
+            rb: RB.ASSETS_DEPRECIATION_IT_ACT,
+            list: <AssetsDepreciationITActPage />,
+            form: <AssetsDepreciationITActForm />,
           }),
           rbLeaf({ rb: RB.ASSET_DEPRECIATION_PERCENTAGE, element: <AssetDepreciationPercentagePage /> }),
           rbModule({

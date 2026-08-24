@@ -1,14 +1,14 @@
-/* PurchaseIndentPage.css */
+/* AssetsDepreciationITActPage.css */
 
-/* ── Listing page ── */
-.ind-list-page {
+/* ── Listing page ─────────────────────────────────────────────────────── */
+.dit-list-page {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.ind-list-panel {
+.dit-list-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -19,13 +19,13 @@
   min-height: 0;
 }
 
-.ind-list-panel--fill {
+.dit-list-panel--fill {
   flex: 1;
   min-height: 0;
   height: 100%;
 }
 
-.ind-list-panel .ng-card {
+.dit-list-panel .ng-card {
   border: none;
   border-radius: 0;
   box-shadow: none;
@@ -33,14 +33,14 @@
   min-height: 0;
 }
 
-.ind-list-panel .ng-card-content {
+.dit-list-panel .ng-card-content {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.ind-list__edit-btn {
+.dit-list__edit-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -53,59 +53,32 @@
   cursor: pointer;
 }
 
-.ind-list__edit-btn:hover {
+.dit-list__edit-btn:hover {
   background: #eef3fa;
   border-color: var(--primary);
 }
 
-/* "Approval Initiator" — beside Entry Form in the list header toolbar,
- * same pattern as Purchase Order's .po-list__wkf-btn. */
-.ind-list__wkf-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--primary);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.ind-list__wkf-btn:hover:not(:disabled) {
-  background: #eef3fa;
-}
-
-.ind-list__wkf-btn:disabled {
-  border-color: var(--border);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-
-/* ── Form page shell ── */
-.ind-page {
+/* ── Form page shell ─────────────────────────────────────────────────── */
+.dit-page {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 0;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
 }
 
-.ind-page .efq-panel {
+.dit-page .efq-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Grid section ── */
-.ind-grid-section {
+/* ── Item grid section ───────────────────────────────────────────────── */
+.dit-grid-section {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -117,10 +90,8 @@
   overflow: hidden;
 }
 
-.ind-grid-section > .erp-grid-container {
+.dit-grid-section > .erp-grid-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
-
-/* Tab-bar action button styles → shared eg-tab-btn in EntryGrid.css */

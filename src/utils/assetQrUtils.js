@@ -1,8 +1,9 @@
 /** JSON payload encoded in each asset QR code (exact keys for scanners). */
-export function buildAssetQrPayload(itemcode, srno) {
+export function buildAssetQrPayload(itemcode, itemname, srno) {
   return JSON.stringify({
-    Itemcode: String(itemcode ?? "").trim(),
-    Srno: String(srno ?? "").trim(),
+    Tag: String(itemcode ?? "").trim(),
+    Model: String(itemname ?? "").trim(),
+    Sr_No: String(srno ?? "").trim(),
   });
 }
 

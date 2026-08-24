@@ -17,6 +17,7 @@ import {
   Network,
   Package,
   TrendingDown,
+  Calculator,
   Percent,
   UserRound,
   RotateCcw,
@@ -117,6 +118,7 @@ const NAV_SECTIONS = [
     items: [
       { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Layers, label: "CWIP To FA", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION_IT_ACT), icon: Calculator, label: "Calculate Depreciation IT Act", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false , visible: false},
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false, visible: true },

@@ -18,7 +18,6 @@ import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
 import { useStickerPrinter } from "../../hooks/useStickerPrinter";
 import { resolveAssetQrFields } from "../../utils/assetQrUtils";
-import { DEFAULT_STICKER_SIZE } from "../../utils/assetQrStickerConstants";
 import { rbNewPath, RB_ROUTE_PATHS } from "../../constants/rbCodes";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
 import { useNavigate } from "react-router-dom";
@@ -267,6 +266,8 @@ export default function ReportBoardPanel({
   const [cartOpen, setCartOpen] = useState(false);
   const [downloadingQr, setDownloadingQr] = useState(false);
   const [printingStickers, setPrintingStickers] = useState(false);
+  const [printSizeKey, setPrintSizeKey] = useState("50x50");
+  const [stickersPerPage, setStickersPerPage] = useState(1);
 
   
   const {
@@ -617,14 +618,14 @@ export default function ReportBoardPanel({
     setDownloadingQr(true);
     try {
       const { downloadAssetQrCodes } = await import("../../utils/assetQrPrint");
-      const count = await downloadAssetQrCodes(selectedRows, DEFAULT_STICKER_SIZE);
+      const count = await downloadAssetQrCodes(selectedRows, printSizeKey);
       notify.success(`Downloaded PDF with ${count} QR code(s).`);
     } catch (err) {
       notify.error(err?.message || "Failed to generate QR codes.");
     } finally {
       setDownloadingQr(false);
     }
-  }, [notify, selectedRows]);
+  }, [notify, selectedRows, printSizeKey]);
 
   const handlePrintStickers = useCallback(async () => {
     if (selectedRows.length === 0) {
@@ -635,14 +636,14 @@ export default function ReportBoardPanel({
     setPrintingStickers(true);
     try {
       const { printAssetStickersBrowser } = await import("../../utils/assetQrBrowserPrint");
-      const count = await printAssetStickersBrowser(selectedRows, DEFAULT_STICKER_SIZE);
+      const count = await printAssetStickersBrowser(selectedRows, printSizeKey, stickersPerPage);
       notify.success(`Opened print dialog for ${count} sticker(s).`);
     } catch (err) {
       notify.error(err?.message || "Sticker print failed.");
     } finally {
       setPrintingStickers(false);
     }
-  }, [notify, selectedRows]);
+  }, [notify, selectedRows, printSizeKey, stickersPerPage]);
 
   const cartFooter = (
     <div className="rbp-cart__footer">
@@ -668,6 +669,35 @@ export default function ReportBoardPanel({
   const gridBottomControls = useMemo(
     () => (
       <>
+        <label htmlFor="rbp-print-size" className="rbp-panel__pagesize-label">
+          Print size
+        </label>
+        <select
+          id="rbp-print-size"
+          className="ng-select rbp-panel__pagesize-select"
+          value={printSizeKey}
+          onChange={(e) => setPrintSizeKey(e.target.value)}
+          aria-label="Print size"
+        >
+          <option value="50x50">50 x 50</option>
+          <option value="50x20">50 x 20</option>
+        </select>
+        <label htmlFor="rbp-stickers-per-page" className="rbp-panel__pagesize-label">
+          Per page
+        </label>
+        <select
+          id="rbp-stickers-per-page"
+          className="ng-select rbp-panel__pagesize-select"
+          value={stickersPerPage}
+          onChange={(e) => setStickersPerPage(Number(e.target.value))}
+          aria-label="Stickers per page"
+        >
+          {[1, 2, 3, 4].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           className="rbp-panel__icon-btn rbp-panel__print-btn"
@@ -676,7 +706,7 @@ export default function ReportBoardPanel({
           title={
             printingStickers
               ? "Preparing stickers…"
-              : `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — TA220 4.26×2.50 in`
+              : `Print stickers${selectedRowKeys.length ? ` (${selectedRowKeys.length})` : ""} — ${printSizeKey} mm`
           }
           aria-label={
             printingStickers
@@ -728,6 +758,8 @@ export default function ReportBoardPanel({
       handlePrintStickers,
       pageSize,
       printingStickers,
+      printSizeKey,
+      stickersPerPage,
       selectedRowKeys.length,
     ]
   );
