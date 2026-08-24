@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, ListPlus, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
+const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
 import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useAstEmpReturn } from "../../hooks/useAstEmpReturn";
@@ -25,6 +26,7 @@ import {
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import {
+  buildGridColumns,
   isLockOnEditModeCol,
   isTruthyApiFlag,
   hasVisibleCol,
@@ -196,7 +198,11 @@ export default function AssetsEmployeeReturnForm() {
   }, [columns]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [isFillingDetail, setIsFillingDetail] = useState(false);
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemModalItems, setItemModalItems] = useState([]);
+  const [itemModalColumns, setItemModalColumns] = useState([]);
+  const [itemModalLoading, setItemModalLoading] = useState(false);
+  const [itemModalError, setItemModalError] = useState(null);
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -530,7 +536,7 @@ export default function AssetsEmployeeReturnForm() {
     });
   }, [trackCellEvent]);
 
-  const handleFillDetail = useCallback(async () => {
+  const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
     const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
@@ -539,18 +545,39 @@ export default function AssetsEmployeeReturnForm() {
       setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
-
     setFormErrors([]);
-    setActiveTab("items");
-    setIsFillingDetail(true);
-    setIsGridLoading(true);
+
+    setItemModalOpen(true);
+    setItemModalItems([]);
+    setItemModalColumns([]);
+    setItemModalError(null);
+    setItemModalLoading(true);
 
     try {
       const activeCols = await ensureItemColumns();
       if (!activeCols?.length) {
-        notify.error("Item grid columns could not be loaded.");
-        return;
+        throw new Error("Item grid columns could not be loaded.");
       }
+
+      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: AER_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: AER_CONFIG.RB_ITEM_PICKER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const rbRow = rbRes?.[0];
+      if (!rbRow) throw new Error("Could not load item picker configuration.");
+
+      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: rbRow.rbid,
+        prmLoginID: getUserSession().loginId,
+      });
+      const gridColumns = buildGridColumns(colRes || [], {}, {
+        filterable: false,
+        allEditable: false,
+      });
+      setItemModalColumns(gridColumns);
 
       const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
@@ -559,28 +586,26 @@ export default function AssetsEmployeeReturnForm() {
         p_ErrCode: -1,
         p_ErrMsg: "",
       });
-      const items = Array.isArray(rowRes) ? rowRes : [];
-      if (items.length === 0) {
-        itemGridRef.current?.clearRows?.();
-        notify.info("No items found for the selected header filters.");
-        return;
-      }
-
-      itemGridRef.current?.clearRows?.();
-      items.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-      notify.success(`${items.length} item${items.length === 1 ? "" : "s"} loaded into the grid.`);
+      setItemModalItems(Array.isArray(rowRes) ? rowRes : []);
     } catch (err) {
-      console.error("[AER] Fill Detail failed:", err);
-      notify.error(err?.message || "Failed to fill detail items.");
+      console.error("[AER] Item picker fetch failed:", err);
+      setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
-      setIsFillingDetail(false);
-      setIsGridLoading(false);
+      setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, ensureItemColumns, allColumns, addItemRow, notify]);
+  }, [getLive, headerColumns, ensureItemColumns]);
+
+  const handleInsertItems = useCallback(async (selectedItems) => {
+    if (!selectedItems?.length) return;
+    setActiveTab("items");
+    const activeCols = await ensureItemColumns();
+    if (!activeCols?.length) return;
+    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+  }, [ensureItemColumns, allColumns, addItemRow]);
 
   const handleSelectListShortcut = useCallback(() => {
-    if (activeTab === "items") handleFillDetail();
-  }, [activeTab, handleFillDetail]);
+    if (activeTab === "items") handleSelectItem();
+  }, [activeTab, handleSelectItem]);
 
   const handleDeleteSelected = useCallback(() => {
     if (!itemGridRef.current) return;
@@ -624,6 +649,11 @@ export default function AssetsEmployeeReturnForm() {
     setActiveTab,
     setIsGridLoading,
     setItemSelectionCount,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalLoading,
+    setItemModalError,
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
@@ -738,9 +768,9 @@ export default function AssetsEmployeeReturnForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: isFillingDetail || docLog.docModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving: isSaving || isFillingDetail,
+    isSaving,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -830,12 +860,12 @@ export default function AssetsEmployeeReturnForm() {
                 ref={selectItemBtnRef}
                 type="button"
                 className="eg-tab-btn"
-                onClick={handleFillDetail}
-                disabled={!isEditMode || isFillingDetail}
-                title="Fill detail items from header filters (Tab here after header fields)"
+                onClick={handleSelectItem}
+                disabled={!isEditMode || itemModalLoading}
+                title="Pick return items (Tab here after header fields)"
               >
-                <ListPlus size={12} strokeWidth={2.5} />
-                {isFillingDetail ? "Filling…" : "Fill Detail"}
+                <Package size={12} strokeWidth={2.5} />
+                Select Item
               </button>
 
               <button
@@ -851,7 +881,7 @@ export default function AssetsEmployeeReturnForm() {
             </>
           }
           hideBottomPanel
-          emptyMessage="No items yet. Click Fill Detail above."
+          emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
           onRowsChange={handleItemGridRowsChange}
           cellErrors={detailCellErrors}
@@ -859,7 +889,7 @@ export default function AssetsEmployeeReturnForm() {
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
-          loading={isGridLoading || isFetching || isFillingDetail}
+          loading={isGridLoading || isFetching}
           multiValuePasteColumns={AER_MULTI_PASTE_COLUMNS}
           onMultiValuePaste={handleMultiValuePaste}
           remarkModalColumns={AER_REMARK_COLUMNS}
@@ -876,6 +906,18 @@ export default function AssetsEmployeeReturnForm() {
         cancelAccessKey="n"
         extraButtons={extraButtons}
       />
+
+      <Suspense fallback={null}>
+        <OrderItemModal
+          isOpen={itemModalOpen}
+          onClose={() => setItemModalOpen(false)}
+          items={itemModalItems}
+          columns={itemModalColumns}
+          isLoading={itemModalLoading}
+          error={itemModalError}
+          onInsert={handleInsertItems}
+        />
+      </Suspense>
 
       <Suspense fallback={null}>
         <DocumentLogModal

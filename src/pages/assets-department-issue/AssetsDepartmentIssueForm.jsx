@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, Printer, Save, Search, QrCode } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import Modal from "../../components/ui/Modal";
+import HardwareQrScanner from "../../components/txn/HardwareQrScanner";
 import { useNotification } from "../../context/NotificationContext";
+import { parseQrItemPayload } from "../../utils/qrScanJson";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstDepIssue } from "../../hooks/useAstDepIssue";
@@ -54,6 +57,7 @@ import {
   applyAdiHardcodedHeaderValues,
   buildAdiCascadeResets,
   validateAdiBusinessRules,
+  normalizeAdiQrSearchJson,
 } from "./constants";
 import "./AssetsDepartmentIssuePage.css";
 
@@ -94,6 +98,24 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
+function normQrKey(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+/** True if grid already has the same itemcode + assetsrno (or srno fallback). */
+function gridHasScannedItem(rows, itemcode, srno) {
+  const code = normQrKey(itemcode);
+  const serial = normQrKey(srno);
+  if (!code || !serial) return false;
+  return (rows || []).some((row) => {
+    const rowCode = normQrKey(row.itemcode ?? row.ItemCode);
+    const rowSrno = normQrKey(
+      row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo
+    );
+    return rowCode === code && rowSrno === serial;
+  });
+}
+
 export default function AssetsDepartmentIssueForm() {
   const { id: routeId } = useParams();
   const location = useLocation();
@@ -124,6 +146,8 @@ export default function AssetsDepartmentIssueForm() {
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
+  const headerScanRef = useRef(null);
+  const pendingScanSrNoRef = useRef("");
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
@@ -198,6 +222,12 @@ export default function AssetsDepartmentIssueForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+  const [itemModalScanMode, setItemModalScanMode] = useState(false);
+  const [scanQrOpen, setScanQrOpen] = useState(false);
+  const [scanQrLoading, setScanQrLoading] = useState(false);
+  const [scanQrError, setScanQrError] = useState(null);
+  const [lastQrItem, setLastQrItem] = useState(null);
+  const [headerScanValue, setHeaderScanValue] = useState("");
   const groupFilter = useItemPickerGroupFilter({
     spMainGroup: ADI_CONFIG.SP_ITEM_MAIN_GROUP,
     spSubMainGroup: ADI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
@@ -494,6 +524,44 @@ export default function AssetsDepartmentIssueForm() {
     });
   }, [trackCellEvent]);
 
+  const fetchItemPickerColumns = useCallback(async () => {
+    const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: OBJ_TYPE.FUNCTION,
+      ObjName: ADI_CONFIG.SP_RB_META,
+      JSon: JSON.stringify([{ prmrbcode: ADI_CONFIG.RB_ITEM_PICKER }]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    });
+    const rbRow = rbRes?.[0];
+    if (!rbRow) throw new Error("Could not load item picker configuration.");
+
+    const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+      prmMasterID: rbRow.rbid,
+      prmLoginID: getUserSession().loginId,
+    });
+    return buildGridColumns(colRes || [], {}, {
+      filterable: false,
+      allEditable: false,
+    });
+  }, [getLive]);
+
+  const recordLastScannedItem = useCallback((srNo, mappedRows, sourceRows = []) => {
+    const last = sourceRows[sourceRows.length - 1] || mappedRows[mappedRows.length - 1] || {};
+    const itemName = String(
+      last.itemname ?? last.ItemName ?? last.itemdesc ?? last.ItemDesc
+      ?? last.description ?? last.Description ?? last.itemcode ?? last.ItemCode
+      ?? "Item"
+    ).trim();
+    const qrItem = {
+      itemcode: String(last.itemcode ?? last.ItemCode ?? "").trim(),
+      srno: String(srNo ?? "").trim(),
+      itemname: itemName,
+      rowIds: mappedRows.map((r) => r.id),
+    };
+    setLastQrItem(qrItem);
+    return qrItem;
+  }, []);
+
   const handleSelectItem = useCallback(async () => {
     const headerValues = headerValuesRef.current;
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
@@ -510,34 +578,17 @@ export default function AssetsDepartmentIssueForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
+    setItemModalScanMode(false);
     setItemNameFilter("");
     groupFilter.resetFilter();
 
     try {
-      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: OBJ_TYPE.FUNCTION,
-        ObjName: ADI_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmrbcode: ADI_CONFIG.RB_ITEM_PICKER }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
-      });
-      const rbRow = rbRes?.[0];
-      if (!rbRow) throw new Error("Could not load item picker configuration.");
-
-      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: rbRow.rbid,
-        prmLoginID: getUserSession().loginId,
-      });
-      const gridColumns = buildGridColumns(colRes || [], {}, {
-        filterable: false,
-        allEditable: false,
-      });
+      const gridColumns = await fetchItemPickerColumns();
       setItemModalColumns(gridColumns);
 
       const divisionId = headerValues.fromdivisionid;
       const configId = headerValues.configid;
       await groupFilter.fetchMainGroupOptions({ divisionId, configId });
-      // Keep Sub Main Group active on first load — fetch with default magroupid=0.
       await groupFilter.fetchSubMainGroupOptions({
         divisionId,
         configId,
@@ -549,7 +600,7 @@ export default function AssetsDepartmentIssueForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
+  }, [fetchItemPickerColumns, headerColumns, groupFilter]);
 
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -605,8 +656,349 @@ export default function AssetsDepartmentIssueForm() {
     setActiveTab("items");
     const activeCols = await ensureItemColumns();
     if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+    const mappedRows = selectedItems.map((item) => mapPickerToItemRow(item, allColumns));
+    mappedRows.forEach((row) => addItemRow(row));
+
+    const pendingSrNo = pendingScanSrNoRef.current;
+    if (pendingSrNo) {
+      const entry = recordLastScannedItem(pendingSrNo, mappedRows, selectedItems);
+      pendingScanSrNoRef.current = "";
+      setItemModalScanMode(false);
+      notify.toastSuccess(
+        mappedRows.length === 1
+          ? `Added: ${entry.itemname || pendingSrNo}`
+          : `Added ${mappedRows.length} items · ${entry.itemname || pendingSrNo}`
+      );
+    }
+  }, [ensureItemColumns, allColumns, addItemRow, recordLastScannedItem, notify]);
+
+  const closeItemModal = useCallback(() => {
+    setItemModalOpen(false);
+    if (itemModalScanMode) {
+      pendingScanSrNoRef.current = "";
+      setItemModalScanMode(false);
+    }
+  }, [itemModalScanMode]);
+
+  const isScanPickerRowDisabled = useCallback((row) => {
+    return gridHasScannedItem(
+      itemGridRef.current?.getRows?.() ?? [],
+      row.itemcode ?? row.ItemCode,
+      row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo
+    );
+  }, []);
+
+  const openManualSearch = useCallback(() => {
+    setScanQrError(null);
+    setScanQrOpen(true);
+  }, []);
+
+  const closeScanQr = useCallback(() => {
+    if (scanQrLoading) return;
+    setScanQrOpen(false);
+    setScanQrError(null);
+  }, [scanQrLoading]);
+
+  const focusHeaderScanField = useCallback(() => {
+    if (!isEditMode) return;
+    setActiveTab("items");
+    requestAnimationFrame(() => {
+      headerScanRef.current?.focus();
+      headerScanRef.current?.select?.();
+    });
+  }, [isEditMode]);
+
+  const restoreHeaderScanFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!headerScanRef.current || headerScanRef.current.disabled) return;
+        headerScanRef.current.focus();
+      }, 0);
+    });
+  }, []);
+
+  const handleScanHistorySubmit = useCallback(async (rawSrNo) => {
+    const srNo = String(rawSrNo ?? "").trim();
+    if (!srNo) {
+      const msg = "Enter Sr No.";
+      setScanQrError(msg);
+      notify.toastError(msg);
+      return;
+    }
+
+    const headerValues = headerValuesRef.current;
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setScanQrOpen(false);
+      setFormErrors(["Please fix the highlighted field(s) below."]);
+      return;
+    }
+    setFormErrors([]);
+    setScanQrError(null);
+    setScanQrLoading(true);
+
+    try {
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) {
+        notify.toastError("Item grid columns could not be loaded.");
+        return;
+      }
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: ADI_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([{
+          ...buildAdiItemPickerJsonPayload(headerValues, {
+            maGroupId: 0,
+            subMaGroupId: 0,
+            itemNameSearch: "",
+            qrJson: "",
+            otherStr: srNo,
+          }),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+
+      const rows = rowRes || [];
+      if (rows.length === 0) {
+        const msg = "No item found for this Sr No.";
+        setScanQrError(msg);
+        notify.toastError(msg);
+        return;
+      }
+
+      const pickerColumns = itemModalColumns.length > 0
+        ? itemModalColumns
+        : await fetchItemPickerColumns();
+
+      if (rows.length === 1) {
+        const mappedRow = mapPickerToItemRow(rows[0], allColumns);
+        const gridRowsNow = itemGridRef.current?.getRows?.() ?? [];
+        if (gridHasScannedItem(
+          gridRowsNow,
+          mappedRow.itemcode ?? mappedRow.ItemCode,
+          mappedRow.assetsrno ?? mappedRow.Assetsrno ?? mappedRow.srno ?? mappedRow.SrNo
+        )) {
+          const msg = "Item is already added";
+          setScanQrError(msg);
+          notify.toastError(msg);
+          return;
+        }
+
+        setActiveTab("items");
+        addItemRow(mappedRow);
+        const entry = recordLastScannedItem(srNo, [mappedRow], rows);
+        setScanQrOpen(false);
+        setScanQrError(null);
+        notify.toastSuccess(`Added: ${entry.itemname || srNo}`);
+        return;
+      }
+
+      pendingScanSrNoRef.current = srNo;
+      setItemModalScanMode(true);
+      setItemModalColumns(pickerColumns);
+      setItemModalItems(rows);
+      setItemModalError(null);
+      setItemModalOpen(true);
+      setScanQrOpen(false);
+      setScanQrError(null);
+    } catch (err) {
+      console.error("[ADI] Manual search item fetch failed:", err);
+      const msg = err?.message || "Failed to fetch item for Sr No.";
+      setScanQrError(msg);
+      notify.toastError(msg);
+    } finally {
+      setScanQrLoading(false);
+    }
+  }, [
+    headerColumns,
+    ensureItemColumns,
+    getLive,
+    allColumns,
+    addItemRow,
+    recordLastScannedItem,
+    fetchItemPickerColumns,
+    itemModalColumns,
+    notify,
+  ]);
+
+  const handleScanQrSubmit = useCallback(async (rawText) => {
+    const { qrJson, error } = normalizeAdiQrSearchJson(rawText);
+    if (error) {
+      setScanQrError(scanQrOpen ? error : null);
+      notify.toastError(error);
+      restoreHeaderScanFocus();
+      return;
+    }
+
+    const headerValues = headerValuesRef.current;
+    const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setScanQrOpen(false);
+      setFormErrors(["Please fix the highlighted field(s) below."]);
+      restoreHeaderScanFocus();
+      return;
+    }
+    setFormErrors([]);
+
+    setScanQrError(null);
+
+    let scannedMeta = {};
+    try { scannedMeta = JSON.parse(qrJson); } catch { /* keep empty */ }
+    const existingRows = itemGridRef.current?.getRows?.() ?? [];
+    if (gridHasScannedItem(existingRows, scannedMeta.itemcode, scannedMeta.srno)) {
+      const msg = "Item is already added";
+      setScanQrError(scanQrOpen ? msg : null);
+      notify.toastError(msg);
+      setHeaderScanValue("");
+      restoreHeaderScanFocus();
+      return;
+    }
+
+    setScanQrLoading(true);
+    try {
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) {
+        notify.toastError("Item grid columns could not be loaded.");
+        return;
+      }
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: ADI_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([{
+          ...buildAdiItemPickerJsonPayload(headerValues, {
+            maGroupId: 0,
+            subMaGroupId: 0,
+            itemNameSearch: "",
+            qrJson,
+          }),
+        }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+
+      const rows = rowRes || [];
+      if (rows.length === 0) {
+        const msg = "No item found for this QR JSON.";
+        setScanQrError(scanQrOpen ? msg : null);
+        notify.toastError(msg);
+        return;
+      }
+
+      const gridRowsNow = itemGridRef.current?.getRows?.() ?? [];
+      const mappedRows = rows
+        .map((item) => mapPickerToItemRow(item, allColumns))
+        .filter((row) => !gridHasScannedItem(
+          gridRowsNow,
+          row.itemcode ?? row.ItemCode,
+          row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo
+        ));
+
+      if (mappedRows.length === 0) {
+        const msg = "Item is already added";
+        setScanQrError(scanQrOpen ? msg : null);
+        notify.toastError(msg);
+        setHeaderScanValue("");
+        return;
+      }
+
+      setActiveTab("items");
+      mappedRows.forEach((row) => addItemRow(row));
+
+      const last = rows[rows.length - 1] || {};
+      const itemName = String(
+        last.itemname ?? last.ItemName ?? last.itemdesc ?? last.ItemDesc
+        ?? last.description ?? last.Description ?? last.itemcode ?? last.ItemCode
+        ?? scannedMeta.itemcode ?? "Item"
+      ).trim();
+      recordLastScannedItem(
+        scannedMeta.srno ?? last.assetsrno ?? last.Assetsrno ?? last.srno ?? last.SrNo ?? "",
+        mappedRows,
+        rows
+      );
+      setHeaderScanValue("");
+
+      if (scanQrOpen) {
+        setScanQrOpen(false);
+        setScanQrError(null);
+      }
+      notify.toastSuccess(
+        mappedRows.length === 1
+          ? `Added: ${itemName}`
+          : `Added ${mappedRows.length} items · ${itemName}`
+      );
+    } catch (err) {
+      console.error("[ADI] Scan QR item fetch failed:", err);
+      const msg = err?.message || "Failed to fetch item for QR JSON.";
+      setScanQrError(scanQrOpen ? msg : null);
+      notify.toastError(msg);
+    } finally {
+      setScanQrLoading(false);
+      restoreHeaderScanFocus();
+    }
+  }, [
+    scanQrOpen, headerColumns, ensureItemColumns, getLive,
+    allColumns, addItemRow, notify, restoreHeaderScanFocus, recordLastScannedItem,
+  ]);
+
+  const commitHeaderScan = useCallback((raw) => {
+    const value = String(raw ?? "").trim();
+    if (!value) return;
+    setHeaderScanValue("");
+    const parsed = parseQrItemPayload(value);
+    if (parsed) {
+      handleScanQrSubmit(JSON.stringify(parsed));
+      return;
+    }
+    handleScanQrSubmit(value);
+  }, [handleScanQrSubmit]);
+
+  const handleHeaderScanKeyDown = useCallback((e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isEditMode || scanQrLoading) return;
+    commitHeaderScan(headerScanValue);
+  }, [isEditMode, scanQrLoading, commitHeaderScan, headerScanValue]);
+
+  const handleHeaderScanPaste = useCallback((e) => {
+    if (!isEditMode || scanQrLoading) return;
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (!String(text).trim()) return;
+    e.preventDefault();
+    commitHeaderScan(text);
+  }, [isEditMode, scanQrLoading, commitHeaderScan]);
+
+  const syncLastQrItemWithGridRows = useCallback((rows) => {
+    const livingIds = new Set((rows || []).map((r) => r.id));
+
+    setLastQrItem((current) => {
+      if (!current) return current;
+      if (current.rowIds?.length) {
+        return current.rowIds.some((id) => livingIds.has(id)) ? current : null;
+      }
+      const code = String(current.itemcode ?? "").trim().toLowerCase();
+      const serial = String(current.srno ?? "").trim().toLowerCase();
+      const stillThere = (rows || []).some((row) => {
+        const rowCode = String(row.itemcode ?? row.ItemCode ?? "").trim().toLowerCase();
+        const rowSrno = String(
+          row.assetsrno ?? row.Assetsrno ?? row.srno ?? row.SrNo ?? ""
+        ).trim().toLowerCase();
+        return rowCode === code && rowSrno === serial;
+      });
+      return stillThere ? current : null;
+    });
+  }, []);
+
+  const handleGridRowsChange = useCallback((rows) => {
+    syncLastQrItemWithGridRows(rows);
+  }, [syncLastQrItemWithGridRows]);
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -759,7 +1151,7 @@ export default function AssetsDepartmentIssueForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || scanQrOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -768,6 +1160,7 @@ export default function AssetsDepartmentIssueForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onScanQr: focusHeaderScanField,
   });
 
   const extraButtons = useMemo(() => [
@@ -840,6 +1233,51 @@ export default function AssetsDepartmentIssueForm() {
           onTabChange={setActiveTab}
           headerControls={
             <>
+              <label
+                className={`adi-qr-search${!isEditMode ? " adi-qr-search--disabled" : ""}${scanQrLoading ? " adi-qr-search--busy" : ""}`}
+                title={FORM_SHORTCUT_TITLES.scanQr}
+              >
+                <span className="adi-qr-search__icon" aria-hidden="true">
+                  <QrCode size={16} strokeWidth={2.4} />
+                </span>
+                <input
+                  id="adi-header-qr-scan"
+                  ref={headerScanRef}
+                  type="text"
+                  className="adi-qr-search__input"
+                  value={headerScanValue}
+                  onChange={(e) => setHeaderScanValue(e.target.value)}
+                  onKeyDown={handleHeaderScanKeyDown}
+                  onPaste={handleHeaderScanPaste}
+                  placeholder={scanQrLoading ? "Fetching…" : "Scan QR code…"}
+                  disabled={!isEditMode}
+                  readOnly={scanQrLoading}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Scan QR with hardware scanner"
+                />
+                <kbd className="adi-qr-search__kbd">Ctrl+Q</kbd>
+              </label>
+
+              {lastQrItem?.itemcode || lastQrItem?.srno ? (
+                <span className="adi-last-qr" title="Last scanned item">
+                  <span className="adi-last-qr__label">Last scan</span>
+                  {lastQrItem.itemcode ? (
+                    <span className="adi-last-qr__pair">
+                      <span className="adi-last-qr__key">Item</span>
+                      <strong>{lastQrItem.itemcode}</strong>
+                    </span>
+                  ) : null}
+                  {lastQrItem.srno ? (
+                    <span className="adi-last-qr__pair">
+                      <span className="adi-last-qr__key">Sr No</span>
+                      <strong>{lastQrItem.srno}</strong>
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+
               <button
                 ref={selectItemBtnRef}
                 type="button"
@@ -850,6 +1288,17 @@ export default function AssetsDepartmentIssueForm() {
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
+              </button>
+
+              <button
+                type="button"
+                className="eg-tab-btn"
+                onClick={openManualSearch}
+                disabled={!isEditMode || scanQrLoading}
+                title={FORM_SHORTCUT_TITLES.scanHistory}
+              >
+                <Search size={12} strokeWidth={2.5} />
+                Manual Search
               </button>
 
               <button
@@ -867,6 +1316,7 @@ export default function AssetsDepartmentIssueForm() {
           hideBottomPanel
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
+          onRowsChange={handleGridRowsChange}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
@@ -893,13 +1343,13 @@ export default function AssetsDepartmentIssueForm() {
       <Suspense fallback={null}>
         <OrderItemModal
           isOpen={itemModalOpen}
-          onClose={() => setItemModalOpen(false)}
+          onClose={closeItemModal}
           items={itemModalItems}
           columns={itemModalColumns}
           isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
-          filterBar={
+          filterBar={itemModalScanMode ? null : (
             <ItemPickerGroupFilterBar
               mainGroupOptions={groupFilter.mainGroupOptions}
               subMainGroupOptions={groupFilter.subMainGroupOptions}
@@ -908,7 +1358,6 @@ export default function AssetsDepartmentIssueForm() {
               onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
                 divisionId: headerValuesRef.current.fromdivisionid,
                 configId: headerValuesRef.current.configid,
-                // Cleared Main Group → keep Sub Main loaded with default magroupid=0.
                 defaultMaGroupId: 0,
               })}
               onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
@@ -919,10 +1368,60 @@ export default function AssetsDepartmentIssueForm() {
               itemNameValue={itemNameFilter}
               onItemNameChange={setItemNameFilter}
             />
-          }
-          awaitingFilter={!groupFilter.filterApplied}
+          )}
+          awaitingFilter={itemModalScanMode ? false : !groupFilter.filterApplied}
+          isRowDisabled={itemModalScanMode ? isScanPickerRowDisabled : null}
         />
       </Suspense>
+
+      <Modal
+        isOpen={scanQrOpen}
+        onClose={closeScanQr}
+        title="Manual Search"
+        subtitle="Search by serial number"
+        icon={<Search size={16} strokeWidth={2.25} />}
+        size="sm"
+        variant="enterprise"
+        dialogClassName="adi-scan-qr-modal"
+        initialFocusSelector="#hw-qr-srno"
+        footer={
+          <div className="adi-scan-qr__footer">
+            <button
+              type="button"
+              className="adi-scan-qr__btn adi-scan-qr__btn--cancel"
+              onClick={closeScanQr}
+              disabled={scanQrLoading}
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        <div className="adi-scan-qr">
+          <HardwareQrScanner
+            srNoOnly
+            showHistory={false}
+            disabled={scanQrLoading}
+            onScan={handleScanHistorySubmit}
+            hint="Enter Sr No, then press Enter or click Fetch Item. Multiple matches open Select Item; a single match is added directly."
+          />
+          {(scanQrError || scanQrLoading) ? (
+            <div className="adi-scan-qr__status">
+              {scanQrError ? (
+                <div className="adi-scan-qr__error" role="alert">
+                  <AlertCircle size={14} strokeWidth={2} />
+                  <span>{scanQrError}</span>
+                </div>
+              ) : null}
+              {scanQrLoading ? (
+                <div className="adi-scan-qr__loading" role="status">
+                  Fetching item…
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </Modal>
     </div>
   );
 }
