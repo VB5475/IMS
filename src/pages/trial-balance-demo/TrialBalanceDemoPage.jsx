@@ -109,10 +109,10 @@ export default function TrialBalanceDemoPage() {
     setExpandedKeys(new Set());
   }, []);
 
-  const handleExportExcel = useCallback(() => {
+  const handleExportExcel = useCallback(async () => {
     try {
       const rowsToExport = searchQuery.trim() ? filteredRows : tbRows;
-      exportTrialBalanceToExcel({
+      await exportTrialBalanceToExcel({
         rows: rowsToExport,
         meta: tbReportMeta,
       });

@@ -60,8 +60,7 @@ export const AEI_CONFIG = {
   SP_ITEM_PICKER: "fn_tbl_Rb_astempissselonly",
   // Select Item popup filters — any one of Main Group / Sub Main Group /
   // Item Name (≥3 chars). Unselected filters are sent as defaults (0 / "").
-  // Scan QR uses the same SP with magroup/sub = 0 and prmqrjson =
-  // stringified { itemcode, srno }.
+  // Manual Search modal uses prmotherstr (Sr No). Header QR scan uses prmqrjson.
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
 
@@ -132,6 +131,7 @@ export function buildAeiItemPickerJsonPayload(headerValues, {
   subMaGroupId = 0,
   itemNameSearch = "",
   qrJson = "",
+  otherStr = "",
 } = {}) {
   const session = getUserSession();
   return {
@@ -160,7 +160,7 @@ export function buildAeiItemPickerJsonPayload(headerValues, {
     prmsubmaingroupid: Number(subMaGroupId) || 0,
     prmitemnamesearch: String(itemNameSearch ?? "").trim(),
     prmsearchtext: "",
-    prmotherstr: "",
+    prmotherstr: String(otherStr ?? "").trim(),
     prmjson: "[]",
     prmqrjson: String(qrJson ?? "").trim(),
   };

@@ -123,6 +123,8 @@ export const RB_CODES = Object.freeze({
   CALL_REPORTING: "rb_mnt_clrpt",
   MAINTENANCE_CONTRACT_RENEWAL: "rb_mntamcrnwmst",
   MAINTENANCE_NEW_CONTRACT: "rb_mntamcnewmst",
+  /** Preventive Maintenance Internal — MRD_Template4MntInternalMaintenance.docx */
+  PREVENTIVE_MAINTENANCE_INTERNAL: "rb_mntpmimst",
 
   // ── Workflow ────────────────────────────────────────────────────
   // MRD_Template4WorkFlowDashBoard.docx (Richa, 08-Aug-2026) — read-only
@@ -203,6 +205,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.COMPLAINT_REGISTER]: "/complaint-register",
   [RB_CODES.MAINTENANCE_CONTRACT_RENEWAL]: "/maintenance-contract-renewal",
   [RB_CODES.MAINTENANCE_NEW_CONTRACT]: "/maintenance-new-contract",
+  [RB_CODES.PREVENTIVE_MAINTENANCE_INTERNAL]: "/preventive-maintenance-internal",
 
   [RB_CODES.WORKFLOW_DASHBOARD]: "/workflow-dashboard",
 });

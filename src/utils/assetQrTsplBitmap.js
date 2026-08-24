@@ -1,10 +1,9 @@
-import QRCode from "qrcode";
-
 /**
  * Build a TSPL BITMAP command from QR payload.
  * Avoids QRCODE command issues with JSON double-quotes in the data string.
  */
 export async function buildQrBitmapTsplCommand(payload, x, y, maxSizeDots) {
+  const QRCode = (await import("qrcode")).default;
   const qr = await QRCode.create(payload, {
     errorCorrectionLevel: "M",
     margin: 1,

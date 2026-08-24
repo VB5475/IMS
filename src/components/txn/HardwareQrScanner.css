@@ -23,6 +23,10 @@
   gap: 12px;
 }
 
+.hw-qr__fields--sr-only {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 520px) {
   .hw-qr__fields {
     grid-template-columns: 1fr;
