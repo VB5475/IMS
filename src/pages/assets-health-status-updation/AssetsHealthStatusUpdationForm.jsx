@@ -8,9 +8,12 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
+const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
 import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
+import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
 import { useAstHealthStatus } from "../../hooks/useAstHealthStatus";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
+import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -33,7 +36,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -125,6 +128,7 @@ export default function AssetsHealthStatusUpdationForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -217,6 +221,21 @@ export default function AssetsHealthStatusUpdationForm() {
   const [itemNameFilter, setItemNameFilter] = useState("");
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Document Log modal (F6) — scoped to this record's id, gated on the
+  // session's Document Log permission flags (set at login). Module-wise
+  // department id (DM Department Master id=12, shared with Assets Employee
+  // Issue/Return) — see useDocumentLogAccess.js for the full permission-gate/
+  // GUID/button-visibility/post-save-linking logic.
+  const docLog = useDocumentLogAccess({
+    tranTypeId: AHS_CONFIG.DM_TRAN_TYPE_ID,
+    refDepartmentId: DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_HEALTH_STATUS_UPDATION,
+    recordId,
+    getDivisionId: () => headerValuesRef.current?.fromdivisionid,
+    isEditMode,
+    postSave,
+    logLabel: "[AHS]",
+  });
 
   const cascadeResets = useMemo(() => buildAhsCascadeResets(headerColumns), [headerColumns]);
 
@@ -346,6 +365,7 @@ export default function AssetsHealthStatusUpdationForm() {
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
+    setDetailCellErrors(null);
     exitEditMode();
   }, [clearSaveError, exitEditMode]);
 
@@ -650,9 +670,11 @@ export default function AssetsHealthStatusUpdationForm() {
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const businessErrors = validateAhsBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
-    const allErrors = [...headerBannerMsg, ...businessErrors, ...detailErrors];
-    if (allErrors.length > 0) {
+    const detailRows = itemGridRef.current?.getRows?.() ?? [];
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
+    const allErrors = [...headerBannerMsg, ...businessErrors, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || businessErrors.length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) {
       setFormErrors(allErrors);
       return false;
     }
@@ -681,12 +703,20 @@ export default function AssetsHealthStatusUpdationForm() {
     setIsSaving(true);
     try {
       const result = await postSave(AHS_CONFIG.SAVE_ENDPOINT, payload);
-      const { success, message } = parseApiErrMsg(result);
+      const { success, message, newId } = parseApiErrMsg(result);
       if (!success) {
         setFormErrors([message]);
         return false;
       }
       notify.success(message);
+      // Saves any document rows staged in the Documents modal but never
+      // explicitly submitted via its own Save button, then links any docs
+      // staged under docGuid (before this transaction existed) to the
+      // now-saved transaction — see useDocumentLogAccess.finalizeSave.
+      // Best-effort: a failure here must never be treated as this save
+      // having failed — it already succeeded by this point.
+      const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      await docLog.finalizeSave(savedTranId);
       completeSuccessfulSave();
       return true;
     } catch (err) {
@@ -696,7 +726,7 @@ export default function AssetsHealthStatusUpdationForm() {
     } finally {
       setIsSaving(false);
     }
-  }, [headerColumns, columns, allColumns, isEditRoute, notify, postSave, flushPendingCellEvents, completeSuccessfulSave]);
+  }, [headerColumns, columns, allColumns, isEditRoute, recordId, notify, postSave, flushPendingCellEvents, completeSuccessfulSave, docLog.finalizeSave]);
 
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
@@ -729,7 +759,7 @@ export default function AssetsHealthStatusUpdationForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -738,9 +768,16 @@ export default function AssetsHealthStatusUpdationForm() {
     onSavePrint: handleSaveAndPrint,
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
+    onDocuments: docLog.handleOpenDocuments,
   });
 
   const extraButtons = useMemo(() => [
+    // Show/hide only, never a disabled state (matches Indent's convention) —
+    // docLog.documentsButtonEntry already encodes this (null when permission
+    // gates say no), spread in/out of the array so ActionBar's own
+    // `showAlways || isEditMode` filter hides/shows it with Add/Edit mode
+    // the same way every other extra button does.
+    ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
       key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
       onClick: handleSaveAndPrint, disabled: isSaving,
@@ -751,7 +788,7 @@ export default function AssetsHealthStatusUpdationForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [handleSaveAndPrint, handleSave, isSaving, docLog.documentsButtonEntry]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
@@ -841,6 +878,7 @@ export default function AssetsHealthStatusUpdationForm() {
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
+          cellErrors={detailCellErrors}
           loading={isGridLoading || isFetching}
           multiValuePasteColumns={AHS_MULTI_PASTE_COLUMNS}
           onMultiValuePaste={handleMultiValuePaste}
@@ -890,6 +928,19 @@ export default function AssetsHealthStatusUpdationForm() {
             />
           }
           awaitingFilter={!groupFilter.filterApplied}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DocumentLogModal
+          ref={docLog.docModalRef}
+          isOpen={docLog.docModalOpen}
+          onClose={() => docLog.setDocModalOpen(false)}
+          tranId={recordId}
+          divisionId={headerValuesRef.current?.fromdivisionid}
+          tranTypeId={AHS_CONFIG.DM_TRAN_TYPE_ID}
+          refDepartmentId={DOC_LOG_CFG.REF_DEPARTMENT_ID.ASSETS_HEALTH_STATUS_UPDATION}
+          guid={docLog.docGuid}
         />
       </Suspense>
     </div>

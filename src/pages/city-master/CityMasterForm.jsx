@@ -14,13 +14,10 @@ import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumnsByField } from "../../utils/columnValidation";
+import { isMasterFieldLocked } from "../../utils/masterFormUtils";
 import { useNotification } from "../../context/NotificationContext";
 import { CIM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./CityMasterPage.css";
-
-// Fields locked during edit mode (RB colnames — all lowercase). Per MRD, only
-// Country is locked on edit — State/Code/Name/Reg Name stay editable.
-const LOCK_ON_EDIT = new Set(["countryid"]);
 
 function getLabel(field) { return field.displayname; }
 
@@ -115,9 +112,7 @@ export default function CityMasterForm({
   }), [countryOptions, stateOptions]);
 
   function isLocked(field) {
-    if (!isEditMode) return true;
-    if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.colname);
+    return isMasterFieldLocked(field, { isAddMode, isEditMode });
   }
 
   // Cascade: Country change clears + refetches State (MRD §2 "Cascade resets")

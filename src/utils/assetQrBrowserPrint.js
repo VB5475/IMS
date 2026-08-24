@@ -17,7 +17,7 @@ function escapeHtml(value) {
 function buildStickerCardHtml(label, logoUrl) {
   const rows = [
     ["Tag", label.tag || label.itemcode],
-    ["Model", label.model || label.itemname],
+    ["Name", label.model || label.itemname],
     ["S/N", label.serial || label.srno],
     ["E", label.employee || ""],
   ];
@@ -29,17 +29,14 @@ function buildStickerCardHtml(label, logoUrl) {
     </div>
     <div class="sticker-card__fields">
       ${rows
-        .map(
-          ([labelText, value]) => `
+      .map(
+        ([labelText, value]) => `
         <div class="sticker-card__row">
           <span class="sticker-card__label">${escapeHtml(labelText)}:</span>
           <span class="sticker-card__value">${escapeHtml(value)}</span>
         </div>`
-        )
-        .join("")}
-    </div>
-    <div class="sticker-card__logo">
-      <img src="${escapeHtml(logoUrl)}" alt="IMS" />
+      )
+      .join("")}
     </div>
   </div>`;
 }
@@ -54,7 +51,10 @@ function buildPrintDocument(labels, size, logoUrl) {
 <meta charset="utf-8" />
 <title>Asset stickers</title>
 <style>
-  @page { size: ${widthIn}in ${heightIn}in; margin: 0; }
+  @page { 
+    size: ${widthIn}in ${heightIn}in; 
+    margin: 0in; /* Fixed: Changed from 5in to 0in so it doesn't clip the stickers */
+  }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
@@ -64,13 +64,11 @@ function buildPrintDocument(labels, size, logoUrl) {
     color: #111;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    color-adjust: exact !important;
   }
   @media print {
-    html, body, img, .sticker-card, .sticker-card__logo {
+    html, body, img, .sticker-card {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
-      color-adjust: exact !important;
     }
     img {
       filter: none !important;
@@ -80,19 +78,23 @@ function buildPrintDocument(labels, size, logoUrl) {
   .sticker-card {
     width: ${widthIn}in;
     height: ${heightIn}in;
-    page-break-after: always;
+    margin: 0 auto;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    page-break-after: always; /* Ensures each sticker takes up its own designated label page/roll section */
+    break-after: page;
     display: flex;
     align-items: center;
-    gap: 0.18in;
-    padding: 0.16in 0.18in;
+    padding: 0.15in; 
+    gap: 0.15in;
     background: #fff;
     overflow: hidden;
   }
-  .sticker-card:last-child { page-break-after: auto; }
   .sticker-card__qr {
-    width: 1.7in;
-    height: 1.7in;
+    width: 1.9685in; /* 50mm converted to inches */
+    height: 1.9685in; /* 50mm converted to inches */
     flex-shrink: 0;
+    margin-left: 0.18in; /* shifts QR right so it doesn't get cut off at the paper edge */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -101,45 +103,34 @@ function buildPrintDocument(labels, size, logoUrl) {
   .sticker-card__qr img {
     width: 100%;
     height: 100%;
+    object-path: contain;
     object-fit: contain;
     image-rendering: pixelated;
   }
   .sticker-card__fields {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
-    line-height: 1.55;
+    font-size: 9.5px;
+    line-height: 1.3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .sticker-card__row {
     display: flex;
-    gap: 6px;
-    margin-bottom: 3px;
+    gap: 4px;
+    margin-bottom: 2px;
   }
   .sticker-card__label {
     font-weight: 700;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .sticker-card__value {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .sticker-card__logo {
-    width: 0.72in;
-    height: 0.72in;
-    flex-shrink: 0;
-    border-radius: 50%;
-    overflow: hidden;
-    align-self: flex-start;
-    margin-top: 0.06in;
-    background: #fff;
-  }
-  .sticker-card__logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: none !important;
-    -webkit-filter: none !important;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
   }
 </style>
 </head>

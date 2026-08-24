@@ -69,6 +69,13 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
     defaultExpanded = false,
     expanded: expandedProp,
     onExpandedChange,
+    // "panel" variant only — extra controls (fields, search, buttons) shown
+    // on the same header row as the title, to the right of it, as a sibling
+    // of the collapse-toggle button (not nested inside it, so clicks on
+    // these controls don't also toggle the panel). Suppresses the row-count
+    // badge when present (DOP's Employee Detail cards keep their own
+    // accurate count here instead — see rowCount note on badge below).
+    headerActions = null,
 
     // Data — legacy flat props or full EntryGrid config
     columns = [],
@@ -280,23 +287,26 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
 
   return (
     <div className="cg-panel cg-panel--standalone">
-      <button
-        type="button"
-        className="cg-header"
-        onClick={() => setExpanded((e) => !e)}
-        aria-expanded={expanded}
-      >
-        <span className="cg-header__chevron">
-          {expanded ? (
-            <ChevronDown size={13} strokeWidth={2.5} />
-          ) : (
-            <ChevronRight size={13} strokeWidth={2.5} />
-          )}
-        </span>
-        <span className="cg-header__title">{title}</span>
-        {subtitle && <span className="cg-header__sub">{subtitle}</span>}
-        <span className="cg-header__badge">{rowCount}</span>
-      </button>
+      <div className={`cg-header-row${expanded ? " cg-header-row--expanded" : ""}`}>
+        <button
+          type="button"
+          className="cg-header"
+          onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
+        >
+          <span className="cg-header__chevron">
+            {expanded ? (
+              <ChevronDown size={13} strokeWidth={2.5} />
+            ) : (
+              <ChevronRight size={13} strokeWidth={2.5} />
+            )}
+          </span>
+          <span className="cg-header__title">{title}</span>
+          {subtitle && <span className="cg-header__sub">{subtitle}</span>}
+          {!headerActions && <span className="cg-header__badge">{rowCount}</span>}
+        </button>
+        {headerActions && <div className="cg-header__actions">{headerActions}</div>}
+      </div>
 
       {hasOpenedOnce && (
         <div className={`cg-body${expanded ? "" : " cg-body--hidden"}`}>{gridNode}</div>

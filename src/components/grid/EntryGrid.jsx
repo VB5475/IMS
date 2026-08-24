@@ -157,6 +157,17 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     onMultiValuePaste = null, // (sourceRow, colKey, values: string[]) => void
     remarkModalColumns = null, // Set<string> | string[] — column keys that open a paste-friendly remark modal
     searchable = true, // false → hide built-in search bar
+    // Controlled search override — when defined (not undefined), used INSTEAD
+    // of the internal searchQuery state for filtering, so a parent can render
+    // its own search box elsewhere (e.g. in a shared header row) and still
+    // have it filter this grid. Pass searchable={false} alongside this to
+    // hide the internal search UI without losing filtering.
+    externalSearchQuery = undefined,
+    // (count: number) => void — called whenever the post-search/filter row
+    // count changes, so a parent driving externalSearchQuery can show a live
+    // match count next to its own search box (mirrors what GridSearch's
+    // matchCount prop shows internally).
+    onFilteredCountChange = null,
     // (row) => boolean — rows for which this returns true render with a dimmed
     // style and can't be checkbox-selected (e.g. an item-picker row that's
     // already been inserted into the target grid once, per source key).
@@ -470,10 +481,11 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ── Search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
+  const effectiveSearchQuery = externalSearchQuery !== undefined ? externalSearchQuery : searchQuery;
 
   const searchedRows = useMemo(() => {
-    if (!searchable || !searchQuery.trim()) return rows;
-    const q = searchQuery.toLowerCase().trim();
+    if (!effectiveSearchQuery.trim()) return rows;
+    const q = effectiveSearchQuery.toLowerCase().trim();
     return rows.filter((row) =>
       columns.some((col) => {
         if (col.key === "cb") return false;
@@ -484,7 +496,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         return String(val ?? "").toLowerCase().includes(q);
       })
     );
-  }, [rows, searchQuery, searchable, columns]);
+  }, [rows, effectiveSearchQuery, columns]);
 
   const handleSearchChange = useCallback((q) => {
     setSearchQuery(q);
@@ -536,6 +548,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     });
     return data;
   }, [searchedRows, columnFilters, columns]);
+
+  useEffect(() => {
+    onFilteredCountChange?.(filteredRows.length);
+  }, [filteredRows.length, onFilteredCountChange]);
 
   // ── Sort ──────────────────────────────────────────────────────────
   const processedRows = useMemo(() => {

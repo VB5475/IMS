@@ -73,7 +73,7 @@ function mapDivisionOptions(rows) {
 function mapTransactionNameOptions(rows) {
   return uniqueOptions(rows.map((row) => ({
     value: String(row.trantypeid ?? row.TranTypeID ?? row.idnumber ?? 0),
-    label: String(row.trantypename ?? row.TranTypeName ?? row.name ?? ""),
+    label: String(row.trantypename ?? row.TranTypeName ?? row.name ?? row.transactionname ?? ""),
   })));
 }
 

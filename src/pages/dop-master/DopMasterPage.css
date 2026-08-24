@@ -120,15 +120,10 @@
   overflow: hidden;
 }
 
-.dop-band-card__fields {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  padding: 12px 14px;
-  background: var(--primary-lighter, #eef4fa);
-  border-bottom: 1px solid var(--border);
-}
-
+/* Min/Max Amount, Search, employee count, and the Add Employee / Delete /
+   Remove-band CTAs all now live together in one row, via CollapsibleGrid's
+   headerActions slot (see the Employee Detail card below) — same visual
+   language as the old standalone fields row, just relocated. */
 .dop-band-card__field {
   display: flex;
   flex-direction: column;
@@ -138,6 +133,13 @@
   text-transform: capitalize;
   letter-spacing: 0.03em;
   color: var(--primary);
+}
+
+.dop-band-card__field--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
 }
 
 .dop-band-card__field input {
@@ -152,18 +154,28 @@
   font-weight: 500;
 }
 
+.dop-band-card__field--compact input {
+  height: 26px;
+  min-width: 100px;
+  font-size: 12px;
+}
+
 .dop-band-card__field input:disabled {
   background: var(--field-view-bg, #e6f1fc);
   color: var(--text-secondary);
+}
+
+.dop-band-card__field-input--error {
+  border-color: var(--danger, #dc2626) !important;
 }
 
 .dop-band-card__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
   border: 1px solid var(--border-dark, #c3c6d0);
   border-radius: var(--radius);
   background: #fff;
@@ -180,23 +192,9 @@
   padding: 10px 14px 14px;
 }
 
-.dop-band-card__employee-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
 .dop-band-card__employee-count {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-right: auto;
-}
-
-/* CollapsibleGrid's own header badge reflects its (intentionally static,
-   never-updated) `rows` prop, not the live uncontrolled grid — always 0.
-   The real count is .dop-band-card__employee-count below; hide the stale one. */
-.dop-band-card__employees .cg-header__badge {
-  display: none;
+  white-space: nowrap;
 }

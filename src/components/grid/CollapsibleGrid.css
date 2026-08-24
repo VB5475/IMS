@@ -79,28 +79,47 @@
 }
 
 /* ── Standalone collapse header (matches ng-card-header pattern) ── */
+/* Row wraps the toggle button + optional headerActions (fields/search/CTAs)
+   as a SIBLING, not nested inside the button — so clicking those controls
+   doesn't also toggle the panel. */
+.cg-header-row {
+  display: flex;
+  align-items: center;
+  background: var(--cg-header-bg);
+  border-bottom: 1px solid transparent;
+  flex-wrap: wrap;
+}
+
+.cg-header-row--expanded {
+  border-bottom-color: var(--border);
+}
+
 .cg-header {
-  width: 100%;
   display: flex;
   align-items: center;
   gap: 7px;
   padding: 8px 14px;
   min-height: 36px;
-  background: var(--cg-header-bg);
+  background: transparent;
   border: none;
-  border-bottom: 1px solid transparent;
   cursor: pointer;
   font-family: var(--font-family);
   text-align: left;
   transition: background var(--transition);
+  flex-shrink: 0;
 }
 
 .cg-header:hover {
   background: var(--primary-lighter);
 }
 
-.cg-header[aria-expanded="true"] {
-  border-bottom-color: var(--border);
+.cg-header__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 14px 6px 0;
+  margin-left: auto;
 }
 
 .cg-header__chevron {

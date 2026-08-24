@@ -48,16 +48,18 @@ function getUdrHeaderFields(fieldDefs) {
   return userCol ? [userCol] : [];
 }
 
-/** Validate header on Save — same GET_DETAIL_COL_DATA rules as detail (validateColumnValue). */
+/** Validate header on Save — same GET_DETAIL_COL_DATA rules as detail
+ *  (validateColumnValue), keyed by colname so each message can render inline
+ *  next to its own field instead of a banner duplicating it. */
 function validateUdrHeaderFields(headerFields, headerValues) {
-  const errors = [];
+  const fieldErrors = {};
   (headerFields ?? []).forEach((apiCol) => {
     const key = apiCol.ColName ?? apiCol.colname;
     if (!key) return;
     const result = validateColumnValue(headerValues[key], apiCol);
-    if (!result.valid) errors.push(result.message);
+    if (!result.valid) fieldErrors[key] = result.message;
   });
-  return errors;
+  return fieldErrors;
 }
 
 function isUdrAllowColumn(col) {
@@ -264,6 +266,7 @@ export default function DivisionWiseRightsForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const headerFields = useMemo(() => getUdrHeaderFields(fieldDefs), [fieldDefs]);
 
@@ -274,6 +277,7 @@ export default function DivisionWiseRightsForm({
     setReportRows([]);
     setSaveError(null);
     setGridsError(null);
+    setFieldErrors({});
   }, [fieldDefs]);
 
   const reloadGridsForUser = useCallback(
@@ -302,13 +306,23 @@ export default function DivisionWiseRightsForm({
     [onUserChange]
   );
 
+  const clearFieldError = useCallback((key) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
   const handleUserChange = useCallback(
     async (userId) => {
       const normalized = Number(userId) || 0;
       setHeaderValues((prev) => ({ ...prev, [UDR_CONFIG.HEADER_USER_COL]: normalized }));
+      clearFieldError(UDR_CONFIG.HEADER_USER_COL);
       await reloadGridsForUser(normalized);
     },
-    [reloadGridsForUser]
+    [reloadGridsForUser, clearFieldError]
   );
 
   const handleHeaderChange = useCallback(
@@ -319,13 +333,20 @@ export default function DivisionWiseRightsForm({
         return;
       }
       setHeaderValues((prev) => ({ ...prev, [key]: value }));
+      clearFieldError(key);
     },
-    [handleUserChange]
+    [handleUserChange, clearFieldError]
   );
 
   const handleSave = useCallback(async () => {
-    const validationErrors = [
-      ...validateUdrHeaderFields(headerFields, headerValues),
+    const headerFieldErrors = validateUdrHeaderFields(headerFields, headerValues);
+    // Transaction/Report rows are a hand-rolled checkbox table (RightsGrid),
+    // not EntryGrid — no cellErrors mechanism to hook into, and the only
+    // user-editable column is the Allow checkbox (never itself invalid;
+    // Division/tranbook/userid are all auto-populated, not typed). These
+    // messages stay in the banner as a pragmatic exception, not a duplicate
+    // of anything shown inline.
+    const gridErrors = [
       ...validateUdrGridRows(
         transactionRows,
         gridColumnDefs,
@@ -340,8 +361,9 @@ export default function DivisionWiseRightsForm({
       ),
     ];
 
-    if (validationErrors.length > 0) {
-      setFormErrors(validationErrors);
+    setFieldErrors(headerFieldErrors);
+    if (Object.keys(headerFieldErrors).length > 0 || gridErrors.length > 0) {
+      setFormErrors(gridErrors);
       return;
     }
 
@@ -423,6 +445,7 @@ export default function DivisionWiseRightsForm({
                       options={dropdownOptions[fKey] || []}
                       inputClassName="dwr-form-input"
                       valueClassName="dwr-form-value"
+                      error={fieldErrors[fKey]}
                     />
                   </div>
                 </div>

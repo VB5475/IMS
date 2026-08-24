@@ -68,7 +68,15 @@ const PREVIEWABLE_EXTS = new Set([".pdf", ".jpg", ".jpeg", ".png", ".gif", ".web
 function buildBlankRow(columns) {
   const row = { id: nextTempId() };
   columns.forEach((col) => {
-    if (col.key !== "cb") row[col.key] = getColDefault(col.colDataType);
+    if (col.key === "cb") return;
+    // A dropdown field with exactly one available option gets that option
+    // pre-selected instead of left blank — Document Type/Category's flat
+    // per-column lists are already known at Add Row time. Sub Type's cascade
+    // is per-row (empty until Document Type is picked), so it's handled
+    // separately once its options resolve — see handleDocTypeCellEvent.
+    row[col.key] = col.dropdownOptions?.length === 1
+      ? col.dropdownOptions[0].value
+      : getColDefault(col.colDataType);
   });
   return row;
 }
@@ -156,11 +164,6 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
     loadedForTranRef.current = tranId;
     fetchHeaderMeta({ refTranTypeId: tranTypeId, refDepartmentId });
   }, [isOpen, tranId, tranTypeId, refDepartmentId, fetchHeaderMeta]);
-
-  const handleAddRow = useCallback(() => {
-    if (!docsColumns.length) return;
-    docGridRef.current?.addRow(buildBlankRow(docsColumns));
-  }, [docsColumns]);
 
   // Delete confirmation — covers BOTH the toolbar "Delete" (bulk, checked
   // rows) AND the per-row Delete button (Docs grid's Delete column, one per
@@ -266,10 +269,32 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
         refDepartmentId,
         documentTypeId,
       });
-      docGridRef.current?.updateRow(rowId, { [CFG.SUBTYPE_ROW_OPTIONS_KEY]: opts });
+      // Same single-option auto-select as buildBlankRow, applied here since
+      // Sub Type's options only exist once this per-row cascade resolves.
+      docGridRef.current?.updateRow(rowId, {
+        [CFG.SUBTYPE_ROW_OPTIONS_KEY]: opts,
+        [CFG.SUBTYPE_COL]: opts.length === 1 ? opts[0].value : "",
+      });
     },
     [fetchDocSubTypeOptions, tranTypeId, refDepartmentId]
   );
+
+  // Defined AFTER handleDocTypeCellEvent so it can reuse it below (TDZ —
+  // referencing a later `const` in this callback's dep array before it's
+  // initialized would throw).
+  const handleAddRow = useCallback(() => {
+    if (!docsColumns.length) return;
+    const row = buildBlankRow(docsColumns);
+    docGridRef.current?.addRow(row);
+    // buildBlankRow may have auto-selected Document Type (single-option
+    // case) directly on the row object — that bypasses EntryGrid's own
+    // onCellEvent (which only fires from a real user interaction), so the
+    // Sub Type cascade never runs on its own. Fire it manually here,
+    // reusing the exact same handler a user's own selection would trigger.
+    if (row[CFG.DOCTYPE_COL]) {
+      handleDocTypeCellEvent({ rowId: row.id, colKey: CFG.DOCTYPE_COL, rowData: row });
+    }
+  }, [docsColumns, handleDocTypeCellEvent]);
 
   // "Reference Document" — the ONLY way this grid ever gets data; no popup,
   // fetched rows go straight into the grid in place.
@@ -437,6 +462,19 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       requireAtLeastOne: true,
       emptyMessage: "Please add at least one document row before saving.",
     });
+
+    // "Upload" is a button column, not an RB-mandatory data field, so
+    // validateGridRowsDetailed above never catches a row with no file
+    // actually attached — it would otherwise reach DM_DocSave with a blank
+    // docfolder and come back as a raw/unfriendly API error. A fresh row
+    // only carries `_file` once the user has picked one via Upload (see
+    // handleFileSelected) — no `_file` means no document was ever provided.
+    rows.forEach((row, idx) => {
+      if (row._file) return;
+      errors.push(`Row ${idx + 1} — Please Upload Document`);
+      rowCellErrors.set(`${row.id}:${CFG.UPLOAD_COL}`, "Please Upload Document");
+    });
+
     setCellErrors(rowCellErrors);
     if (errors.length > 0) {
       setFormErrors(errors);
@@ -538,7 +576,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       isOpen={isOpen}
       onClose={handleModalClose}
       title="Document Log"
-      subtitle="Add document metadata rows, then Save. Click Reference Document to load related entries."
+      subtitle="Add document metadata rows, then Save."
       icon={<FileText size={16} strokeWidth={2} />}
       size="xl"
       footer={

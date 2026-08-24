@@ -4,24 +4,21 @@
 // full module overview, the no-RB header-panel note, and the documented
 // gaps this file's request shapes fill in (useWKFMain.js).
 //
-// Previous/Next (top corners in the MRD's own wireframe screenshot) are
-// NOT described anywhere in the MRD's text sections (Sections 1-7) — only
-// visible in the wireframe images, with no backend endpoint/param
-// documented for them. Implemented here using the row list the dashboard
-// already has fully loaded client-side (passed forward via router state on
-// the row click) rather than inventing a new "fetch row at index N" API —
-// self-contained, no extra network calls. Degrades gracefully (buttons
-// hidden) if that state isn't present, e.g. a direct/bookmarked link to
-// this URL after a hard reload.
+// Previous/Next (top corners in the MRD's own wireframe screenshot) were
+// removed 2026-08-21 per user request — the MRD's text sections (1-7) never
+// described them, only the wireframe images did.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, StickyNote, Send, RotateCcw, ArrowLeftCircle } from "lucide-react";
+import { StickyNote, Send, RotateCcw } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import Loader from "../../components/ui/Loader";
+import AlertPanel from "../../components/ui/AlertPanel";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useWKFMain } from "../../hooks/useWKFMain";
+import { getUserSession } from "../../session/userSession";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { buildListColumnsFromRows } from "../../utils/listGridUtils";
 import { WKF_DASHBOARD_CONFIG } from "../workflow-dashboard/constants";
@@ -30,7 +27,6 @@ import {
   WKF_HEADER_FIELDS,
   WKF_ACTION_BUTTONS,
   WKF_TABS,
-  buildWkfMainSearch,
 } from "./constants";
 import "./WKFMainPage.css";
 
@@ -41,6 +37,53 @@ function readField(row, key) {
 
 function dynamicRowKey(row, index) {
   return String(row?.idnumber ?? row?.IDNumber ?? row?.srno ?? row?.SrNo ?? `wkf-row-${index}`);
+}
+
+// Notes List response shape is undocumented (see useWKFMain.js's own note on
+// this) — no confirmed raw login-id field on a note row, so this falls back
+// to matching the session's loginId/userId/userName against whatever display
+// string the row carries (userinfo/username), the same "loginId-Name" format
+// seen elsewhere in this page's header fields (e.g. Current Holder).
+function isNoteFromCurrentUser(note) {
+  if (!note) return false;
+  const session = getUserSession();
+  const loginId = String(session?.loginId ?? "").trim();
+  const userId = String(session?.userId ?? "").trim().toLowerCase();
+  const userName = String(session?.userName ?? "").trim().toLowerCase();
+
+  const rawId = resolveRowFieldValue(note, "loginid")
+    ?? resolveRowFieldValue(note, "enteredby")
+    ?? resolveRowFieldValue(note, "createdby");
+  if (rawId != null && String(rawId).trim() === loginId) return true;
+
+  const display = String(
+    resolveRowFieldValue(note, "userinfo") ?? resolveRowFieldValue(note, "username") ?? ""
+  ).toLowerCase();
+  if (!display) return false;
+  return (
+    (Boolean(loginId) && display.includes(loginId.toLowerCase()))
+    || (Boolean(userId) && display.includes(userId))
+    || (Boolean(userName) && display.includes(userName))
+  );
+}
+
+// Notes list order (oldest-first vs newest-first) isn't documented either —
+// rank by `uniqueno` when present so "latest" is correct either way, falling
+// back to array position (original API order) when it's missing.
+function getLatestNote(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return null;
+  let latest = notes[0];
+  let latestRank = Number(resolveRowFieldValue(notes[0], "uniqueno"));
+  if (!Number.isFinite(latestRank)) latestRank = 0;
+  for (let i = 1; i < notes.length; i += 1) {
+    const raw = Number(resolveRowFieldValue(notes[i], "uniqueno"));
+    const rank = Number.isFinite(raw) ? raw : i;
+    if (rank >= latestRank) {
+      latest = notes[i];
+      latestRank = rank;
+    }
+  }
+  return latest;
 }
 
 export default function WKFMainPage() {
@@ -58,9 +101,8 @@ export default function WKFMainPage() {
   );
 
   // Forwarded from the dashboard's row click (see WorkflowDashboard.jsx) —
-  // powers Previous/Next and hands the same filters back for "return to
-  // dashboard, auto-refresh" after a successful action.
-  const navRows = location.state?.rows ?? null;
+  // hands the same filters back for "return to dashboard, auto-refresh"
+  // after a successful action.
   const navFilterValues = location.state?.filterValues ?? null;
   const navActiveStatus = location.state?.activeStatus ?? null;
 
@@ -95,6 +137,7 @@ export default function WKFMainPage() {
 
   const [buttonVisibility, setButtonVisibility] = useState(null);
   const [actingKey, setActingKey] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
 
   const pageTitle = header ? readField(header, "pagetitle") : "Workflow Approval";
 
@@ -221,14 +264,23 @@ export default function WKFMainPage() {
     }
   }, [keys, header, postAction, notify, navigate, navFilterValues, navActiveStatus]);
 
-  const prevRow = navRows && wkfrowindx > 0 ? navRows[wkfrowindx - 1] : null;
-  const nextRow = navRows && wkfrowindx < navRows.length - 1 ? navRows[wkfrowindx + 1] : null;
+  // Note-required check runs before the confirm prompt, so the user isn't
+  // asked to confirm an action that's just going to be rejected client-side.
+  const handleActionClick = useCallback((btn) => {
+    if (buttonVisibility?.canaddnote && !isNoteFromCurrentUser(getLatestNote(notesRows))) {
+      notify.error("Please add a note before submitting this action.");
+      return;
+    }
+    setPendingAction(btn);
+  }, [buttonVisibility, notesRows, notify]);
 
-  const goToRow = useCallback((row, index) => {
-    navigate(buildWkfMainSearch(row, index), {
-      state: { rows: navRows, filterValues: navFilterValues, activeStatus: navActiveStatus },
-    });
-  }, [navigate, navRows, navFilterValues, navActiveStatus]);
+  const handleConfirmAction = useCallback(() => {
+    const btn = pendingAction;
+    setPendingAction(null);
+    if (btn) handleAction(btn);
+  }, [pendingAction, handleAction]);
+
+  const handleCancelAction = useCallback(() => setPendingAction(null), []);
 
   const visibleActionButtons = WKF_ACTION_BUTTONS.filter(
     (btn) => buttonVisibility?.[btn.canFlag]
@@ -238,7 +290,7 @@ export default function WKFMainPage() {
     return (
       <div className="workspace-page wkf-main">
         <div className="wkf-main__error">
-          <AlertBanner text="No transaction reference was provided. Open this page from the Workflow Dashboard." />
+          <AlertPanel errors={["No transaction reference was provided. Open this page from the Workflow Dashboard."]} />
         </div>
       </div>
     );
@@ -246,28 +298,18 @@ export default function WKFMainPage() {
 
   return (
     <div className="workspace-page workspace-page--fill wkf-main">
+      <ConfirmDialog
+        isOpen={pendingAction != null}
+        type="warning"
+        message={`Are you sure, You want to ${pendingAction?.label ?? "take this action"}?`}
+        confirmLabel="Yes, Proceed"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmAction}
+        onCancel={handleCancelAction}
+      />
+
       <section className="wkf-main__topbar">
-        <button
-          type="button"
-          className="wkf-main__nav-btn"
-          onClick={() => prevRow && goToRow(prevRow, wkfrowindx - 1)}
-          disabled={!prevRow}
-          title="Previous record"
-        >
-          <ChevronLeft size={14} strokeWidth={2.5} />
-          Previous
-        </button>
         <h1 className="wkf-main__title">{pageTitle}</h1>
-        <button
-          type="button"
-          className="wkf-main__nav-btn"
-          onClick={() => nextRow && goToRow(nextRow, wkfrowindx + 1)}
-          disabled={!nextRow}
-          title="Next record"
-        >
-          Next
-          <ChevronRight size={14} strokeWidth={2.5} />
-        </button>
       </section>
 
       <section className="wkf-main__tabbar" aria-label="Workflow record sections">
@@ -284,7 +326,7 @@ export default function WKFMainPage() {
         ))}
       </section>
 
-      {headerError && <AlertBanner text={headerError} />}
+      {headerError && <AlertPanel errors={[headerError]} />}
 
       {activeTab === "main" && (
         <div className="wkf-main__panel">
@@ -293,7 +335,7 @@ export default function WKFMainPage() {
               <Loader text="Loading header…" />
             ) : (
               <div className="wkf-main__header-grid">
-                {WKF_HEADER_FIELDS.map((f) => (
+                {WKF_HEADER_FIELDS.filter((f) => f.visible !== false).map((f) => (
                   <div key={f.key} className="wkf-main__field">
                     <span className="wkf-main__field-label">{f.label}</span>
                     <span className="wkf-main__field-value">{readField(header, f.key)}</span>
@@ -303,7 +345,19 @@ export default function WKFMainPage() {
             )}
           </section>
 
-          <section className="wkf-main__grid-section">
+          <section
+            className="wkf-main__grid-section wkf-main__grid-section--natural"
+            // EnterpriseDataGrid's table wrapper reserves a FIXED height
+            // for 10 rows by design (--ng-max-rows, see EnterpriseDataGrid.css)
+            // — meant to be overridden from an ancestor via inline style
+            // since the component itself doesn't accept a style prop; a CSS
+            // custom property cascades down regardless of component
+            // boundaries. Sized to the actual row count (capped at 1-10) so
+            // a typical 1-3-line Detail Section doesn't reserve a decade of
+            // empty rows' worth of space, while transactions with many
+            // lines still get the normal internal-scroll behavior at 10.
+            style={{ "--ng-max-rows": Math.max(1, Math.min(detailRows.length, 10)) }}
+          >
             <EnterpriseDataGrid
               title="Detail Section"
               columns={detailColumns}
@@ -313,7 +367,6 @@ export default function WKFMainPage() {
               getRowKey={dynamicRowKey}
               selectable={false}
               searchable={false}
-              fill
             />
           </section>
 
@@ -352,37 +405,39 @@ export default function WKFMainPage() {
               </div>
             )}
 
-            <div className="wkf-main__note-entry">
-              <label className="wkf-main__field-label" htmlFor="wkf-enter-note">Enter Note</label>
-              <textarea
-                id="wkf-enter-note"
-                className="wkf-main__note-textarea"
-                rows={3}
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Type a note…"
-              />
-              <div className="wkf-main__note-actions">
-                <button
-                  type="button"
-                  className="wkf-main__btn wkf-main__btn--ghost"
-                  onClick={handleCancelNote}
-                  disabled={savingNote || !noteText}
-                >
-                  <RotateCcw size={13} strokeWidth={2} />
-                  Cancel Note
-                </button>
-                <button
-                  type="button"
-                  className="wkf-main__btn wkf-main__btn--primary"
-                  onClick={handleSaveNote}
-                  disabled={savingNote || !noteText.trim()}
-                >
-                  <StickyNote size={13} strokeWidth={2} />
-                  {savingNote ? "Saving…" : "Save Note"}
-                </button>
+            {buttonVisibility?.canaddnote && (
+              <div className="wkf-main__note-entry">
+                <label className="wkf-main__field-label" htmlFor="wkf-enter-note">Enter Note</label>
+                <textarea
+                  id="wkf-enter-note"
+                  className="wkf-main__note-textarea"
+                  rows={3}
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Type a note…"
+                />
+                <div className="wkf-main__note-actions">
+                  <button
+                    type="button"
+                    className="wkf-main__btn wkf-main__btn--ghost"
+                    onClick={handleCancelNote}
+                    disabled={savingNote || !noteText}
+                  >
+                    <RotateCcw size={13} strokeWidth={2} />
+                    Cancel Note
+                  </button>
+                  <button
+                    type="button"
+                    className="wkf-main__btn wkf-main__btn--primary"
+                    onClick={handleSaveNote}
+                    disabled={savingNote || !noteText.trim()}
+                  >
+                    <StickyNote size={13} strokeWidth={2} />
+                    {savingNote ? "Saving…" : "Save Note"}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           {visibleActionButtons.length > 0 && (
@@ -394,7 +449,7 @@ export default function WKFMainPage() {
                     key={btn.key}
                     type="button"
                     className="wkf-main__btn wkf-main__btn--action"
-                    onClick={() => handleAction(btn)}
+                    onClick={() => handleActionClick(btn)}
                     disabled={actingKey !== null}
                   >
                     <Send size={13} strokeWidth={2} />
@@ -442,15 +497,6 @@ export default function WKFMainPage() {
           </section>
         </div>
       )}
-    </div>
-  );
-}
-
-function AlertBanner({ text }) {
-  return (
-    <div className="wkf-main__alert" role="alert">
-      <ArrowLeftCircle size={14} strokeWidth={2} />
-      <span>{text}</span>
     </div>
   );
 }

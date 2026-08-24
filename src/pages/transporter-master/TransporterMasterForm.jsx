@@ -27,7 +27,7 @@ import { useTransporterMaster } from "../../hooks/useTransporterMaster";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL, API_BASE_URL_IMS, DEFAULT_SESSION_ID, getColDefault, buildSaveRowFromColumns } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol } from "../../utils/gridUtils";
@@ -67,7 +67,17 @@ export default function TransporterMasterForm() {
   const notify = useNotification();
   const navigate = useNavigate();
 
+  // formErrors (AlertPanel banner) is reserved for real save-time failures
+  // (backend rejects, network errors) — required/range/etc. field checks
+  // surface inline only, via fieldErrors (header, EnterpriseFilterPanel's
+  // own `fieldErrors` prop) and detailCellErrors (grid, EntryGrid's own
+  // `cellErrors` prop), same split every other master form in this app
+  // already uses (see LocationMasterForm.jsx). User-reported 2026-08-21
+  // (/pm): the banner was duplicating the same required-field messages the
+  // fields should show themselves.
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -211,7 +221,21 @@ export default function TransporterMasterForm() {
   // we just record it) ────────────────────────────────────────────────────
   const handleFilterChange = useCallback((colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
   }, []);
+
+  // Re-validate live once a failed Save has already flagged cell errors, so
+  // fixing a cell clears its inline marker immediately instead of only on
+  // the next Save click.
+  const handleDetailRowsChange = useCallback((rows) => {
+    if (!detailCellErrors || detailCellErrors.size === 0) return;
+    setDetailCellErrors(validateGridRowsDetailed(rows, detailColumns).cellErrors);
+  }, [detailCellErrors, detailColumns]);
 
   const visibleHeaderFields = useMemo(() =>
     headerColumns
@@ -286,6 +310,8 @@ export default function TransporterMasterForm() {
     detailGridRef.current?.clearRows();
     setDetailRowCount(0);
     setFormErrors([]);
+    setFieldErrors({});
+    setDetailCellErrors(null);
     setIsEditMode(false);
   }, [buildDefaultHeaderValues, headerAllColumns]);
 
@@ -318,12 +344,13 @@ export default function TransporterMasterForm() {
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setFormErrors([]);
-    const headerErrors = validateApiColumns(headerValuesRef.current, visibleHeaderFields);
+    const headerFieldErrors = validateApiColumnsByField(headerValuesRef.current, visibleHeaderFields);
     const detailRows = detailGridRef.current?.getRows?.() ?? [];
-    const detailErrors = validateGridRows(detailRows, detailColumns);
+    const { cellErrors: detailFieldErrors } = validateGridRowsDetailed(detailRows, detailColumns);
 
-    const allErrors = [...headerErrors, ...detailErrors];
-    if (allErrors.length > 0) { setFormErrors(allErrors); return; }
+    setFieldErrors(headerFieldErrors);
+    setDetailCellErrors(detailFieldErrors);
+    if (Object.keys(headerFieldErrors).length > 0 || detailFieldErrors.size > 0) return;
 
     const mstRow = buildSaveRowFromColumns(headerValuesRef.current, headerAllColumns);
 
@@ -415,6 +442,7 @@ export default function TransporterMasterForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={headerFetching || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
           />
         )}
       </section>
@@ -469,6 +497,8 @@ export default function TransporterMasterForm() {
           readOnly={rowReadOnly}
           existingRecordEdit={isEditRoute && isEditMode}
           emptyMessage="No detail rows yet. Click Add Row above."
+          cellErrors={detailCellErrors}
+          onRowsChange={handleDetailRowsChange}
         />
       </section>
 

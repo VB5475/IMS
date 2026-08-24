@@ -79,13 +79,17 @@ import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
 
+// Per-client nav config: add `visible: false` to any section or item below to
+// hide it from the sidebar regardless of the viewing user's role/RB rights
+// (see visibleNavSections below). Omitted `visible` defaults to shown.
 const NAV_SECTIONS = [
   {
-    label: "Home", 
+    label: "Home",
     icon: LayoutDashboard,
+    visible: true,
     items: [
-      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
-      { to: rbRoutePath(RB_CODES.WORKFLOW_DASHBOARD), icon: Workflow, label: "Workflow Dashboard", end: false },
+      { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true, visible: true },
+      { to: rbRoutePath(RB_CODES.WORKFLOW_DASHBOARD), icon: Workflow, label: "Workflow Dashboard", end: false, visible: true },
     ],
   },
 
@@ -93,68 +97,73 @@ const NAV_SECTIONS = [
   {
     label: "Purchase",
     icon: ShoppingCart,
+    visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.PURCHASE_INDENT), icon: ShoppingCart, label: "Purchase Indent", end: false },
-      { to: rbRoutePath(RB_CODES.PURCHASE_INQUIRY), icon: ClipboardList, label: "Purchase Inquiry", end: false },
-      { to: rbRoutePath(RB_CODES.PURCHASE_QUOTATION), icon: FileText, label: "Purchase Quotation", end: false },
-      { to: "/purchase-quotation-comparison", icon: Scale, label: "Purchase Quotation Comparison", end: false },
-      { to: rbRoutePath(RB_CODES.PURCHASE_ORDER), icon: ShoppingCart, label: "Purchase Order", end: false },
-      { to: rbRoutePath(RB_CODES.PURCHASE_RATE_CONTRACT), icon: FileText, label: "Purchase Rate Contract", end: false },
-      { to: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE), icon: PackageCheck, label: "Goods Received Note", end: false },
-      { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false },
-      // { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false },
+      { to: rbRoutePath(RB_CODES.PURCHASE_INDENT), icon: ShoppingCart, label: "Purchase Indent", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_INQUIRY), icon: ClipboardList, label: "Purchase Inquiry", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_QUOTATION), icon: FileText, label: "Purchase Quotation", end: false, visible: true },
+      { to: "/purchase-quotation-comparison", icon: Scale, label: "Purchase Quotation Comparison", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_ORDER), icon: ShoppingCart, label: "Purchase Order", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_RATE_CONTRACT), icon: FileText, label: "Purchase Rate Contract", end: false , visible: false },
+      { to: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE), icon: PackageCheck, label: "Goods Received Note", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false , visible: false},
     ],
   },
   {
     label: "Assets",
     icon: Package,
+    visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Layers, label: "CWIP To FA", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false },
-      { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false },
-      // { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false },
+      { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Layers, label: "CWIP To FA", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false , visible: false},
+      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false, visible: true },
 
-      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN), icon: RotateCcw, label: "Assets Employee Return", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Building2, label: "Assets Department Issue", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false },
-      // { to: rbRoutePath(RB_CODES.ASSETS_REVALUATION), icon: FileText, label: "Assets Revaluation", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_ALLOCATION), icon: Handshake, label: "Assets Client Allocation", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_RELEASE), icon: Handshake, label: "Assets Client Release", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT), icon: DoorOpen, label: "Assets Returnable Gate Pass Out", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false },
-      // { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false },
-      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false },
+      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN), icon: RotateCcw, label: "Assets Employee Return", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Building2, label: "Assets Department Issue", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_REVALUATION), icon: FileText, label: "Assets Revaluation", end: false , visible: false},
+      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_ALLOCATION), icon: Handshake, label: "Assets Client Allocation", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_RELEASE), icon: Handshake, label: "Assets Client Release", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT), icon: DoorOpen, label: "Assets Returnable Gate Pass Out", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false , visible: false},
+      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false, visible: true },
     ],
   },
   {
     label: "Maintenance",
     icon: Wrench,
+    visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: LayoutDashboard, label: "Maintenance Dashboard", end: false },
-      { to: rbRoutePath(RB_CODES.COMPLAINT_REGISTER), icon: MessageSquareWarning, label: "Complaint Register", end: false },
-      { to: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL), icon: RefreshCw, label: "Maintenance Contract Renewal", end: false },
-      { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false },
+      { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: LayoutDashboard, label: "Maintenance Dashboard", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.COMPLAINT_REGISTER), icon: MessageSquareWarning, label: "Complaint Register", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL), icon: RefreshCw, label: "Maintenance Contract Renewal", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false, visible: true },
     ],
   },
   {
     label: "DMS",
     icon: FileStack,
+    visible: true,
     items: [
       // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
-      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false },
-      { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false },
-      { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false },
-      { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false },
-      { to: rbRoutePath(RB_CODES.DM_TT2DOCTYPE_MASTER), icon: ArrowLeftRight, label: "Transaction To Document Type Master", end: false },
-      { to: rbRoutePath(RB_CODES.DM_GROUP_RIGHTS), icon: KeyRound, label: "Group Rights", end: false },
-      { to: rbRoutePath(RB_CODES.DM_TRAN_TYPE_LINK), icon: Link2, label: "DM Tran Type Link", end: false },
+      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false, visible: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false, visible: false },
+      { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false, visible: false },
+      { to: rbRoutePath(RB_CODES.DM_TT2DOCTYPE_MASTER), icon: ArrowLeftRight, label: "Transaction To Document Type Master", end: false, visible: false },
+      { to: rbRoutePath(RB_CODES.DM_GROUP_RIGHTS), icon: KeyRound, label: "Group Rights", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DM_TRAN_TYPE_LINK), icon: Link2, label: "DM Tran Type Link", end: false, visible: false },
     ],
   },
   {
     label: "Master",
     icon: Settings,
+    visible: true,
     items: [
       // end: true — Company's own route ("/admin/company") is a leaf with no
       // sub-routes, but it's also a literal path-prefix of Location Master
@@ -163,40 +172,42 @@ const NAV_SECTIONS = [
       // Company's nav link + section label lit up as "active" on those other
       // modules' pages too. end:true forces an exact-path match instead.
       
-      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false },
-      { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false },
-      { to: rbRoutePath(RB_CODES.TRANSPORTER_MASTER), icon: Route, label: "Transporter Master", end: false },
-      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false },
-      { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.COUNTRY_MASTER), icon: Globe, label: "Country Master", end: false },
-      { to: rbRoutePath(RB_CODES.STATE_MASTER), icon: Map, label: "State Master", end: false },
-      { to: rbRoutePath(RB_CODES.CITY_MASTER), icon: MapPinned, label: "City Master", end: false },
-      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false },
-      { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false },
-      { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false },
+      { to: rbRoutePath(RB_CODES.LOCATION_MASTER), icon: MapPin, label: "Location Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DEPARTMENT_MASTER), icon: Building2, label: "Department Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.SUPPLIER_MASTER), icon: Truck, label: "Supplier Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.TRANSPORTER_MASTER), icon: Route, label: "Transporter Master", end: false, visible: true },
+      { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.COUNTRY_MASTER), icon: Globe, label: "Country Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.STATE_MASTER), icon: Map, label: "State Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.CITY_MASTER), icon: MapPinned, label: "City Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false, visible: true },
     ],
   },
   {
     label: "Admin",
     icon: Settings,
+    visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false },
-      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false },
-      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false },
-      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: KeyRound, label: "User Wise Group Rights", end: false },
-      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true },
-      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false },
+      { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: KeyRound, label: "User Wise Group Rights", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true, visible: true },
+      { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false, visible: true },
     ],
   },
   {
     label: "Utility",
     icon: Cog,
+    visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false },
-      { to: rbRoutePath(RB_CODES.ITEM_MASTER_UPLOAD_EXCEL), icon: FileSpreadsheet, label: "Item Master Upload Excel", end: false },
+      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ITEM_MASTER_UPLOAD_EXCEL), icon: FileSpreadsheet, label: "Item Master Upload Excel", end: false, visible: true },
     ],
   },
   {
@@ -207,11 +218,13 @@ const NAV_SECTIONS = [
     // this is the one place in NAV_SECTIONS with items that don't navigate.
     label: "Reports",
     icon: BarChart3,
+    visible: true,
     items: REPORTS_LIST.map((r) => ({
       key: r.key,
       reportKey: r.key,
       icon: FileBarChart2,
       label: r.label,
+      visible: true,
     })),
   },
 ];
@@ -229,10 +242,13 @@ function isNavItemActive(pathname, to, end) {
 /** Section containing the current route, so the accordion opens on the
  *  user's own context by default instead of an arbitrary first section. */
 function findSectionForPath(pathname) {
-  const match = NAV_SECTIONS.find((section) =>
-    section.items.some(({ to, end }) => isNavItemActive(pathname, to, end))
+  const match = NAV_SECTIONS.find(
+    (section) =>
+      section.visible !== false &&
+      section.items.some(({ to, end }) => isNavItemActive(pathname, to, end))
   );
-  return match ? match.label : NAV_SECTIONS[0]?.label ?? null;
+  if (match) return match.label;
+  return NAV_SECTIONS.find((section) => section.visible !== false)?.label ?? null;
 }
 
 /**
@@ -319,12 +335,18 @@ export default function AppShell({ children }) {
   // Modules the login may not view drop out of the tree entirely, and any
   // section left with no items disappears with them. Entries whose target is
   // not an RB module route (Dashboard) resolve to no RB code and stay.
+  // `visible: false` (static per-client nav config, see NAV_SECTIONS above)
+  // is applied first and wins regardless of the user's RB role rights.
   const visibleNavSections = useMemo(() => {
     void menuRights;
-    return NAV_SECTIONS.map((section) => ({
-      ...section,
-      items: section.items.filter((item) => getRightsForPath(item.to).canView),
-    })).filter((section) => section.items.length > 0);
+    return NAV_SECTIONS.filter((section) => section.visible !== false)
+      .map((section) => ({
+        ...section,
+        items: section.items.filter(
+          (item) => item.visible !== false && getRightsForPath(item.to).canView
+        ),
+      }))
+      .filter((section) => section.items.length > 0);
   }, [menuRights]);
 
   const filteredNavSections = useMemo(() => {

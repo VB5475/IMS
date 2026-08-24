@@ -32,7 +32,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -100,6 +100,7 @@ export default function AssetsEmployeeReturnForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -185,6 +186,14 @@ export default function AssetsEmployeeReturnForm() {
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [gridRows, setGridRows] = useState([]);
+  const handleItemGridRowsChange = useCallback((rows) => {
+    setGridRows(rows);
+    // Re-validate live once a failed Save has already flagged cell errors,
+    // so fixing a cell clears its inline marker immediately.
+    setDetailCellErrors((prev) => (
+      prev && prev.size > 0 ? validateGridRowsDetailed(rows, columns).cellErrors : prev
+    ));
+  }, [columns]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [isFillingDetail, setIsFillingDetail] = useState(false);
@@ -625,6 +634,7 @@ export default function AssetsEmployeeReturnForm() {
     extraReset: () => {
       if (isNewRoute) docLog.fetchDocGuid();
       setFieldErrors({});
+      setDetailCellErrors(null);
     },
   });
 
@@ -636,9 +646,11 @@ export default function AssetsEmployeeReturnForm() {
     setFieldErrors(headerErrorMap);
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
-    const allErrors = [...headerBannerMsg, ...detailErrors];
-    if (allErrors.length > 0) {
+    const detailRows = itemGridRef.current?.getRows?.() ?? [];
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
+    const allErrors = [...headerBannerMsg, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) {
       setFormErrors(allErrors);
       return false;
     }
@@ -841,7 +853,8 @@ export default function AssetsEmployeeReturnForm() {
           hideBottomPanel
           emptyMessage="No items yet. Click Fill Detail above."
           onSelectionChange={setItemSelectionCount}
-          onRowsChange={setGridRows}
+          onRowsChange={handleItemGridRowsChange}
+          cellErrors={detailCellErrors}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}

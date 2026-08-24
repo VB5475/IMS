@@ -63,7 +63,7 @@ import {
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -203,6 +203,9 @@ export default function PurchaseInquiryForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
+  const [supplierCellErrors, setSupplierCellErrors] = useState(null);
+  const [termsCellErrors, setTermsCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -431,6 +434,9 @@ export default function PurchaseInquiryForm() {
 
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
+    setDetailCellErrors(null);
+    setSupplierCellErrors(null);
+    setTermsCellErrors(null);
     exitEditMode();
 
     // Back to a blank new-entry state (post-save, or Cancel on a new record)
@@ -1359,24 +1365,43 @@ export default function PurchaseInquiryForm() {
       setFieldErrors(headerErrorMap);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
-      const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
+      const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(itemRows, columns, { requireAtLeastOne: true });
+      setDetailCellErrors(detailCellErrs);
 
+      // Indent-child rows are nested under item rows via childRowsMap, not a
+      // top-level EntryGrid instance — no cellErrors mechanism reaches them,
+      // so their messages stay in the banner as a pragmatic exception.
       const indentChildRows = Object.values(childRowsMap).flat();
       const indentErrors = validateGridRows(indentChildRows, childColumns);
 
       const supplierRows = supplierGridRef.current?.getRows?.() ?? [];
-      const supplierErrors = validateGridRows(supplierRows, supplierColumns, {
+      const { errors: supplierErrors, cellErrors: supplierCellErrs } = validateGridRowsDetailed(supplierRows, supplierColumns, {
         requireAtLeastOne: true,
         emptyMessage: "Please add at least one supplier before saving.",
       });
+      setSupplierCellErrors(supplierCellErrs);
 
       const termsRows = termsGridRef.current?.getRows?.() ?? [];
-      const termsErrors = validateGridRows(termsRows, termsColumns);
+      const { cellErrors: termsCellErrs } = validateGridRowsDetailed(termsRows, termsColumns);
+      setTermsCellErrors(termsCellErrs);
 
       const headerBannerMsg =
         Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-      const allErrors = [...headerBannerMsg, ...detailErrors, ...indentErrors, ...supplierErrors, ...termsErrors];
-      if (allErrors.length > 0) {
+      const allErrors = [
+        ...headerBannerMsg,
+        ...(itemRows.length === 0 ? detailErrors : []),
+        ...indentErrors,
+        ...(supplierRows.length === 0 ? supplierErrors : []),
+      ];
+      if (
+        Object.keys(headerErrorMap).length > 0
+        || detailCellErrs.size > 0
+        || indentErrors.length > 0
+        || supplierCellErrs.size > 0
+        || termsCellErrs.size > 0
+        || itemRows.length === 0
+        || supplierRows.length === 0
+      ) {
         setFormErrors(allErrors);
         return false;
       }
@@ -1724,6 +1749,7 @@ export default function PurchaseInquiryForm() {
                 readOnly={isEditRoute && !isEditMode}
                 emptyMessage="No data found in the list."
                 onSelectionChange={setSupplierSelectionCount}
+                cellErrors={supplierCellErrors}
               />
             ),
             terms: (
@@ -1735,6 +1761,7 @@ export default function PurchaseInquiryForm() {
                 readOnly={isEditRoute && !isEditMode}
                 emptyMessage="No data found in the list."
                 onSelectionChange={setTermsSelectionCount}
+                cellErrors={termsCellErrors}
               />
             ),
           }}
@@ -1749,6 +1776,7 @@ export default function PurchaseInquiryForm() {
           existingRecordEdit={isEditRoute}
           containerClassName="pi-item-entry-grid"
           remarkModalColumns={PI_REMARK_COLUMNS}
+          cellErrors={detailCellErrors}
         />
       </section>
 

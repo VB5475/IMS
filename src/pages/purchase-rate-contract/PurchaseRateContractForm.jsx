@@ -37,7 +37,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
@@ -140,6 +140,8 @@ export default function PurchaseRateContractForm() {
 
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
+  const [termsCellErrors, setTermsCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -779,6 +781,8 @@ export default function PurchaseRateContractForm() {
         setTermsSelectionCount(0);
         setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
         setFieldErrors({});
+        setDetailCellErrors(null);
+        setTermsCellErrors(null);
       },
     ],
   });
@@ -795,14 +799,16 @@ export default function PurchaseRateContractForm() {
     setFieldErrors(headerErrorMap);
 
     const detailRows = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
     const termsRows = termsGridRef.current?.getRows?.() ?? [];
-    const termsErrors = validateGridRows(termsRows, termsColumns);
+    const { cellErrors: termsCellErrs } = validateGridRowsDetailed(termsRows, termsColumns);
+    setTermsCellErrors(termsCellErrs);
 
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-    const allErrors = [...headerBannerMsg, ...detailErrors, ...termsErrors];
-    if (allErrors.length > 0) {
+    const allErrors = [...headerBannerMsg, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || termsCellErrs.size > 0 || detailRows.length === 0) {
       setFormErrors(allErrors);
       return false;
     }
@@ -1030,6 +1036,7 @@ export default function PurchaseRateContractForm() {
                 existingRecordEdit={isEditRoute && isEditMode}
                 emptyMessage="No terms yet. Click Select Item or Add New above."
                 onSelectionChange={setTermsSelectionCount}
+                cellErrors={termsCellErrors}
               />
             ),
           }}
@@ -1040,6 +1047,7 @@ export default function PurchaseRateContractForm() {
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
+          cellErrors={detailCellErrors}
           remarkModalColumns={PRC_REMARK_COLUMNS}
           loading={isGridLoading || isFetching || recordLoading}
           loaderText={recordLoading ? "Loading contract…" : "Loading…"}

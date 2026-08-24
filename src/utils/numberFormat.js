@@ -47,7 +47,10 @@ export function sanitizeNumericInput(value, decimalPlaces = 0) {
 
   if (decimalPlaces === 0) {
     const digits = s.replace(/\D/g, "");
-    return negative && digits ? `-${digits}` : digits;
+    // Preserve a lone "-" (no digits yet) as a valid in-progress state —
+    // otherwise typing "-" first in an empty field gets silently dropped
+    // and the sign never sticks for the digits typed after it.
+    return negative ? `-${digits}` : digits;
   }
 
   let intPart = "";
@@ -72,7 +75,9 @@ export function sanitizeNumericInput(value, decimalPlaces = 0) {
   if (dotSeen && s.endsWith(".") && decPart.length === 0) trailingDot = true;
 
   let out = dotSeen ? (trailingDot ? `${intPart}.` : `${intPart}.${decPart}`) : intPart;
-  if (negative && out !== "") {
+  // Same lone-"-" preservation as the decimalPlaces===0 branch above — keep
+  // the sign even before any digits/decimal are typed.
+  if (negative) {
     out = out.startsWith("-") ? out : `-${out}`;
   }
   return out;

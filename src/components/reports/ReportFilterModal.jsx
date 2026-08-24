@@ -14,6 +14,7 @@ import { useReportPrint } from "../../hooks/useReportPrint";
 import { useReportFilterOptions } from "../../hooks/useReportFilterOptions";
 import { useNotification } from "../../context/NotificationContext";
 import { getUserSession } from "../../session/userSession";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import "./ReportFilterModal.css";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -111,12 +112,19 @@ export default function ReportFilterModal({ report, onClose }) {
       return;
     }
     if (!report) return;
+    const session = getUserSession();
+    // Base set confirmed generic across this app's report/print SPs. Any
+    // param proven only for one specific report's SP belongs on that
+    // report's own `extraParams` in reportsConfig.js, not here — see
+    // fixed-asset-register's entry for the pattern.
     const jsonParameters = [
-      { paramtitle: "From Date", paramname: "@prmFromDate", paramval: toReportDateParam(filters.fromDate), paramtext: filters.fromDate ? toReportDateParam(filters.fromDate) : "" },
-      { paramtitle: "To Date", paramname: "@prmToDate", paramval: toReportDateParam(filters.toDate), paramtext: filters.toDate ? toReportDateParam(filters.toDate) : "" },
-      { paramtitle: "Division", paramname: "@prmDivisionID", paramval: filters.divisionId || "0", paramtext: divisionLabel },
-      { paramtitle: "Location", paramname: "@prmLocationID", paramval: filters.locationId || "0", paramtext: locationLabel },
-      { paramtitle: "Dept", paramname: "@prmDeptID", paramval: filters.deptId || "0", paramtext: deptLabel },
+      { paramtitle: "From Date", paramname: "@prmfromdate", paramval: toReportDateParam(filters.fromDate), paramtext: filters.fromDate ? toReportDateParam(filters.fromDate) : "" },
+      { paramtitle: "To Date", paramname: "@prmtodate", paramval: toReportDateParam(filters.toDate), paramtext: filters.toDate ? toReportDateParam(filters.toDate) : "" },
+      { paramtitle: "Division", paramname: "@prmdivisionid", paramval: filters.divisionId || "0", paramtext: divisionLabel },
+      ...(report.extraParams ?? []),
+      { paramtitle: "Login", paramname: "@prmloginid", paramval: String(session.loginId ?? "0"), paramtext: "" },
+      { paramtitle: "Operation Type Id", paramname: "@prmoperationtypeid", paramval: "1", paramtext: "" },
+      buildCompanyReportParam(),
     ];
     if (showEmployeeField) {
       jsonParameters.push({ paramtitle: "Employee", paramname: "@prmEmployeeID", paramval: filters.employeeId || "0", paramtext: "" });

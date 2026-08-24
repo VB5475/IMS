@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, Suspense, lazy } from "react";
+import React, { useCallback, useMemo, useRef, useState, Suspense, lazy } from "react";
 import { RefreshCw, Plus } from "lucide-react";
 import { controlTypeMap } from "../../data/dummyData";
 import SearchSelect from "../ui/SearchSelect";
@@ -12,7 +12,6 @@ import {
 import { parseNumberInput } from "../../utils/numberFormat";
 import DateInput from "../ui/DateInput";
 import { parseDateInputDisplay } from "../../utils/dateFormat";
-import { useNotification } from "../../context/NotificationContext";
 import { selectInputText } from "../../utils/focusUtils";
 import {
   getCheckboxValue,
@@ -70,8 +69,13 @@ export default function MasterFormField({
   // (e.g. Department disabled until a define-type checkbox is chosen).
   disabled = false,
 }) {
-  const notify = useNotification();
   const lastValidRef = useRef(value);
+  // Blur validation used to route through notify.error() — a blocking,
+  // focus-stealing modal (see EnterpriseFilterPanel.jsx's own fix, same root
+  // cause) meant for real save/API failures, not a routine per-field check
+  // firing on every date-field Tab-out. Local state instead, rendered the
+  // same way the parent-supplied `error` prop already is. (2026-08-21 /pm)
+  const [blurError, setBlurError] = useState(null);
   const columnMeta = useMemo(() => buildColumnMeta(field), [field]);
   const controlType = resolveFieldControlType(field);
   const label = getMasterFieldLabel(field, labelOverrides);
@@ -82,11 +86,12 @@ export default function MasterFormField({
 
   const displayValue = formatColumnDisplayValue(value, { ...field, columnMeta });
 
-  const effectiveInputClassName = error ? `${inputClassName} master-form-input--error` : inputClassName;
-  const effectiveTextareaClassName = error
+  const effectiveError = error || blurError;
+  const effectiveInputClassName = effectiveError ? `${inputClassName} master-form-input--error` : inputClassName;
+  const effectiveTextareaClassName = effectiveError
     ? `${textareaClassName} master-form-textarea--error`
     : textareaClassName;
-  const dropdownClassName = error ? "master-form-dropdown--error" : undefined;
+  const dropdownClassName = effectiveError ? "master-form-dropdown--error" : undefined;
 
   const revertOnInvalid = useCallback(
     (nextValue) => {
@@ -100,7 +105,7 @@ export default function MasterFormField({
         { skipMandatory: true }
       );
       if (!result.valid) {
-        notify.error(result.message);
+        setBlurError(result.message);
         // Date fields keep the typed value visible so the user can see and correct it;
         // other field types still revert to the last valid value.
         if (columnMeta?.dataKind !== "date") {
@@ -108,10 +113,22 @@ export default function MasterFormField({
         }
         return false;
       }
+      setBlurError(null);
       lastValidRef.current = nextValue;
       return true;
     },
-    [validateOnBlur, field, columnMeta, onChange, notify]
+    [validateOnBlur, field, columnMeta, onChange]
+  );
+
+  // Clears blurError on any real edit — NOT used inside revertOnInvalid
+  // itself, which must leave the just-set message alone through its own
+  // auto-revert.
+  const emitChange = useCallback(
+    (val) => {
+      setBlurError(null);
+      onChange(val);
+    },
+    [onChange]
   );
 
   const handleFocus = useCallback(
@@ -197,7 +214,7 @@ export default function MasterFormField({
             aria-checked={on === 1}
             aria-label={label}
             className={`${toggleClassName}${on ? ` ${toggleClassName}--on` : ""}`}
-            onClick={() => onChange(on ? 0 : 1)}
+            onClick={() => emitChange(on ? 0 : 1)}
           />
           <span className="master-form-toggle-label">{on ? "Yes" : "No"}</span>
         </div>
@@ -211,7 +228,7 @@ export default function MasterFormField({
           type="checkbox"
           className="master-form-checkbox"
           checked={checked}
-          onChange={(e) => onChange(e.target.checked ? 1 : 0)}
+          onChange={(e) => emitChange(e.target.checked ? 1 : 0)}
           aria-label={label}
         />
       );
@@ -221,7 +238,7 @@ export default function MasterFormField({
       const dropdownControl = (
         <SearchSelect
           value={value != null && value !== "" ? String(value) : ""}
-          onChange={(val) => onChange(Number(val) || 0)}
+          onChange={(val) => emitChange(Number(val) || 0)}
           onBlur={() => revertOnInvalid(value)}
           options={options}
           placeholder={placeholder ?? "Select..."}
@@ -271,7 +288,7 @@ export default function MasterFormField({
           className={effectiveInputClassName}
           value={value}
           inputFormat={columnMeta?.inputFormat ?? ""}
-          onChange={onChange}
+          onChange={emitChange}
           onFocus={handleDateFocus}
           onBlur={handleDateBlur}
           min={dateConstraints?.min || undefined}
@@ -286,7 +303,7 @@ export default function MasterFormField({
         <textarea
           className={effectiveTextareaClassName}
           value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => emitChange(e.target.value)}
           onFocus={handleFocus}
           onBlur={handleTextBlur}
           placeholder={placeholder ?? `Enter ${label}...`}
@@ -313,7 +330,7 @@ export default function MasterFormField({
             className={effectiveInputClassName}
             value={value}
             columnMeta={meta}
-            onChange={onChange}
+            onChange={emitChange}
             onFocus={handleFocus}
             onBlur={handleNumericBlur}
             ariaLabel={label}
@@ -327,7 +344,7 @@ export default function MasterFormField({
         className={effectiveInputClassName}
         type={inputType}
         value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => emitChange(e.target.value)}
         onFocus={handleFocus}
         onBlur={handleTextBlur}
         placeholder={placeholder ?? `Enter ${label}...`}
@@ -351,11 +368,11 @@ export default function MasterFormField({
   if (custom != null) return custom;
 
   const control = buildControl();
-  if (!error) return control;
+  if (!effectiveError) return control;
   return (
     <>
       {control}
-      <div className="master-form-field-error">{error}</div>
+      <div className="master-form-field-error">{effectiveError}</div>
     </>
   );
 }

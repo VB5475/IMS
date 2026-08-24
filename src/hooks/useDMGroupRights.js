@@ -95,24 +95,24 @@ export function useDMGroupRights() {
       setHeaderColumns(getColumnDefsFor(links, CFG.HEADER_COLS));
       setGridColumns(getColumnDefsFor(links, CFG.GRID_ROW_COLS));
 
-      const [groupRes, deptRes] = await Promise.all([
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: CFG.LIST_OBJ_TYPE,
-          ObjName: CFG.SP_GROUP_LIST,
-          JSon: JSON.stringify([{}]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }),
-        get(ENDPOINTS.FN_FETCH_DATA, {
-          ObjType: CFG.LIST_OBJ_TYPE,
-          ObjName: CFG.SP_DEPARTMENT_LIST,
-          JSon: JSON.stringify([{}]),
-          p_ErrCode: -1,
-          p_ErrMsg: "",
-        }),
-      ]);
+      // Department is NOT fetched here (2026-08-20 /pm: System Defined only,
+      // see constants.js) — it comes solely from refreshDepartmentOptions("system"),
+      // called once on DMGroupRightsForm mount. This used to run a second,
+      // generic fn_tbl_dm_department_list fetch in parallel with Group here;
+      // being on a slower multi-step chain (RB meta → GetDetailColData →
+      // this), it resolved AFTER the System Defined fetch and silently
+      // overwrote it with the unfiltered department list every time — a real
+      // race condition confirmed live (extra departments never flagged
+      // System Defined showed up, and their labels rendered as raw ID
+      // numbers since that SP's rows use `department`, not `name`/`Name`).
+      const groupRes = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: CFG.LIST_OBJ_TYPE,
+        ObjName: CFG.SP_GROUP_LIST,
+        JSon: JSON.stringify([{}]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
       setGroupOptions(mapIdNameRows(resolveDetailColLinks(groupRes), ["groupname", "GroupName"]));
-      setDepartmentOptions(mapIdNameRows(resolveDetailColLinks(deptRes), ["name", "Name"]));
     } catch (err) {
       console.error("[DMGroupRights] fetchHeaderMeta failed:", err);
       setHeaderError(err?.message || "Failed to load Group Rights configuration.");

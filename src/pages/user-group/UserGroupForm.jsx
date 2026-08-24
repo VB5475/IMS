@@ -13,7 +13,7 @@ import { getUserSession } from "../../session/userSession";
 import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
-import { validateApiColumns } from "../../utils/columnValidation";
+import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { useNotification } from "../../context/NotificationContext";
 import { UG_CONFIG } from "./constants";
 import "./UserGroupPage.css";
@@ -41,6 +41,7 @@ export default function UserGroupForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [discardAction, setDiscardAction] = useState(null);
 
   // Build a blank row seeded from RB column defaults + context fields
@@ -64,6 +65,7 @@ export default function UserGroupForm({
     setSaveError(null);
     setRecordLoadError(null);
     setFormErrors([]);
+    setFieldErrors({});
     setFormValues(buildEmptyFromColumns());
   }, [isOpen, isAddMode, buildEmptyFromColumns]);
 
@@ -102,6 +104,12 @@ export default function UserGroupForm({
 
   const handleChange = useCallback((key, value) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }, []);
 
   function renderControl(field) {
@@ -155,8 +163,9 @@ export default function UserGroupForm({
   const handleSave = useCallback(async () => {
     setFormErrors([]);
     const fieldsToValidate = visibleFields.filter((f) => !CHECKBOX_OVERRIDES.has(f.colname));
-    const errors = validateApiColumns(formValues, fieldsToValidate);
-    if (errors.length > 0) { setFormErrors(errors); return; }
+    const fieldErrorMap = validateApiColumnsByField(formValues, fieldsToValidate);
+    setFieldErrors(fieldErrorMap);
+    if (Object.keys(fieldErrorMap).length > 0) return;
 
     setSaveError(null);
     setIsSaving(true);
@@ -274,6 +283,9 @@ export default function UserGroupForm({
                 <div className={`ug-form-control${CHECKBOX_OVERRIDES.has(field.colname) ? " ug-form-control--checkbox" : ""}`}>
                   {renderControl(field)}
                 </div>
+                {fieldErrors[field.colname] && (
+                  <span className="ug-form-error">{fieldErrors[field.colname]}</span>
+                )}
               </div>
             ))}
           </div>

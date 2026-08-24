@@ -63,8 +63,10 @@ export function useWKFMain() {
       canfwd: isFlagTrue(row.canfwd ?? row.Canfwd),
       cansendback: isFlagTrue(row.cansendback ?? row.Cansendback),
       canapprove: isFlagTrue(row.canapprove ?? row.Canapprove),
+      canreject: isFlagTrue(row.canreject ?? row.Canreject),
       canrecall: isFlagTrue(row.canrecall ?? row.Canrecall),
       cancomplete: isFlagTrue(row.cancomplete ?? row.Cancomplete),
+      canaddnote: isFlagTrue(row.canaddnote ?? row.Canaddnote),
     };
   }, [post]);
 
