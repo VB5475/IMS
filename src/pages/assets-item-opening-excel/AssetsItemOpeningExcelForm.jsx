@@ -21,7 +21,7 @@ import {
   getColDefault,
 } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { validateGridRows } from "../../utils/columnValidation";
+import { validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { parseExcelFileToGridRows } from "../../utils/excelImport";
@@ -39,6 +39,7 @@ export default function AssetsItemOpeningExcelForm() {
   const itemGridRef = useRef(null);
 
   const [formErrors, setFormErrors] = useState([]);
+  const [cellErrors, setCellErrors] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -99,6 +100,7 @@ export default function AssetsItemOpeningExcelForm() {
 
     setIsUploading(true);
     setFormErrors([]);
+    setCellErrors(null);
     // Let React paint the loading overlay before heavy XLSX work blocks the thread.
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
@@ -186,9 +188,9 @@ export default function AssetsItemOpeningExcelForm() {
       return false;
     }
 
-    const detailErrors = validateGridRows(detailRows, columns);
-    if (detailErrors.length > 0) {
-      setFormErrors(detailErrors);
+    const { cellErrors: detailCellErrors } = validateGridRowsDetailed(detailRows, columns);
+    setCellErrors(detailCellErrors);
+    if (detailCellErrors.size > 0) {
       return false;
     }
 
@@ -218,6 +220,7 @@ export default function AssetsItemOpeningExcelForm() {
       localStorage.removeItem(AIME_CONFIG.STORAGE_ENTRY_META);
       itemGridRef.current?.clearRows?.();
       setFormErrors([]);
+      setCellErrors(null);
       setItemSelectionCount(0);
       exitEditMode();
       return true;
@@ -235,6 +238,7 @@ export default function AssetsItemOpeningExcelForm() {
     localStorage.removeItem(AIME_CONFIG.STORAGE_ENTRY_META);
     itemGridRef.current?.clearRows?.();
     setFormErrors([]);
+    setCellErrors(null);
     setItemSelectionCount(0);
     exitEditMode();
   }, [exitEditMode]);
@@ -389,6 +393,7 @@ export default function AssetsItemOpeningExcelForm() {
           readOnly
           loading={isUploading}
           loaderText="Reading Excel…"
+          cellErrors={cellErrors}
         />
       </section>
 

@@ -30,7 +30,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -100,6 +100,7 @@ export default function AssetsReturnableGatePassInForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -560,7 +561,7 @@ export default function AssetsReturnableGatePassInForm() {
     setItemSelectionCount,
     setFilterResetKey,
     setLoadedFilterValues,
-    extraClearFns: [() => setFieldErrors({}), docLog.resetDocGuid],
+    extraClearFns: [() => setFieldErrors({}), () => setDetailCellErrors(null), docLog.resetDocGuid],
     // Back to a blank new-entry state (post-save, or Cancel on a new record)
     // — re-issue a fresh GUID for whatever the user enters next, same as the
     // initial mount fetch. No-op on an edit route (isNewRoute is false there).
@@ -578,9 +579,11 @@ export default function AssetsReturnableGatePassInForm() {
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const businessErrors = validateArgiBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
-    const allErrors = [...headerBannerMsg, ...businessErrors, ...detailErrors];
-    if (allErrors.length > 0) {
+    const detailRows = itemGridRef.current?.getRows?.() ?? [];
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
+    const allErrors = [...headerBannerMsg, ...businessErrors, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || businessErrors.length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) {
       setFormErrors(allErrors);
       return false;
     }
@@ -784,6 +787,7 @@ export default function AssetsReturnableGatePassInForm() {
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
+          cellErrors={detailCellErrors}
           loading={isGridLoading || isFetching || isFillingDetail}
           multiValuePasteColumns={ARGI_MULTI_PASTE_COLUMNS}
           onMultiValuePaste={handleMultiValuePaste}

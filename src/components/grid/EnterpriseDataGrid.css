@@ -365,19 +365,18 @@
   color: #334155;
   font-weight: 400;
   vertical-align: middle;
-  white-space: nowrap; /* default: single line */
+  /* table-layout: fixed above gives every cell a hard width — wrap onto
+     multiple lines instead of the old single-line nowrap, which let long
+     content spill unclipped on top of the next cell's text. Row height
+     grows to fit, same as the first column already did. */
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   line-height: 1.4;
 }
 
 .ng-table tbody td:last-child {
   border-right: none;
-}
-
-/* First data column: allow wrapping (long names, etc.) */
-.ng-table tbody td:first-child:not(.ng-col--action) {
-  white-space: normal;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
 }
 
 /* Scrollable data cells keep single line with ellipsis when pinned */

@@ -33,7 +33,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -114,6 +114,7 @@ export default function AssetsEmployeeTransferForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -213,6 +214,12 @@ export default function AssetsEmployeeTransferForm() {
   const [activeTab, setActiveTab] = useState("items");
   const [isGridLoading, setIsGridLoading] = useState(false);
   const [gridRows, setGridRows] = useState([]);
+  const handleItemGridRowsChange = useCallback((rows) => {
+    setGridRows(rows);
+    setDetailCellErrors((prev) => (
+      prev && prev.size > 0 ? validateGridRowsDetailed(rows, columns).cellErrors : prev
+    ));
+  }, [columns]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -817,7 +824,7 @@ export default function AssetsEmployeeTransferForm() {
     setLoadedFilterValues,
     setGridRows,
     extraClearFns: [clearFromEmpOptions, clearToEmpOptions],
-    extraReset: () => setFieldErrors({}),
+    extraReset: () => { setFieldErrors({}); setDetailCellErrors(null); },
   });
 
   const handleSave = useCallback(async ({ skipPostSave = false } = {}) => {
@@ -828,9 +835,11 @@ export default function AssetsEmployeeTransferForm() {
     setFieldErrors(headerErrorMap);
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
-    const allErrors = [...headerBannerMsg, ...detailErrors];
-    if (allErrors.length > 0) {
+    const detailRows = itemGridRef.current?.getRows?.() ?? [];
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
+    const allErrors = [...headerBannerMsg, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) {
       setFormErrors(allErrors);
       return false;
     }
@@ -1016,7 +1025,8 @@ export default function AssetsEmployeeTransferForm() {
             title=""
             hideBottomPanel
             emptyMessage="No items yet. Click Select Item above."
-            onRowsChange={setGridRows}
+            onRowsChange={handleItemGridRowsChange}
+            cellErrors={detailCellErrors}
             onCellEvent={handleCellEvent}
             eventColumns={eventColumns}
             readOnly={isEditRoute && !isEditMode}

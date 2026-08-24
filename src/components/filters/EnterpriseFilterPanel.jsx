@@ -5,7 +5,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useApi } from "../../api/useApi";
 import { ENDPOINTS, CBO_MODE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
-import { useNotification } from "../../context/NotificationContext";
 import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
@@ -109,7 +108,17 @@ function FilterControl({
   error = null,
 }) {
   const { FilterColCtrlType, FilterCaption, FilterColName } = filter;
-  const notify = useNotification();
+  // Blur validation used to route through notify.error() — NotificationContext
+  // implements that as a blocking, focus-stealing modal (AlertDialog), meant
+  // for real save/API failures, not routine per-field checks. Firing it on
+  // every Tab-out (a) interrupted normal keyboard flow — reported as "tab
+  // focus is broken" — and (b) since notify's alert is a single shared piece
+  // of state, a field's blur validation racing with the next field's own
+  // (e.g. Tab immediately lands on another empty mandatory field) could
+  // clobber the first message before it was ever seen. Local state instead:
+  // scoped to this one field, rendered the same inline way as the parent-
+  // supplied `error` prop, no shared state to race. (2026-08-21 /pm)
+  const [blurError, setBlurError] = useState(null);
   const lastValidValueRef = useRef(value);
   const accent = getAccentClass(filter);
   const isView = tone === "view";
@@ -118,23 +127,41 @@ function FilterControl({
   const isLoading = disabled;
   const blockInteraction = isLoading || readOnly;
   const isDashboard = layout === "dashboard";
-  const inputErrorClass = error ? " efq-cell__input--error" : "";
-  const selectErrorClass = error ? " efq-cell__select--error" : "";
+  const effectiveError = error || blurError;
+  const inputErrorClass = effectiveError ? " efq-cell__input--error" : "";
+  const selectErrorClass = effectiveError ? " efq-cell__select--error" : "";
 
-  const handleChange = (e) => onChange(FilterColName, e.target.value);
+  // Clears blurError on any real edit — NOT used for the auto-revert inside
+  // handleBlurValidate itself, which must leave the just-set message alone.
+  const emitChange = (val) => {
+    if (blurError) setBlurError(null);
+    onChange(FilterColName, val);
+  };
+
+  const handleChange = (e) => emitChange(e.target.value);
 
   const handleBlurValidate = (nextValue) => {
     if (readOnly || !filter.columnMeta) return;
     const result = validateColumnValue(nextValue, filter.columnMeta);
     if (!result.valid) {
-      notify.error(result.message);
-      // Date fields keep the typed value visible so the user can see and correct it;
-      // other field types still revert to the last valid value.
-      if (filter.columnMeta?.dataKind !== "date") {
+      setBlurError(result.message);
+      // Date fields keep the typed value visible so the user can see and
+      // correct it. Non-date fields revert to the last valid value too, but
+      // ONLY for an actual format/range violation (garbage the user typed) —
+      // never for an empty value. validateColumnValue skips every
+      // format/range check once the value is empty (see its own early
+      // return), so an empty-and-invalid result is always the mandatory
+      // check failing, i.e. the user deliberately cleared the field. Forcing
+      // the old value back there fights that intent — the field would look
+      // like it refuses to be cleared. Leave it empty; the inline message
+      // already explains why Save will block.
+      const isEmpty = nextValue == null || nextValue === "";
+      if (filter.columnMeta?.dataKind !== "date" && !isEmpty) {
         onChange(FilterColName, lastValidValueRef.current ?? "");
       }
       return false;
     }
+    setBlurError(null);
     lastValidValueRef.current = nextValue;
     return true;
   };
@@ -199,7 +226,7 @@ function FilterControl({
               className={`efq-cell__input${inputErrorClass}`}
               value={value}
               columnMeta={filter.columnMeta}
-              onChange={(next) => onChange(FilterColName, next)}
+              onChange={(next) => emitChange(next)}
               onBlur={(e) => handleBlurValidate(parseNumberInput(e.target.value))}
               ariaLabel={FilterCaption}
               title={controlTooltip}
@@ -255,7 +282,7 @@ function FilterControl({
               onChange={(next) => {
                 const yearPart = String(next || "").split("-")[0] || "";
                 if (yearPart.length > 4) return;
-                onChange(FilterColName, next);
+                emitChange(next);
               }}
               onFocus={() => {
                 lastValidValueRef.current = value || "";
@@ -293,7 +320,7 @@ function FilterControl({
               ref={(el) => {
                 if (el) el.indeterminate = !!filter.indeterminate;
               }}
-              onChange={(e) => onChange(FilterColName, e.target.checked ? 1 : 0)}
+              onChange={(e) => emitChange(e.target.checked ? 1 : 0)}
               disabled={isLoading}
               tabIndex={0}
               aria-label={FilterCaption}
@@ -323,7 +350,7 @@ function FilterControl({
                 aria-label={FilterCaption}
                 title={controlTooltip}
                 className={`efq-cell__toggle${on ? " efq-cell__toggle--on" : ""}`}
-                onClick={() => onChange(FilterColName, on ? 0 : 1)}
+                onClick={() => emitChange(on ? 0 : 1)}
                 disabled={isLoading}
                 tabIndex={0}
               />
@@ -340,7 +367,7 @@ function FilterControl({
             id={`efq-${FilterColName}`}
             className={`efq-cell__select${readOnly ? ` efq-cell__select--tone-${tone}` : ""}${selectErrorClass}`}
             value={value || ""}
-            onChange={(val) => onChange(FilterColName, val)}
+            onChange={(val) => emitChange(val)}
             options={(options || []).map((opt) => {
               if (opt.value !== undefined) {
                 return { value: String(opt.value), label: opt.label };
@@ -398,16 +425,18 @@ function FilterControl({
 
   const isTextarea = FilterColCtrlType === controlTypeMap.TEXTAREA;
 
-  // Wrapped in its own local, non-shared block so an inline error message can
-  // stack below the control without touching .efq-cell__control's shared
-  // row-flex layout (used by every EnterpriseFilterPanel consumer).
-  const controlContent = error ? (
+  // Wrapper renders unconditionally (not swapped in only when effectiveError
+  // is truthy) — the moment a keystroke clears blurError mid-typing, error
+  // flipping false would otherwise change the input's DOM parent from this
+  // div to .efq-cell__control directly, and React remounts (not just
+  // re-renders) an element whose ancestor structure changed, dropping focus
+  // the instant the user starts fixing the field. Only the message node
+  // itself is conditional now; the input's ancestor chain never moves.
+  const controlContent = (
     <div className="efq-field-stack">
       {renderInput()}
-      <div className="efq-field-error">{error}</div>
+      {effectiveError && <div className="efq-field-error">{effectiveError}</div>}
     </div>
-  ) : (
-    renderInput()
   );
 
   if (isDashboard) {

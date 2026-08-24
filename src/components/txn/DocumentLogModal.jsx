@@ -576,7 +576,7 @@ const DocumentLogModal = forwardRef(function DocumentLogModal({
       isOpen={isOpen}
       onClose={handleModalClose}
       title="Document Log"
-      subtitle="Add document metadata rows, then Save. Click Reference Document to load related entries."
+      subtitle="Add document metadata rows, then Save."
       icon={<FileText size={16} strokeWidth={2} />}
       size="xl"
       footer={

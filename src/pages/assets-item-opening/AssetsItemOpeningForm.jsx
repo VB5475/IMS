@@ -36,7 +36,7 @@ import {
   isTruthyApiFlag,
   syncHeaderFilterWithApiCol,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -88,6 +88,7 @@ export default function AssetsItemOpeningForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -458,7 +459,7 @@ export default function AssetsItemOpeningForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearItemGroupOptions, clearItemOptions, clearAssetsAccOptions, () => setFieldErrors({})],
+    extraClearFns: [clearItemGroupOptions, clearItemOptions, clearAssetsAccOptions, () => setFieldErrors({}), () => setDetailCellErrors(null)],
   });
 
 
@@ -470,10 +471,11 @@ export default function AssetsItemOpeningForm() {
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors  = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
 
-    const allErrors = [...headerBannerMsg, ...detailErrors];
-    if (allErrors.length > 0) { setFormErrors(allErrors); return false; }
+    const allErrors = [...headerBannerMsg, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) { setFormErrors(allErrors); return false; }
 
     const hv = headerValuesRef.current;
     const headerColDefs = headerColumns.map((col) => ({
@@ -652,6 +654,7 @@ export default function AssetsItemOpeningForm() {
           emptyMessage="No items yet. Click Add New above."
           onSelectionChange={setItemSelectionCount}
           onRowsChange={setGridRows}
+          cellErrors={detailCellErrors}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
           multiValuePasteColumns={AOP_MULTI_PASTE_COLUMNS}

@@ -17,7 +17,7 @@ export const UDR_CONFIG = {
   SP_RB_META:    "fn_fetch_rbdetailbyrbcode",
   SP_MASTER_FILL: "fn_tbl_rb_divisionwsright",
   /** Header User dropdown — admin user list (same as User Master list). */
-  SP_USER_LIST: "fn_tbl_genusermst_list",
+  SP_USER_LIST: "fn_Fetch_User4Divisoin",
   /** MRD §5 API Reference — division list. */
   SP_DIVISIONS: "fn_tbl_fetchuserwsdivision",
 

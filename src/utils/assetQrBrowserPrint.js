@@ -38,9 +38,6 @@ function buildStickerCardHtml(label, logoUrl) {
       )
       .join("")}
     </div>
-    <div class="sticker-card__logo">
-      <img src="${escapeHtml(logoUrl)}" alt="IMS" />
-    </div>
   </div>`;
 }
 
@@ -56,7 +53,7 @@ function buildPrintDocument(labels, size, logoUrl) {
 <style>
   @page { 
     size: ${widthIn}in ${heightIn}in; 
-    margin: 0.05in; 
+    margin: 0in; /* Fixed: Changed from 5in to 0in so it doesn't clip the stickers */
   }
   * { box-sizing: border-box; }
   html, body {
@@ -67,13 +64,11 @@ function buildPrintDocument(labels, size, logoUrl) {
     color: #111;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    color-adjust: exact !important;
   }
   @media print {
-    html, body, img, .sticker-card, .sticker-card__logo {
+    html, body, img, .sticker-card {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
-      color-adjust: exact !important;
     }
     img {
       filter: none !important;
@@ -81,23 +76,25 @@ function buildPrintDocument(labels, size, logoUrl) {
     }
   }
   .sticker-card {
-    width: calc(${widthIn}in - 0.1in);
-    height: calc(${heightIn}in - 0.1in);
+    width: ${widthIn}in;
+    height: ${heightIn}in;
     margin: 0 auto;
-    border: 1.5px solid #000;
     page-break-inside: avoid;
     break-inside: avoid;
+    page-break-after: always; /* Ensures each sticker takes up its own designated label page/roll section */
+    break-after: page;
     display: flex;
     align-items: center;
-    gap: 0.1in;
-    padding: 0.1in 0.12in;
+    padding: 0.15in; 
+    gap: 0.15in;
     background: #fff;
     overflow: hidden;
   }
   .sticker-card__qr {
-    width: 1.2in;
-    height: 1.2in;
+    width: 1.9685in; /* 50mm converted to inches */
+    height: 1.9685in; /* 50mm converted to inches */
     flex-shrink: 0;
+    margin-left: 0.18in; /* shifts QR right so it doesn't get cut off at the paper edge */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -106,6 +103,7 @@ function buildPrintDocument(labels, size, logoUrl) {
   .sticker-card__qr img {
     width: 100%;
     height: 100%;
+    object-path: contain;
     object-fit: contain;
     image-rendering: pixelated;
   }
@@ -133,23 +131,6 @@ function buildPrintDocument(labels, size, logoUrl) {
     text-overflow: clip;
     white-space: normal;
     word-break: break-word;
-  }
-  .sticker-card__logo {
-    width: 0.5in;
-    height: 0.5in;
-    flex-shrink: 0;
-    border-radius: 50%;
-    overflow: hidden;
-    align-self: flex-start;
-    margin-top: 0.02in;
-    background: #fff;
-  }
-  .sticker-card__logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: none !important;
-    -webkit-filter: none !important;
   }
 </style>
 </head>

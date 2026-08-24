@@ -42,7 +42,7 @@ import {
   isTruthyApiFlag,
   syncHeaderFilterWithApiCol,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -138,6 +138,7 @@ export default function AssetsDepreciationForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -583,7 +584,7 @@ export default function AssetsDepreciationForm() {
     setLoadedFilterValues,
     setGridRows,
     extraClearFns: [clearAssetsAccOptions, clearDpcStorage],
-    extraReset: () => setFieldErrors({}),
+    extraReset: () => { setFieldErrors({}); setDetailCellErrors(null); },
   });
 
 
@@ -595,10 +596,11 @@ export default function AssetsDepreciationForm() {
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const detailRows    = itemGridRef.current?.getRows?.() ?? [];
-    const detailErrors  = validateGridRows(detailRows, columns, { requireAtLeastOne: true });
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
 
-    const allErrors = [...headerBannerMsg, ...detailErrors];
-    if (allErrors.length > 0) {
+    const allErrors = [...headerBannerMsg, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || detailRows.length === 0) {
       setFormErrors(allErrors);
       return false;
     }
@@ -788,6 +790,7 @@ export default function AssetsDepreciationForm() {
           onRowsChange={setGridRows}
           readOnly={isEditRoute && !isEditMode}
           existingRecordEdit={isEditRoute && isEditMode}
+          cellErrors={detailCellErrors}
           multiValuePasteColumns={DPC_MULTI_PASTE_COLUMNS}
           onMultiValuePaste={handleMultiValuePaste}
           remarkModalColumns={DPC_REMARK_COLUMNS}

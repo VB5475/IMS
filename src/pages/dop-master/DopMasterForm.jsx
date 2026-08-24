@@ -41,7 +41,7 @@ import { useApi } from "../../api/useApi";
 import { API_BASE_URL, API_BASE_URL_IMS, getColDefault, buildSaveRowFromColumns } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol } from "../../utils/gridUtils";
-import { validateApiColumns, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -101,7 +101,17 @@ export default function DopMasterForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  // formErrors (banner) is reserved for real save-time failures and cross-row
+  // business rules that have no single field/cell to attach to (the Approving
+  // status-chain checks below). Required/format checks on header fields, on
+  // each employee grid row, and on each band's own Min/Max fields surface
+  // inline instead — see fieldErrors/employeeCellErrors/amountCellErrors.
+  // (2026-08-21 /pm — same "no duplicate modal validation" fix as Transporter
+  // Master, applied here.)
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [employeeCellErrors, setEmployeeCellErrors] = useState(null);
+  const [amountCellErrors, setAmountCellErrors] = useState(null);
   const navigate = useNavigate();
 
   const filterPanelRef = useRef(null);
@@ -424,6 +434,8 @@ export default function DopMasterForm() {
     setEmployeeCounts({});
     setEmployeeSearch({});
     setEmployeeMatchCounts({});
+    setAmountCellErrors(null);
+    setEmployeeCellErrors(null);
 
     if (newVal === 0) {
       const [activeAmountCols] = await Promise.all([ensureAmountColumns(), ensureUserColumns()]);
@@ -441,6 +453,12 @@ export default function DopMasterForm() {
   // ── Cascade: Tran Type → Entity / Amount-mode toggle ───────────────────────
   const handleFilterChange = useCallback(async (colName, val) => {
     headerValuesRef.current = { ...headerValuesRef.current, [colName]: val };
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
 
     if (colName === "tranid") {
       headerValuesRef.current.configurationid = 0;
@@ -538,6 +556,12 @@ export default function DopMasterForm() {
 
   const handleAmountFieldChange = useCallback((bandId, key, value) => {
     setAmountBands((prev) => prev.map((b) => (b.id === bandId ? { ...b, [key]: value } : b)));
+    setAmountCellErrors((prev) => {
+      if (!prev?.has(`${bandId}:${key}`)) return prev;
+      const next = new Map(prev);
+      next.delete(`${bandId}:${key}`);
+      return next;
+    });
   }, []);
 
   // ── Employee rows within a specific band ──────────────────────────────────
@@ -595,6 +619,27 @@ export default function DopMasterForm() {
   // nothing valid to match Sr.No against) with a toast explaining why.
   const handleEmployeeRowsChange = useCallback((bandId, rows) => {
     if (isEditRoute && !isEditMode) return; // rowReadOnly — declared later in this component
+
+    // Re-validate live once a failed Save has already flagged cell errors,
+    // so fixing a row's cell clears its inline marker immediately instead of
+    // only on the next Save click (row ids are unique across every band's
+    // grid, so one shared map is safe — merging this band's fresh entries
+    // over the previous map without disturbing other bands' entries).
+    setEmployeeCellErrors((prev) => {
+      if (!prev || prev.size === 0) return prev;
+      const { cellErrors: bandCellErrors } = validateGridRowsDetailed(rows, userColumns);
+      const next = new Map(prev);
+      rows.forEach((row) => {
+        userColumns.forEach((col) => {
+          if (!col.key || col.key === "cb") return;
+          const key = `${row.id}:${col.key}`;
+          if (bandCellErrors.has(key)) next.set(key, bandCellErrors.get(key));
+          else next.delete(key);
+        });
+      });
+      return next;
+    });
+
     const { approve, approveOther } = userStatusValues;
     if (!approve || !approveOther) return;
     const gridRef = employeeGridRefsRef.current[bandId];
@@ -612,7 +657,7 @@ export default function DopMasterForm() {
         gridRef.updateRow(row.id, { srno: approveRow.srno });
       }
     });
-  }, [isEditRoute, isEditMode, userStatusValues, notify]);
+  }, [isEditRoute, isEditMode, userStatusValues, userColumns, notify]);
 
   const handleEmployeeSearchChange = useCallback((bandId, query) => {
     setEmployeeSearch((prev) => ({ ...prev, [bandId]: query }));
@@ -643,6 +688,9 @@ export default function DopMasterForm() {
     setEmployeeCounts({});
     setEmployeeSearch({});
     setEmployeeMatchCounts({});
+    setFieldErrors({});
+    setAmountCellErrors(null);
+    setEmployeeCellErrors(null);
     setAmountToggleConfirmOpen(false);
     pendingAmountToggleValueRef.current = null;
     // filterResetKey below remounts the panel fresh from initialValues — a
@@ -678,7 +726,7 @@ export default function DopMasterForm() {
   const handleSave = useCallback(async () => {
     setFormErrors([]);
     const headerColsToValidate = headerColumns.filter((c) => isTruthyApiFlag(c.isvisible));
-    const headerErrors = validateApiColumns(headerValuesRef.current, headerColsToValidate);
+    const headerFieldErrors = validateApiColumnsByField(headerValuesRef.current, headerColsToValidate);
 
     // srno here is the band's own 1-based position among this record's amount
     // bands — NOT the employee row's own srno (50/100/150 step within a band,
@@ -703,8 +751,11 @@ export default function DopMasterForm() {
         ? { ...col, columnMeta: { ...col.columnMeta, valueMinRange: null, valueMaxRange: null } }
         : col
     ));
-    const amountErrors = validateGridRows(amountBands, amountColumnsForValidation);
-    const employeeErrors = bandsWithEmployees.flatMap(({ employees }) => validateGridRows(employees, userColumns));
+    const { cellErrors: amountFieldErrors } = validateGridRowsDetailed(amountBands, amountColumnsForValidation);
+    const employeeFieldErrors = new Map();
+    bandsWithEmployees.forEach(({ employees }) => {
+      validateGridRowsDetailed(employees, userColumns).cellErrors.forEach((msg, key) => employeeFieldErrors.set(key, msg));
+    });
 
     // Business rule (not in MRD §6, which was left empty — reasonable default):
     // Min Amount must be less than Max Amount on every Amount Detail row —
@@ -715,21 +766,34 @@ export default function DopMasterForm() {
     // -1/-1 is the single locked band applyAmountModeChange provisions when
     // "Is DOP Amount" = No — see negativeOneErrors just below, which bans -1
     // outright whenever "Is DOP Amount" = Yes.
-    const rangeErrors = amountBands
+    // Both checks compare minamount/maxamount against EACH OTHER, so they
+    // can't reuse validateGridRowsDetailed's single-column cellErrors above —
+    // attached to amountFieldErrors by hand instead, on both fields of the
+    // offending band, so they still surface inline next to the Min/Max
+    // inputs rather than in the banner (2026-08-21 /pm).
+    amountBands
       .filter((r) => !(Number(r.minamount) === -1 && Number(r.maxamount) === -1))
       .filter((r) => Number(r.minamount) >= Number(r.maxamount) && r.maxamount !== "" && r.maxamount != null)
-      .map(() => "Min Amount must be less than Max Amount on every Amount Detail row.");
+      .forEach((r) => {
+        const msg = "Min Amount must be less than Max Amount.";
+        amountFieldErrors.set(`${r.id}:minamount`, msg);
+        amountFieldErrors.set(`${r.id}:maxamount`, msg);
+      });
 
     // -1 is a reserved sentinel exclusively for the auto-provisioned single
     // band when "Is DOP Amount" = No (/pm, 2026-08-20) — it must never appear
     // in Min or Max Amount, individually, on a normal "Is DOP Amount" = Yes
     // band. (Negative amounts in general are still allowed there — see the
     // ValueMinRange/ValueMaxRange override above — this bans exactly -1.)
-    const negativeOneErrors = isAmountEnabled
-      ? amountBands
-          .filter((r) => Number(r.minamount) === -1 || Number(r.maxamount) === -1)
-          .map(() => 'Min Amount and Max Amount cannot be -1 while "Is DOP Amount" is Yes.')
-      : [];
+    if (isAmountEnabled) {
+      amountBands
+        .filter((r) => Number(r.minamount) === -1 || Number(r.maxamount) === -1)
+        .forEach((r) => {
+          const msg = 'Cannot be -1 while "Is DOP Amount" is Yes.';
+          if (Number(r.minamount) === -1) amountFieldErrors.set(`${r.id}:minamount`, msg);
+          if (Number(r.maxamount) === -1) amountFieldErrors.set(`${r.id}:maxamount`, msg);
+        });
+    }
 
     // Employee Detail status chain, enforced independently PER AMOUNT BAND
     // (each band has its own nested Employee Detail grid). Three statuses:
@@ -794,8 +858,22 @@ export default function DopMasterForm() {
       return errors;
     });
 
-    const allErrors = [...headerErrors, ...amountErrors, ...employeeErrors, ...rangeErrors, ...negativeOneErrors, ...statusErrors];
-    if (allErrors.length > 0) { setFormErrors(allErrors); return false; }
+    setFieldErrors(headerFieldErrors);
+    setAmountCellErrors(amountFieldErrors);
+    setEmployeeCellErrors(employeeFieldErrors);
+    // statusErrors are the only genuine banner case left: each one is about
+    // an entire band's collection of employee rows (e.g. "no row has
+    // Approving status"), not a single field/row to attach an inline marker
+    // to — real cross-row business rules, not duplicated required-field text.
+    if (
+      Object.keys(headerFieldErrors).length > 0
+      || amountFieldErrors.size > 0
+      || employeeFieldErrors.size > 0
+      || statusErrors.length > 0
+    ) {
+      setFormErrors(statusErrors);
+      return false;
+    }
 
     const hv = headerValuesRef.current;
     const masterColumnDefs = headerColumns.map((col) => ({
@@ -940,6 +1018,7 @@ export default function DopMasterForm() {
             isMetaLoading={!headerMetaReady || recordLoading}
             disabled={filterBusy || !headerMetaReady}
             fieldTones={filterFieldTones}
+            fieldErrors={fieldErrors}
             onLastFieldTabForward={isEditMode ? focusAddAmountBandButton : null}
           />
         )}
@@ -992,34 +1071,45 @@ export default function DopMasterForm() {
                   emptyMessage="No employees yet. Click Add Employee below."
                   readOnly={rowReadOnly}
                   existingRecordEdit={isEditRoute && isEditMode}
+                  cellErrors={employeeCellErrors}
                   headerActions={
                     <>
-                      <label className="dop-band-card__field dop-band-card__field--compact">
-                        <span>{minAmountLabel}</span>
-                        <Suspense fallback={<input className="dop-band-card__field-input" disabled />}>
-                          <GridNumberInput
-                            className="dop-band-card__field-input"
-                            value={band.minamount}
-                            columnMeta={minAmountColumnMeta}
-                            disabled={rowReadOnly || !isEditMode || !isAmountEnabled}
-                            ariaLabel={minAmountLabel}
-                            onChange={(val) => handleAmountFieldChange(band.id, "minamount", val)}
-                          />
-                        </Suspense>
-                      </label>
-                      <label className="dop-band-card__field dop-band-card__field--compact">
-                        <span>{maxAmountLabel}</span>
-                        <Suspense fallback={<input className="dop-band-card__field-input" disabled />}>
-                          <GridNumberInput
-                            className="dop-band-card__field-input"
-                            value={band.maxamount}
-                            columnMeta={maxAmountColumnMeta}
-                            disabled={rowReadOnly || !isEditMode || !isAmountEnabled}
-                            ariaLabel={maxAmountLabel}
-                            onChange={(val) => handleAmountFieldChange(band.id, "maxamount", val)}
-                          />
-                        </Suspense>
-                      </label>
+                      {(() => {
+                        const minAmountError = amountCellErrors?.get(`${band.id}:minamount`);
+                        const maxAmountError = amountCellErrors?.get(`${band.id}:maxamount`);
+                        return (
+                          <>
+                            <label className="dop-band-card__field dop-band-card__field--compact">
+                              <span>{minAmountLabel}</span>
+                              <Suspense fallback={<input className="dop-band-card__field-input" disabled />}>
+                                <GridNumberInput
+                                  className={`dop-band-card__field-input${minAmountError ? " dop-band-card__field-input--error" : ""}`}
+                                  value={band.minamount}
+                                  columnMeta={minAmountColumnMeta}
+                                  disabled={rowReadOnly || !isEditMode || !isAmountEnabled}
+                                  ariaLabel={minAmountLabel}
+                                  title={minAmountError || undefined}
+                                  onChange={(val) => handleAmountFieldChange(band.id, "minamount", val)}
+                                />
+                              </Suspense>
+                            </label>
+                            <label className="dop-band-card__field dop-band-card__field--compact">
+                              <span>{maxAmountLabel}</span>
+                              <Suspense fallback={<input className="dop-band-card__field-input" disabled />}>
+                                <GridNumberInput
+                                  className={`dop-band-card__field-input${maxAmountError ? " dop-band-card__field-input--error" : ""}`}
+                                  value={band.maxamount}
+                                  columnMeta={maxAmountColumnMeta}
+                                  disabled={rowReadOnly || !isEditMode || !isAmountEnabled}
+                                  ariaLabel={maxAmountLabel}
+                                  title={maxAmountError || undefined}
+                                  onChange={(val) => handleAmountFieldChange(band.id, "maxamount", val)}
+                                />
+                              </Suspense>
+                            </label>
+                          </>
+                        );
+                      })()}
                       <GridSearch
                         query={employeeSearch[band.id] ?? ""}
                         onChange={(q) => handleEmployeeSearchChange(band.id, q)}

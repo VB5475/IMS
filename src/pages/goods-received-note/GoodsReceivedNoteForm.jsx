@@ -55,7 +55,7 @@ import {
 } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRows, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -168,6 +168,7 @@ export default function GoodsReceivedNoteForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -429,6 +430,7 @@ export default function GoodsReceivedNoteForm() {
     clearItemGridState();
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
+    setDetailCellErrors(null);
     exitEditMode();
     // Back to a blank new-entry state (post-save, or Cancel on a new record)
     // — re-issue a fresh GUID for whatever the user enters next, same as the
@@ -1032,15 +1034,19 @@ export default function GoodsReceivedNoteForm() {
       setFieldErrors(headerErrorMap);
 
       const itemRows = itemGridRef.current?.getRows?.() ?? [];
-      const detailErrors = validateGridRows(itemRows, columns, { requireAtLeastOne: true });
+      const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(itemRows, columns, { requireAtLeastOne: true });
+      setDetailCellErrors(detailCellErrs);
 
+      // Indent-child rows are nested under item rows via childRowsMap, not a
+      // top-level EntryGrid instance — no cellErrors mechanism reaches them,
+      // so their messages stay in the banner as a pragmatic exception.
       const indentChildRows = Object.values(childRowsMap).flat();
       const indentErrors = validateGridRows(indentChildRows, childColumns);
 
       const headerBannerMsg =
         Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-      const allErrors = [...headerBannerMsg, ...detailErrors, ...indentErrors];
-      if (allErrors.length > 0) {
+      const allErrors = [...headerBannerMsg, ...(itemRows.length === 0 ? detailErrors : []), ...indentErrors];
+      if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || itemRows.length === 0 || indentErrors.length > 0) {
         setFormErrors(allErrors);
         return false;
       }
@@ -1333,6 +1339,7 @@ export default function GoodsReceivedNoteForm() {
           childRowsMap={childRowsMap}
           childColumns={childColumns}
           existingRecordEdit={isEditRoute && isEditMode}
+          cellErrors={detailCellErrors}
           multiValuePasteColumns={GRN_MULTI_PASTE_COLUMNS}
           onMultiValuePaste={handleMultiValuePaste}
           remarkModalColumns={GRN_REMARK_COLUMNS}

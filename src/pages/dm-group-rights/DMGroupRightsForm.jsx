@@ -11,7 +11,7 @@ import {
   getCheckboxValue,
   getMasterFieldLabel,
   isMasterFieldRequired,
-  validateMasterFormFields,
+  validateMasterFormFieldsByField,
 } from "../../utils/masterFormUtils";
 import { validateApiColumns } from "../../utils/columnValidation";
 import { controlTypeMap } from "../../data/dummyData";
@@ -181,6 +181,7 @@ export default function DMGroupRightsForm({
   const [gridsError, setGridsError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Overrides applied once, then reused for BOTH rendering and validation —
   // headerColumns' raw ColCtrlType is 1 (textbox) for group/department and
@@ -208,6 +209,12 @@ export default function DMGroupRightsForm({
 
   const handleHeaderChange = useCallback((colName, value) => {
     setHeaderValues((prev) => ({ ...prev, [colName]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[colName]) return prev;
+      const next = { ...prev };
+      delete next[colName];
+      return next;
+    });
   }, []);
 
   // This module is System Defined only now — no checkbox pair to pick from
@@ -315,16 +322,22 @@ export default function DMGroupRightsForm({
   }, [canGetDetail, onGetDetail, headerValues, gridColumns, persistRows, gridRows]);
 
   const handleSave = useCallback(async () => {
-    const headerErrors = validateMasterFormFields(effectiveHeaderColumns, headerValues);
+    const headerFieldErrors = validateMasterFormFieldsByField(effectiveHeaderColumns, headerValues);
+    // Document Rights is a hand-rolled checkbox table (RightsGrid), not
+    // EntryGrid — no cellErrors mechanism to hook into, and the only
+    // user-editable columns are Upload/View/Delete checkboxes (never
+    // themselves invalid). These stay in the banner as a pragmatic
+    // exception, not a duplicate of anything shown inline.
     const gridErrors = [];
     gridRows.forEach((row, idx) => {
       validateApiColumns(row, gridColumns).forEach((msg) => {
         gridErrors.push(`Row ${idx + 1}: ${msg}`);
       });
     });
-    const allErrors = [...headerErrors, ...gridErrors];
-    if (allErrors.length > 0) {
-      setFormErrors(allErrors);
+
+    setFieldErrors(headerFieldErrors);
+    if (Object.keys(headerFieldErrors).length > 0 || gridErrors.length > 0) {
+      setFormErrors(gridErrors);
       return;
     }
     if (gridRows.length === 0) {
@@ -383,6 +396,7 @@ export default function DMGroupRightsForm({
                   value={headerValues[DMGR_CONFIG.HEADER_GROUP_COL]}
                   onChange={(val) => handleHeaderChange(DMGR_CONFIG.HEADER_GROUP_COL, val)}
                   options={groupOptions}
+                  error={fieldErrors[DMGR_CONFIG.HEADER_GROUP_COL]}
                 />
               </div>
             </div>
@@ -397,6 +411,7 @@ export default function DMGroupRightsForm({
                   value={headerValues[DMGR_CONFIG.HEADER_DEPARTMENT_COL]}
                   onChange={(val) => handleHeaderChange(DMGR_CONFIG.HEADER_DEPARTMENT_COL, val)}
                   options={departmentOptions}
+                  error={fieldErrors[DMGR_CONFIG.HEADER_DEPARTMENT_COL]}
                 />
               </div>
 

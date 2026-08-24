@@ -165,6 +165,10 @@
   color: var(--text-secondary);
 }
 
+.dop-band-card__field-input--error {
+  border-color: var(--danger, #dc2626) !important;
+}
+
 .dop-band-card__remove {
   display: inline-flex;
   align-items: center;

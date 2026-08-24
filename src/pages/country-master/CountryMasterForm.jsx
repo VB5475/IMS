@@ -13,12 +13,10 @@ import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumnsByField } from "../../utils/columnValidation";
+import { isMasterFieldLocked } from "../../utils/masterFormUtils";
 import { useNotification } from "../../context/NotificationContext";
 import { CTM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./CountryMasterPage.css";
-
-// Fields locked during edit mode (RB colnames — all lowercase)
-const LOCK_ON_EDIT = new Set(["countrycode"]);
 
 function getLabel(field) { return field.displayname; }
 
@@ -104,9 +102,7 @@ export default function CountryMasterForm({
   [fieldDefs]);
 
   function isLocked(field) {
-    if (!isEditMode) return true;
-    if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.colname);
+    return isMasterFieldLocked(field, { isAddMode, isEditMode });
   }
 
   const handleChange = useCallback((key, value) => {

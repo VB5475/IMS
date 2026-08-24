@@ -33,7 +33,7 @@ import {
   editRecordGridColumnOpts,
   syncEditGridDropdownValues,
 } from "../../utils/gridUtils";
-import { validateApiColumnsByField, validateGridRows } from "../../utils/columnValidation";
+import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
@@ -136,6 +136,8 @@ export default function MaintenanceNewContractForm() {
   const notify = useNotification();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailCellErrors, setDetailCellErrors] = useState(null);
+  const [termsCellErrors, setTermsCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -406,6 +408,8 @@ export default function MaintenanceNewContractForm() {
     setFilterResetKey((k) => k + 1);
     exitEditMode();
     setFieldErrors({});
+    setDetailCellErrors(null);
+    setTermsCellErrors(null);
     docLog.resetDocGuid();
     // Back to a blank new-entry state — re-issue a fresh GUID for whatever
     // the user enters next, same as the initial mount fetch. No-op on an
@@ -773,10 +777,20 @@ export default function MaintenanceNewContractForm() {
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
     const businessErrors = validateMacngBusinessRules(headerValuesRef.current);
-    const detailErrors = validateGridRows(itemGridRef.current?.getRows?.() ?? [], columns, { requireAtLeastOne: true });
-    const termsErrors = validateGridRows(termsGridRef.current?.getRows?.() ?? [], termsColumns);
-    const allErrors = [...headerBannerMsg, ...businessErrors, ...detailErrors, ...termsErrors];
-    if (allErrors.length > 0) {
+    const detailRows = itemGridRef.current?.getRows?.() ?? [];
+    const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(detailRows, columns, { requireAtLeastOne: true });
+    setDetailCellErrors(detailCellErrs);
+    const termsRows = termsGridRef.current?.getRows?.() ?? [];
+    const { cellErrors: termsCellErrs } = validateGridRowsDetailed(termsRows, termsColumns);
+    setTermsCellErrors(termsCellErrs);
+    const allErrors = [...headerBannerMsg, ...businessErrors, ...(detailRows.length === 0 ? detailErrors : [])];
+    if (
+      Object.keys(headerErrorMap).length > 0
+      || businessErrors.length > 0
+      || detailCellErrs.size > 0
+      || termsCellErrs.size > 0
+      || detailRows.length === 0
+    ) {
       setFormErrors(allErrors);
       return false;
     }
@@ -1030,6 +1044,7 @@ export default function MaintenanceNewContractForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            cellErrors={detailCellErrors}
           />
         </div>
 
@@ -1046,6 +1061,7 @@ export default function MaintenanceNewContractForm() {
             readOnly={isEditRoute && !isEditMode}
             existingRecordEdit={isEditRoute && isEditMode}
             loading={isGridLoading || isFetching}
+            cellErrors={termsCellErrors}
           />
         </div>
       </section>

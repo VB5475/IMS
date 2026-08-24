@@ -976,15 +976,19 @@ export default function PurchaseOrderForm() {
     setItemCellErrors(nextItemCellErrors);
 
     const indentChildRows = Object.values(childRowsMap).flat();
+    // Indent-child rows are nested under item rows via childRowsMap, not a
+    // top-level EntryGrid instance — no cellErrors mechanism reaches them,
+    // so their messages stay in the banner as a pragmatic exception.
     const indentErrors = validateGridRows(indentChildRows, childColumns);
 
-    // Header errors show inline on their fields (fieldErrors, above); only a
-    // single summary line goes in the top banner alongside the grid errors,
-    // which have no per-cell display yet and still need their full messages.
+    // Header errors show inline on their fields (fieldErrors, above); item
+    // grid errors show inline via cellErrors (nextItemCellErrors, above) —
+    // only the "add at least one item row" case (no row to attach an inline
+    // marker to) and indent-child rows still need the banner.
     const headerBannerMsg =
       Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
-    const allErrors = [...headerBannerMsg, ...detailErrors, ...indentErrors];
-    if (allErrors.length > 0) {
+    const allErrors = [...headerBannerMsg, ...(itemRows.length === 0 ? detailErrors : []), ...indentErrors];
+    if (Object.keys(headerErrorMap).length > 0 || nextItemCellErrors.size > 0 || itemRows.length === 0 || indentErrors.length > 0) {
       setFormErrors(allErrors);
       return false;
     }

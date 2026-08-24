@@ -14,13 +14,10 @@ import { useApi } from "../../api/useApi";
 import { withSaveContextFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumnsByField } from "../../utils/columnValidation";
+import { isMasterFieldLocked } from "../../utils/masterFormUtils";
 import { useNotification } from "../../context/NotificationContext";
 import { STM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
 import "./StateMasterPage.css";
-
-// Fields locked during edit mode (RB colnames — all lowercase). Per MRD, only
-// Country is locked on edit — Code/Name/Reg Name/State Type/Tin No stay editable.
-const LOCK_ON_EDIT = new Set(["countryid"]);
 
 // Live RB colname for the Country/State Type dropdowns is unconfirmed (MRD's
 // own Field ID column is a stale City-Master copy-paste) — try the likely
@@ -124,9 +121,7 @@ export default function StateMasterForm({
   }
 
   function isLocked(field) {
-    if (!isEditMode) return true;
-    if (isAddMode)   return false;
-    return LOCK_ON_EDIT.has(field.colname);
+    return isMasterFieldLocked(field, { isAddMode, isEditMode });
   }
 
   const handleChange = useCallback((key, value) => {

@@ -61,14 +61,20 @@ export const WKF_HEADER_FIELDS = [
   { key: "lastsender", label: "Last Sender" },
 ];
 
-/** The 5 "Direct Stamping Keys" action buttons — visibility comes from
+/** The 6 "Direct Stamping Keys" action buttons — visibility comes from
  *  POST_WKF_Info4Button's Can* flags; `actionCode` is the exact
- *  `prmbuttonclicked` value POST_WKF_ActClicked expects (Section 5.1). */
+ *  `prmbuttonclicked` value POST_WKF_ActClicked expects (Section 5.1).
+ *  `canreject`/Reject (2026-08-21 /pm) was missing from the original 5 —
+ *  the live button-visibility response carries a 6th flag the MRD's text
+ *  never called out; `actionCode: "REJECT"` follows the same convention as
+ *  the other 4 full-word codes (only Forward is abbreviated to FWD),
+ *  unconfirmed against a live reject action until DBA/live-tested. */
 export const WKF_ACTION_BUTTONS = [
   { key: "recall", label: "Recall", actionCode: "RECALL", canFlag: "canrecall" },
   { key: "sendback", label: "Send Back", actionCode: "SENDBACK", canFlag: "cansendback" },
   { key: "forward", label: "Forward", actionCode: "FWD", canFlag: "canfwd" },
   { key: "approve", label: "Approve", actionCode: "APPROVE", canFlag: "canapprove" },
+  { key: "reject", label: "Reject", actionCode: "REJECT", canFlag: "canreject" },
   { key: "complete", label: "Complete", actionCode: "COMPLETE", canFlag: "cancomplete" },
 ];
 
