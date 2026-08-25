@@ -248,14 +248,21 @@ export function useAstDepIT(baseURL = API_BASE_URL) {
   }, [get]);
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
+  // SP_MASTER_FILL returns the division/account labels as `division`/`account`
+  // (not `divisionname`/`fixedastacname`) — the old field names never matched,
+  // so these dropdowns silently stayed empty on every edit load despite the
+  // row carrying valid divisionid/fixedastacid values. Old names kept as a
+  // fallback in case another RB config still emits them.
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.divisionid != null && master.divisionname) {
-      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
+    const divisionLabel = master.division ?? master.divisionname;
+    if (master.divisionid != null && divisionLabel) {
+      setDivisionOptions([{ value: String(master.divisionid), label: divisionLabel }]);
     }
-    if (master.fixedastacid != null && (master.fixedastacname ?? master.acname)) {
+    const accountLabel = master.account ?? master.fixedastacname ?? master.acname;
+    if (master.fixedastacid != null && accountLabel) {
       setAssetsAccOptions([{
         value: String(master.fixedastacid),
-        label: String((master.accode ?? "") + " | " + (master.fixedastacname ?? master.acname ?? "")),
+        label: String((master.accode ?? "") + " | " + accountLabel),
       }]);
     }
   }, []);

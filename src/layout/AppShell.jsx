@@ -62,6 +62,7 @@ import {
   Map,
   BarChart3,
   FileBarChart2,
+  PackageSearch,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -134,6 +135,10 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false, visible: true },
+      // No RB code given for this module (2026-08-25 /pm) — plain hardcoded
+      // path instead of rbRoutePath(RB_CODES...), unlike every other entry
+      // in this section. Route registered in App.jsx as a plain "assets-part-indent" path.
+      { to: "/assets-part-indent", icon: PackageSearch, label: "Asset Part Indent", end: false, visible: true },
     ],
   },
   {

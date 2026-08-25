@@ -122,12 +122,33 @@ function mapHeaderValuesToFilterValues(headerValues) {
   };
 }
 
+// Row-identity / audit columns present on every rb_astdep*det RB (idnumber,
+// masterid, detailid, compuniquekey, randomgenid, tranmstgenid, childfkey,
+// entrystatus — all hidden, iseditallow=0). These must always come from
+// getColDefault (0 for a brand-new row) or an explicit override — never from
+// the picker source object. The picker SP's row carries its own "idnumber"
+// (the picked asset's own PK) which is a DIFFERENT thing from this DETAIL
+// row's own save-identity — silently overlaying it here is exactly why
+// detail rows were saving with a non-zero idnumber in Add mode (same bug
+// class already fixed in PurchaseInquiryForm.jsx's PICKER_OVERLAY_EXCLUDED_KEYS).
+const PICKER_OVERLAY_EXCLUDED_KEYS = new Set([
+  "idnumber",
+  "masterid",
+  "detailid",
+  "compuniquekey",
+  "randomgenid",
+  "tranmstgenid",
+  "childfkey",
+  "entrystatus",
+]);
+
 function mapPickerToItemRow(item, allColumns) {
   const row = { id: nextTempId() };
   allColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
   Object.entries(item).forEach(([k, v]) => {
     const lk = k.toLowerCase();
-    if (lk !== "id" && v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
+    if (lk === "id" || PICKER_OVERLAY_EXCLUDED_KEYS.has(lk)) return;
+    if (v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
   });
   return row;
 }

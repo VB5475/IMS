@@ -8,7 +8,7 @@ import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
-import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
+import { bindFormKeyboardNav, focusAdjacentFormField } from "../../utils/formKeyboardNav";
 import { selectInputText } from "../../utils/focusUtils";
 import { formatColumnDisplayValue, getDateInputConstraints, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
@@ -44,6 +44,25 @@ function getAccentClass(filter) {
     return "efq-cell--fixed";
   }
   return "efq-cell--editable";
+}
+
+// Shared by FilterTable's per-cell rendering and the single-option auto-select
+// effect below — both need the exact same "is this field actually editable"
+// answer, so there's one place that decides it.
+function resolveFieldTone(filter, fieldTones) {
+  const requestedTone =
+    fieldTones?.[filter.FilterColName] ?? fieldTones?.[filter.FilterParameterID] ?? "editable";
+  if (requestedTone === "editable" && filter.isEditAllow === false) return "view";
+  return requestedTone;
+}
+
+// Mirrors FilterControl's own DROPDOWN option-value resolution (raw RB rows
+// use filterctrlvaluecol/IDNumber; already-shaped {value,label} options pass
+// through) so the auto-selected value matches what the user would have picked.
+function resolveFilterOptionValue(opt) {
+  if (opt.value !== undefined) return String(opt.value);
+  const valKey = opt.filterctrlvaluecol || "IDNumber";
+  return String(opt[valKey]);
 }
 
 /** Build table rows: 3 filters per row; textarea spans full width. */
@@ -507,17 +526,7 @@ function FilterTable({
 }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
-  const getFieldTone = useCallback(
-    (filter) => {
-      const requestedTone =
-        fieldTones?.[filter.FilterColName] ??
-        fieldTones?.[filter.FilterParameterID] ??
-        "editable";
-      if (requestedTone === "editable" && filter.isEditAllow === false) return "view";
-      return requestedTone;
-    },
-    [fieldTones]
-  );
+  const getFieldTone = useCallback((filter) => resolveFieldTone(filter, fieldTones), [fieldTones]);
 
   if (layout === "dashboard") {
     return (
@@ -889,6 +898,50 @@ export default function EnterpriseFilterPanel({
     [onFilterChange, cascadeResets]
   );
 
+  // Single-option dropdowns auto-select + hand focus to the next field
+  // (2026-08-25 /pm — rolled out from Purchase Inquiry, which had its own
+  // local copy of this before it lived here). Runs for every consumer of this
+  // panel; skips locked/frozen/view-tone fields and anything already
+  // auto-filled this mount (autoSelectedFieldsRef, cleared on Reset/Clear All
+  // — entry-mode callers instead remount this whole component via a `key`
+  // change on Cancel, which resets the ref for free).
+  //
+  // The focus-advance is deferred past this tick (not just a rAF) because
+  // PurchaseInquiryForm's own "focus first field on Add" timer runs at 80ms —
+  // this needs to land after that or it gets immediately overwritten back to
+  // field 1. 200ms is empirically safe margin over that one known case; a
+  // caller with its own longer post-mount focus timer could still race this.
+  const autoSelectedFieldsRef = useRef(new Set());
+  useEffect(() => {
+    if (disabled) return;
+    const root = panelRef?.current;
+
+    filters
+      .filter((f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN)
+      .forEach((f) => {
+        const colName = f.FilterColName;
+        if (autoSelectedFieldsRef.current.has(colName)) return;
+        if (resolveFieldTone(f, fieldTones) !== "editable") return;
+
+        const opts = dropdownOptions[f.FilterParameterID] ?? f.staticOptions ?? [];
+        const currentVal = values[colName];
+        const isEmpty =
+          currentVal == null || currentVal === "" || currentVal === 0 || currentVal === "0";
+        if (opts.length !== 1 || !isEmpty) return;
+
+        autoSelectedFieldsRef.current.add(colName);
+        handleChange(colName, resolveFilterOptionValue(opts[0]));
+
+        if (!root) return;
+        window.setTimeout(() => {
+          const current =
+            root.querySelector(`#efq-${colName} .search-select__trigger`) ||
+            root.querySelector(`#efq-${colName}`);
+          if (current) focusAdjacentFormField(current, { root });
+        }, 200);
+      });
+  }, [filters, values, dropdownOptions, fieldTones, disabled, handleChange, panelRef]);
+
   const handleActionClick = useCallback(() => {
     if (onSearch) onSearch(values, filters);
   }, [onSearch, values, filters]);
@@ -898,10 +951,12 @@ export default function EnterpriseFilterPanel({
   }, [onRefresh, values, filters]);
 
   const handleReset = useCallback(() => {
+    autoSelectedFieldsRef.current.clear();
     setValues({ ...defaults });
   }, [defaults]);
 
   const handleClearAll = useCallback(() => {
+    autoSelectedFieldsRef.current.clear();
     const cleared = {};
     filters.forEach((f) => {
       cleared[f.FilterColName] = "";

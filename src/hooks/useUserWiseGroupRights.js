@@ -7,7 +7,12 @@ import { useState, useCallback } from "react";
 import { useApi } from "../api/useApi";
 import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
-import { getCheckboxValue, normalizeDetailColLinks, resolveDetailColLinks } from "../utils/masterFormUtils";
+import {
+  getCheckboxValue,
+  isMasterFieldVisible,
+  normalizeDetailColLinks,
+  resolveDetailColLinks,
+} from "../utils/masterFormUtils";
 import { isErrorOnlyRow } from "../utils/apiResponse";
 import {
   UWGR_CONFIG as CFG,
@@ -17,9 +22,13 @@ import {
   buildGridParams,
 } from "../pages/user-wise-group-rights/constants";
 
+// Only RB-visible columns become header fields — a column present in
+// HEADER_COLS by name but flagged isvisible:false in this RB config (e.g.
+// Type, per masterID 20205) must not render, same as every other RB-driven
+// form in the app.
 function getColumnDefsFor(links, colnames) {
   const byName = Object.fromEntries((links ?? []).map((c) => [c.ColName ?? c.colname, c]));
-  return colnames.map((name) => byName[name]).filter(Boolean);
+  return colnames.map((name) => byName[name]).filter(Boolean).filter(isMasterFieldVisible);
 }
 
 /** Grid SPs and dropdown SPs return inconsistent key casing — flatten once so
@@ -32,12 +41,12 @@ function mapIdNameRows(rows, labelKeys) {
   return (rows || [])
     .map((raw) => {
       const row = toLowerKeyed(raw);
-      const value = row.idnumber;
+      const value = row.idnumber ?? 0;
       if (value == null || value === "") return null;
       const label = labelKeys.map((k) => row[k]).find((v) => v != null && v !== "");
       const num = Number(value);
       return {
-        value: Number.isFinite(num) ? String(Math.round(num)) : String(value),
+        value: Number.isFinite(num) ? String(Math.round(num)) : String(value) ?? 0,
         label: String(label ?? value),
       };
     })
@@ -127,8 +136,9 @@ export function useUserWiseGroupRights() {
 
   /** Search — loads both rights grids for the selected Group in one pass. */
   const fetchRightsGrids = useCallback(
-    async ({ groupId }) => {
-      const params = buildGridParams({ groupId });
+    async ({ groupId, moduleId }) => {
+      const moduleName = moduleOptions.find((o) => o.value === String(moduleId))?.label ?? "";
+      const params = buildGridParams({ groupId, moduleName });
       if (!params.prmgroupid) return { transaction: [], report: [] };
 
       const [functionRows, approvalRows] = await Promise.all([
@@ -158,7 +168,7 @@ export function useUserWiseGroupRights() {
         report: normalizeRightsRows(unwrap(approvalRows), UWGR_REPORT_RIGHTS),
       };
     },
-    [get]
+    [get, moduleOptions]
   );
 
   return {

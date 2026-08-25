@@ -50,7 +50,7 @@ export const WKF_MAIN_CONFIG = {
  *  wireframe until now. Omitted `visible` defaults to shown, same
  *  convention as AppShell.jsx's NAV_SECTIONS config. */
 export const WKF_HEADER_FIELDS = [
-  { key: "tokenno", label: "Ref. Transaction No." },
+  { key: "tokenname", label: "Ref. Transaction No." },
   { key: "trandate", label: "On Date" },
   { key: "subject", label: "Subject" },
   { key: "status", label: "Status", visible: false },

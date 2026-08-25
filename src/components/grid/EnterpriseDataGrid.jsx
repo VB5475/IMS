@@ -104,8 +104,15 @@ function applyRightsToActionColumns(columns, { canUpdate, canDelete }) {
 /** Place select + edit/action columns first; data columns keep their relative order. */
 function orderColumnsWithActionsFirst(columns, selectable = false) {
   if (!Array.isArray(columns) || columns.length === 0) return columns;
+  // Explicit width (not just minWidth) — without it, this column's actual
+  // rendered width falls back to the general .ng-col--action CSS rule's 56px
+  // instead of .ng-col--action-select's narrower 40px (2026-08-25 /pm,
+  // confirmed live: removing this widened every selectable grid's checkbox
+  // column from 40px to 56px). Applies to every selectable grid project-wide
+  // — purely additive/narrowing, matches the width already intended by the
+  // "-select" CSS class.
   const selectCol = selectable
-    ? [{ key: SELECT_COLUMN_KEY, label: "", actionType: "select", minWidth: 40, isAction: true }]
+    ? [{ key: SELECT_COLUMN_KEY, label: "", actionType: "select", width: "40px", minWidth: 40, isAction: true }]
     : [];
   const actionCols = columns.filter((c) => ACTION_COLUMN_KEYS.has(c.key) || c.isAction);
   const dataCols = columns.filter((c) => !ACTION_COLUMN_KEYS.has(c.key) && !c.isAction);

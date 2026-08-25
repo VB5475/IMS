@@ -85,6 +85,10 @@ export const QTN_CONFIG = {
 
   SP_QUOTATION_LIST: "fn_tbl_rb_purqtnmst_list",
   LIST_DIVISION_ID: 15,
+
+  // WKF "Approval Initiator" send-for-approval button (2026-08-25 /pm) —
+  // user-confirmed transaction-type id, same convention as PO_CONFIG.WKF_TRAN_TYPE_ID.
+  WKF_TRAN_TYPE_ID: 5,
 };
 
 export const QTN_LIST_DROPDOWN_FIELDS = new Set(["divisionid", "configid", "supplierid"]);

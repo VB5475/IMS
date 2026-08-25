@@ -72,6 +72,10 @@ export const AET_CONFIG = {
   /** Default prmfromdivisionid for list fetch — CONFIRM with DBA */
   LIST_FROM_DIVISION_ID: 15,
 
+  // WKF "Approval Initiator" send-for-approval button (2026-08-25 /pm) —
+  // user-confirmed transaction-type id; routes on From Division (fromdivisionid).
+  WKF_TRAN_TYPE_ID: 384,
+
   PARTY_TYPE_CLIENT: "C",
 
   STORAGE_HEADER_META: "aetHeaderMeta",

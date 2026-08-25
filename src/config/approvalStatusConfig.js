@@ -43,6 +43,65 @@ export const APPROVAL_STATUS_CONFIG = {
       100: { statusKey: "inApproval", locked: true, selectable: true },
     },
   },
+  // 2026-08-25 /pm — WKF Approval Initiator rollout, same rule shape as the
+  // four modules above (identical statusIds project-wide; no-op automatically
+  // if a module's list SP doesn't return appstatusid, see NO_OP_STATE below).
+  "purchase-quotation": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-employee-issue": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-employee-return": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-department-issue": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-returnable-gate-pass-out": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-returnable-gate-pass-in": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-employee-transfer": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "assets-health-status-updation": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
 };
 
 const NO_OP_STATE = { statusKey: null, locked: false, selectable: true };

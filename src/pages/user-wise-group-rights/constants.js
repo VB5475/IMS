@@ -18,9 +18,12 @@
 //   Module → fn_tbl_fetch_rb_userwsgrprights_modulename
 //   Type   → fn_tbl_fetch_rb_userwsgrprights_typedata
 //
-// Both grid functions take prmgroupid only (2026-08-05). The MRD also lists
-// @prmGroupcode, and it was previously sent carrying the Group's name, but the
-// functions do not use it. See buildGridParams at the bottom.
+// Both grid functions take prmgroupid + prmgroupcode (2026-08-25 — the param
+// KEY stays "prmgroupcode" per the actual SP signature, but the VALUE sent
+// is the selected Module's name, not the Group's — a deliberate backend
+// naming quirk, not a bug. Revises the same-day prmmodulename revision,
+// which renamed the key when only the value should have changed). See
+// buildGridParams at the bottom.
 //
 // Row shape — confirmed 2026-08-04 against both grid functions, which return
 // the SAME columns as each other (that uniformity is what lets both grids
@@ -111,9 +114,12 @@ export const UWGR_REPORT_RIGHTS = Object.freeze([
   { key: "approval", column: "allowapproval", toggleLabel: "Approval", columnLabel: "Allow Approval" },
 ]);
 
-/** Grid function parameters — both grids are keyed on the Group id alone. */
-export function buildGridParams({ groupId }) {
+/** Grid function parameters — shared by both grid calls (2026-08-25 /pm:
+ *  the param key is "prmgroupcode" per the actual SP signature, but its
+ *  value is the selected Module's name, not the Group's — deliberate). */
+export function buildGridParams({ groupId, moduleName }) {
   return {
     prmgroupid: Number(groupId) || 0,
+    prmgroupcode: moduleName ?? "",
   };
 }

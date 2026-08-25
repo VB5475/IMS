@@ -18,6 +18,32 @@
   min-height: 0;
 }
 
+.aet-list__wkf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aet-list__wkf-btn:hover:not(:disabled) {
+  background: #eef3fa;
+}
+
+.aet-list__wkf-btn:disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .aet-list-panel--fill {
   flex: 1;
   min-height: 0;

@@ -119,6 +119,7 @@ const PreventiveMaintenanceInternalForm = lazy(
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
 const WKFMainPage = lazy(() => import("./pages/wkf-main/WKFMainPage"));
+const AssetPartIndentPage = lazy(() => import("./pages/assets-part-indent/AssetPartIndentPage"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
 );
@@ -452,6 +453,13 @@ const router = createBrowserRouter([
           // "Nav Menu Label", confirmed 2026-08-14 /pm). Same plain
           // param-route pattern as "main/:reportBoardId" above.
           { path: "wkfmain", element: <WKFMainPage /> },
+
+          // Asset Part Indent (2026-08-25 /pm) — brand-new, read-only
+          // two-grid browse page; no RB code was given for this module, so
+          // (unlike every other Assets route) it isn't wired through
+          // rbModule/RB_CODES — same plain-route pattern as "wkfmain" above.
+          // DOES have a sidebar nav entry, unlike wkfmain — see AppShell.jsx.
+          { path: "assets-part-indent", element: <AssetPartIndentPage /> },
 
           // Admin — Master modules
           rbLeaf({ rb: RB.MAIN_GROUP_MASTER, element: <MainGroupMasterPage /> }),
