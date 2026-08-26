@@ -235,6 +235,14 @@
   text-overflow: ellipsis;
 }
 
+.aei-sr-search__error {
+  align-self: center;
+  margin-right: 8px;
+  font-size: 0.75rem;
+  color: #b42318;
+  white-space: nowrap;
+}
+
 .aei-qr-search {
   --aei-qr-accent: #1a56a0;
   --aei-qr-accent-soft: #e8f1fb;

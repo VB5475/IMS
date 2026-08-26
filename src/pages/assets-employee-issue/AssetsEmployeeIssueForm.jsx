@@ -8,8 +8,6 @@ import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import Modal from "../../components/ui/Modal";
-import HardwareQrScanner from "../../components/txn/HardwareQrScanner";
 import { useNotification } from "../../context/NotificationContext";
 import { parseQrItemPayload } from "../../utils/qrScanJson";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
@@ -180,6 +178,7 @@ export default function AssetsEmployeeIssueForm() {
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const headerScanRef = useRef(null);
+  const srSearchRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
@@ -271,11 +270,11 @@ export default function AssetsEmployeeIssueForm() {
   const [itemModalError, setItemModalError] = useState(null);
   const [itemModalScanMode, setItemModalScanMode] = useState(false);
   const [itemNameFilter, setItemNameFilter] = useState("");
-  const [scanQrOpen, setScanQrOpen] = useState(false);
   const [scanQrLoading, setScanQrLoading] = useState(false);
   const [scanQrError, setScanQrError] = useState(null);
   const [lastQrItem, setLastQrItem] = useState(null);
   const [headerScanValue, setHeaderScanValue] = useState("");
+  const [srSearchValue, setSrSearchValue] = useState("");
   const pendingScanSrNoRef = useRef("");
   const groupFilter = useItemPickerGroupFilter({
     spMainGroup: AEI_CONFIG.SP_ITEM_MAIN_GROUP,
@@ -891,17 +890,6 @@ export default function AssetsEmployeeIssueForm() {
     );
   }, []);
 
-  const openManualSearch = useCallback(() => {
-    setScanQrError(null);
-    setScanQrOpen(true);
-  }, []);
-
-  const closeScanQr = useCallback(() => {
-    if (scanQrLoading) return;
-    setScanQrOpen(false);
-    setScanQrError(null);
-  }, [scanQrLoading]);
-
   const focusHeaderScanField = useCallback(() => {
     if (!isEditMode) return;
     setActiveTab("items");
@@ -921,6 +909,15 @@ export default function AssetsEmployeeIssueForm() {
     });
   }, []);
 
+  const restoreSrSearchFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!srSearchRef.current || srSearchRef.current.disabled) return;
+        srSearchRef.current.focus();
+      }, 0);
+    });
+  }, []);
+
   const handleScanHistorySubmit = useCallback(async (rawSrNo) => {
     const srNo = String(rawSrNo ?? "").trim();
     if (!srNo) {
@@ -935,7 +932,6 @@ export default function AssetsEmployeeIssueForm() {
     const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
     setFieldErrors(headerErrorMap);
     if (Object.keys(headerErrorMap).length > 0) {
-      setScanQrOpen(false);
       setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
@@ -995,7 +991,7 @@ export default function AssetsEmployeeIssueForm() {
         setActiveTab("items");
         addItemRow(mappedRow);
         const entry = recordLastScannedItem(srNo, [mappedRow], rows);
-        setScanQrOpen(false);
+        setSrSearchValue("");
         setScanQrError(null);
         notify.toastSuccess(`Added: ${entry.itemname || srNo}`);
         return;
@@ -1007,7 +1003,7 @@ export default function AssetsEmployeeIssueForm() {
       setItemModalItems(rows);
       setItemModalError(null);
       setItemModalOpen(true);
-      setScanQrOpen(false);
+      setSrSearchValue("");
       setScanQrError(null);
     } catch (err) {
       console.error("[AEI] Scan history item fetch failed:", err);
@@ -1016,6 +1012,7 @@ export default function AssetsEmployeeIssueForm() {
       notify.toastError(msg);
     } finally {
       setScanQrLoading(false);
+      restoreSrSearchFocus();
     }
   }, [
     headerColumns,
@@ -1027,6 +1024,7 @@ export default function AssetsEmployeeIssueForm() {
     fetchItemPickerColumns,
     itemModalColumns,
     notify,
+    restoreSrSearchFocus,
   ]);
 
   const handleScanQrSubmit = useCallback(async (rawText) => {
@@ -1034,7 +1032,6 @@ export default function AssetsEmployeeIssueForm() {
     const { qrJson, error } = normalizeAeiQrSearchJson(rawText);
     console.log("[AEI QR] normalized", { qrJson, error });
     if (error) {
-      setScanQrError(scanQrOpen ? error : null);
       notify.toastError(error);
       restoreHeaderScanFocus();
       return;
@@ -1045,7 +1042,6 @@ export default function AssetsEmployeeIssueForm() {
     const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
     setFieldErrors(headerErrorMap);
     if (Object.keys(headerErrorMap).length > 0) {
-      setScanQrOpen(false);
       setFormErrors(["Please fix the highlighted field(s) below."]);
       restoreHeaderScanFocus();
       return;
@@ -1059,7 +1055,6 @@ export default function AssetsEmployeeIssueForm() {
     const existingRows = itemGridRef.current?.getRows?.() ?? [];
     if (gridHasScannedItem(existingRows, scannedMeta.itemcode, scannedMeta.srno)) {
       const msg = "Item is already added";
-      setScanQrError(scanQrOpen ? msg : null);
       notify.toastError(msg);
       setHeaderScanValue("");
       restoreHeaderScanFocus();
@@ -1093,7 +1088,6 @@ export default function AssetsEmployeeIssueForm() {
       console.log("[AEI QR] picker response rows", rows.length, rows);
       if (rows.length === 0) {
         const msg = "No item found for this QR JSON.";
-        setScanQrError(scanQrOpen ? msg : null);
         notify.toastError(msg);
         return;
       }
@@ -1109,7 +1103,6 @@ export default function AssetsEmployeeIssueForm() {
 
       if (mappedRows.length === 0) {
         const msg = "Item is already added";
-        setScanQrError(scanQrOpen ? msg : null);
         notify.toastError(msg);
         setHeaderScanValue("");
         return;
@@ -1131,10 +1124,6 @@ export default function AssetsEmployeeIssueForm() {
       );
       setHeaderScanValue("");
 
-      if (scanQrOpen) {
-        setScanQrOpen(false);
-        setScanQrError(null);
-      }
       notify.toastSuccess(
         mappedRows.length === 1
           ? `Added: ${itemName}`
@@ -1143,16 +1132,38 @@ export default function AssetsEmployeeIssueForm() {
     } catch (err) {
       console.error("[AEI] Scan QR item fetch failed:", err);
       const msg = err?.message || "Failed to fetch item for QR JSON.";
-      setScanQrError(scanQrOpen ? msg : null);
       notify.toastError(msg);
     } finally {
       setScanQrLoading(false);
       restoreHeaderScanFocus();
     }
   }, [
-    scanQrOpen, headerColumns, ensureItemColumns, getLive,
+    headerColumns, ensureItemColumns, getLive,
     allColumns, addItemRow, notify, restoreHeaderScanFocus, recordLastScannedItem,
   ]);
+
+  const commitSrSearch = useCallback((raw) => {
+    const value = String(raw ?? "").trim();
+    if (!value) return;
+    setSrSearchValue("");
+    handleScanHistorySubmit(value);
+  }, [handleScanHistorySubmit]);
+
+  const handleSrSearchKeyDown = useCallback((e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isEditMode || scanQrLoading) return;
+    commitSrSearch(srSearchValue);
+  }, [isEditMode, scanQrLoading, commitSrSearch, srSearchValue]);
+
+  const handleSrSearchPaste = useCallback((e) => {
+    if (!isEditMode || scanQrLoading) return;
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (!String(text).trim()) return;
+    e.preventDefault();
+    commitSrSearch(text);
+  }, [isEditMode, scanQrLoading, commitSrSearch]);
 
   const commitHeaderScan = useCallback((raw) => {
     const value = String(raw ?? "").trim();
@@ -1415,7 +1426,7 @@ export default function AssetsEmployeeIssueForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || scanQrOpen || docLog.docModalOpen,
+    blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -1535,6 +1546,39 @@ export default function AssetsEmployeeIssueForm() {
                 <kbd className="aei-qr-search__kbd">Ctrl+Q</kbd>
               </label>
 
+              <label
+                className={`aei-qr-search aei-sr-search${!isEditMode ? " aei-qr-search--disabled" : ""}${scanQrLoading ? " aei-qr-search--busy" : ""}`}
+                title="Search by serial number"
+              >
+                <span className="aei-qr-search__icon" aria-hidden="true">
+                  <Search size={16} strokeWidth={2.4} />
+                </span>
+                <input
+                  id="aei-header-sr-search"
+                  ref={srSearchRef}
+                  type="text"
+                  className="aei-qr-search__input"
+                  value={srSearchValue}
+                  onChange={(e) => {
+                    setSrSearchValue(e.target.value);
+                    if (scanQrError) setScanQrError(null);
+                  }}
+                  onKeyDown={handleSrSearchKeyDown}
+                  onPaste={handleSrSearchPaste}
+                  placeholder={scanQrLoading ? "Fetching…" : "Search by serial number"}
+                  disabled={!isEditMode}
+                  readOnly={scanQrLoading}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Search by serial number"
+                  aria-invalid={Boolean(scanQrError)}
+                />
+              </label>
+              {scanQrError ? (
+                <span className="aei-sr-search__error" role="alert">{scanQrError}</span>
+              ) : null}
+
               {lastQrItem?.itemcode || lastQrItem?.srno ? (
                 <span className="aei-last-qr" title="Last scanned item">
                   <span className="aei-last-qr__label">Last scan</span>
@@ -1563,17 +1607,6 @@ export default function AssetsEmployeeIssueForm() {
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
-              </button>
-
-              <button
-                type="button"
-                className="eg-tab-btn"
-                onClick={openManualSearch}
-                disabled={!isEditMode || scanQrLoading}
-                title={FORM_SHORTCUT_TITLES.scanHistory}
-              >
-                <Search size={12} strokeWidth={2.5} />
-                Manual Search
               </button>
 
               <button
@@ -1665,55 +1698,6 @@ export default function AssetsEmployeeIssueForm() {
           isRowDisabled={itemModalScanMode ? isScanPickerRowDisabled : null}
         />
       </Suspense>
-
-      <Modal
-        isOpen={scanQrOpen}
-        onClose={closeScanQr}
-        title="Manual Search"
-        subtitle="Search by serial number"
-        icon={<Search size={16} strokeWidth={2.25} />}
-        size="sm"
-        variant="enterprise"
-        dialogClassName="aei-scan-qr-modal"
-        initialFocusSelector="#hw-qr-srno"
-        footer={
-          <div className="aei-scan-qr__footer">
-            <button
-              type="button"
-              className="aei-scan-qr__btn aei-scan-qr__btn--cancel"
-              onClick={closeScanQr}
-              disabled={scanQrLoading}
-            >
-              Close
-            </button>
-          </div>
-        }
-      >
-        <div className="aei-scan-qr">
-          <HardwareQrScanner
-            srNoOnly
-            showHistory={false}
-            disabled={scanQrLoading}
-            onScan={handleScanHistorySubmit}
-            hint="Enter Sr No, then press Enter or click Fetch Item. Multiple matches open Select Item; a single match is added directly."
-          />
-          {(scanQrError || scanQrLoading) ? (
-            <div className="aei-scan-qr__status">
-              {scanQrError ? (
-                <div className="aei-scan-qr__error" role="alert">
-                  <AlertCircle size={14} strokeWidth={2} />
-                  <span>{scanQrError}</span>
-                </div>
-              ) : null}
-              {scanQrLoading ? (
-                <div className="aei-scan-qr__loading" role="status">
-                  Fetching item…
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </Modal>
 
       <Suspense fallback={null}>
         <DocumentLogModal

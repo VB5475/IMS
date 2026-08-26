@@ -90,7 +90,16 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
 
 export function buildAcaItemPickerJsonPayload(
   headerValues,
-  { companyId, loginId, yearId, maGroupId = 0, subMaGroupId = 0, itemNameSearch = "", qrJson = "" } = {}
+  {
+    companyId,
+    loginId,
+    yearId,
+    maGroupId = 0,
+    subMaGroupId = 0,
+    itemNameSearch = "",
+    qrJson = "",
+    otherStr = "",
+  } = {}
 ) {
   const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
@@ -120,7 +129,7 @@ export function buildAcaItemPickerJsonPayload(
     prmsubmaingroupid: Number(subMaGroupId) || 0,
     prmitemnamesearch: String(itemNameSearch ?? "").trim(),
     prmsearchtext: "",
-    prmotherstr: "",
+    prmotherstr: String(otherStr ?? "").trim(),
     prmjson: "[]",
     prmqrjson: String(qrJson ?? "").trim(),
   };
