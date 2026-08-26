@@ -28,6 +28,14 @@
   z-index: 100;
   box-shadow: var(--shadow-md);
   transition: width var(--transition);
+  /* Light text on the sidebar's dark navy background is the classic case
+     where the browser's default subpixel antialiasing reads as soft/blurry
+     rather than crisp — switching to grayscale antialiasing (the standard
+     fix for light-on-dark text) noticeably sharpens it without changing the
+     typeface or weight itself. Scoped to the sidebar only, not the app. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .ent-shell--collapsed .ent-sidebar {
@@ -144,6 +152,11 @@
   border-radius: var(--radius);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
   padding: 8px;
+  /* Portal-rendered outside .ent-sidebar, so it doesn't inherit that rule's
+     font-smoothing fix — same dark-navy/light-text combo needs it here too. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   /* max-height + overflowY are set inline per-open (openFlyout) from the
      actual space available below the hover point — this is just the
      fallback/scrollbar styling. */
@@ -168,11 +181,11 @@
 }
 
 .ent-sidebar__flyout-label {
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 700;
   text-transform: capitalize;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.8);
   padding: 4px 10px 8px;
 }
 
@@ -293,11 +306,20 @@
 }
 
 .ent-sidebar__section-label {
-  font-size: 10px;
+  /* Was 10px / 40% white — read as barely-there against the dark navy
+     background (user-reported, matches the same low-contrast pattern the
+     nav links themselves had). Bumped repeatedly per follow-up feedback,
+     now sized above the 15px nav-link text itself since a group header
+     reading larger than its own items is a normal, expected hierarchy.
+     Stays dimmer/lighter-weight than the fully-white --active variant
+     below so that distinction still holds. Tighter letter-spacing at this
+     larger size reads as sharper/denser rather than loose caps-lock
+     spacing. */
+  font-size: 16px;
   font-weight: 700;
   text-transform: capitalize;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.8);
   transition: color var(--transition);
 }
 
@@ -323,11 +345,13 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.4);
+  /* Matches .ent-sidebar__section-label's own color above — this is what
+     the chevron icon inherits via currentColor, so it was just as faint. */
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .ent-sidebar__section-header:hover {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .ent-sidebar__section-header:hover .ent-sidebar__section-label {
@@ -353,8 +377,12 @@
   padding: 0 12px;
   margin-bottom: 2px;
   color: var(--sidebar-text);
-  font-size: var(--font-size-base);
-  font-weight: 400;
+  /* A touch larger than --font-size-base (13px) and medium-weight rather
+     than regular — both make a real, visible difference on the dark
+     sidebar background without the labels feeling oversized next to the
+     rest of the app's 13px baseline. */
+  font-size: 15px;
+  font-weight: 500;
   transition:
     background var(--transition),
     color var(--transition);

@@ -58,7 +58,7 @@ function resolveNavRoot(fromEl, root = null) {
  * leaves the control instead of cycling year / month / day segments.
  * @returns {boolean} true when focus was moved (caller should preventDefault)
  */
-export function focusAdjacentFormField(fromEl, { shiftKey = false, root = null } = {}) {
+export function focusAdjacentFormField(fromEl, { shiftKey = false, root = null, beforeFocus = null } = {}) {
   if (!fromEl) return false;
 
   let scope = resolveNavRoot(fromEl, root);
@@ -80,6 +80,7 @@ export function focusAdjacentFormField(fromEl, { shiftKey = false, root = null }
   if (nextIndex < 0 || nextIndex >= fields.length) return false;
 
   const next = fields[nextIndex];
+  beforeFocus?.(next);
   next.focus();
   if (
     next instanceof HTMLInputElement &&

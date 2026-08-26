@@ -912,43 +912,50 @@ export default function EnterpriseFilterPanel({
   // field 1. 200ms is empirically safe margin over that one known case; a
   // caller with its own longer post-mount focus timer could still race this.
   const autoSelectedFieldsRef = useRef(new Set());
-  // A real Tab keypress or click means the user has taken over manual
-  // navigation — every further programmatic focus-advance below is
-  // suppressed from that point on (auto-*selecting* values keeps happening
-  // silently in the background; only the focus-*stealing* stops). Without
-  // this, a field whose single option only resolves after a cascade (e.g.
-  // one that depends on a just-auto-selected Division) can schedule its own
-  // advance that fires after the user has already tabbed past it manually,
-  // yanking focus forward a second time and skipping whatever field they
-  // were heading to. Only real events set this (keydown/mousedown are never
-  // synthesized by this component's own `.focus()` calls), so the initial,
-  // no-interaction-yet auto-advance chain (e.g. Division → Inquiry Type →
-  // Department, still relied on by Purchase Inquiry) is unaffected — it only
-  // stops once the user has actually done something. Reset on the same key
-  // EnterpriseFilterPanel already remounts on (Cancel), so a fresh Add cycle
-  // gets the auto-advance chain back.
-  const userNavigatedRef = useRef(false);
+  // A real Tab keypress means the user is actively driving keyboard
+  // navigation — a field's own scheduled focus-advance (200ms after it
+  // became auto-select-eligible) gets skipped if a Tab has landed *since it
+  // was scheduled*, rather than always applying blindly. Two things this
+  // has to tell apart, both confirmed by live reproduction:
+  //
+  // 1. Fast repeated Tabbing (the original bug): most single-option fields
+  //    resolve within the first ~100ms of Add mode, well before any Tab —
+  //    so by the time the user's first Tab lands, every one of those early
+  //    timers was scheduled *before* it. Comparing against the most recent
+  //    Tab (not just "any Tab ever") correctly keeps them suppressed for as
+  //    long as the user keeps tabbing, letting native Tab order drive
+  //    instead of stacking an extra programmatic hop on top of each press
+  //    (confirmed live: without this, 2+ fields get skipped per run).
+  //
+  // 2. One incidental Tab, then a pause (a real, common case: e.g. picking
+  //    a genuine 2+-option Division and tabbing out of habit) — a *later*
+  //    field's eligibility, driven by an async cascade fetch, can easily
+  //    get scheduled *after* that single Tab (its own 200ms delay lands it
+  //    well clear of that one keypress). Comparing against scheduling time
+  //    instead of a fixed cooldown window lets this one through — it's
+  //    "fresh" relative to the last real navigation, not stale. A fixed
+  //    time window can't tell these apart: both this case and the race
+  //    land in roughly the same 200-400ms range (confirmed live: a flat
+  //    400ms cooldown wrongly ate this case too, stalling the chain on
+  //    Quotation Type forever even after the user stopped tabbing).
+  const lastUserTabAtRef = useRef(0);
   useEffect(() => {
     const root = panelRef?.current;
     if (!root) return undefined;
-    const markNavigated = (e) => {
-      if (e.type === "mousedown" || e.key === "Tab") userNavigatedRef.current = true;
+    const onKeyDown = (e) => {
+      if (e.key === "Tab") lastUserTabAtRef.current = Date.now();
     };
-    root.addEventListener("keydown", markNavigated, true);
-    root.addEventListener("mousedown", markNavigated, true);
-    return () => {
-      root.removeEventListener("keydown", markNavigated, true);
-      root.removeEventListener("mousedown", markNavigated, true);
-    };
+    root.addEventListener("keydown", onKeyDown, true);
+    return () => root.removeEventListener("keydown", onKeyDown, true);
   }, [panelRef]);
 
   useEffect(() => {
     if (disabled) return;
     const root = panelRef?.current;
 
-    filters
-      .filter((f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN)
-      .forEach((f) => {
+    const dropdownFilters = filters.filter((f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN);
+
+    dropdownFilters.forEach((f, i) => {
         const colName = f.FilterColName;
         if (autoSelectedFieldsRef.current.has(colName)) return;
         if (resolveFieldTone(f, fieldTones) !== "editable") return;
@@ -958,6 +965,24 @@ export default function EnterpriseFilterPanel({
         const isEmpty =
           currentVal == null || currentVal === "" || currentVal === 0 || currentVal === "0";
         if (opts.length !== 1) return;
+
+        // Don't auto-select/auto-advance a field whose own options resolve
+        // independently of an *earlier* dropdown that's still genuinely
+        // unresolved (2+ options, still empty) — e.g. on IMS_PGLIVE, Division
+        // has 2 real options and correctly stays blank, but "Based On" (which
+        // doesn't cascade off Division) still resolves to its one option
+        // immediately and would otherwise jump focus straight past Division.
+        // Whatever this field's single option looks like right now may also
+        // just be stale/wrong until the earlier field is actually chosen.
+        const blockedByEarlierField = dropdownFilters.slice(0, i).some((earlier) => {
+          if (resolveFieldTone(earlier, fieldTones) !== "editable") return false;
+          const earlierOpts = dropdownOptions[earlier.FilterParameterID] ?? earlier.staticOptions ?? [];
+          const earlierVal = values[earlier.FilterColName];
+          const earlierEmpty =
+            earlierVal == null || earlierVal === "" || earlierVal === 0 || earlierVal === "0";
+          return earlierOpts.length !== 1 && earlierEmpty;
+        });
+        if (blockedByEarlierField) return;
 
         const singleOptValue = resolveFilterOptionValue(opts[0]);
         // A field can already be non-empty here without the user having
@@ -974,8 +999,12 @@ export default function EnterpriseFilterPanel({
         if (isEmpty) handleChange(colName, singleOptValue);
 
         if (!root) return;
+        const scheduledAt = Date.now();
         window.setTimeout(() => {
-          if (userNavigatedRef.current) return;
+          // A Tab landed after this field became eligible — the user has
+          // navigated since, so this advance is stale; let their own
+          // keyboard driving stand instead of stacking a hop on top of it.
+          if (lastUserTabAtRef.current > scheduledAt) return;
           const current =
             root.querySelector(`#efq-${colName} .search-select__trigger`) ||
             root.querySelector(`#efq-${colName}`);
@@ -996,7 +1025,22 @@ export default function EnterpriseFilterPanel({
           if (myIndex === -1) return;
           const activeIndex = fields.indexOf(document.activeElement);
           if (activeIndex !== -1 && activeIndex >= myIndex + 1) return;
-          focusAdjacentFormField(current, { root });
+          focusAdjacentFormField(current, {
+            root,
+            // Landing on a SearchSelect via this chain shouldn't pop its
+            // dropdown open — the field the user actually needs to look at
+            // is wherever the chain *finally* stops, and every field it
+            // passes through along the way (also auto-filled, also about to
+            // be advanced past a moment later) would otherwise flash its
+            // list open just before moving on again. Confirmed live on
+            // IMS_PGLIVE: with Division genuinely 2-option, the chain
+            // Division→Quotation Type→Supplier Name flashed Quotation
+            // Type's dropdown open mid-transition, which reads as "stuck"
+            // in a screenshot even though the final position is correct.
+            beforeFocus: (el) => {
+              el.dataset.suppressAutoOpen = "1";
+            },
+          });
         }, 200);
       });
   }, [filters, values, dropdownOptions, fieldTones, disabled, handleChange, panelRef]);
@@ -1011,13 +1055,13 @@ export default function EnterpriseFilterPanel({
 
   const handleReset = useCallback(() => {
     autoSelectedFieldsRef.current.clear();
-    userNavigatedRef.current = false;
+    lastUserTabAtRef.current = 0;
     setValues({ ...defaults });
   }, [defaults]);
 
   const handleClearAll = useCallback(() => {
     autoSelectedFieldsRef.current.clear();
-    userNavigatedRef.current = false;
+    lastUserTabAtRef.current = 0;
     const cleared = {};
     filters.forEach((f) => {
       cleared[f.FilterColName] = "";

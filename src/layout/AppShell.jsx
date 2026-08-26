@@ -11,7 +11,6 @@ import {
   ShoppingCart,
   Receipt,
   PackageCheck,
-  Layers,
   Tag,
   MapPin,
   Network,
@@ -38,6 +37,9 @@ import {
   Building,
   FolderTree,
   Landmark,
+  Banknote,
+  Database,
+  FileUp,
   ShieldCheck,
   Truck,
   Route,
@@ -46,7 +48,6 @@ import {
   Scale,
   Wrench,
   Workflow,
-  Cog,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -63,6 +64,28 @@ import {
   BarChart3,
   FileBarChart2,
   PackageSearch,
+  ClipboardPlus,
+  PackageOpen,
+  Send,
+  Gauge,
+  PackagePlus,
+  FileSignature,
+  Group,
+  Boxes,
+  ListTree,
+  Construction,
+  Lock,
+  UserCog,
+  Upload,
+  BookOpen,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Waypoints,
+  IdCard,
+  Warehouse,
+  GitBranch,
+  Hourglass,
+  ClockAlert,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -80,6 +103,22 @@ import ReportFilterModal from "../components/reports/ReportFilterModal";
 import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
+
+// Per-report icon, keyed by REPORTS_LIST's own `key` — every entry used to
+// share FileBarChart2 (a single generic bar-chart icon for all 9 reports),
+// making them indistinguishable from each other in the sidebar. Falls back
+// to FileBarChart2 for any future report key added here without an entry.
+const REPORT_ICONS = {
+  "fixed-asset-register": BookOpen,
+  "returnable-out-register": ArrowUpRight,
+  "returnable-in-register": ArrowDownLeft,
+  "indent-to-pv-tracking": Waypoints,
+  "asset-issue-employee-wise": IdCard,
+  "asset-issue-location-wise": Warehouse,
+  "asset-issue-department-wise": GitBranch,
+  "pending-po-for-grn": Hourglass,
+  "pending-grn-for-pv": ClockAlert,
+};
 
 // Per-client nav config: add `visible: false` to any section or item below to
 // hide it from the sidebar regardless of the viewing user's role/RB rights
@@ -101,7 +140,7 @@ const NAV_SECTIONS = [
     icon: ShoppingCart,
     visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.PURCHASE_INDENT), icon: ShoppingCart, label: "Purchase Indent", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_INDENT), icon: ClipboardPlus, label: "Purchase Indent", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_INQUIRY), icon: ClipboardList, label: "Purchase Inquiry", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_QUOTATION), icon: FileText, label: "Purchase Quotation", end: false, visible: true },
       { to: "/purchase-quotation-comparison", icon: Scale, label: "Purchase Quotation Comparison", end: false, visible: true },
@@ -114,10 +153,10 @@ const NAV_SECTIONS = [
   },
   {
     label: "Finance",
-    icon: Package,
+    icon: Banknote,
     visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Layers, label: "CWIP To FA", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Construction, label: "CWIP To FA", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION_IT_ACT), icon: Calculator, label: "Calculate Depreciation IT Act", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false, visible: true },
@@ -132,16 +171,16 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false, visible: true },
 
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_RETURN), icon: RotateCcw, label: "Assets Employee Return", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Building2, label: "Assets Department Issue", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_DEPARTMENT_ISSUE), icon: Send, label: "Assets Department Issue", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_HEALTH_STATUS_UPDATION), icon: HeartPulse, label: "Assets Health Status Updation", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_REVALUATION), icon: FileText, label: "Assets Revaluation", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_ALLOCATION), icon: Handshake, label: "Assets Client Allocation", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_RELEASE), icon: Handshake, label: "Assets Client Release", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_CLIENT_RELEASE), icon: PackageOpen, label: "Assets Client Release", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_OUT), icon: DoorOpen, label: "Assets Returnable Gate Pass Out", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN), icon: DoorClosed, label: "Assets Returnable Gate Pass In", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.BOM_MASTER), icon: Layers, label: "Assets BOM Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.BOM_MASTER), icon: ListTree, label: "Assets BOM Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false, visible: true },
     ],
   },
@@ -150,10 +189,10 @@ const NAV_SECTIONS = [
     icon: Wrench,
     visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: LayoutDashboard, label: "Maintenance Dashboard", end: false },
+      { to: rbRoutePath(RB_CODES.MAINTENANCE_DASHBOARD), icon: Gauge, label: "Maintenance Dashboard", end: false },
       { to: rbRoutePath(RB_CODES.COMPLAINT_REGISTER), icon: MessageSquareWarning, label: "Complaint Register", end: false },
       { to: rbRoutePath(RB_CODES.PREVENTIVE_MAINTENANCE_INTERNAL), icon: ShieldCheck, label: "Preventive Maintenance Internal", end: false },
-      { to: rbRoutePath(RB_CODES.ASSET_PARTS_INDENT), icon: Package, label: "Asset Parts Indent Detail", end: false },
+      { to: rbRoutePath(RB_CODES.ASSET_PARTS_INDENT), icon: PackagePlus, label: "Asset Parts Indent Detail", end: false },
       { to: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL), icon: RefreshCw, label: "Maintenance Contract Renewal", end: false },
       { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false },
       // No RB code given for this module (2026-08-25 /pm) — plain hardcoded
@@ -168,7 +207,7 @@ const NAV_SECTIONS = [
     visible: true,
     items: [
       // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
-      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: ShieldCheck, label: "DOP Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: FileSignature, label: "DOP Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false, visible: false },
@@ -179,7 +218,7 @@ const NAV_SECTIONS = [
   },
   {
     label: "Master",
-    icon: Settings,
+    icon: Database,
     visible: true,
     items: [
       // end: true — Company's own route ("/admin/company") is a leaf with no
@@ -195,8 +234,8 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.TRANSPORTER_MASTER), icon: Route, label: "Transporter Master", end: false, visible: true },
       { to: "/admin/master/customer-master", icon: UserCheck, label: "Customer Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.MAIN_GROUP_MASTER), icon: Tag, label: "Main Group Master", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Layers, label: "Sub Main Group Master", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Package, label: "Sub Group Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.SUB_MAIN_GROUP_MASTER), icon: Group, label: "Sub Main Group Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.SUB_GROUP_MASTER), icon: Boxes, label: "Sub Group Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.COUNTRY_MASTER), icon: Globe, label: "Country Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.STATE_MASTER), icon: Map, label: "State Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.CITY_MASTER), icon: MapPinned, label: "City Master", end: false, visible: true },
@@ -212,18 +251,18 @@ const NAV_SECTIONS = [
     items: [
       { to: rbRoutePath(RB_CODES.USER_MASTER), icon: Users, label: "User Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.USER_GROUP), icon: Shield, label: "User Group", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: KeyRound, label: "Division Wise Rights", end: false, visible: true },
-      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: KeyRound, label: "User Wise Group Rights", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DIVISION_WISE_RIGHTS), icon: Lock, label: "Division Wise Rights", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.USER_WISE_GROUP_RIGHTS), icon: UserCog, label: "User Wise Group Rights", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.COMPANY), icon: Building, label: "Company", end: true, visible: true },
       { to: rbRoutePath(RB_CODES.DIVISION_MASTER), icon: Network, label: "Division Master", end: false, visible: true },
     ],
   },
   {
     label: "Utility",
-    icon: Cog,
+    icon: FileUp,
     visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: FileSpreadsheet, label: "Asset Item Opening Excel", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING_EXCEL), icon: Upload, label: "Asset Item Opening Excel", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ITEM_MASTER_UPLOAD_EXCEL), icon: FileSpreadsheet, label: "Item Master Upload Excel", end: false, visible: true },
     ],
   },
@@ -239,7 +278,7 @@ const NAV_SECTIONS = [
     items: REPORTS_LIST.map((r) => ({
       key: r.key,
       reportKey: r.key,
-      icon: FileBarChart2,
+      icon: REPORT_ICONS[r.key] || FileBarChart2,
       label: r.label,
       visible: true,
     })),

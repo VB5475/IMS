@@ -109,6 +109,16 @@ export default function BomMasterForm() {
   const headerValuesRef = useRef({});
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
   const [filterResetKey, setFilterResetKey] = useState(0);
+  // Derived-field pushes (Unit from BOM Item, etc.) during normal Add-mode
+  // interaction go through this — NOT through filterResetKey. That key
+  // remounts the whole panel, which was also being used here on every single
+  // Division/BOM Item pick; combined with the panel's own single-option
+  // auto-select effect (which re-fires fresh on every remount), a
+  // one-division test setup looped forever (confirmed live: "Maximum update
+  // depth exceeded", the Division field's DOM node detaching and
+  // reattaching continuously). filterResetKey stays reserved for genuine
+  // one-time hard resets (loading an edit record, Cancel).
+  const [externalValues, setExternalValues] = useState(null);
 
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
@@ -260,6 +270,13 @@ export default function BomMasterForm() {
     setFilterResetKey((k) => k + 1);
   }, [headerAllColumns]);
 
+  // Push derived values (e.g. Unit, auto-filled from the picked BOM Item)
+  // into the already-mounted panel without remounting it — see the
+  // externalValues state declaration above for why this exists.
+  const pushExternalValues = useCallback((hv) => {
+    setExternalValues(mapHeaderValuesToFilterValues(hv, headerAllColumns));
+  }, [headerAllColumns]);
+
   const focusHeaderField = useCallback((fieldColName) => {
     if (!fieldColName) return;
     requestAnimationFrame(() => {
@@ -301,7 +318,7 @@ export default function BomMasterForm() {
         clearBomItemOptions();
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) await fetchBomItems(val);
-        syncHeaderToFilterPanel(hv);
+        pushExternalValues(hv);
         if (Number(val) > 0 && bomItemKey) {
           focusHeaderField(bomItemKey);
         }
@@ -313,7 +330,7 @@ export default function BomMasterForm() {
       const { unit, unitidnumber } = getBomItemSelection(val);
       if (unitKey) hv[unitKey] = unit;
       if (unitIdKey) hv[unitIdKey] = unitidnumber;
-      syncHeaderToFilterPanel(hv);
+      pushExternalValues(hv);
       if (val && String(val) !== "0" && bomNameKey) {
         focusHeaderField(bomNameKey);
       }
@@ -324,7 +341,7 @@ export default function BomMasterForm() {
     clearBomItemOptions,
     fetchBomItems,
     getBomItemSelection,
-    syncHeaderToFilterPanel,
+    pushExternalValues,
     focusHeaderField,
   ]);
 
@@ -415,6 +432,7 @@ export default function BomMasterForm() {
     headerValuesRef.current = buildDefaultHeaderValues();
     setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValuesRef.current, headerAllColumns));
     setFilterResetKey((k) => k + 1);
+    setExternalValues(null);
     clearBomItemOptions();
     itemGridRef.current?.clearRows?.();
     queuedRowsRef.current = [];
@@ -652,6 +670,7 @@ export default function BomMasterForm() {
             disabled={headerFetching || !headerMetaReady}
             fieldTones={filterFieldTones}
             fieldErrors={fieldErrors}
+            externalValues={externalValues}
             onLastFieldTabForward={isEditMode ? focusSelectItemButton : null}
           />
         )}

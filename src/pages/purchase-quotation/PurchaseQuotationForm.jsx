@@ -462,8 +462,8 @@ export default function PurchaseQuotationForm() {
         clearQuotationTypes();
         clearSuppliers();
         if (val && val !== "0") {
-          await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
-          focusFieldAfterCascade(filterPanelRef, "configid");
+          const [quotationTypes] = await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+          focusFieldAfterCascade(filterPanelRef, "configid", quotationTypes?.length === 1);
         }
         return buildCurrencyPatchFromSupplier(null);
       }
