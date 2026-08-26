@@ -114,6 +114,8 @@ export const RB_CODES = Object.freeze({
   ASSETS_RETURNABLE_GATE_PASS_IN: "rb_astissrgimst",
   ASSETS_STOCK_TRANSFER: "rb_astissstktrmst",
   ASSETS_ITEM_OPENING: "rb_astitemopemst",
+  /** MRD_Template4BOMMaster.docx (Aditya, 24-Aug-2026) */
+  BOM_MASTER: "rb_astbommaster",
   /** Detail-only module (no RB_MASTER) — Asset Item Opening Excel */
   ASSETS_ITEM_OPENING_EXCEL: "rb_assetitmopnexl",
   /** Detail-only module (no RB_MASTER) — Item Master Upload Excel */
@@ -131,6 +133,8 @@ export const RB_CODES = Object.freeze({
   MAINTENANCE_NEW_CONTRACT: "rb_mntamcnewmst",
   /** Preventive Maintenance Internal — MRD_Template4MntInternalMaintenance.docx */
   PREVENTIVE_MAINTENANCE_INTERNAL: "rb_mntpmimst",
+  /** Asset Parts Indent Detail — MRD_Template4Assetpartindtdeatail_new.docx */
+  ASSET_PARTS_INDENT: "rb_astindentmst",
 
   // ── Workflow ────────────────────────────────────────────────────
   // MRD_Template4WorkFlowDashBoard.docx (Richa, 08-Aug-2026) — read-only
@@ -205,6 +209,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ASSETS_RETURNABLE_GATE_PASS_IN]: "/assets-returnable-gate-pass-in",
   [RB_CODES.ASSETS_STOCK_TRANSFER]: "/assets-stock-transfer",
   [RB_CODES.ASSETS_ITEM_OPENING]: "/assets-item-opening",
+  [RB_CODES.BOM_MASTER]: "/assets-bom-master",
   [RB_CODES.ASSETS_ITEM_OPENING_EXCEL]: "/account/master/asset-item-opening-excel",
   [RB_CODES.ITEM_MASTER_UPLOAD_EXCEL]: "/admin/master/item-master-upload-excel",
 
@@ -213,6 +218,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.MAINTENANCE_CONTRACT_RENEWAL]: "/maintenance-contract-renewal",
   [RB_CODES.MAINTENANCE_NEW_CONTRACT]: "/maintenance-new-contract",
   [RB_CODES.PREVENTIVE_MAINTENANCE_INTERNAL]: "/preventive-maintenance-internal",
+  [RB_CODES.ASSET_PARTS_INDENT]: "/asset-parts-indent-detail",
 
   [RB_CODES.WORKFLOW_DASHBOARD]: "/workflow-dashboard",
 });

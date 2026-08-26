@@ -44,6 +44,8 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
+import { useAssetTxnItemScan } from "../../hooks/useAssetTxnItemScan";
+import AssetTxnScanControls from "../../components/txn/AssetTxnScanControls";
 import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
 import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
@@ -148,6 +150,7 @@ export default function AssetsHealthStatusUpdationForm() {
   const itemGridSectionRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
+  const resetScanStateRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { get: getLive } = useApi(API_BASE_URL);
@@ -362,6 +365,7 @@ export default function AssetsHealthStatusUpdationForm() {
     setItemModalColumns([]);
     setItemModalLoading(false);
     setItemModalError(null);
+    resetScanStateRef.current?.();
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
@@ -523,6 +527,34 @@ export default function AssetsHealthStatusUpdationForm() {
     }
   }, [columns, allColumns, fetchGridColumns]);
 
+  const scan = useAssetTxnItemScan({
+    logTag: "AHS",
+    spItemPicker: AHS_CONFIG.SP_ITEM_PICKER,
+    spRbMeta: AHS_CONFIG.SP_RB_META,
+    rbItemPickerCode: AHS_CONFIG.RB_ITEM_PICKER,
+    rbMetaParamKey: "prmRBCode",
+    buildItemPickerJsonPayload: buildAhsItemPickerJsonPayload,
+    headerColumns,
+    headerValuesRef,
+    allColumns,
+    itemGridRef,
+    ensureItemColumns,
+    addItemRow,
+    setActiveTab,
+    isEditMode,
+    getLive,
+    notify,
+    setFieldErrors,
+    setFormErrors,
+    mapPickerToItemRow,
+    itemModalColumns,
+    setItemModalOpen,
+    setItemModalItems,
+    setItemModalColumns,
+    setItemModalError,
+  });
+  resetScanStateRef.current = scan.resetScanState;
+
   const handleCellEvent = useCallback(({ rowId, colKey, rowData }) => {
     return trackCellEvent(async () => {
       const key = String(colKey).toLowerCase();
@@ -547,6 +579,7 @@ export default function AssetsHealthStatusUpdationForm() {
     }
     setFormErrors([]);
 
+    scan.onSelectItemOpen();
     setItemModalOpen(true);
     setItemModalItems([]);
     setItemModalColumns([]);
@@ -591,7 +624,7 @@ export default function AssetsHealthStatusUpdationForm() {
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
+  }, [getLive, headerColumns, groupFilter, scan.onSelectItemOpen]);
 
   const handleApplyItemFilter = useCallback(async () => {
     const headerValues = headerValuesRef.current;
@@ -644,11 +677,13 @@ export default function AssetsHealthStatusUpdationForm() {
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
-    setActiveTab("items");
-    const activeCols = await ensureItemColumns();
-    if (!activeCols?.length) return;
-    selectedItems.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
-  }, [ensureItemColumns, allColumns, addItemRow]);
+    await scan.wrapInsertItems(selectedItems, async (items) => {
+      setActiveTab("items");
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) return;
+      items.forEach((item) => addItemRow(mapPickerToItemRow(item, allColumns)));
+    });
+  }, [ensureItemColumns, allColumns, addItemRow, scan.wrapInsertItems]);
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
@@ -769,6 +804,7 @@ export default function AssetsHealthStatusUpdationForm() {
     onCancel: handleCancel,
     onSelectList: handleSelectListShortcut,
     onDocuments: docLog.handleOpenDocuments,
+    onScanQr: scan.focusHeaderScanField,
   });
 
   const extraButtons = useMemo(() => [
@@ -847,6 +883,27 @@ export default function AssetsHealthStatusUpdationForm() {
           onTabChange={setActiveTab}
           headerControls={
             <>
+              <AssetTxnScanControls
+                idPrefix="ahs"
+                isEditMode={isEditMode}
+                scanQrLoading={scan.scanQrLoading}
+                scanQrError={scan.scanQrError}
+                headerScanValue={scan.headerScanValue}
+                srSearchValue={scan.srSearchValue}
+                lastQrItem={scan.lastQrItem}
+                headerScanRef={scan.headerScanRef}
+                srSearchRef={scan.srSearchRef}
+                onHeaderScanChange={(e) => scan.setHeaderScanValue(e.target.value)}
+                onSrSearchChange={(e) => {
+                  scan.setSrSearchValue(e.target.value);
+                  if (scan.scanQrError) scan.setScanQrError(null);
+                }}
+                onHeaderScanKeyDown={scan.handleHeaderScanKeyDown}
+                onHeaderScanPaste={scan.handleHeaderScanPaste}
+                onSrSearchKeyDown={scan.handleSrSearchKeyDown}
+                onSrSearchPaste={scan.handleSrSearchPaste}
+              />
+
               <button
                 ref={selectItemBtnRef}
                 type="button"
@@ -874,6 +931,7 @@ export default function AssetsHealthStatusUpdationForm() {
           hideBottomPanel
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
+          onRowsChange={scan.handleGridRowsChange}
           onCellEvent={handleCellEvent}
           eventColumns={eventColumns}
           readOnly={isEditRoute && !isEditMode}
@@ -900,13 +958,13 @@ export default function AssetsHealthStatusUpdationForm() {
       <Suspense fallback={null}>
         <OrderItemModal
           isOpen={itemModalOpen}
-          onClose={() => setItemModalOpen(false)}
+          onClose={scan.closeItemModal}
           items={itemModalItems}
           columns={itemModalColumns}
           isLoading={itemModalLoading || groupFilter.filterLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
-          filterBar={
+          filterBar={scan.itemModalScanMode ? null : (
             <ItemPickerGroupFilterBar
               mainGroupOptions={groupFilter.mainGroupOptions}
               subMainGroupOptions={groupFilter.subMainGroupOptions}
@@ -926,8 +984,9 @@ export default function AssetsHealthStatusUpdationForm() {
               itemNameValue={itemNameFilter}
               onItemNameChange={setItemNameFilter}
             />
-          }
-          awaitingFilter={!groupFilter.filterApplied}
+          )}
+          awaitingFilter={scan.itemModalScanMode ? false : !groupFilter.filterApplied}
+          isRowDisabled={scan.itemModalScanMode ? scan.isScanPickerRowDisabled : null}
         />
       </Suspense>
 

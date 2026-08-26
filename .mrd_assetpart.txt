@@ -1,0 +1,248 @@
+HORIZON ENTERPRISE IMS
+Module Requirements Template
+Module: [Admin]
+Submitted by: [Aditya]
+Date: [20-08-2026]
+COLOUR GUIDE
+  GREEN   — Example value from Purchase Inquiry — replace for your module
+  BLUE   — Empty slot — add your own rows here
+  AMBER   — Instruction — read once, ignore after
+HOW TO USE THIS TEMPLATE
+1.  Save a copy — rename to MRD[ModuleName].docx before editing.
+2.  Replace every green value with your module's equivalent (SP names, RB codes, field names, routes, etc.).
+3.  Add your own rows in the blue slots at the bottom of each table.
+4.  In Section 2, delete the placeholder box and paste your design screenshot (Insert → Pictures).
+5.  Send completed document to the development team BEFORE coding starts.
+6.  Dev team signs off by stamping "Dev Confirmed" on each section.
+1. Module Overview
+Replace every green value below with your module's equivalent.
+Module Name:  Asset Parts Indent Detail
+Module Code: “Maintenance”
+Purpose: To raise indent against asset sr no.
+Primary Users: Procurement / Maintenance Team
+Listing Route: / Maintenance - Asset Parts Indent Detail
+New Form Route: / Maintenance /– Asset Parts Indent Detail 
+Edit Route: / Maintenance / –  Asset Parts Indent Detail /:id
+New Menu Label: Asset Parts Indent Detail
+2. Screen Design
+Delete the placeholder box below and paste your design screenshot (Insert → Pictures). Add a second image for the listing view if applicable.
+                       
+Screen notes / layout description:
+Describe each visible area: panels, tabs, special controls, conditionally visible sections.
+► Header panel — Tran Code (Text Box). Tran Date(Date Picker). Division (Drop Down). Asset Item (Drop Down). Asset SRNO (Text Box). Asset TagID (Text Box). MLN (Text Box) with rbname (rb_astindentmst)
+► Item Detail [Detail Gride] — Item (Text Box). Base Unit (Text Box). Base Qty (Text Box) with rb (rb_astindentdet)
+3. Header Fields
+One row per field shown in the Header Panel. Control types: Textbox | Date | Dropdown | Textarea | Checkbox.
+Field Label
+Field ID (ColName)
+Control Type
+Required
+Is ReadOnly
+Is Lock 
+On Edit
+Source SP / Cascade Note
+tran code
+trancode
+text box
+yes
+yes
+yes
+tran date
+trandate
+date
+yes
+no
+yes
+division
+divisionid
+drop down
+yes
+no
+no
+fn_tbl_fetchuserwsdivision      
+(      
+@prmuserid numeric(18,0),      
+@prmcompanyid int,      
+@prmyearid numeric(18,0)      
+)
+asset item 
+astitemid
+drop down
+yes 
+no
+no
+fn_tbl_astitem_fetch(@prmuserid numeric(18,0),      
+@prmdivisionid int,      
+@prmyearid numeric(18,0))
+asset sr no
+astsrno
+text box 
+yes
+no
+no
+asset tagid
+asttagid
+text box
+yes
+no
+no
+Auto fill while scan Asset Sr No
+mln
+mln
+text box
+yes
+no
+no
+Auto fill while scan Asset Sr No
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+3.1 . Asset Parts Detail
+Field Label
+Field ID (ColName)
+Control Type
+Required
+Is ReadOnly
+Is Lock 
+On Edit
+Source SP / Cascade Note
+item
+itemid
+text box
+yes
+  no
+no
+base unit 
+baseunitid
+text box
+yes
+no
+no
+base qty
+baseqty
+text box
+yes
+no
+no
+Additional grids / tabs:
+5. API Reference
+List every stored procedure / function called. ObjType 2 = Function, 1 = Procedure. Source: backend DBA.
+SP / Function Name
+ObjType
+Purpose
+Key Parameters
+Returns
+Fn_Fetch_RBDetailByRBCode
+2
+Fetch RB column metadata (header + detail)
+prmRBCode
+Table[0]: RBID + column definitions
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+(add here)
+Save endpoint (REST POST):
+Endpoint path: /API/RB_AstIndentMst/Post_RB_AstIndentMst_Save
+Payload keys: prmStrMstJSON | prmStrDetJSON 
+5.1 RB Structure Detail
+SP / Function Name
+RB Name
+Purpose
+Master Data RB
+rb_astindentmst
+Load Master Controls in form
+Consignee Detail gride
+rb_astindentdet
+Load Master Controls in form
+RB Save API
+/API/ RB_AstIndentMst/Post_RB_AstIndentMst_Save
+List side Data fill
+fn_tbl_rb_astindentmst_list
+Load data on list side
+Edit Mode - Master
+fn_tbl_rb_astindentmst
+@prmCompanyID ,
+@prmYearID ,
+@prmLoginID, 
+@prmSessionID ,
+@prmMasterID
+Edit Mode - Detail
+fn_tbl_rb_astindentdet
+@prmCompanyID ,
+@prmYearID ,
+@prmLoginID, 
+@prmSessionID ,
+@prmMasterID
+7. Constants (constants.js)
+All values for the constants.js file. RB codes and SP names come from the backend DBA. Mark CONFIRM = Yes if value is uncertain.
+Constant Name
+Value
+CONFIRM?
+Notes
+RB_MASTER
+rb_astindentmst
+No
+Master board code — header column metadata
+RB_DETAIL
+rb_astindentdet
+No
+Detail board code — grid column metadata
+FORM_TAG
+rb_astindentmst
+No
+Short module tag used in save payload
+TRAN_BOOK
+astpart
+No
+Transaction book name for item picker SP
+CONFIG_YEAR_ID
+2
+CONFIRM
+Year ID passed to configuration SPs
+DIVISION_YEAR_ID
+2
+CONFIRM
+Year ID passed to division fetch SP
+SUPPLIER_PARTY_TYPE
+S
+No
+Party type filter for supplier picker
+LIST_OBJ_TYPE
+2
+No
+OBJ_TYPE.FUNCTION — for listing SP call
+SP_ LIST
+fn_tbl_rb_astindentmst_list
+CONFIRM
+@prmcompanyid,
+@prmdivisionid,
+@prmyearid ,
+@prmfromdate Todate,
+@prmtodate Todate,
+@prmloginid 
+LIST_DIVISION_ID
+15
+CONFIRM
+Default division ID for listing data fetch
+SAVE_ENDPOINT
+/API/RB_AstIndentMst/Post_RB_AstIndentMst_Save
+No
+REST gateway save path
+STORAGE_HEADER_META
+piHeaderMeta
+No
+localStorage key for cached header RB metadata
+— END OF TEMPLATE —

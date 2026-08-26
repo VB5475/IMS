@@ -110,15 +110,10 @@ function pickHeaderInt(headerValues, ...keys) {
 }
 
 /** FN_FETCH_DATA JSON for fn_tbl_rb_astemptrfselonly item picker rows. */
-export function buildAetItemPickerJsonPayload(headerValues, {
-  companyId,
-  loginId,
-  yearId,
-  maGroupId = 0,
-  subMaGroupId = 0,
-  itemNameSearch = "",
-  qrJson = "",
-} = {}) {
+export function buildAetItemPickerJsonPayload(
+  headerValues,
+  { companyId, loginId, yearId } = {}
+) {
   const session = getUserSession();
   return {
     prmcompanyid: Number(companyId) || session.companyId,
@@ -139,15 +134,14 @@ export function buildAetItemPickerJsonPayload(headerValues, {
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: AET_CONFIG.ITEM_PICKER_ISSUE_TYPE_ID,
-    // Trailing SP args — keep this order:
-    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext, prmotherstr, prmjson, prmqrjson
-    prmmaingroupid: Number(maGroupId) || 0,
-    prmsubmaingroupid: Number(subMaGroupId) || 0,
-    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    // Magroup / submagroup filters removed from UI — SP still expects the params.
+    prmmaingroupid: 0,
+    prmsubmaingroupid: 0,
+    prmitemnamesearch: "",
     prmsearchtext: "",
     prmotherstr: "",
     prmjson: "[]",
-    prmqrjson: String(qrJson ?? "").trim(),
+    prmqrjson: "",
   };
 }
 

@@ -58,6 +58,8 @@ const AssetDepreciationPercentagePage = lazy(
 );
 const AssetsItemOpeningPage = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningPage"));
 const AssetsItemOpeningForm = lazy(() => import("./pages/assets-item-opening/AssetsItemOpeningForm"));
+const BomMasterPage = lazy(() => import("./pages/bom-master/BomMasterPage"));
+const BomMasterForm = lazy(() => import("./pages/bom-master/BomMasterForm"));
 const AssetsWriteOffPage = lazy(() => import("./pages/assets-write-off/AssetsWriteOffPage"));
 const AssetsWriteOffForm = lazy(() => import("./pages/assets-write-off/AssetsWriteOffForm"));
 const AssetsEmployeeIssuePage = lazy(() => import("./pages/assets-employee-issue/AssetsEmployeeIssuePage"));
@@ -115,6 +117,12 @@ const PreventiveMaintenanceInternalPage = lazy(
 );
 const PreventiveMaintenanceInternalForm = lazy(
   () => import("./pages/preventive-maintenance-internal/PreventiveMaintenanceInternalForm")
+);
+const AssetPartsIndentDetailPage = lazy(
+  () => import("./pages/asset-parts-indent-detail/AssetPartsIndentDetailPage")
+);
+const AssetPartsIndentDetailForm = lazy(
+  () => import("./pages/asset-parts-indent-detail/AssetPartsIndentDetailForm")
 );
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
@@ -367,6 +375,11 @@ const router = createBrowserRouter([
             form: <AssetsItemOpeningForm />,
           }),
           rbModule({
+            rb: RB.BOM_MASTER,
+            list: <BomMasterPage />,
+            form: <BomMasterForm />,
+          }),
+          rbModule({
             rb: RB.ASSETS_WRITE_OFF,
             list: <AssetsWriteOffPage />,
             form: <AssetsWriteOffForm />,
@@ -445,6 +458,11 @@ const router = createBrowserRouter([
             rb: RB.PREVENTIVE_MAINTENANCE_INTERNAL,
             list: <PreventiveMaintenanceInternalPage />,
             form: <PreventiveMaintenanceInternalForm />,
+          }),
+          rbModule({
+            rb: RB.ASSET_PARTS_INDENT,
+            list: <AssetPartsIndentDetailPage />,
+            form: <AssetPartsIndentDetailForm />,
           }),
           rbLeaf({ rb: RB.MAINTENANCE_DASHBOARD, element: <MaintenanceDashboard /> }),
           rbLeaf({ rb: RB.WORKFLOW_DASHBOARD, element: <WorkflowDashboard /> }),
