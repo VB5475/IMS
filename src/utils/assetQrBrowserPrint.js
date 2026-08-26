@@ -67,7 +67,12 @@ function chunk(items, size) {
   return pages;
 }
 
-function buildPrintDocument(labels, size, logoUrl, requestedPerPage = 1) {
+/**
+ * Builds the exact multi-page sticker-sheet HTML used by the browser print
+ * flow — exported so the PDF download flow can render this same template
+ * (via html2canvas) instead of maintaining a second, divergence-prone layout.
+ */
+export function buildPrintDocument(labels, size, logoUrl, requestedPerPage = 1) {
   const widthIn = size.widthIn ?? PRINTER.widthIn;
   const heightIn = size.heightIn ?? PRINTER.heightIn;
   const compact = Boolean(size.compact);
@@ -265,7 +270,7 @@ ${pages
 </html>`;
 }
 
-async function loadLogoDataUrl() {
+export async function loadLogoDataUrl() {
   try {
     const logoUrl = new URL(STICKER_LOGO_URL, window.location.origin).href;
     const res = await fetch(logoUrl, { cache: "force-cache" });

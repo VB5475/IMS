@@ -113,7 +113,7 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Assets",
+    label: "Finance",
     icon: Package,
     visible: true,
     items: [
@@ -121,6 +121,13 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION_IT_ACT), icon: Calculator, label: "Calculate Depreciation IT Act", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false, visible: true },
+    ],
+  },
+  {
+    label: "Assets",
+    icon: Package,
+    visible: true,
+    items: [
       { to: rbRoutePath(RB_CODES.ASSETS_WRITE_OFF), icon: FileX, label: "Assets Write Off", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_ISSUE), icon: UserRound, label: "Assets Employee Issue", end: false, visible: true },
 
@@ -135,10 +142,6 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ASSETS_STOCK_TRANSFER), icon: ArrowLeftRight, label: "Assets Stock Transfer", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.ASSETS_ITEM_OPENING), icon: Package2, label: "Assets Item Opening", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_EMPLOYEE_TRANSFER), icon: ArrowLeftRight, label: "Employee Location Transfer", end: false, visible: true },
-      // No RB code given for this module (2026-08-25 /pm) — plain hardcoded
-      // path instead of rbRoutePath(RB_CODES...), unlike every other entry
-      // in this section. Route registered in App.jsx as a plain "assets-part-indent" path.
-      { to: "/assets-part-indent", icon: PackageSearch, label: "Asset Part Indent", end: false, visible: true },
     ],
   },
   {
@@ -151,6 +154,10 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.PREVENTIVE_MAINTENANCE_INTERNAL), icon: ShieldCheck, label: "Preventive Maintenance Internal", end: false },
       { to: rbRoutePath(RB_CODES.MAINTENANCE_CONTRACT_RENEWAL), icon: RefreshCw, label: "Maintenance Contract Renewal", end: false },
       { to: rbRoutePath(RB_CODES.MAINTENANCE_NEW_CONTRACT), icon: FilePlus, label: "Maintenance Contract (New)", end: false },
+      // No RB code given for this module (2026-08-25 /pm) — plain hardcoded
+      // path instead of rbRoutePath(RB_CODES...), unlike every other entry
+      // in this section. Route registered in App.jsx as a plain "assets-part-indent" path.
+      { to: "/assets-part-indent", icon: PackageSearch, label: "Asset Part Indent", end: false, visible: true },
     ],
   },
   {

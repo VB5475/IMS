@@ -8,7 +8,7 @@ import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
-import { bindFormKeyboardNav, focusAdjacentFormField } from "../../utils/formKeyboardNav";
+import { bindFormKeyboardNav, focusAdjacentFormField, FORM_FOCUSABLE_SELECTOR } from "../../utils/formKeyboardNav";
 import { selectInputText } from "../../utils/focusUtils";
 import { formatColumnDisplayValue, getDateInputConstraints, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
@@ -912,6 +912,36 @@ export default function EnterpriseFilterPanel({
   // field 1. 200ms is empirically safe margin over that one known case; a
   // caller with its own longer post-mount focus timer could still race this.
   const autoSelectedFieldsRef = useRef(new Set());
+  // A real Tab keypress or click means the user has taken over manual
+  // navigation — every further programmatic focus-advance below is
+  // suppressed from that point on (auto-*selecting* values keeps happening
+  // silently in the background; only the focus-*stealing* stops). Without
+  // this, a field whose single option only resolves after a cascade (e.g.
+  // one that depends on a just-auto-selected Division) can schedule its own
+  // advance that fires after the user has already tabbed past it manually,
+  // yanking focus forward a second time and skipping whatever field they
+  // were heading to. Only real events set this (keydown/mousedown are never
+  // synthesized by this component's own `.focus()` calls), so the initial,
+  // no-interaction-yet auto-advance chain (e.g. Division → Inquiry Type →
+  // Department, still relied on by Purchase Inquiry) is unaffected — it only
+  // stops once the user has actually done something. Reset on the same key
+  // EnterpriseFilterPanel already remounts on (Cancel), so a fresh Add cycle
+  // gets the auto-advance chain back.
+  const userNavigatedRef = useRef(false);
+  useEffect(() => {
+    const root = panelRef?.current;
+    if (!root) return undefined;
+    const markNavigated = (e) => {
+      if (e.type === "mousedown" || e.key === "Tab") userNavigatedRef.current = true;
+    };
+    root.addEventListener("keydown", markNavigated, true);
+    root.addEventListener("mousedown", markNavigated, true);
+    return () => {
+      root.removeEventListener("keydown", markNavigated, true);
+      root.removeEventListener("mousedown", markNavigated, true);
+    };
+  }, [panelRef]);
+
   useEffect(() => {
     if (disabled) return;
     const root = panelRef?.current;
@@ -927,17 +957,46 @@ export default function EnterpriseFilterPanel({
         const currentVal = values[colName];
         const isEmpty =
           currentVal == null || currentVal === "" || currentVal === 0 || currentVal === "0";
-        if (opts.length !== 1 || !isEmpty) return;
+        if (opts.length !== 1) return;
+
+        const singleOptValue = resolveFilterOptionValue(opts[0]);
+        // A field can already be non-empty here without the user having
+        // touched it — an RB-configured FilterCtrlDefaultValue seeds it
+        // before this effect ever runs (see fetchFilters above). That's
+        // still a single-option field the user never had to choose on, so
+        // it gets the same auto-advance treatment; only actually-chosen
+        // values (which won't match the one resolvable option) are left
+        // alone.
+        const alreadyOnSingleOpt = !isEmpty && String(currentVal) === String(singleOptValue);
+        if (!isEmpty && !alreadyOnSingleOpt) return;
 
         autoSelectedFieldsRef.current.add(colName);
-        handleChange(colName, resolveFilterOptionValue(opts[0]));
+        if (isEmpty) handleChange(colName, singleOptValue);
 
         if (!root) return;
         window.setTimeout(() => {
+          if (userNavigatedRef.current) return;
           const current =
             root.querySelector(`#efq-${colName} .search-select__trigger`) ||
             root.querySelector(`#efq-${colName}`);
-          if (current) focusAdjacentFormField(current, { root });
+          if (!current) return;
+          // Every single-option field schedules its own 200ms timer
+          // independently — each becomes eligible at a different moment
+          // (e.g. a field whose options only resolve after a cascade goes
+          // eligible later than one with static options), so these can fire
+          // out of chain order. A field's own advance target is fixed
+          // ("whatever comes right after me"), so if a *later* field in the
+          // chain has already carried focus past that point by the time this
+          // timer fires, applying it here would yank focus backward. Only
+          // apply it when doing so is still a genuine forward move.
+          const fields = [...root.querySelectorAll(FORM_FOCUSABLE_SELECTOR)].filter(
+            (el) => el.offsetParent !== null && el.tabIndex !== -1
+          );
+          const myIndex = fields.indexOf(current);
+          if (myIndex === -1) return;
+          const activeIndex = fields.indexOf(document.activeElement);
+          if (activeIndex !== -1 && activeIndex >= myIndex + 1) return;
+          focusAdjacentFormField(current, { root });
         }, 200);
       });
   }, [filters, values, dropdownOptions, fieldTones, disabled, handleChange, panelRef]);
@@ -952,11 +1011,13 @@ export default function EnterpriseFilterPanel({
 
   const handleReset = useCallback(() => {
     autoSelectedFieldsRef.current.clear();
+    userNavigatedRef.current = false;
     setValues({ ...defaults });
   }, [defaults]);
 
   const handleClearAll = useCallback(() => {
     autoSelectedFieldsRef.current.clear();
+    userNavigatedRef.current = false;
     const cleared = {};
     filters.forEach((f) => {
       cleared[f.FilterColName] = "";
