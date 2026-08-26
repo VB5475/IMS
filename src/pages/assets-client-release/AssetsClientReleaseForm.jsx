@@ -8,9 +8,7 @@ import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
-import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilterBar";
 import { useAstCliRel } from "../../hooks/useAstCliRel";
-import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
 import {
   ENDPOINTS,
@@ -210,13 +208,6 @@ export default function AssetsClientReleaseForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
-  const groupFilter = useItemPickerGroupFilter({
-    spMainGroup: ACR_CONFIG.SP_ITEM_MAIN_GROUP,
-    spSubMainGroup: ACR_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
-    formTag: ACR_CONFIG.FORM_TAG,
-  });
-
-  const [itemNameFilter, setItemNameFilter] = useState("");
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -551,10 +542,13 @@ export default function AssetsClientReleaseForm() {
     setItemModalColumns([]);
     setItemModalError(null);
     setItemModalLoading(true);
-    setItemNameFilter("");
-    groupFilter.resetFilter();
 
     try {
+      const activeCols = await ensureItemColumns();
+      if (!activeCols?.length) {
+        throw new Error("Item grid columns could not be loaded.");
+      }
+
       const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
         ObjType: OBJ_TYPE.FUNCTION,
         ObjName: ACR_CONFIG.SP_RB_META,
@@ -575,74 +569,21 @@ export default function AssetsClientReleaseForm() {
       });
       setItemModalColumns(gridColumns);
 
-      const divisionId = headerValues.fromdivisionid;
-      const configId = headerValues.configid;
-      await groupFilter.fetchMainGroupOptions({ divisionId, configId });
-      // Keep Sub Main Group active on first load — fetch with default magroupid=0.
-      await groupFilter.fetchSubMainGroupOptions({
-        divisionId,
-        configId,
-        mainGroupId: 0,
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: ACR_CONFIG.SP_ITEM_PICKER,
+        JSon: JSON.stringify([buildAcrItemPickerJsonPayload(headerValues)]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
       });
+      setItemModalItems(Array.isArray(rowRes) ? rowRes : []);
     } catch (err) {
       console.error("[ACR] Item picker fetch failed:", err);
       setItemModalError(err?.message || "Failed to fetch items.");
     } finally {
       setItemModalLoading(false);
     }
-  }, [getLive, headerColumns, groupFilter]);
-
-  // Deferred until "Filter" is clicked — see useItemPickerGroupFilter for
-  // the shared prmmaingroupid/prmsubmaingroupid/prmsearchtext/prmotherstr/
-  // prmjson param-building + loading/applied bookkeeping.
-  const handleApplyItemFilter = useCallback(async () => {
-    const headerValues = headerValuesRef.current;
-    const itemName = String(itemNameFilter ?? "").trim();
-    setItemModalError(null);
-    try {
-      await groupFilter.applyFilter(
-        async (groupParams) => {
-          const hasMain = Boolean(groupFilter.mainGroupFilter);
-          const hasSub = Boolean(groupFilter.subMainGroupFilter);
-          const hasItemName = itemName.length >= 3;
-          // Only the chosen filter(s) are sent; others go as defaults (0 / "").
-          const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
-            ObjType: OBJ_TYPE.FUNCTION,
-            ObjName: ACR_CONFIG.SP_ITEM_PICKER,
-            JSon: JSON.stringify([{
-              ...buildAcrItemPickerJsonPayload(headerValues, {
-                maGroupId: hasMain ? groupParams.prmmaingroupid : 0,
-                subMaGroupId: hasSub ? groupParams.prmsubmaingroupid : 0,
-                itemNameSearch: hasItemName ? itemName : "",
-                qrJson: "",
-              }),
-            }]),
-            p_ErrCode: -1,
-            p_ErrMsg: "",
-          });
-          setItemModalItems(rowRes || []);
-        },
-        {
-          validate: ({ mainGroupFilter, subMainGroupFilter }) => {
-            const hasMain = Boolean(mainGroupFilter);
-            const hasSub = Boolean(subMainGroupFilter);
-            const hasItemName = itemName.length >= 3;
-            if (itemName.length > 0 && itemName.length < 3) {
-              throw new Error("Item Name must be at least 3 characters.");
-            }
-            if (!hasMain && !hasSub && !hasItemName) {
-              throw new Error(
-                "Select Item Main Group, Item Sub Main Group, or enter at least 3 characters in Item Name."
-              );
-            }
-          },
-        }
-      );
-    } catch (err) {
-      console.error("[ACR] Item filter fetch failed:", err);
-      setItemModalError(err?.message || "Failed to fetch items.");
-    }
-  }, [getLive, groupFilter, itemNameFilter]);
+  }, [getLive, headerColumns, ensureItemColumns]);
 
   const handleInsertItems = useCallback(async (selectedItems) => {
     if (!selectedItems?.length) return;
@@ -890,31 +831,9 @@ export default function AssetsClientReleaseForm() {
           onClose={() => setItemModalOpen(false)}
           items={itemModalItems}
           columns={itemModalColumns}
-          isLoading={itemModalLoading || groupFilter.filterLoading}
+          isLoading={itemModalLoading}
           error={itemModalError}
           onInsert={handleInsertItems}
-          filterBar={
-            <ItemPickerGroupFilterBar
-              mainGroupOptions={groupFilter.mainGroupOptions}
-              subMainGroupOptions={groupFilter.subMainGroupOptions}
-              mainGroupValue={groupFilter.mainGroupFilter}
-              subMainGroupValue={groupFilter.subMainGroupFilter}
-              onMainGroupChange={(value) => groupFilter.handleMainGroupChange(value, {
-                divisionId: headerValuesRef.current.fromdivisionid,
-                configId: headerValuesRef.current.configid,
-                // Cleared Main Group → keep Sub Main loaded with default magroupid=0.
-                defaultMaGroupId: 0,
-              })}
-              onSubMainGroupChange={groupFilter.setSubMainGroupFilter}
-              onFilter={handleApplyItemFilter}
-              filterLoading={groupFilter.filterLoading}
-              subMainAlwaysEnabled
-              showItemName
-              itemNameValue={itemNameFilter}
-              onItemNameChange={setItemNameFilter}
-            />
-          }
-          awaitingFilter={!groupFilter.filterApplied}
         />
       </Suspense>
     </div>

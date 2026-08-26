@@ -6,8 +6,6 @@ import EntryGrid from "../../components/grid/EntryGrid";
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import Modal from "../../components/ui/Modal";
-import HardwareQrScanner from "../../components/txn/HardwareQrScanner";
 import { useNotification } from "../../context/NotificationContext";
 import { parseQrItemPayload } from "../../utils/qrScanJson";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
@@ -147,6 +145,7 @@ export default function AssetsDepartmentIssueForm() {
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const headerScanRef = useRef(null);
+  const srSearchRef = useRef(null);
   const pendingScanSrNoRef = useRef("");
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
@@ -223,11 +222,11 @@ export default function AssetsDepartmentIssueForm() {
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
   const [itemModalScanMode, setItemModalScanMode] = useState(false);
-  const [scanQrOpen, setScanQrOpen] = useState(false);
   const [scanQrLoading, setScanQrLoading] = useState(false);
   const [scanQrError, setScanQrError] = useState(null);
   const [lastQrItem, setLastQrItem] = useState(null);
   const [headerScanValue, setHeaderScanValue] = useState("");
+  const [srSearchValue, setSrSearchValue] = useState("");
   const groupFilter = useItemPickerGroupFilter({
     spMainGroup: ADI_CONFIG.SP_ITEM_MAIN_GROUP,
     spSubMainGroup: ADI_CONFIG.SP_ITEM_SUB_MAIN_GROUP,
@@ -688,16 +687,14 @@ export default function AssetsDepartmentIssueForm() {
     );
   }, []);
 
-  const openManualSearch = useCallback(() => {
-    setScanQrError(null);
-    setScanQrOpen(true);
+  const restoreSrSearchFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!srSearchRef.current || srSearchRef.current.disabled) return;
+        srSearchRef.current.focus();
+      }, 0);
+    });
   }, []);
-
-  const closeScanQr = useCallback(() => {
-    if (scanQrLoading) return;
-    setScanQrOpen(false);
-    setScanQrError(null);
-  }, [scanQrLoading]);
 
   const focusHeaderScanField = useCallback(() => {
     if (!isEditMode) return;
@@ -731,7 +728,6 @@ export default function AssetsDepartmentIssueForm() {
     const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
     setFieldErrors(headerErrorMap);
     if (Object.keys(headerErrorMap).length > 0) {
-      setScanQrOpen(false);
       setFormErrors(["Please fix the highlighted field(s) below."]);
       return;
     }
@@ -791,7 +787,7 @@ export default function AssetsDepartmentIssueForm() {
         setActiveTab("items");
         addItemRow(mappedRow);
         const entry = recordLastScannedItem(srNo, [mappedRow], rows);
-        setScanQrOpen(false);
+        setSrSearchValue("");
         setScanQrError(null);
         notify.toastSuccess(`Added: ${entry.itemname || srNo}`);
         return;
@@ -803,7 +799,7 @@ export default function AssetsDepartmentIssueForm() {
       setItemModalItems(rows);
       setItemModalError(null);
       setItemModalOpen(true);
-      setScanQrOpen(false);
+      setSrSearchValue("");
       setScanQrError(null);
     } catch (err) {
       console.error("[ADI] Manual search item fetch failed:", err);
@@ -812,6 +808,7 @@ export default function AssetsDepartmentIssueForm() {
       notify.toastError(msg);
     } finally {
       setScanQrLoading(false);
+      restoreSrSearchFocus();
     }
   }, [
     headerColumns,
@@ -823,12 +820,12 @@ export default function AssetsDepartmentIssueForm() {
     fetchItemPickerColumns,
     itemModalColumns,
     notify,
+    restoreSrSearchFocus,
   ]);
 
   const handleScanQrSubmit = useCallback(async (rawText) => {
     const { qrJson, error } = normalizeAdiQrSearchJson(rawText);
     if (error) {
-      setScanQrError(scanQrOpen ? error : null);
       notify.toastError(error);
       restoreHeaderScanFocus();
       return;
@@ -839,7 +836,6 @@ export default function AssetsDepartmentIssueForm() {
     const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate);
     setFieldErrors(headerErrorMap);
     if (Object.keys(headerErrorMap).length > 0) {
-      setScanQrOpen(false);
       setFormErrors(["Please fix the highlighted field(s) below."]);
       restoreHeaderScanFocus();
       return;
@@ -853,7 +849,6 @@ export default function AssetsDepartmentIssueForm() {
     const existingRows = itemGridRef.current?.getRows?.() ?? [];
     if (gridHasScannedItem(existingRows, scannedMeta.itemcode, scannedMeta.srno)) {
       const msg = "Item is already added";
-      setScanQrError(scanQrOpen ? msg : null);
       notify.toastError(msg);
       setHeaderScanValue("");
       restoreHeaderScanFocus();
@@ -886,7 +881,6 @@ export default function AssetsDepartmentIssueForm() {
       const rows = rowRes || [];
       if (rows.length === 0) {
         const msg = "No item found for this QR JSON.";
-        setScanQrError(scanQrOpen ? msg : null);
         notify.toastError(msg);
         return;
       }
@@ -902,7 +896,6 @@ export default function AssetsDepartmentIssueForm() {
 
       if (mappedRows.length === 0) {
         const msg = "Item is already added";
-        setScanQrError(scanQrOpen ? msg : null);
         notify.toastError(msg);
         setHeaderScanValue("");
         return;
@@ -924,10 +917,6 @@ export default function AssetsDepartmentIssueForm() {
       );
       setHeaderScanValue("");
 
-      if (scanQrOpen) {
-        setScanQrOpen(false);
-        setScanQrError(null);
-      }
       notify.toastSuccess(
         mappedRows.length === 1
           ? `Added: ${itemName}`
@@ -936,16 +925,38 @@ export default function AssetsDepartmentIssueForm() {
     } catch (err) {
       console.error("[ADI] Scan QR item fetch failed:", err);
       const msg = err?.message || "Failed to fetch item for QR JSON.";
-      setScanQrError(scanQrOpen ? msg : null);
       notify.toastError(msg);
     } finally {
       setScanQrLoading(false);
       restoreHeaderScanFocus();
     }
   }, [
-    scanQrOpen, headerColumns, ensureItemColumns, getLive,
+    headerColumns, ensureItemColumns, getLive,
     allColumns, addItemRow, notify, restoreHeaderScanFocus, recordLastScannedItem,
   ]);
+
+  const commitSrSearch = useCallback((raw) => {
+    const value = String(raw ?? "").trim();
+    if (!value) return;
+    setSrSearchValue("");
+    handleScanHistorySubmit(value);
+  }, [handleScanHistorySubmit]);
+
+  const handleSrSearchKeyDown = useCallback((e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isEditMode || scanQrLoading) return;
+    commitSrSearch(srSearchValue);
+  }, [isEditMode, scanQrLoading, commitSrSearch, srSearchValue]);
+
+  const handleSrSearchPaste = useCallback((e) => {
+    if (!isEditMode || scanQrLoading) return;
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (!String(text).trim()) return;
+    e.preventDefault();
+    commitSrSearch(text);
+  }, [isEditMode, scanQrLoading, commitSrSearch]);
 
   const commitHeaderScan = useCallback((raw) => {
     const value = String(raw ?? "").trim();
@@ -1151,7 +1162,7 @@ export default function AssetsDepartmentIssueForm() {
   const filterBusy = headerFetching;
 
   useEntryFormKeyboard({
-    blocked: itemModalOpen || scanQrOpen,
+    blocked: itemModalOpen,
     isEditMode,
     isSaving,
     addDisabled: filterBusy,
@@ -1260,6 +1271,39 @@ export default function AssetsDepartmentIssueForm() {
                 <kbd className="adi-qr-search__kbd">Ctrl+Q</kbd>
               </label>
 
+              <label
+                className={`adi-qr-search adi-sr-search${!isEditMode ? " adi-qr-search--disabled" : ""}${scanQrLoading ? " adi-qr-search--busy" : ""}`}
+                title="Search by serial number"
+              >
+                <span className="adi-qr-search__icon" aria-hidden="true">
+                  <Search size={16} strokeWidth={2.4} />
+                </span>
+                <input
+                  id="adi-header-sr-search"
+                  ref={srSearchRef}
+                  type="text"
+                  className="adi-qr-search__input"
+                  value={srSearchValue}
+                  onChange={(e) => {
+                    setSrSearchValue(e.target.value);
+                    if (scanQrError) setScanQrError(null);
+                  }}
+                  onKeyDown={handleSrSearchKeyDown}
+                  onPaste={handleSrSearchPaste}
+                  placeholder={scanQrLoading ? "Fetching…" : "Search by serial number"}
+                  disabled={!isEditMode}
+                  readOnly={scanQrLoading}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Search by serial number"
+                  aria-invalid={Boolean(scanQrError)}
+                />
+              </label>
+              {scanQrError ? (
+                <span className="adi-sr-search__error" role="alert">{scanQrError}</span>
+              ) : null}
+
               {lastQrItem?.itemcode || lastQrItem?.srno ? (
                 <span className="adi-last-qr" title="Last scanned item">
                   <span className="adi-last-qr__label">Last scan</span>
@@ -1288,17 +1332,6 @@ export default function AssetsDepartmentIssueForm() {
               >
                 <Package size={12} strokeWidth={2.5} />
                 Select Item
-              </button>
-
-              <button
-                type="button"
-                className="eg-tab-btn"
-                onClick={openManualSearch}
-                disabled={!isEditMode || scanQrLoading}
-                title={FORM_SHORTCUT_TITLES.scanHistory}
-              >
-                <Search size={12} strokeWidth={2.5} />
-                Manual Search
               </button>
 
               <button
@@ -1373,55 +1406,6 @@ export default function AssetsDepartmentIssueForm() {
           isRowDisabled={itemModalScanMode ? isScanPickerRowDisabled : null}
         />
       </Suspense>
-
-      <Modal
-        isOpen={scanQrOpen}
-        onClose={closeScanQr}
-        title="Manual Search"
-        subtitle="Search by serial number"
-        icon={<Search size={16} strokeWidth={2.25} />}
-        size="sm"
-        variant="enterprise"
-        dialogClassName="adi-scan-qr-modal"
-        initialFocusSelector="#hw-qr-srno"
-        footer={
-          <div className="adi-scan-qr__footer">
-            <button
-              type="button"
-              className="adi-scan-qr__btn adi-scan-qr__btn--cancel"
-              onClick={closeScanQr}
-              disabled={scanQrLoading}
-            >
-              Close
-            </button>
-          </div>
-        }
-      >
-        <div className="adi-scan-qr">
-          <HardwareQrScanner
-            srNoOnly
-            showHistory={false}
-            disabled={scanQrLoading}
-            onScan={handleScanHistorySubmit}
-            hint="Enter Sr No, then press Enter or click Fetch Item. Multiple matches open Select Item; a single match is added directly."
-          />
-          {(scanQrError || scanQrLoading) ? (
-            <div className="adi-scan-qr__status">
-              {scanQrError ? (
-                <div className="adi-scan-qr__error" role="alert">
-                  <AlertCircle size={14} strokeWidth={2} />
-                  <span>{scanQrError}</span>
-                </div>
-              ) : null}
-              {scanQrLoading ? (
-                <div className="adi-scan-qr__loading" role="status">
-                  Fetching item…
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </Modal>
     </div>
   );
 }

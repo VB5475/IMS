@@ -88,7 +88,7 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
 
 export function buildAcrItemPickerJsonPayload(
   headerValues,
-  { companyId, loginId, yearId, maGroupId = 0, subMaGroupId = 0, itemNameSearch = "", qrJson = "" } = {}
+  { companyId, loginId, yearId } = {}
 ) {
   const session = getUserSession();
   const fromDivisionId = pickHeaderInt(headerValues, "fromdivisionid", "FromDivisionID");
@@ -112,15 +112,14 @@ export function buildAcrItemPickerJsonPayload(
     prmtovendorid: pickHeaderInt(headerValues, "tovendorid", "ToVendorID"),
     prmconfigid: pickHeaderInt(headerValues, "configid", "ConfigID"),
     prmissuetypeid: ACR_CONFIG.ISSUE_TYPE_ID,
-    // Trailing SP args — keep this order (AEI):
-    // prmmaingroupid, prmsubmaingroupid, prmitemnamesearch, prmsearchtext, prmotherstr, prmjson, prmqrjson
-    prmmaingroupid: Number(maGroupId) || 0,
-    prmsubmaingroupid: Number(subMaGroupId) || 0,
-    prmitemnamesearch: String(itemNameSearch ?? "").trim(),
+    // Magroup / submagroup filters removed from UI — SP still expects the params.
+    prmmaingroupid: 0,
+    prmsubmaingroupid: 0,
+    prmitemnamesearch: "",
     prmsearchtext: "",
     prmotherstr: "",
     prmjson: "[]",
-    prmqrjson: String(qrJson ?? "").trim(),
+    prmqrjson: "",
   };
 }
 
