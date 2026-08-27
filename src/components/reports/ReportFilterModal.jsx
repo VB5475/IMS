@@ -9,16 +9,17 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FileBarChart2, AlertCircle } from "lucide-react";
 import Modal from "../ui/Modal";
 import SearchSelect from "../ui/SearchSelect";
+import DateInput from "../ui/DateInput";
 import AlertPanel from "../ui/AlertPanel";
 import { useReportPrint } from "../../hooks/useReportPrint";
 import { useReportFilterOptions } from "../../hooks/useReportFilterOptions";
 import { useNotification } from "../../context/NotificationContext";
 import { getUserSession } from "../../session/userSession";
+import { getTodayDateInputValue } from "../../utils/dateFormat";
 import "./ReportFilterModal.css";
 
-// Local-time (not UTC) YYYY-MM-DD, matching what <input type="date"> expects
-// as its own value — avoids the off-by-one-day bug toISOString()'s UTC
-// conversion can cause near midnight.
+// Local-time (not UTC) YYYY-MM-DD for DateInput value — avoids the
+// off-by-one-day bug toISOString()'s UTC conversion can cause near midnight.
 function toIsoDateInputValue(date) {
   if (!date || Number.isNaN(date.getTime())) return "";
   const y = date.getFullYear();
@@ -35,8 +36,8 @@ function buildDefaultFilters() {
   const yearFrom = getUserSession().year?.yearfrom;
   const fromDate = yearFrom ? new Date(yearFrom) : null;
   return {
-    fromDate: fromDate && !Number.isNaN(fromDate.getTime()) ? toIsoDateInputValue(fromDate) : toIsoDateInputValue(new Date()),
-    toDate: toIsoDateInputValue(new Date()),
+    fromDate: fromDate && !Number.isNaN(fromDate.getTime()) ? toIsoDateInputValue(fromDate) : getTodayDateInputValue(),
+    toDate: getTodayDateInputValue(),
     divisionId: "",
     locationId: "",
     deptId: "",
@@ -140,20 +141,20 @@ export default function ReportFilterModal({ report, onClose }) {
       <div className="rfm-form">
         <div className="rfm-form-row">
           <span className="rfm-form-label">From Date</span>
-          <input
-            type="date"
+          <DateInput
             className="rfm-form-input"
             value={filters.fromDate}
-            onChange={(e) => handleChange("fromDate", e.target.value)}
+            onChange={(next) => handleChange("fromDate", next)}
+            aria-label="From Date"
           />
         </div>
         <div className="rfm-form-row">
           <span className="rfm-form-label">To Date</span>
-          <input
-            type="date"
+          <DateInput
             className="rfm-form-input"
             value={filters.toDate}
-            onChange={(e) => handleChange("toDate", e.target.value)}
+            onChange={(next) => handleChange("toDate", next)}
+            aria-label="To Date"
           />
         </div>
         <div className="rfm-form-row">

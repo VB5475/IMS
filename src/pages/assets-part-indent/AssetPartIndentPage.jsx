@@ -8,6 +8,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { PackageSearch, Save } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import SearchSelect from "../../components/ui/SearchSelect";
+import DateInput from "../../components/ui/DateInput";
 import ActionBar from "../../components/ui/ActionBar";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useNotification } from "../../context/NotificationContext";
@@ -203,20 +204,20 @@ export default function AssetPartIndentPage() {
         </div>
         <div className="apin-filter-field">
           <span className="apin-filter-label">From Date</span>
-          <input
-            type="date"
+          <DateInput
             className="apin-filter-input"
             value={filters.fromDate}
-            onChange={(e) => setFilters((prev) => ({ ...prev, fromDate: e.target.value }))}
+            onChange={(next) => setFilters((prev) => ({ ...prev, fromDate: next }))}
+            aria-label="From Date"
           />
         </div>
         <div className="apin-filter-field">
           <span className="apin-filter-label">To Date</span>
-          <input
-            type="date"
+          <DateInput
             className="apin-filter-input"
             value={filters.toDate}
-            onChange={(e) => setFilters((prev) => ({ ...prev, toDate: e.target.value }))}
+            onChange={(next) => setFilters((prev) => ({ ...prev, toDate: next }))}
+            aria-label="To Date"
           />
         </div>
         <button type="button" className="apin-search-btn" onClick={handleSearch} disabled={loading}>
