@@ -34,6 +34,15 @@ export const C2F_CONFIG = {
   SP_GRID_EVENT:   null,
   SP_UNIQUE_ID:    "pr_gen_fetchlevyuniqueno4web",
 
+  // Asset Item dropdown (Item Master, only relevant when ConvTypeID = Single
+  // Asset) — /pm 2026-08-27. DBA-confirmed signature (2026-08-27):
+  // (prmcompanyid, prmdivisionid, prmyearid, prmloginid, prmmaingroupid,
+  // prmsubmaingroupid) — no Location/CWIP A/C/date params, so the dropdown
+  // is Division-scoped only. This form has no Main Group/Sub Main Group
+  // selector; live-verified prmmaingroupid=0/prmsubmaingroupid=0 returns the
+  // full division-wide item list ("no filter"), not an error.
+  SP_ASSET_ITEM:   "fn_fetch_assetitem",
+
   // Edit flow
   SP_MASTER_FILL: "fn_tbl_rb_astcwip2famst",
   SP_DETAIL_FILL: "fn_tbl_rb_astcwip2fadet",
@@ -52,16 +61,24 @@ export const C2F_CONFIG = {
   STORAGE_HEADER_META: "c2fHeaderMeta",
   STORAGE_ENTRY_META:  "c2fEntryMeta",
 
-  // ConvTypeID is an internal field (API: IsVisible=false, IsEditAllow=false).
-  // Sent in save payload as a fixed constant — not shown in UI.
+  // NOT a UI default — ConvTypeID has 2+ real options (C2F_CONVERSION_TYPE_OPTIONS)
+  // so per this app's rule it starts unselected, same as Division/Location.
+  // Used only as a graceful-degradation fallback ("Each Line Item to Asset")
+  // in a couple of edit-mode/save-payload spots that shouldn't ever actually
+  // hit it in practice (the field is mandatory, so it's always real by then).
   CONV_TYPE_ID: 1,
 };
 
-// ── ConversionFactor static options (only static dropdown in C2F header) ─────
-export const C2F_CONV_FACTOR_OPTIONS = [
-  { value: "1", label: "Purchase" },
-  { value: "2", label: "Inventory" },
+// ── ConversionType static options (2026-08-27 /pm — RB now renders ConvTypeID
+// as a real, mandatory header dropdown; the old ConversionFactor field this
+// used to describe no longer exists in the RB response) ─────────────────────
+export const C2F_CONVERSION_TYPE_OPTIONS = [
+  { value: "1", label: "Each Line Item to Asset" },
+  { value: "2", label: "Single Asset from all Line Items" },
 ];
+
+/** ConvTypeID value that enables the Asset Item dropdown (sourced from Item Master). */
+export const C2F_SINGLE_ASSET_CONV_TYPE = "2";
 
 export const C2F_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 

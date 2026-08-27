@@ -124,6 +124,7 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   const [locationOptions,   setLocationOptions]   = useState([]);
   const [cWIPAccOptions,    setCWIPAccOptions]    = useState([]);
   const [costCenterOptions, setCostCenterOptions] = useState([]);
+  const [assetItemOptions,  setAssetItemOptions]  = useState([]);
 
   // ── Detail grid state ──────────────────────────────────────────────────────
   const [columns,    setColumns]    = useState([]);
@@ -248,6 +249,50 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
       return [];
     }
   }, [get]);
+
+  // ── fetchAssetItemOptions — Asset Item dropdown (Item Master), only relevant
+  // when ConvTypeID = C2F_SINGLE_ASSET_CONV_TYPE ("Single Asset from all Line
+  // Items"). Calls SP_ASSET_ITEM (fn_fetch_assetitem) — DBA-confirmed
+  // signature (2026-08-27): prmcompanyid/prmdivisionid/prmyearid/prmloginid/
+  // prmmaingroupid/prmsubmaingroupid. No Location/CWIP A/C/date params —
+  // this form has no Main Group/Sub Main Group selector, so those go as 0
+  // ("no filter"), confirmed live to return the full division-wide item list.
+  const fetchAssetItemOptions = useCallback(async (divisionId) => {
+    if (!divisionId || divisionId === "0") { setAssetItemOptions([]); return []; }
+    try {
+      const session = getUserSession();
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: C2F_CONFIG.SP_ASSET_ITEM,
+        JSon: JSON.stringify([{
+          prmcompanyid:      session.companyId,
+          prmdivisionid:     Number(divisionId) || 0,
+          prmyearid:         session.yearId,
+          prmloginid:        session.loginId,
+          prmmaingroupid:    0,
+          prmsubmaingroupid: 0,
+        }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      const opts = (res || [])
+        .map((r) => {
+          const id = r.itemid ?? r.assetitemid ?? r.ItemID ?? r.AssetItemID;
+          if (id == null) return null;
+          const code = r.itemcode ?? r.ItemCode ?? "";
+          const name = r.itemname ?? r.ItemName ?? "";
+          return { value: String(id), label: code ? `${code} | ${name}` : String(name || id) };
+        })
+        .filter(Boolean);
+      setAssetItemOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[C2F] Asset Item fetch failed:", err);
+      setAssetItemOptions([]);
+      return [];
+    }
+  }, [get]);
+
+  const clearAssetItemOptions = useCallback(() => setAssetItemOptions([]), []);
 
   // ── fetchHeaderMeta ────────────────────────────────────────────────────────
   const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
@@ -416,6 +461,9 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
     if (master.costcenteraccid != null && master.costcentername) {
       setCostCenterOptions([{ value: String(master.costcenteraccid), label: master.costcentername }]);
     }
+    if (master.assetitemid != null && master.assetitemname) {
+      setAssetItemOptions([{ value: String(master.assetitemid), label: master.assetitemname }]);
+    }
   }, []);
 
   // ── fetchUnlockedHeaderDropdowns — enter edit mode: reload editable dropdowns
@@ -480,10 +528,11 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   return {
     // Header
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
+    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions, assetItemOptions,
     fetchLocations, clearLocations,
     fetchCWIPAccByDivision, clearCWIPAccOptions,
     fetchCostCenters, clearCostCenterOptions,
+    fetchAssetItemOptions, clearAssetItemOptions,
     fetchUniqueId,
     // Detail grid
     columns, allColumns, eventColumns, isFetching, metaError,

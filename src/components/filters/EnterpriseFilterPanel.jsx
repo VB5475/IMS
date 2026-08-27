@@ -1037,8 +1037,30 @@ export default function EnterpriseFilterPanel({
             // Division→Quotation Type→Supplier Name flashed Quotation
             // Type's dropdown open mid-transition, which reads as "stuck"
             // in a screenshot even though the final position is correct.
+            //
+            // BUT only when the landing field is itself ALSO about to be
+            // auto-advanced past a moment later (single-option) — this used
+            // to stamp the suppress flag unconditionally on whatever field
+            // the chain focused next, including the field where the chain
+            // genuinely stops (2+ real options, no further auto-advance
+            // scheduled for it). That field would then get real focus but
+            // its dropdown would never open — not even on its own later
+            // focus event, since the flag is consumed (deleted) the first
+            // time regardless of whether it was "supposed to" apply. Live-
+            // reproduced on Purchase Inquiry: the chain landing on "Based
+            // On" (a static, always-2-option field, so never itself
+            // eligible for auto-select) left it focused but permanently
+            // closed. 2026-08-27 (/pm).
             beforeFocus: (el) => {
-              el.dataset.suppressAutoOpen = "1";
+              const wrapper = el.closest?.('[id^="efq-"]');
+              const targetColName = wrapper?.id?.replace(/^efq-/, "");
+              const targetFilter = filters.find((tf) => tf.FilterColName === targetColName);
+              if (targetFilter?.FilterColCtrlType !== controlTypeMap.DROPDOWN) return;
+              const targetOpts =
+                dropdownOptions[targetFilter.FilterParameterID] ?? targetFilter.staticOptions ?? [];
+              if (targetOpts.length === 1) {
+                el.dataset.suppressAutoOpen = "1";
+              }
             },
           });
         }, 200);

@@ -65,6 +65,14 @@ const DOCTYPE_EVENT_COLUMNS = [CFG.DOCTYPE_COL];
 // else gets a forced, properly-named download instead (see handleView).
 const PREVIEWABLE_EXTS = new Set([".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".txt",".docx"]);
 
+// View/Upload/Delete button columns double as their row's own permission
+// flag (see EntryGrid's button-column renderer) — but they're numeric
+// columns, so the generic per-column default below would leave them at 0
+// ("not permitted") on every brand-new row, greying out all three actions
+// on a row the user just added themselves. A row that only exists locally
+// and was never fetched from the API always carries full permissions.
+const NEW_ROW_PERMISSION_COLS = [CFG.VIEW_COL, CFG.UPLOAD_COL, CFG.DELETE_COL];
+
 function buildBlankRow(columns) {
   const row = { id: nextTempId() };
   columns.forEach((col) => {
@@ -77,6 +85,9 @@ function buildBlankRow(columns) {
     row[col.key] = col.dropdownOptions?.length === 1
       ? col.dropdownOptions[0].value
       : getColDefault(col.colDataType);
+  });
+  NEW_ROW_PERMISSION_COLS.forEach((key) => {
+    if (key in row) row[key] = 1;
   });
   return row;
 }

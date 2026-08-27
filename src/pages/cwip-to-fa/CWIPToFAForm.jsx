@@ -11,8 +11,11 @@
 //   PutToUseInstDate — required second date field
 //   LocationID       — cascade from Division (fetchLocations)
 //   CWIPAccID        — fetched via C2F_CONFIG.SP_CWIP_ACC (direct SP, same pattern as Division)
-//   ConvTypeID       — internal field, fixed to C2F_CONFIG.CONV_TYPE_ID, not rendered in UI
-//   ConversionFactor — numeric textbox (ColSeqNo 7, between LocationID and CWIPAccID)
+//   ConvTypeID       — static dropdown (C2F_CONVERSION_TYPE_OPTIONS): "Each Line Item to
+//                      Asset" (1, default) | "Single Asset from all Line Items" (2)
+//   AssetItemID      — enabled only when ConvTypeID = Single Asset; options fetched from
+//                      Item Master via C2F_CONFIG.SP_ASSET_ITEM (fn_fetch_assetitem),
+//                      Division-scoped only (no Location/CWIP A/C dependency)
 //   NetTotal         — computed client-side: sum of grid Amount column
 //   Cascade: DivisionID → clear LocationID + grid; LocationID → clear grid
 
@@ -59,7 +62,8 @@ import { FORM_SHORTCUT_TITLES } from "../../constants/formShortcuts";
 import {
   C2F_CONFIG,
   C2F_MULTI_PASTE_COLUMNS,
-  C2F_CONV_FACTOR_OPTIONS,
+  C2F_CONVERSION_TYPE_OPTIONS,
+  C2F_SINGLE_ASSET_CONV_TYPE,
   C2F_SUMMARY_FIELDS,
   C2F_GRID_TABS,
   C2F_FILTER_CASCADE_RESETS,
@@ -128,6 +132,7 @@ function mapHeaderValuesToFilterValues(headerValues) {
     cwipaccid:        String(headerValues.cwipaccid        ?? ""),
     costcenteraccid:  String(headerValues.costcenteraccid  ?? ""),
     convtypeid:       String(headerValues.convtypeid      ?? "1"),
+    assetitemid:      String(headerValues.assetitemid     ?? ""),
     nettotal:         String(headerValues.nettotal         ?? "0"),
     remark:           headerValues.remark            ?? "",
   };
@@ -185,10 +190,11 @@ export default function CWIPToFAForm() {
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
-    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions,
+    divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions, assetItemOptions,
     fetchLocations, clearLocations,
     fetchCWIPAccByDivision, clearCWIPAccOptions,
     fetchCostCenters, clearCostCenterOptions,
+    fetchAssetItemOptions, clearAssetItemOptions,
     fetchUniqueId,
     columns, allColumns, eventColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
@@ -209,10 +215,14 @@ export default function CWIPToFAForm() {
     puttouseinstdate:  getTodayDateInputValue(),
     divisionid:        0,
     locationid:        0,
-    conversionfactor:  0,
     cwipaccid:         0,
     costcenteraccid:   0,
-    convtypeid:        C2F_CONFIG.CONV_TYPE_ID,
+    // No default — ConvTypeID has 2 real options, so per this app's "2+
+    // options must be chosen explicitly" rule (client requirement
+    // 2026-07-24, see EnterpriseFilterPanel's single-option auto-select
+    // effect) it starts unselected like Division/Location, not pre-picked.
+    convtypeid:        0,
+    assetitemid:       0,
     nettotal:          0,
     remark:           "",
     tranmstgenid:     0,
@@ -224,12 +234,23 @@ export default function CWIPToFAForm() {
   });
 
   // trandate/puttouseinstdate default to today on a new record; existing records keep their loaded date.
+  // ConvTypeID is NOT seeded here — 2+ real options means the user must pick
+  // explicitly (see the "No default" note on headerValuesRef above).
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { trandate: getTodayDateInputValue(), puttouseinstdate: getTodayDateInputValue() };
+    return {
+      trandate:         getTodayDateInputValue(),
+      puttouseinstdate: getTodayDateInputValue(),
+    };
   }, [loadedFilterValues]);
 
   const [filterResetKey,      setFilterResetKey]      = useState(0);
+  // Mirrors headerValuesRef.current.convtypeid — kept as reactive state (same
+  // pattern as PurchaseVoucherForm's basedOnId) so the Asset Item field's
+  // enable state and dropdown fetch can react to it. Starts unselected, same
+  // reasoning as the ref above.
+  const [convTypeId,          setConvTypeId]          = useState("");
+  const [assetItemExternalValue, setAssetItemExternalValue] = useState(null);
   const [activeTab,           setActiveTab]           = useState("items");
   const [itemSelectionCount,  setItemSelectionCount]  = useState(0);
   const [isGridLoading,       setIsGridLoading]       = useState(false);
@@ -325,6 +346,7 @@ export default function CWIPToFAForm() {
       headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
       setLoadedMasterRow(master);
       editRecordLoadedRef.current = true;
+      setConvTypeId(String(headerValues.convtypeid ?? C2F_CONFIG.CONV_TYPE_ID));
 
       seedOptionsFromMaster(master);
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
@@ -392,15 +414,17 @@ export default function CWIPToFAForm() {
 
   // ── syncedFilters — built purely from API headerColumns ───────────────────
   // ColCtrlType from RB_AstCWIP2FAMst drives control rendering directly.
-  // Only ConversionFactor gets static options injected — all other dropdowns
-  // (Division, Location, CWIP A/C, Cost Center) get live API-loaded options.
+  // ConvTypeID gets static options injected; Asset Item's options come from
+  // Item Master (fetchAssetItemOptions, only when ConvTypeID = Single Asset);
+  // Division/Location/CWIP A/C/Cost Center get live API-loaded options.
   const DROPDOWN_OPTIONS_BY_COL = useMemo(() => ({
     divisionid:      divisionOptions,
     locationid:      locationOptions,
     cwipaccid:       cWIPAccOptions,
     costcenteraccid: costCenterOptions,
-    conversionfactor: C2F_CONV_FACTOR_OPTIONS,
-  }), [divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions]);
+    convtypeid:      C2F_CONVERSION_TYPE_OPTIONS,
+    assetitemid:     assetItemOptions,
+  }), [divisionOptions, locationOptions, cWIPAccOptions, costCenterOptions, assetItemOptions]);
 
   const syncedFilters = useMemo(() => {
     if (headerColumns.length === 0) return [];
@@ -430,11 +454,15 @@ export default function CWIPToFAForm() {
       let tone = "editable";
       if (!isEditMode)                             tone = "view";
       else if (isEditRoute && f.lockOnEditMode)    tone = "frozen";
+      // Asset Item stays disabled until "Single Asset from all Line Items"
+      // is chosen — locked-on-edit already covers the edit-route case above.
+      else if (f.FilterColName === "assetitemid" && convTypeId !== C2F_SINGLE_ASSET_CONV_TYPE)
+        tone = "frozen";
       tones[f.FilterColName]       = tone;
       if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
-  }, [syncedFilters, isEditMode, isEditRoute]);
+  }, [syncedFilters, isEditMode, isEditRoute, convTypeId]);
 
   // ── Filter change / cascade ────────────────────────────────────────────────
   const requestGridClear = useCallback((fieldLabel, action) => {
@@ -459,9 +487,12 @@ export default function CWIPToFAForm() {
         headerValuesRef.current.locationid      = 0;
         headerValuesRef.current.cwipaccid       = 0;
         headerValuesRef.current.costcenteraccid = 0;
+        headerValuesRef.current.assetitemid     = 0;
         clearLocations();
         clearCWIPAccOptions();
         clearCostCenterOptions();
+        clearAssetItemOptions();
+        setAssetItemExternalValue({ assetitemid: "" });
         itemGridRef.current?.clearRows?.();
         if (val && val !== "0") {
           await Promise.all([
@@ -470,6 +501,12 @@ export default function CWIPToFAForm() {
             fetchCostCenters(val, headerValuesRef.current.trandate),
           ]);
           focusFieldAfterCascade(filterPanelRef, "locationid");
+        }
+        // Asset Item is Division-scoped only (fn_fetch_assetitem takes no
+        // Location/CWIP A/C params) — refetch here rather than just clearing,
+        // so switching Division while Single Asset is selected keeps working.
+        if (convTypeId === C2F_SINGLE_ASSET_CONV_TYPE) {
+          fetchAssetItemOptions(val);
         }
       });
       return;
@@ -491,11 +528,25 @@ export default function CWIPToFAForm() {
       return;
     }
 
+    if (colName === "convtypeid") {
+      setConvTypeId(String(val));
+      if (String(val) === C2F_SINGLE_ASSET_CONV_TYPE) {
+        fetchAssetItemOptions(headerValuesRef.current.divisionid);
+      } else {
+        headerValuesRef.current.assetitemid = 0;
+        clearAssetItemOptions();
+        setAssetItemExternalValue({ assetitemid: "" });
+      }
+      return;
+    }
+
   }, [
     requestGridClear,
     clearLocations, fetchLocations,
     clearCWIPAccOptions, fetchCWIPAccByDivision,
     clearCostCenterOptions, fetchCostCenters,
+    clearAssetItemOptions, fetchAssetItemOptions,
+    convTypeId,
   ]);
 
   const ensureItemColumns = useCallback(async () => {
@@ -575,7 +626,7 @@ export default function CWIPToFAForm() {
             prmloginid:      session.loginId,
             prmtrandate:     formatC2FTranDate(trandate),
             prmputtousedate: formatC2FTranDate(puttouseinstdate),
-            prmconvtypeid:   C2F_CONFIG.CONV_TYPE_ID,
+            prmconvtypeid:   Number(headerValues.convtypeid) || C2F_CONFIG.CONV_TYPE_ID,
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }),
@@ -630,9 +681,9 @@ export default function CWIPToFAForm() {
     const session = getUserSession();
     return {
       tranno: "", trandate: getTodayDateInputValue(), puttouseinstdate: getTodayDateInputValue(),
-      divisionid: 0, locationid: 0, conversionfactor: 0,
+      divisionid: 0, locationid: 0,
       cwipaccid: 0, costcenteraccid: 0,
-      convtypeid: C2F_CONFIG.CONV_TYPE_ID, nettotal: 0, remark: "",
+      convtypeid: 0, assetitemid: 0, nettotal: 0, remark: "",
       tranmstgenid: 0,
       companyid: session.companyId, yearid: session.yearId,
       loginid: session.loginId, idnumber: 0, funccode: C2F_CONFIG.RB_MASTER,
@@ -667,8 +718,13 @@ export default function CWIPToFAForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearC2fStorage],
-    extraReset: () => { setFieldErrors({}); setDetailCellErrors(null); },
+    extraClearFns: [clearLocations, clearCWIPAccOptions, clearCostCenterOptions, clearAssetItemOptions, clearC2fStorage],
+    extraReset: () => {
+      setFieldErrors({});
+      setDetailCellErrors(null);
+      setConvTypeId("");
+      setAssetItemExternalValue(null);
+    },
   });
 
 
@@ -826,6 +882,7 @@ export default function CWIPToFAForm() {
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
             cascadeResets={C2F_FILTER_CASCADE_RESETS}
+            externalValues={assetItemExternalValue}
             onFilterChange={handleFilterChange}
             isSearching={filterBusy || recordLoading}
             isMetaLoading={!headerMetaReady || recordLoading}
