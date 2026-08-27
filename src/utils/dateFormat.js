@@ -152,6 +152,13 @@ export function parseFlexibleDate(value) {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  // dd.MM.yyyy / dd-MM-yyyy (and similar separators users type while editing)
+  const dmyAlt = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (dmyAlt) {
+    const date = new Date(Number(dmyAlt[3]), Number(dmyAlt[2]) - 1, Number(dmyAlt[1]));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   const dmy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) {
     const date = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
@@ -401,7 +408,7 @@ export function handleDateArrowKeys(e, currentValue, onChange, { nativeInput = f
   }
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   e.preventDefault();
-  const delta = e.key === "ArrowUp" ? -1 : 1;
+  const delta = e.key === "ArrowUp" ? 1 : -1;
   if (nativeInput) {
     const input = e.target;
     const segment = getNativeDateInputSegment(input);
@@ -485,7 +492,7 @@ export function getDateDisplayConfig(inputFormat = "") {
   let pattern = "";
   let pos = 0;
 
-  for (let i = 0; i < fmt.length; ) {
+  for (let i = 0; i < fmt.length;) {
     if (fmt.startsWith("yyyy", i)) {
       pattern += "yyyy";
       segments.push({ type: "year", start: pos, end: pos + 4 });
@@ -540,15 +547,113 @@ export function formatDateInputDisplay(value, inputFormat = "") {
   return dayjs(date).format(inputFormatToDayjs(resolveDateInputFormat(inputFormat)));
 }
 
+/** Separator character used by the resolved InputFormat pattern (default `/`). */
+export function getDateFormatSeparator(inputFormat = "") {
+  const pattern = getDateDisplayConfig(inputFormat).pattern;
+  const match = pattern.match(/[^a-zA-Z]/);
+  return match ? match[0] : "/";
+}
+
+/** True when day/month/year segments are all numeric (no MMM). */
+export function isNumericDateDisplayFormat(inputFormat = "") {
+  const config = getDateDisplayConfig(inputFormat);
+  return config.segments.every((seg) => {
+    if (seg.type === "year") return seg.end - seg.start === 2 || seg.end - seg.start === 4;
+    if (seg.type === "month") return seg.end - seg.start === 2;
+    if (seg.type === "day") return seg.end - seg.start === 2;
+    return false;
+  });
+}
+
+/**
+ * Live-format typed date text to the InputFormat pattern.
+ * Digits-only (`11122026`) and alternate separators (`11.12.2026`, `11-12-2026`)
+ * both become the display form (e.g. `11/12/2026` for dd/MM/yyyy).
+ */
+export function formatDateTypingInput(raw, inputFormat = "") {
+  const text = String(raw ?? "");
+  if (!text) return "";
+
+  const config = getDateDisplayConfig(inputFormat);
+  const sep = getDateFormatSeparator(inputFormat);
+
+  if (!isNumericDateDisplayFormat(inputFormat)) {
+    // Keep MMM-style formats editable; only normalize separators.
+    return text.replace(/[./\-\s]+/g, sep);
+  }
+
+  const digits = text.replace(/\D/g, "");
+  if (!digits) return "";
+
+  let offset = 0;
+  const parts = [];
+  for (const seg of config.segments) {
+    const width = seg.end - seg.start;
+    const slice = digits.slice(offset, offset + width);
+    if (!slice) break;
+    parts.push(slice);
+    offset += slice.length;
+    if (offset >= digits.length) break;
+  }
+
+  // Re-join with format separators between filled segments only.
+  let out = "";
+  for (let i = 0; i < parts.length; i += 1) {
+    if (i > 0) out += sep;
+    out += parts[i];
+  }
+
+  // If the next character after a full segment would be a separator in the
+  // pattern and the user has typed enough digits for that segment, keep the
+  // trailing separator so "11/" can appear while typing.
+  if (parts.length > 0 && parts.length < config.segments.length) {
+    const lastSeg = config.segments[parts.length - 1];
+    const lastWidth = lastSeg.end - lastSeg.start;
+    if (parts[parts.length - 1].length === lastWidth) {
+      const endsWithSep = /[./\-\s]$/.test(text);
+      if (endsWithSep) out += sep;
+    }
+  }
+
+  return out;
+}
+
+/** Map caret (by digit count) into a formatted date string. */
+export function mapDigitCaretToFormattedPosition(formatted, digitCount) {
+  if (digitCount <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i += 1) {
+    if (/\d/.test(formatted[i])) {
+      seen += 1;
+      if (seen >= digitCount) return i + 1;
+    }
+  }
+  return formatted.length;
+}
+
 /** Parse segmented date text input to yyyy-mm-dd; null when invalid. */
 export function parseDateInputDisplay(display, inputFormat = "") {
   if (display == null || String(display).trim() === "") return "";
-  const parsed = dayjs(
-    String(display).trim(),
-    inputFormatToDayjs(resolveDateInputFormat(inputFormat)),
-    true
-  );
-  if (!parsed.isValid()) return null;
+  const resolved = resolveDateInputFormat(inputFormat);
+  const normalized = formatDateTypingInput(display, resolved);
+  const dayjsFmt = inputFormatToDayjs(resolved);
+
+  let parsed = dayjs(normalized, dayjsFmt, true);
+  if (!parsed.isValid() && isNumericDateDisplayFormat(resolved)) {
+    // Incomplete while typing — treat as not yet a committed date.
+    const digits = String(display).replace(/\D/g, "");
+    const needed = getDateDisplayConfig(resolved).segments.reduce(
+      (sum, seg) => sum + (seg.end - seg.start),
+      0
+    );
+    if (digits.length < needed) return null;
+  }
+  if (!parsed.isValid()) {
+    // Last resort: flexible parse of normalized / raw text.
+    const flexible = parseFlexibleDate(normalized) || parseFlexibleDate(display);
+    if (!flexible) return null;
+    return toNativeDateInputValue(flexible);
+  }
   return toNativeDateInputValue(parsed.toDate());
 }
 
@@ -569,17 +674,76 @@ function setTextDateInputSegment(input, segment, config) {
   input.setSelectionRange(seg.start, seg.end);
 }
 
+function measureInputTextWidth(input) {
+  const style = window.getComputedStyle(input);
+  if (!measureInputTextWidth._canvas) {
+    measureInputTextWidth._canvas = document.createElement("canvas");
+  }
+  const ctx = measureInputTextWidth._canvas.getContext("2d");
+  ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const sample = input.value || input.placeholder || getDateDisplayConfig(input.dataset.dateInputFormat || "").pattern;
+  return ctx.measureText(sample).width;
+}
+
+/** Map a caret index to day/month/year (separators resolve to nearest segment). */
+function segmentFromCaretPos(pos, config) {
+  for (const seg of config.segments) {
+    if (pos >= seg.start && pos < seg.end) return seg.type;
+    // Caret at end of segment (inclusive) still belongs to that segment.
+    if (pos === seg.end) return seg.type;
+  }
+  let best = config.order[0];
+  let bestDist = Infinity;
+  for (const seg of config.segments) {
+    const mid = (seg.start + seg.end) / 2;
+    const dist = Math.abs(pos - mid);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = seg.type;
+    }
+  }
+  return best;
+}
+
+function inferTextDateSegmentFromPointer(input, clientX, config) {
+  const rect = input.getBoundingClientRect();
+  if (!rect.width) return config.order[0];
+  const style = window.getComputedStyle(input);
+  const padLeft = parseFloat(style.paddingLeft) || 0;
+  const textWidth = Math.max(measureInputTextWidth(input), 1);
+  const patternLen = Math.max(config.pattern.length, 1);
+  const x = clientX - rect.left - padLeft;
+  const ratio = Math.max(0, Math.min(0.999, x / textWidth));
+  const charPos = Math.floor(ratio * patternLen);
+  return segmentFromCaretPos(charPos, config);
+}
+
 function handleTextDateInputSegmentInteraction(e) {
   const input = e.target;
   if (!(input instanceof HTMLInputElement)) return false;
 
   const config = resolveInputDisplayConfig(input);
 
-  if (e.type === "click" || e.type === "mouseup") {
+  // Prefer click only — mouseup+click previously double-applied and fought the caret.
+  if (e.type === "click") {
+    const clientX = e.clientX;
     requestAnimationFrame(() => {
-      const segment = getTextDateInputSegment(input, config);
+      const value = input.value || "";
+      const selStart = input.selectionStart ?? 0;
+      const selEnd = input.selectionEnd ?? 0;
+      const fullySelected = value.length > 0 && selStart === 0 && selEnd >= value.length;
+      // Browser caret already maps to the glyph under the cursor; trust it unless
+      // the whole value is selected (then fall back to text-width pointer map).
+      const segment = (!fullySelected && value.length > 0)
+        ? segmentFromCaretPos(selStart, config)
+        : inferTextDateSegmentFromPointer(input, clientX, config);
       setTextDateInputSegment(input, segment, config);
     });
+    return true;
+  }
+
+  if (e.type === "mouseup") {
+    // Handled on click to avoid double rAF with stale/wrong width mapping.
     return true;
   }
 
@@ -594,6 +758,8 @@ function handleTextDateInputSegmentInteraction(e) {
 
   return false;
 }
+
+const textDateSegmentTypeBuffer = new WeakMap();
 
 function handleTextDateInputSegmentNavigation(e) {
   const input = e.target;
@@ -610,14 +776,103 @@ function handleTextDateInputSegmentNavigation(e) {
       ? (safeIdx + 1) % config.order.length
       : (safeIdx - 1 + config.order.length) % config.order.length;
   const nextSegment = config.order[nextIdx];
+  textDateSegmentTypeBuffer.delete(input);
   setTextDateInputSegment(input, nextSegment, config);
   return true;
+}
+
+/**
+ * Type a digit into the focused day/month/year segment (Windows-style).
+ * Returns { native, segment, advance, config } or null when not handled
+ * (empty / fully-selected field uses free-typing instead).
+ */
+function applyDigitToFocusedDateSegment(input, digit, nativeValue, { min, max } = {}) {
+  const inputFormat = input.dataset.dateInputFormat || "";
+  if (!isNumericDateDisplayFormat(inputFormat)) return null;
+
+  const config = getDateDisplayConfig(inputFormat);
+  const value = input.value || "";
+  const selStart = input.selectionStart ?? 0;
+  const selEnd = input.selectionEnd ?? 0;
+  // Only hijack digits when the field already holds a complete valid date and a
+  // segment is focused. Incomplete drafts (e.g. after clear → type "1") must stay
+  // on the free-typing / auto-format path so "12" becomes "12", not "01".
+  const completeNative = value ? parseDateInputDisplay(value, inputFormat) : null;
+  const fullySelected = selStart === 0 && selEnd >= value.length && value.length > 0;
+
+  // Empty / incomplete / fully selected → free-typing path (caller formats via onChange).
+  if (!value || !completeNative || fullySelected) {
+    textDateSegmentTypeBuffer.delete(input);
+    return null;
+  }
+
+  const segment = getTextDateInputSegment(input, config);
+  const seg = config.segments.find((s) => s.type === segment);
+  if (!seg) return null;
+
+  const width = seg.end - seg.start;
+  let buf = textDateSegmentTypeBuffer.get(input);
+  if (!buf || buf.segment !== segment) {
+    buf = { segment, digits: "" };
+  }
+  buf.digits = `${buf.digits}${digit}`.slice(-width);
+  textDateSegmentTypeBuffer.set(input, buf);
+
+  const baseNative =
+    nativeValue
+    || parseDateInputDisplay(value, inputFormat)
+    || getTodayDateInputValue();
+  const baseDate = parseFlexibleDate(baseNative) || new Date();
+
+  let year = baseDate.getFullYear();
+  let month = baseDate.getMonth() + 1;
+  let day = baseDate.getDate();
+
+  const typed = buf.digits;
+  const typedNum = Number(typed);
+  if (segment === "year") {
+    year = width === 2 ? 2000 + (typedNum % 100) : typedNum;
+  } else if (segment === "month") {
+    month = Math.min(Math.max(typedNum || 1, 1), 12);
+  } else if (segment === "day") {
+    day = Math.min(Math.max(typedNum || 1, 1), 31);
+  }
+
+  const constructed = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const native = clampNativeDateValue(sanitizeNativeDateInput(constructed) || constructed, min, max);
+  const advance = typed.length >= width;
+  if (advance) {
+    textDateSegmentTypeBuffer.set(input, { segment, digits: "" });
+  }
+
+  return { native, segment, advance, config };
 }
 
 function handleTextDateInputKeyDown(e, nativeValue, onChange, { min, max } = {}) {
   if (handleTextDateInputSegmentNavigation(e)) {
     e.stopPropagation();
     return true;
+  }
+
+  if (/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const input = e.target;
+    const result = applyDigitToFocusedDateSegment(input, e.key, nativeValue, { min, max });
+    if (result) {
+      e.preventDefault();
+      e.stopPropagation();
+      onChange(result.native);
+      requestAnimationFrame(() => {
+        if (document.activeElement !== input) return;
+        if (result.advance) {
+          const idx = result.config.order.indexOf(result.segment);
+          const nextSeg = result.config.order[Math.min(idx + 1, result.config.order.length - 1)];
+          setTextDateInputSegment(input, nextSeg, result.config);
+        } else {
+          setTextDateInputSegment(input, result.segment, result.config);
+        }
+      });
+      return true;
+    }
   }
 
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
@@ -628,14 +883,15 @@ function handleTextDateInputKeyDown(e, nativeValue, onChange, { min, max } = {})
   const segment = getTextDateInputSegment(input, config);
   const inputFormat = input.dataset.dateInputFormat || "";
   const baseValue =
-    nativeValue || parseDateInputDisplay(input.value, inputFormat) || "";
-  const delta = e.key === "ArrowUp" ? -1 : 1;
+    nativeValue || parseDateInputDisplay(input.value, inputFormat) || getTodayDateInputValue();
+  const delta = e.key === "ArrowUp" ? 1 : -1;
   const next = clampNativeDateValue(
     shiftNativeDateInputValueBySegment(baseValue, segment, delta),
     min,
     max
   );
 
+  textDateSegmentTypeBuffer.delete(input);
   onChange(next);
   requestAnimationFrame(() => {
     if (document.activeElement === input) {

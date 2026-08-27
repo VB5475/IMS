@@ -4,9 +4,11 @@ import { Calendar } from "lucide-react";
 import {
   clampNativeDateValue,
   formatDateInputDisplay,
+  formatDateTypingInput,
   getDateDisplayConfig,
   getTextDateInputProps,
   inputFormatToDatePicker,
+  mapDigitCaretToFormattedPosition,
   parseDateInputDisplay,
   parseFlexibleDate,
   resolveDateInputFormat,
@@ -61,6 +63,7 @@ export default function DateInput({
   autoComplete = "off",
 }) {
   const wrapRef = useRef(null);
+  const inputRef = useRef(null);
   const popperRef = useRef(null);
   const draftRef = useRef(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -88,13 +91,21 @@ export default function DateInput({
 
   const commitDraftText = useCallback(
     (text) => {
-      const parsed = parseDateInputDisplay(text, resolvedFormat);
-      if (parsed === null && String(text ?? "").trim() !== "") {
+      const trimmed = String(text ?? "").trim();
+      if (!trimmed) {
+        commitNativeValue("");
+        setDraftText(null);
+        draftRef.current = null;
+        return true;
+      }
+      const parsed = parseDateInputDisplay(trimmed, resolvedFormat);
+      if (parsed === null) {
+        // Invalid / incomplete — revert to last committed display.
         setDraftText(null);
         draftRef.current = null;
         return false;
       }
-      commitNativeValue(parsed ?? "");
+      commitNativeValue(parsed);
       setDraftText(null);
       draftRef.current = null;
       return true;
@@ -157,7 +168,7 @@ export default function DateInput({
         commitNativeValue("");
         setDraftText(null);
       } else {
-        const next = toNativeDateInputValue(date);
+        const next = clampNativeDateValue(toNativeDateInputValue(date), min, max);
         commitNativeValue(next);
         const nextDisplay = formatDateInputDisplay(next, resolvedFormat);
         draftRef.current = nextDisplay;
@@ -165,7 +176,7 @@ export default function DateInput({
       }
       setCalendarOpen(false);
     },
-    [commitNativeValue, resolvedFormat]
+    [commitNativeValue, resolvedFormat, min, max]
   );
 
   const handleFocus = useCallback(
@@ -187,10 +198,33 @@ export default function DateInput({
     [commitDraftText, onBlur]
   );
 
-  const handleChange = useCallback((e) => {
-    draftRef.current = e.target.value;
-    setDraftText(e.target.value);
-  }, []);
+  const handleChange = useCallback(
+    (e) => {
+      const input = e.target;
+      const raw = input.value;
+      const caretDigits = String(raw.slice(0, input.selectionStart ?? raw.length)).replace(/\D/g, "").length;
+      const formatted = formatDateTypingInput(raw, resolvedFormat);
+      draftRef.current = formatted;
+      setDraftText(formatted);
+
+      // Live-commit when a complete valid date is typed (still clamped by min/max).
+      const parsed = parseDateInputDisplay(formatted, resolvedFormat);
+      if (parsed) {
+        commitNativeValue(parsed);
+      }
+
+      requestAnimationFrame(() => {
+        if (document.activeElement !== input) return;
+        const pos = mapDigitCaretToFormattedPosition(formatted, caretDigits);
+        try {
+          input.setSelectionRange(pos, pos);
+        } catch {
+          /* selection may fail if input unmounted */
+        }
+      });
+    },
+    [resolvedFormat, commitNativeValue]
+  );
 
   const handleInputKeyDown = useCallback(
     (e) => {
@@ -224,35 +258,43 @@ export default function DateInput({
   const calendarPopper =
     showCalendar && calendarOpen && popperStyle
       ? createPortal(
-          <div
-            ref={popperRef}
-            className="date-input-calendar-popper"
-            style={popperStyle}
-          >
-            {DatePickerComponent ? (
-              <DatePickerComponent
-                inline
-                selected={selected}
-                onChange={handleCalendarSelect}
-                minDate={minDate ?? undefined}
-                maxDate={maxDate ?? undefined}
-                dateFormat={pickerFormat}
-                calendarClassName="date-input-calendar"
-              />
-            ) : (
-              <div className="date-input-calendar-loading" role="status">
-                Loading calendar…
-              </div>
-            )}
-          </div>,
-          document.body
-        )
+        <div
+          ref={popperRef}
+          className="date-input-calendar-popper"
+          style={popperStyle}
+        >
+          {DatePickerComponent ? (
+            <DatePickerComponent
+              inline
+              selected={selected}
+              onChange={handleCalendarSelect}
+              minDate={minDate ?? undefined}
+              maxDate={maxDate ?? undefined}
+              dateFormat={pickerFormat}
+              calendarClassName="date-input-calendar"
+              // Keep openDate within allowed range so month/year nav respects config.
+              openToDate={
+                selected
+                || minDate
+                || maxDate
+                || undefined
+              }
+            />
+          ) : (
+            <div className="date-input-calendar-loading" role="status">
+              Loading calendar…
+            </div>
+          )}
+        </div>,
+        document.body
+      )
       : null;
 
   return (
     <>
       <div className={`date-input-wrap${calendarOpen ? " date-input-wrap--open" : ""}`} ref={wrapRef}>
         <input
+          ref={inputRef}
           type="text"
           className={`date-input-field${isEditing ? " date-input-field--editing" : ""}${className ? ` ${className}` : ""}`}
           id={id}
