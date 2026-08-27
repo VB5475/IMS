@@ -6,7 +6,7 @@ import { getUserSession } from "../session/userSession";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Native <input type="date"> gives back "YYYY-MM-DD" — convert to this app's
+// Date values are stored as "YYYY-MM-DD" (DateInput / ISO) — convert to this app's
 // standard report/list param format ("DD-MMM-YYYY", e.g. PurchaseOrderPage's
 // `01-Jan-${year}`) rather than the ISO string.
 export function toReportDateParam(isoValue) {
