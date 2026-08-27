@@ -27,6 +27,7 @@ import React, {
   lazy,
   Suspense,
 } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, StickyNote, Filter } from "lucide-react";
 import GridSearch from "./GridSearch";
 const SearchSelect = lazy(() => import("../ui/SearchSelect"));
@@ -82,6 +83,35 @@ function toPixels(w) {
   if (typeof w === "number") return w;
   if (typeof w === "string") return parseInt(w, 10) || 0;
   return 0;
+}
+
+// Fixed-position placement for the cell-validation tooltip, mirroring
+// SearchSelect's computeDropdownStyle — keeps it clear of the viewport edges
+// and, since it's `position: fixed` in a document.body portal (not a child
+// of the scrollable grid), never gets clipped by the table's own overflow.
+function computeCellErrorTooltipStyle(rect) {
+  if (!rect) return undefined;
+  const gap = 6;
+  const margin = 8;
+  const maxWidth = 260;
+
+  const spaceAbove = rect.top - gap;
+  const dropUp = spaceAbove > 40;
+
+  let left = rect.left;
+  const maxLeft = window.innerWidth - maxWidth - margin;
+  if (left > maxLeft) left = Math.max(margin, maxLeft);
+  if (left < margin) left = margin;
+
+  return {
+    position: "fixed",
+    left: `${left}px`,
+    maxWidth: `${maxWidth}px`,
+    ...(dropUp
+      ? { bottom: `${window.innerHeight - rect.top + gap}px`, top: "auto" }
+      : { top: `${rect.bottom + gap}px`, bottom: "auto" }),
+    zIndex: 2147483647,
+  };
 }
 
 function downloadCSV(filename, csvContent) {
@@ -208,6 +238,23 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   const [remarkEditor, setRemarkEditor] = useState(null); // { rowId, colKey, colName, value, readOnly }
   const remarkTextareaRef = useRef(null);
+
+  // Cell validation messages (`cellErrors`) used to only reach the DOM as a
+  // native `title` attribute — a hover-and-wait browser tooltip, easy to
+  // miss and invisible to keyboard navigation. The red inset border/corner
+  // marker (cell-wrapper--error, kept below) was a deliberate choice to
+  // avoid pushing row height in a dense grid, but the message itself still
+  // needs to actually be readable — so it's rendered as a real floating
+  // tooltip instead, portalled to <body> with fixed positioning (same
+  // pattern SearchSelect's dropdown uses) so it isn't clipped by the grid's
+  // own scroll container, and shown on hover *or* focus so tabbing into an
+  // invalid cell surfaces it too.
+  const [cellErrorTooltip, setCellErrorTooltip] = useState(null); // { message, rect }
+  const showCellErrorTooltip = useCallback((e, message) => {
+    if (!message) return;
+    setCellErrorTooltip({ message, rect: e.currentTarget.getBoundingClientRect() });
+  }, []);
+  const hideCellErrorTooltip = useCallback(() => setCellErrorTooltip(null), []);
 
   // When the modal opens (manually or auto-opened on the first keystroke),
   // move the cursor to the end of any pre-filled text so continued typing
@@ -795,16 +842,26 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
 
   // ── Cell renderer ─────────────────────────────────────────────────
   const renderCell = (row, col) => {
-    // ── Button columns (ColCtrlType 10, e.g. View/Upload) — an action, not a
-    // data field. Clickable regardless of readOnly (a "View" action is valid
-    // in a read-only grid; onButtonClick decides what each one actually does).
+    // ── Button columns (ColCtrlType 10, e.g. View/Upload/Delete on the
+    // Document Log grid) — an action, not a data field. Clickable regardless
+    // of readOnly (a "View" action is valid in a read-only grid; onButtonClick
+    // decides what each one actually does). The column's OWN key doubles as
+    // the row's per-record permission flag straight from the API (e.g.
+    // row.viewdoc: 1 = allowed, 0 = not allowed) — disable the button when
+    // that flag is explicitly 0. A row with no flag at all (a brand-new
+    // draft row never fetched from the API) is left enabled — permission
+    // gating only applies to rows the backend actually returned a flag for.
     if (isButtonColCtrlType(col.controlType)) {
+      const permFlag = row[col.key];
+      const permissionDenied =
+        permFlag !== undefined && permFlag !== null && permFlag !== "" && Number(permFlag) === 0;
       return (
         <button
           type="button"
           className="cell-action-btn"
+          disabled={permissionDenied}
           onClick={() => onButtonClick?.(row, col)}
-          title={col.name}
+          title={permissionDenied ? `${col.name} — not permitted` : col.name}
         >
           {col.name}
         </button>
@@ -1309,7 +1366,14 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                               >
                                 <div
                                   className={`cell-wrapper${cellErrorMsg ? " cell-wrapper--error" : ""}`}
-                                  title={cellErrorMsg || undefined}
+                                  onMouseEnter={
+                                    cellErrorMsg ? (e) => showCellErrorTooltip(e, cellErrorMsg) : undefined
+                                  }
+                                  onMouseLeave={cellErrorMsg ? hideCellErrorTooltip : undefined}
+                                  onFocus={
+                                    cellErrorMsg ? (e) => showCellErrorTooltip(e, cellErrorMsg) : undefined
+                                  }
+                                  onBlur={cellErrorMsg ? hideCellErrorTooltip : undefined}
                                 >
                                 {col.key === "cb" ? (
                                   <div className="cell-checkbox">
@@ -1574,6 +1638,18 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
             />
           );
         })()}
+
+      {cellErrorTooltip &&
+        createPortal(
+          <div
+            className="eg-cell-error-tooltip"
+            role="tooltip"
+            style={computeCellErrorTooltipStyle(cellErrorTooltip.rect)}
+          >
+            {cellErrorTooltip.message}
+          </div>,
+          document.body
+        )}
     </div>
   );
 });

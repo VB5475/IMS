@@ -26,6 +26,11 @@ export const PV_CONFIG = {
   // Indent's IND_CONFIG.DM_TRAN_TYPE_ID rollout pattern.
   DM_TRAN_TYPE_ID: 121,
 
+  // Workflow (WKF) approval — "Approval Initiator" button on the list page,
+  // same pattern as Purchase Order's PO_CONFIG.WKF_TRAN_TYPE_ID. User-confirmed
+  // value, distinct from (and unrelated to) DM_TRAN_TYPE_ID above.
+  WKF_TRAN_TYPE_ID: 41,
+
   FORM_TAG: "PV",
   TRAN_BOOK: "PR",
 

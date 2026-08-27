@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { DoorOpen } from "lucide-react";
+import { DoorOpen, Send } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE } from "../../api/constants";
+import { getUserSession } from "../../session/userSession";
+import { useNotification } from "../../context/NotificationContext";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { resolveListRowId } from "../../utils/listColumns";
+import { resolveRowFieldValue } from "../../utils/gridUtils";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./constants";
@@ -34,6 +39,8 @@ function buildListParams() {
 export default function AssetsReturnableGatePassOutPage() {
   const navigate = useNavigate();
   const { get } = useApi(API_BASE_URL);
+  const { post: postWkf } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,12 +50,60 @@ export default function AssetsReturnableGatePassOutPage() {
   const [selectedId, setSelectedId] = useState(null);
   const gridRef = useRef(null);
 
+  // "Approval Initiator" button (WKF) — visibility is a per-login,
+  // per-trantype backend flag, same pattern as Purchase Order's. Routes on
+  // From Division (fromdivisionid) per 2026-08-25 /pm confirmation.
+  const [wkfBtnVisible, setWkfBtnVisible] = useState("NO");
+  const [sendingApproval, setSendingApproval] = useState(false);
+  const [divisionNameToId, setDivisionNameToId] = useState({});
+
+  // appstatusid-driven row color + Edit/Delete lock, per src/config/approvalStatusConfig.js.
+  const getRowState = useApprovalRowStatus("assets-returnable-gate-pass-out");
+
   usePageHeader({
     title: "Assets Returnable Gate Pass Out",
     subtitle: "Issue assets for returnable gate pass out.",
     showBack: true,
     backTo: "/",
   });
+
+  useEffect(() => {
+    const session = getUserSession();
+    postWkf(ENDPOINTS.WKF_HANDLE_BUTTON_VISIBILITY, {
+      prmref_is_trantypeid: ARGO_CONFIG.WKF_TRAN_TYPE_ID,
+      prmloginid: session.loginId,
+    })
+      .then((res) => {
+        const row = Array.isArray(res) ? res[0] : res;
+        setWkfBtnVisible(row?.iswkfbtnvisible === "YES" ? "YES" : "NO");
+      })
+      .catch((err) => {
+        console.warn("[AssetsReturnableGatePassOutPage] WKF button visibility fetch failed:", err);
+        setWkfBtnVisible("NO");
+      });
+
+    get(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: OBJ_TYPE.FUNCTION,
+      ObjName: "fn_tbl_fetchuserwsdivision",
+      JSon: JSON.stringify([{
+        prmuserid: session.loginId,
+        prmcompanyid: session.companyId,
+        prmyearid: session.yearId,
+      }]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    })
+      .then((rows) => {
+        const map = {};
+        (rows || []).forEach((row) => {
+          const id = resolveRowFieldValue(row, "divisionid");
+          const name = resolveRowFieldValue(row, "divisionname") ?? resolveRowFieldValue(row, "division");
+          if (id != null && name) map[String(name).trim().toLowerCase()] = Number(id);
+        });
+        setDivisionNameToId(map);
+      })
+      .catch((err) => console.warn("[AssetsReturnableGatePassOutPage] Division options fetch failed:", err));
+  }, [postWkf, get]);
 
   const columns = useMemo(
     () =>
@@ -93,6 +148,50 @@ export default function AssetsReturnableGatePassOutPage() {
     exportRowsToCsv(rows, columns, "Assets_Returnable_Gate_Pass_Out_export.csv");
   }, []);
 
+  const handleSendForApproval = useCallback(async () => {
+    if (!selectedId) {
+      notify.error("Select a record before sending it for approval.");
+      return;
+    }
+    const row = data.find((r) => String(resolveListRowId(r)) === String(selectedId));
+
+    const directDivisionId = Number(resolveRowFieldValue(row, "fromdivisionid"));
+    let divisionId = Number.isFinite(directDivisionId) && directDivisionId > 0 ? directDivisionId : null;
+    if (!divisionId) {
+      const divisionName = row
+        ? String(
+            resolveRowFieldValue(row, "fromdivision") ?? resolveRowFieldValue(row, "fromdivisionname") ?? ""
+          ).trim().toLowerCase()
+        : "";
+      divisionId = divisionNameToId[divisionName];
+    }
+    if (!divisionId) {
+      notify.error("Could not resolve the division for the selected record. Refresh and try again.");
+      return;
+    }
+
+    const session = getUserSession();
+    setSendingApproval(true);
+    try {
+      const result = await postWkf(ENDPOINTS.WKF_SEND_FOR_APPROVAL, {
+        prmref_is_trantypeid: ARGO_CONFIG.WKF_TRAN_TYPE_ID,
+        prmtranid: Number(selectedId),
+        prmcolnamesoftranid: "idnumber",
+        prmyearid: session.yearId,
+        prmloginid: session.loginId,
+        prmdivisionid: divisionId,
+      });
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { notify.error(message); return; }
+      notify.success(message);
+    } catch (err) {
+      console.error("[AssetsReturnableGatePassOutPage] Send for approval failed:", err);
+      notify.error(err?.message || "Failed to send for approval. Please try again.");
+    } finally {
+      setSendingApproval(false);
+    }
+  }, [selectedId, data, divisionNameToId, postWkf, notify]);
+
   return (
     <div className="workspace-page argo-list-page">
       <section className="argo-list-panel argo-list-panel--fill">
@@ -114,7 +213,20 @@ export default function AssetsReturnableGatePassOutPage() {
           onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
-        />
+        >
+          {wkfBtnVisible === "YES" && (
+            <button
+              type="button"
+              className="argo-list__wkf-btn"
+              onClick={handleSendForApproval}
+              disabled={!selectedId || sendingApproval}
+              title="Select a record, then send it for approval"
+            >
+              <Send size={13} strokeWidth={2.5} />
+              {sendingApproval ? "Sending…" : "Approval Initiator"}
+            </button>
+          )}
+        </ListPanelHeader>
 
         <EnterpriseDataGrid
           ref={gridRef}
@@ -142,6 +254,7 @@ export default function AssetsReturnableGatePassOutPage() {
           selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
           onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
           getRowKey={(row) => String(resolveListRowId(row) ?? "")}
+          getRowState={getRowState}
         />
       </section>
     </div>

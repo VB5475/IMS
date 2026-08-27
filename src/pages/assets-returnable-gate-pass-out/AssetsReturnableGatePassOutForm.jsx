@@ -454,7 +454,15 @@ export default function AssetsReturnableGatePassOutForm() {
           if (hasVisibleCol(headerColumns, "configid")) fetches.push(fetchConfigOptions(val));
           if (hasVisibleCol(headerColumns, "tovendorid")) fetches.push(fetchToVendors(val));
           if (fetches.length) await Promise.all(fetches);
-          if (hasVisibleCol(headerColumns, "fromlocationid")) {
+          // "To Vendor" sits right after Division in the actual header row
+          // (Division → To Vendor → From Location) and is itself mandatory
+          // with no single-option auto-fill of its own — jumping straight to
+          // "fromlocationid" skipped over it, landing focus (and, in cases
+          // where From Location happened to auto-fill, the value) two
+          // fields ahead of a required field the user hadn't touched yet.
+          if (hasVisibleCol(headerColumns, "tovendorid")) {
+            focusFieldAfterCascade(filterPanelRef, "tovendorid");
+          } else if (hasVisibleCol(headerColumns, "fromlocationid")) {
             focusFieldAfterCascade(filterPanelRef, "fromlocationid");
           }
         }

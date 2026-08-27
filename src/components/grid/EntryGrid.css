@@ -597,6 +597,22 @@
   color: var(--primary);
 }
 
+/* Per-row permission denied (e.g. Document Log's viewdoc/uploaddoc/deletedoc
+   flag = 0) — visibly inert, no hover affordance. */
+.cell-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--bg-tint, #f5f5f5);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.cell-action-btn:disabled:hover {
+  background: var(--bg-tint, #f5f5f5);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
 /* Row disabled from selection (e.g. already added to the target grid once). */
 .erp-table tbody tr.eg-row--disabled td {
   opacity: 0.5;
@@ -790,6 +806,22 @@
   border-width: 0 7px 7px 0;
   border-color: transparent var(--danger, #dc2626) transparent transparent;
   pointer-events: none;
+}
+
+/* The actual validation message — the corner marker above is only a visual
+   flag; this is what shows the text, on hover/focus of the invalid cell.
+   Rendered via a document.body portal (fixed position), so it floats free
+   of the grid's own scroll container instead of getting clipped by it. */
+.eg-cell-error-tooltip {
+  background: var(--danger, #dc2626);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  white-space: normal;
 }
 
 .cell-label {

@@ -51,6 +51,8 @@ const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const AssetsDepreciationPage = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationPage"));
 const AssetsDepreciationForm = lazy(() => import("./pages/assets-depreciation/AssetsDepreciationForm"));
+const AssetsDepreciationITActPage = lazy(() => import("./pages/assets-depreciation-it-act/AssetsDepreciationITActPage"));
+const AssetsDepreciationITActForm = lazy(() => import("./pages/assets-depreciation-it-act/AssetsDepreciationITActForm"));
 const AssetDepreciationPercentagePage = lazy(
   () => import("./pages/asset-depreciation-percentage/AssetDepreciationPercentagePage")
 );
@@ -125,6 +127,7 @@ const AssetPartsIndentDetailForm = lazy(
 const MaintenanceDashboard = lazy(() => import("./pages/maintenance-dashboard/MaintenanceDashboard"));
 const WorkflowDashboard = lazy(() => import("./pages/workflow-dashboard/WorkflowDashboard"));
 const WKFMainPage = lazy(() => import("./pages/wkf-main/WKFMainPage"));
+const AssetPartIndentPage = lazy(() => import("./pages/assets-part-indent/AssetPartIndentPage"));
 const AssetsReturnableGatePassOutPage = lazy(
   () => import("./pages/assets-returnable-gate-pass-out/AssetsReturnableGatePassOutPage")
 );
@@ -360,6 +363,11 @@ const router = createBrowserRouter([
             list: <AssetsDepreciationPage />,
             form: <AssetsDepreciationForm />,
           }),
+          rbModule({
+            rb: RB.ASSETS_DEPRECIATION_IT_ACT,
+            list: <AssetsDepreciationITActPage />,
+            form: <AssetsDepreciationITActForm />,
+          }),
           rbLeaf({ rb: RB.ASSET_DEPRECIATION_PERCENTAGE, element: <AssetDepreciationPercentagePage /> }),
           rbModule({
             rb: RB.ASSETS_ITEM_OPENING,
@@ -463,6 +471,13 @@ const router = createBrowserRouter([
           // "Nav Menu Label", confirmed 2026-08-14 /pm). Same plain
           // param-route pattern as "main/:reportBoardId" above.
           { path: "wkfmain", element: <WKFMainPage /> },
+
+          // Asset Part Indent (2026-08-25 /pm) — brand-new, read-only
+          // two-grid browse page; no RB code was given for this module, so
+          // (unlike every other Assets route) it isn't wired through
+          // rbModule/RB_CODES — same plain-route pattern as "wkfmain" above.
+          // DOES have a sidebar nav entry, unlike wkfmain — see AppShell.jsx.
+          { path: "assets-part-indent", element: <AssetPartIndentPage /> },
 
           // Admin — Master modules
           rbLeaf({ rb: RB.MAIN_GROUP_MASTER, element: <MainGroupMasterPage /> }),

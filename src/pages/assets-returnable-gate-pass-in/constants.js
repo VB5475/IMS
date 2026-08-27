@@ -61,6 +61,12 @@ export const ARGI_CONFIG = {
   SP_LIST: "fn_tbl_rb_astissrgimst_list",
   LIST_TO_DIVISION_ID: 15,
 
+  // WKF "Approval Initiator" send-for-approval button (2026-08-25 /pm) —
+  // user-confirmed transaction-type id; routes on From Division (fromdivisionid,
+  // the record's own header field — confirmed in AssetsReturnableGatePassInForm.jsx
+  // despite this module's list-fetch defaulting on LIST_TO_DIVISION_ID).
+  WKF_TRAN_TYPE_ID: 383,
+
   STORAGE_HEADER_META: "argiHeaderMeta",
   STORAGE_ENTRY_META: "argiEntryMeta",
 };

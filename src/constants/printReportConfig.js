@@ -16,6 +16,7 @@ export const PRINT_REPORT_CONFIG = {
   "assets-client-release": { reportTitle: "Assets Client Release Report", reportFileName: "AssetsClientRelease.rpt" },
   "assets-department-issue": { reportTitle: "Assets Department Issue Report", reportFileName: "AssetsDepartmentIssue.rpt" },
   "assets-depreciation": { reportTitle: "Company Act Depreciation Report", reportFileName: "AssetsDepreciation.rpt" },
+  "assets-depreciation-it-act": { reportTitle: "Depreciation IT Act Report", reportFileName: "AssetsDepreciationITAct.rpt" },
   "assets-employee-issue": { reportTitle: "Assets Employee Issue Report", reportFileName: "AssetsEmployeeIssue.rpt" },
   "assets-employee-return": { reportTitle: "Assets Employee Return Report", reportFileName: "AssetsEmployeeReturn.rpt" },
   "assets-employee-transfer": { reportTitle: "Employee Location Transfer Report", reportFileName: "AssetsEmployeeTransfer.rpt" },

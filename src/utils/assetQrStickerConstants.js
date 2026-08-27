@@ -16,7 +16,21 @@ export const STICKER_SIZES = {
   // Kept for older callers / PDF fallbacks
   "2x4in": { width: 101.6, height: 50.8 },
   "100x50": { width: 100, height: 50 },
+  // Exact-size 50mm x 50mm label stock — one sticker per physical page.
+  "50x50": { width: 50, height: 50, widthIn: +(50 / 25.4).toFixed(4), heightIn: +(50 / 25.4).toFixed(4) },
+  // Exact-size 50mm x 20mm label stock — too short for the vertical QR+info
+  // layout, so the print flow renders a compact horizontal card for this size.
+  "50x20": {
+    width: 50,
+    height: 20,
+    widthIn: +(50 / 25.4).toFixed(4),
+    heightIn: +(20 / 25.4).toFixed(4),
+    compact: true,
+  },
 };
+
+/** Fixed physical size of a single sticker (QR + info card), independent of page/stock size. */
+export const STICKER_CARD_SIZE_IN = +(50 / 25.4).toFixed(4);
 
 /** Current physical label stock: TA220 4.26in × 2.50in. */
 export const DEFAULT_STICKER_SIZE = "ta220";

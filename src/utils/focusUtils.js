@@ -31,11 +31,18 @@ export function focusAndSelect(el) {
  * resolves, move focus to that field once its options are in the DOM.
  * rootRef      — ref to the panel/form container; scopes the query.
  * fieldColName — filter column name; targets #efq-{fieldColName} .search-select__trigger.
+ * suppressOpen — set when the caller already knows this field resolved to
+ *   exactly one option (SearchSelect will otherwise pop its dropdown open on
+ *   focus for the ~200ms before EnterpriseFilterPanel's own single-option
+ *   auto-advance carries focus past it again — a flash that, mid-transition,
+ *   reads as the form being stuck rather than settling correctly). Leave
+ *   false/omitted for the normal case (2+ options): landing here with the
+ *   dropdown open for the user to browse is the whole point.
  */
-export function focusFieldAfterCascade(rootRef, fieldColName) {
+export function focusFieldAfterCascade(rootRef, fieldColName, suppressOpen = false) {
   requestAnimationFrame(() => {
-    rootRef?.current
-      ?.querySelector(`#efq-${fieldColName} .search-select__trigger`)
-      ?.focus();
+    const el = rootRef?.current?.querySelector(`#efq-${fieldColName} .search-select__trigger`);
+    if (el && suppressOpen) el.dataset.suppressAutoOpen = "1";
+    el?.focus();
   });
 }

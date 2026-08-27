@@ -54,6 +54,10 @@ export const ADI_CONFIG = {
   SP_LIST: "fn_tbl_rb_astdeptissmst_list",
   LIST_FROM_DIVISION_ID: 15,
 
+  // WKF "Approval Initiator" send-for-approval button (2026-08-25 /pm) —
+  // user-confirmed transaction-type id; routes on From Division (fromdivisionid).
+  WKF_TRAN_TYPE_ID: 381,
+
   STORAGE_HEADER_META: "adiHeaderMeta",
   STORAGE_ENTRY_META: "adiEntryMeta",
 };

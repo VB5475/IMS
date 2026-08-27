@@ -27,7 +27,7 @@ export async function buildAssetQrLabels(rows) {
 
   return Promise.all(
     validRows.map(async (fields) => {
-      const payload = buildAssetQrPayload(fields.itemcode, fields.srno);
+      const payload = buildAssetQrPayload(fields.itemcode, fields.itemname, fields.srno);
       const dataUrl = await generateQrDataUrl(payload, 600);
       return { ...fields, dataUrl };
     })

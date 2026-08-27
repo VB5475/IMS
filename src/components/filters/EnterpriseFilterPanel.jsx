@@ -8,7 +8,7 @@ import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
 import { getCheckboxValue, getToggleValue } from "../../utils/masterFormUtils";
 import SearchSelect from "../ui/SearchSelect";
-import { bindFormKeyboardNav } from "../../utils/formKeyboardNav";
+import { bindFormKeyboardNav, focusAdjacentFormField, FORM_FOCUSABLE_SELECTOR } from "../../utils/formKeyboardNav";
 import { selectInputText } from "../../utils/focusUtils";
 import { formatColumnDisplayValue, getDateInputConstraints, isColumnMandatory, validateColumnValue } from "../../utils/columnValidation";
 import { parseNumberInput } from "../../utils/numberFormat";
@@ -44,6 +44,25 @@ function getAccentClass(filter) {
     return "efq-cell--fixed";
   }
   return "efq-cell--editable";
+}
+
+// Shared by FilterTable's per-cell rendering and the single-option auto-select
+// effect below — both need the exact same "is this field actually editable"
+// answer, so there's one place that decides it.
+function resolveFieldTone(filter, fieldTones) {
+  const requestedTone =
+    fieldTones?.[filter.FilterColName] ?? fieldTones?.[filter.FilterParameterID] ?? "editable";
+  if (requestedTone === "editable" && filter.isEditAllow === false) return "view";
+  return requestedTone;
+}
+
+// Mirrors FilterControl's own DROPDOWN option-value resolution (raw RB rows
+// use filterctrlvaluecol/IDNumber; already-shaped {value,label} options pass
+// through) so the auto-selected value matches what the user would have picked.
+function resolveFilterOptionValue(opt) {
+  if (opt.value !== undefined) return String(opt.value);
+  const valKey = opt.filterctrlvaluecol || "IDNumber";
+  return String(opt[valKey]);
 }
 
 /** Build table rows: 3 filters per row; textarea spans full width. */
@@ -507,17 +526,7 @@ function FilterTable({
 }) {
   const rows = useMemo(() => buildFilterRows(filters), [filters]);
 
-  const getFieldTone = useCallback(
-    (filter) => {
-      const requestedTone =
-        fieldTones?.[filter.FilterColName] ??
-        fieldTones?.[filter.FilterParameterID] ??
-        "editable";
-      if (requestedTone === "editable" && filter.isEditAllow === false) return "view";
-      return requestedTone;
-    },
-    [fieldTones]
-  );
+  const getFieldTone = useCallback((filter) => resolveFieldTone(filter, fieldTones), [fieldTones]);
 
   if (layout === "dashboard") {
     return (
@@ -889,6 +898,153 @@ export default function EnterpriseFilterPanel({
     [onFilterChange, cascadeResets]
   );
 
+  // Single-option dropdowns auto-select + hand focus to the next field
+  // (2026-08-25 /pm — rolled out from Purchase Inquiry, which had its own
+  // local copy of this before it lived here). Runs for every consumer of this
+  // panel; skips locked/frozen/view-tone fields and anything already
+  // auto-filled this mount (autoSelectedFieldsRef, cleared on Reset/Clear All
+  // — entry-mode callers instead remount this whole component via a `key`
+  // change on Cancel, which resets the ref for free).
+  //
+  // The focus-advance is deferred past this tick (not just a rAF) because
+  // PurchaseInquiryForm's own "focus first field on Add" timer runs at 80ms —
+  // this needs to land after that or it gets immediately overwritten back to
+  // field 1. 200ms is empirically safe margin over that one known case; a
+  // caller with its own longer post-mount focus timer could still race this.
+  const autoSelectedFieldsRef = useRef(new Set());
+  // A real Tab keypress means the user is actively driving keyboard
+  // navigation — a field's own scheduled focus-advance (200ms after it
+  // became auto-select-eligible) gets skipped if a Tab has landed *since it
+  // was scheduled*, rather than always applying blindly. Two things this
+  // has to tell apart, both confirmed by live reproduction:
+  //
+  // 1. Fast repeated Tabbing (the original bug): most single-option fields
+  //    resolve within the first ~100ms of Add mode, well before any Tab —
+  //    so by the time the user's first Tab lands, every one of those early
+  //    timers was scheduled *before* it. Comparing against the most recent
+  //    Tab (not just "any Tab ever") correctly keeps them suppressed for as
+  //    long as the user keeps tabbing, letting native Tab order drive
+  //    instead of stacking an extra programmatic hop on top of each press
+  //    (confirmed live: without this, 2+ fields get skipped per run).
+  //
+  // 2. One incidental Tab, then a pause (a real, common case: e.g. picking
+  //    a genuine 2+-option Division and tabbing out of habit) — a *later*
+  //    field's eligibility, driven by an async cascade fetch, can easily
+  //    get scheduled *after* that single Tab (its own 200ms delay lands it
+  //    well clear of that one keypress). Comparing against scheduling time
+  //    instead of a fixed cooldown window lets this one through — it's
+  //    "fresh" relative to the last real navigation, not stale. A fixed
+  //    time window can't tell these apart: both this case and the race
+  //    land in roughly the same 200-400ms range (confirmed live: a flat
+  //    400ms cooldown wrongly ate this case too, stalling the chain on
+  //    Quotation Type forever even after the user stopped tabbing).
+  const lastUserTabAtRef = useRef(0);
+  useEffect(() => {
+    const root = panelRef?.current;
+    if (!root) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Tab") lastUserTabAtRef.current = Date.now();
+    };
+    root.addEventListener("keydown", onKeyDown, true);
+    return () => root.removeEventListener("keydown", onKeyDown, true);
+  }, [panelRef]);
+
+  useEffect(() => {
+    if (disabled) return;
+    const root = panelRef?.current;
+
+    const dropdownFilters = filters.filter((f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN);
+
+    dropdownFilters.forEach((f, i) => {
+        const colName = f.FilterColName;
+        if (autoSelectedFieldsRef.current.has(colName)) return;
+        if (resolveFieldTone(f, fieldTones) !== "editable") return;
+
+        const opts = dropdownOptions[f.FilterParameterID] ?? f.staticOptions ?? [];
+        const currentVal = values[colName];
+        const isEmpty =
+          currentVal == null || currentVal === "" || currentVal === 0 || currentVal === "0";
+        if (opts.length !== 1) return;
+
+        // Don't auto-select/auto-advance a field whose own options resolve
+        // independently of an *earlier* dropdown that's still genuinely
+        // unresolved (2+ options, still empty) — e.g. on IMS_PGLIVE, Division
+        // has 2 real options and correctly stays blank, but "Based On" (which
+        // doesn't cascade off Division) still resolves to its one option
+        // immediately and would otherwise jump focus straight past Division.
+        // Whatever this field's single option looks like right now may also
+        // just be stale/wrong until the earlier field is actually chosen.
+        const blockedByEarlierField = dropdownFilters.slice(0, i).some((earlier) => {
+          if (resolveFieldTone(earlier, fieldTones) !== "editable") return false;
+          const earlierOpts = dropdownOptions[earlier.FilterParameterID] ?? earlier.staticOptions ?? [];
+          const earlierVal = values[earlier.FilterColName];
+          const earlierEmpty =
+            earlierVal == null || earlierVal === "" || earlierVal === 0 || earlierVal === "0";
+          return earlierOpts.length !== 1 && earlierEmpty;
+        });
+        if (blockedByEarlierField) return;
+
+        const singleOptValue = resolveFilterOptionValue(opts[0]);
+        // A field can already be non-empty here without the user having
+        // touched it — an RB-configured FilterCtrlDefaultValue seeds it
+        // before this effect ever runs (see fetchFilters above). That's
+        // still a single-option field the user never had to choose on, so
+        // it gets the same auto-advance treatment; only actually-chosen
+        // values (which won't match the one resolvable option) are left
+        // alone.
+        const alreadyOnSingleOpt = !isEmpty && String(currentVal) === String(singleOptValue);
+        if (!isEmpty && !alreadyOnSingleOpt) return;
+
+        autoSelectedFieldsRef.current.add(colName);
+        if (isEmpty) handleChange(colName, singleOptValue);
+
+        if (!root) return;
+        const scheduledAt = Date.now();
+        window.setTimeout(() => {
+          // A Tab landed after this field became eligible — the user has
+          // navigated since, so this advance is stale; let their own
+          // keyboard driving stand instead of stacking a hop on top of it.
+          if (lastUserTabAtRef.current > scheduledAt) return;
+          const current =
+            root.querySelector(`#efq-${colName} .search-select__trigger`) ||
+            root.querySelector(`#efq-${colName}`);
+          if (!current) return;
+          // Every single-option field schedules its own 200ms timer
+          // independently — each becomes eligible at a different moment
+          // (e.g. a field whose options only resolve after a cascade goes
+          // eligible later than one with static options), so these can fire
+          // out of chain order. A field's own advance target is fixed
+          // ("whatever comes right after me"), so if a *later* field in the
+          // chain has already carried focus past that point by the time this
+          // timer fires, applying it here would yank focus backward. Only
+          // apply it when doing so is still a genuine forward move.
+          const fields = [...root.querySelectorAll(FORM_FOCUSABLE_SELECTOR)].filter(
+            (el) => el.offsetParent !== null && el.tabIndex !== -1
+          );
+          const myIndex = fields.indexOf(current);
+          if (myIndex === -1) return;
+          const activeIndex = fields.indexOf(document.activeElement);
+          if (activeIndex !== -1 && activeIndex >= myIndex + 1) return;
+          focusAdjacentFormField(current, {
+            root,
+            // Landing on a SearchSelect via this chain shouldn't pop its
+            // dropdown open — the field the user actually needs to look at
+            // is wherever the chain *finally* stops, and every field it
+            // passes through along the way (also auto-filled, also about to
+            // be advanced past a moment later) would otherwise flash its
+            // list open just before moving on again. Confirmed live on
+            // IMS_PGLIVE: with Division genuinely 2-option, the chain
+            // Division→Quotation Type→Supplier Name flashed Quotation
+            // Type's dropdown open mid-transition, which reads as "stuck"
+            // in a screenshot even though the final position is correct.
+            beforeFocus: (el) => {
+              el.dataset.suppressAutoOpen = "1";
+            },
+          });
+        }, 200);
+      });
+  }, [filters, values, dropdownOptions, fieldTones, disabled, handleChange, panelRef]);
+
   const handleActionClick = useCallback(() => {
     if (onSearch) onSearch(values, filters);
   }, [onSearch, values, filters]);
@@ -898,10 +1054,14 @@ export default function EnterpriseFilterPanel({
   }, [onRefresh, values, filters]);
 
   const handleReset = useCallback(() => {
+    autoSelectedFieldsRef.current.clear();
+    lastUserTabAtRef.current = 0;
     setValues({ ...defaults });
   }, [defaults]);
 
   const handleClearAll = useCallback(() => {
+    autoSelectedFieldsRef.current.clear();
+    lastUserTabAtRef.current = 0;
     const cleared = {};
     filters.forEach((f) => {
       cleared[f.FilterColName] = "";

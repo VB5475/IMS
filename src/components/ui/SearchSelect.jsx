@@ -156,6 +156,15 @@ export default function SearchSelect({
   const handleInputFocus = useCallback(() => {
     if (disabled) return;
     if (suppressOpenRef.current) { suppressOpenRef.current = false; return; }
+    // Set by EnterpriseFilterPanel's single-option auto-advance chain right
+    // before it calls .focus() on a field it's only passing through (also
+    // auto-filled, also about to be advanced past a moment later) — without
+    // this, every intermediate field's list flashes open mid-transition,
+    // which reads as the form being stuck even though it settles correctly.
+    if (inputRef.current?.dataset.suppressAutoOpen) {
+      delete inputRef.current.dataset.suppressAutoOpen;
+      return;
+    }
     openDropdown();
   }, [disabled, openDropdown]);
 

@@ -94,6 +94,12 @@ export const RB_CODES = Object.freeze({
   // ── Assets ──────────────────────────────────────────────────────
   CWIP_TO_FA: "rb_astcwip2famst",
   ASSETS_DEPRECIATION: "rb_astdepcamst",
+  // MRD_Template4DepriciationITAct.docx (24-Aug-2026) — "IT Act" sibling of
+  // ASSETS_DEPRECIATION above ("Company Act"); same header+item-grid shape,
+  // separate RB. See src/pages/assets-depreciation-it-act/constants.js for
+  // the module-code collision note ("DPC" per its own MRD, same as the
+  // sibling module's established shorthand — resolved there).
+  ASSETS_DEPRECIATION_IT_ACT: "rb_astdepitmst",
   ASSET_DEPRECIATION_PERCENTAGE: "rb_astdepPerc",
   ASSETS_WRITE_OFF: "rb_astwriteoffmst",
   ASSETS_EMPLOYEE_ISSUE: "rb_astempissmst",
@@ -188,6 +194,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
 
   [RB_CODES.CWIP_TO_FA]: "/cwip-to-fa",
   [RB_CODES.ASSETS_DEPRECIATION]: "/assets-depreciation",
+  [RB_CODES.ASSETS_DEPRECIATION_IT_ACT]: "/assets-depreciation-it-act",
   [RB_CODES.ASSET_DEPRECIATION_PERCENTAGE]: "/asset-depreciation-percentage",
   [RB_CODES.ASSETS_WRITE_OFF]: "/assets-write-off",
   [RB_CODES.ASSETS_EMPLOYEE_ISSUE]: "/assets-employee-issue",
