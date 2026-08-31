@@ -7,7 +7,7 @@
 //     ('list' | 'date' | 'number' | 'text')
 
 import React, { useState, useMemo, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
-import { ChevronLeft, ChevronRight, Filter, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, Pencil, Trash2, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL_IMS, ENDPOINTS } from "../../api/constants";
@@ -206,9 +206,14 @@ function EnterpriseDataGrid({
   getRowKey = (row, index) =>
     String(row?.IDNUMBER ?? row?.idnumber ?? row?.IDNumber ?? row?.MasterID ?? index),
   // (row) => { statusKey, locked, selectable } — e.g. useApprovalRowStatus(moduleKey).
-  // statusKey adds a `ng-row--status-<statusKey>` class; locked disables that
-  // row's Edit/Delete actions. Rows it returns a no-op state for (or when this
-  // prop is omitted) render exactly as before. See src/config/approvalStatusConfig.js.
+  // statusKey adds a `ng-row--status-<statusKey>` class and renders a small
+  // glyph in the actions column next to Edit/Delete (checkmark for
+  // "approved", filled amber dot for "inApproval" — project-wide since
+  // 2026-08-31 /pm, piloted on Purchase Quotation first). `locked` disables
+  // that row's Edit/Delete actions. Rows it returns a no-op state for (or
+  // when this prop is omitted) render exactly as before — no flag needed to
+  // opt in, every page already passing getRowState gets this automatically.
+  // See src/config/approvalStatusConfig.js.
   getRowState = null,
   // Initial sort, applied once on mount — { key, direction: "asc"|"desc" }.
   // Project-wide default (2026-08-27 /pm, "newest first everywhere"): every
@@ -601,8 +606,17 @@ function EnterpriseDataGrid({
       const deleteMeta = col.getDeleteMeta?.(row) ?? {};
       const rowId = deleteMeta.id ?? row?.IDNUMBER ?? row?.idnumber ?? row?.IDNumber ?? 0;
       const isDeleting = deletingRowIds.has(String(rowId));
+      const statusKey = getRowState?.(row)?.statusKey;
       return (
         <div className="ng-action-btns">
+          {statusKey === "approved" && (
+            <span className="ng-status-marker ng-status-marker--approved" title="Approved" aria-label="Approved">
+              <Check size={11} strokeWidth={3.5} />
+            </span>
+          )}
+          {statusKey === "inApproval" && (
+            <span className="ng-status-marker ng-status-marker--in-approval" title="Pending Approval" aria-label="Pending Approval" />
+          )}
           {!col.hideEdit && (
             <button
               type="button"

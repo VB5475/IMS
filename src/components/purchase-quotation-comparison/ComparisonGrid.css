@@ -284,6 +284,21 @@ thead .pqc-grid__item-col--sticky {
   color: var(--text-muted);
 }
 
+.pqc-grid__cell-landcost {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.pqc-grid__cell-terms {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pqc-grid__footnote {
   margin: 10px 12px;
   font-size: 11px;

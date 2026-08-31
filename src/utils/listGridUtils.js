@@ -6,6 +6,16 @@ function isIdNumberColumnKey(key) {
   return String(key).replace(/\s+/g, "").toLowerCase() === "idnumber";
 }
 
+// Internal-only columns hidden on every list page, project-wide (2026-08-31
+// /pm — same treatment as idnumber above) — appstatusid drives its own
+// dedicated UI (row tint + actions-column marker, see EnterpriseDataGrid's
+// getRowState handling) rather than showing as a raw-number column.
+const ALWAYS_HIDDEN_COLUMN_KEYS = new Set(["appstatusid"]);
+
+function isAlwaysHiddenColumnKey(key) {
+  return ALWAYS_HIDDEN_COLUMN_KEYS.has(String(key).replace(/\s+/g, "").toLowerCase());
+}
+
 /** Normalize list row id fields for edit navigation. */
 export function normalizeListRow(row) {
   if (!row || typeof row !== "object") return row;
@@ -58,14 +68,24 @@ export function resolveListRecordId(row) {
   );
 }
 
-/** Column keys for the list grid — idnumber is a row-id reference only, never a display column. */
-function extractListColumnKeys(rows) {
+function normalizeColumnKey(key) {
+  return String(key).replace(/\s+/g, "").toLowerCase();
+}
+
+/** Column keys for the list grid — idnumber is a row-id reference only, never a display column.
+ *  hiddenKeysSet: additional column keys to exclude (case/space-insensitive), opt-in per caller —
+ *  e.g. "appstatusid", an internal workflow-status field with its own dedicated UI
+ *  (row color + action-column marker, see EnterpriseDataGrid's showApprovalStatusMarker)
+ *  rather than a raw-number column. */
+function extractListColumnKeys(rows, hiddenKeysSet) {
   if (!rows?.length) return [];
-  const keys = Object.keys(rows[0]).filter((key) => !isIdNumberColumnKey(key));
+  const isHidden = (key) =>
+    isIdNumberColumnKey(key) || isAlwaysHiddenColumnKey(key) || hiddenKeysSet?.has(normalizeColumnKey(key));
+  const keys = Object.keys(rows[0]).filter((key) => !isHidden(key));
   const seen = new Set(keys);
   for (let i = 1; i < rows.length; i += 1) {
     Object.keys(rows[i]).forEach((key) => {
-      if (isIdNumberColumnKey(key)) return;
+      if (isHidden(key)) return;
       if (seen.has(key)) return;
       seen.add(key);
       keys.push(key);
@@ -172,8 +192,9 @@ function inferListColumnWidth(key, filterType) {
  * @param {object[]} rows  Normalized list rows from FN_FETCH_DATA Table
  * @param {{ includeActions?: boolean }} [options]
  */
-export function buildListColumnsFromRows(rows, { includeActions = false } = {}) {
-  const keys = extractListColumnKeys(rows);
+export function buildListColumnsFromRows(rows, { includeActions = false, hiddenKeys = [] } = {}) {
+  const hiddenKeysSet = new Set(hiddenKeys.map(normalizeColumnKey));
+  const keys = extractListColumnKeys(rows, hiddenKeysSet);
   if (keys.length === 0) return [];
 
   const columns = keys.map((key) => {
@@ -315,8 +336,8 @@ export function createListActionsColumn({
 }
 
 /** API data columns + a single combined Action (Edit + Delete) column. */
-export function buildListPageColumns(rows, { navigate, basePath, editBtnClass, deleteBtnClass }) {
-  const dataColumns = buildListColumnsFromRows(rows);
+export function buildListPageColumns(rows, { navigate, basePath, editBtnClass, deleteBtnClass, hiddenKeys }) {
+  const dataColumns = buildListColumnsFromRows(rows, { hiddenKeys });
   if (dataColumns.length === 0) return [];
   return [
     ...dataColumns,

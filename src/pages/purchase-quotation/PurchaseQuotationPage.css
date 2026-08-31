@@ -82,3 +82,8 @@
   background: #eef3fa;
   border-color: var(--primary);
 }
+
+/* The lighter approval-status row tint piloted here (2026-08-31 /pm) was
+   confirmed and promoted straight into EnterpriseDataGrid.css's shared
+   .ng-row--status-* rules for the whole project — no page-scoped override
+   needed here any more. */

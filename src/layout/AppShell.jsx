@@ -207,7 +207,6 @@ const NAV_SECTIONS = [
     visible: true,
     items: [
       // Distinct from RB_CODES.DEPARTMENT_MASTER under Master above (different RB/table).
-      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: FileSignature, label: "DOP Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.DM_DEPARTMENT_MASTER), icon: Archive, label: "Department Master", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.DOCUMENT_TYPE_MASTER), icon: FileText, label: "Document Type Master", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.DOCUMENT_SUBTYPE_MASTER), icon: FileStack, label: "Document SubType Master", end: false, visible: false },
@@ -242,6 +241,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ITEM_MASTER), icon: Package, label: "Item Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: FileSignature, label: "DOP Master", end: false, visible: true },
     ],
   },
   {
@@ -350,6 +350,26 @@ function renderNavItem(item, { onReportClick, onNavigate } = {}) {
       <span>{label}</span>
     </NavLink>
   );
+}
+
+/**
+ * Renders one section's item list — shared by the expanded accordion and the
+ * collapsed-rail flyout (see renderNavItem's own doc comment for why these
+ * two render paths stay unified) — inserting a subtle grouping divider after
+ * specific items per SECTION_DIVIDER_AFTER.
+ */
+function renderSectionItems(items, renderOpts) {
+  return items.map((item, index) => {
+    const rendered = renderNavItem(item, renderOpts);
+    const isLast = index === items.length - 1;
+    if (isLast) return rendered;
+    return (
+      <React.Fragment key={`${item.to ?? item.reportKey ?? item.label}-group`}>
+        {rendered}
+        <div className="ent-sidebar__divider" role="separator" />
+      </React.Fragment>
+    );
+  });
 }
 
 export default function AppShell({ children }) {
@@ -625,9 +645,9 @@ export default function AppShell({ children }) {
                   </div>
                 ) : (
                   sectionOpen &&
-                  section.items.map((item) =>
-                    renderNavItem(item, { onReportClick: setActiveReportKey })
-                  )
+                  renderSectionItems(section.items, {
+                    onReportClick: setActiveReportKey,
+                  })
                 )}
               </div>
             );
@@ -646,12 +666,10 @@ export default function AppShell({ children }) {
               onMouseLeave={scheduleFlyoutClose}
             >
               <div className="ent-sidebar__flyout-label">{flyout.label}</div>
-              {flyout.items.map((item) =>
-                renderNavItem(item, {
-                  onReportClick: setActiveReportKey,
-                  onNavigate: () => setFlyout(null),
-                })
-              )}
+              {renderSectionItems(flyout.items, {
+                onReportClick: setActiveReportKey,
+                onNavigate: () => setFlyout(null),
+              })}
             </div>,
             document.body
           )}

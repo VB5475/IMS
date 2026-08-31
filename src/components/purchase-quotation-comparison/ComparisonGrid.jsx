@@ -163,10 +163,18 @@ export default function ComparisonGrid({
                           Qty {cell.qty}
                           {cell.deliverydate && <> · Del. {formatTranDate(cell.deliverydate)}</>}
                         </div>
+                        <div className="pqc-grid__cell-landcost">
+                          Land Cost: {formatCurrency(cell.landcost)}
+                        </div>
                         {cell.qtnno && (
                           <div className="pqc-grid__cell-qtn">
                             Qtn #{cell.qtnno}
                             {cell.qtndate && <> · {formatTranDate(cell.qtndate)}</>}
+                          </div>
+                        )}
+                        {cell.terms && (
+                          <div className="pqc-grid__cell-terms" title={cell.terms}>
+                            Terms: {cell.terms}
                           </div>
                         )}
                       </div>
