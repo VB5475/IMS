@@ -8,8 +8,9 @@
 // RB_DETAIL/SP_DETAIL_FILL/STORAGE_ENTRY_META stay in constants.js, unused
 // for now, per the same caution as SM_CONFIG's equivalents.)
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
@@ -39,7 +40,8 @@ function mapTableToOptions(rows, valueKey, labelKey) {
 }
 
 export function useCustomerMaster(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Master (header) ────────────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);

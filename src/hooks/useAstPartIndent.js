@@ -1,7 +1,8 @@
 // useAstPartIndent.js — Asset Parts Indent Detail (maintenance transaction hook)
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -96,7 +97,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function useAstPartIndent(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

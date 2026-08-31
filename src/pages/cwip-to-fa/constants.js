@@ -17,7 +17,7 @@ export const C2F_CONFIG = {
   RB_MASTER:      RB_CODES.CWIP_TO_FA,
   ROUTE_PATH: rbRoutePath(RB_CODES.CWIP_TO_FA),
   RB_DETAIL:      "rb_astcwip2fadet",
-  RB_ITEM_PICKER: "rb_astcwip2fadetselo",
+  RB_ITEM_PICKER: "rb_astcwip2faselonly",
 
   // Form identifiers
   FORM_TAG:   "C2F",
@@ -28,9 +28,9 @@ export const C2F_CONFIG = {
   SP_RB_META:      "fn_fetch_rbdetailbyrbcode",
   SP_DIVISIONS:    "fn_tbl_fetchuserwsdivision",
   SP_LOCATION:     "fn_gen_fetchastisslocationmaster",
-  SP_CWIP_ACC:     "fn_tbl_fetch_assetsaccount",
+  SP_CWIP_ACC:     "fn_tbl_fetch_assetscwipaccount",
   SP_COST_CENTER:  "fn_tbl_fas_fetchcostcenterac",
-  SP_ITEM_PICKER:  "fn_tbl_rb_astcwip2fadetsel",
+  SP_ITEM_PICKER:  "fn_tbl_rb_astcwip2faselonly",
   SP_GRID_EVENT:   null,
   SP_UNIQUE_ID:    "pr_gen_fetchlevyuniqueno4web",
 

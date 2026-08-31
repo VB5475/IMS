@@ -21,7 +21,7 @@ export const IM_CONFIG = {
 
   LIST_OBJ_TYPE: 2,
   SP_LIST: "fn_tbl_mnt_itemmst_list",
-  LIST_DIVISION_ID: 15,
+  LIST_DIVISION_ID: 1,
 
   DELETE_PROC_NAME: "pr_rb_puritemmst_delete",
 
@@ -33,6 +33,9 @@ export const IM_CONFIG = {
   // so it scopes to DM Department Master id 6 ("ADMIN"), not 1 ("PURCHASE")
   // like the Purchase-flow transaction forms use.
   DM_TRAN_TYPE_ID: 30,
+
+  // Workflow "Approval Initiator" button (WKF), user-confirmed 2026-08-27 /pm.
+  WKF_TRAN_TYPE_ID: 52,
 };
 
 /** RB colnames for Sub Group levels (all lowercase — PG returns lowercase keys). */

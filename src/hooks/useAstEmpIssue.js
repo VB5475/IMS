@@ -1,5 +1,5 @@
 // useAstEmpIssue.js — Assets Employee Issue (AEI) header, grid, and cascades
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
 import {
   ENDPOINTS,
@@ -16,6 +16,7 @@ import {
   isVisibleApiCol,
   hasVisibleCol,
 } from "../utils/gridUtils";
+import { withGetRetry } from "../utils/apiRetry";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   const session = getUserSession();
@@ -284,7 +285,11 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function useAstEmpIssue(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  // Retry pilot (2026-08-29 /pm) — every read call in this hook now retries
+  // automatically on network error/exception, per the configurable
+  // apiRetryCount (public/config.json). See src/utils/apiRetry.js.
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

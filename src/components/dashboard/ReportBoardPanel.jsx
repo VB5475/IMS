@@ -12,6 +12,7 @@ import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
 import GridSearch from "../grid/GridSearch";
 import Modal from "../ui/Modal";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { DASHBOARD_ASSIGN_OPTIONS } from "../../pages/dashboard/constants";
 import { getUserSession } from "../../session/userSession";
@@ -237,7 +238,8 @@ export default function ReportBoardPanel({
   fill = compact,
   sessionId = 0,
 }) {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const notify = useNotification();
   const navigate = useNavigate();
   const storedCartRef = useRef(readDashboardCart());

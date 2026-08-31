@@ -67,7 +67,10 @@ export const GRN_CONFIG = {
 
   SP_GRN_TYPES: PURCHASE_API.SP_CONFIG_TYPES,
 
+  SUPPLIER_PARTY_TYPE: "S",
 
+  /** Client(Asset) dropdown — same SP as Supplier (SUPPLIER_SP), filtered by party type. */
+  ASSET_CLIENT_PARTY_TYPE: "C",
 
   RB_MASTER: RB_CODES.GOODS_RECEIVED_NOTE,
   ROUTE_PATH: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE),
@@ -237,9 +240,15 @@ export const GRN_FILTER_CASCADE_RESETS = {
 
     "destinationid",
 
+    "assetclientid",
+
   ],
 
   transporterid: ["destinationid"],
+
+  // Client(Asset) is only meaningful while Is Client Asset is checked — clear
+  // any selection whenever the checkbox is toggled (either direction).
+  isclientasset: ["assetclientid"],
 
 };
 

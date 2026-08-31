@@ -2,8 +2,9 @@
 // for the full architecture notes). Mirrors useDivisionWiseRights.js's
 // single-RB-covers-header-and-grid pattern.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { mapRowToFieldValues } from "../utils/gridUtils";
@@ -60,7 +61,8 @@ function mapGridRowFromApi(row, gridColumnDefs) {
 }
 
 export function useDMGroupRights() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [allColumns, setAllColumns] = useState([]);
   const [headerColumns, setHeaderColumns] = useState([]);

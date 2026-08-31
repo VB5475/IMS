@@ -12,8 +12,9 @@
 //   fetchCostCenters(divisionId, tranDate)   — Cost Center dropdown (same SP, module="C2F")
 //   seedOptionsFromMaster handles: Division, Location, CWIPAccID, CostCenter
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -113,7 +114,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 const DETAIL_HEADER_FIELDS = new Set(["NetTotal"]);
 
 export function useCWIPToFA(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Header (master) state ──────────────────────────────────────────────────
   const [headerColumns,   setHeaderColumns]   = useState([]);
@@ -448,21 +450,35 @@ export function useCWIPToFA(baseURL = API_BASE_URL) {
   }, [allColumns]);
 
   // ── seedOptionsFromMaster — edit mode: pre-fill dropdowns from saved record ─
+  // Live GET_MASTER_DATA_FILL response for fn_tbl_rb_astcwip2famst (verified
+  // 2026-08-27 /pm against a real saved record) actually names these display
+  // columns "division"/"cwipaccount"/"costcenteraccount" — NOT
+  // "divisionname"/"cwipaccname"/"costcentername" as originally guessed. That
+  // mismatch meant Division/CWIP A/C/Cost Center silently never seeded in
+  // edit mode (rendered as blank "Select…" despite the record having real
+  // saved values) — only Location happened to match by coincidence. Kept the
+  // originally-guessed names as a fallback in case a different environment's
+  // SP names these columns differently.
   const seedOptionsFromMaster = useCallback((master) => {
-    if (master.divisionid != null && master.divisionname) {
-      setDivisionOptions([{ value: String(master.divisionid), label: master.divisionname }]);
+    const divisionLabel = master.division ?? master.divisionname;
+    if (master.divisionid != null && divisionLabel) {
+      setDivisionOptions([{ value: String(master.divisionid), label: divisionLabel }]);
     }
-    if (master.locationid != null && master.locationname) {
-      setLocationOptions([{ value: String(master.locationid), label: master.locationname }]);
+    const locationLabel = master.locationname ?? master.location;
+    if (master.locationid != null && locationLabel) {
+      setLocationOptions([{ value: String(master.locationid), label: locationLabel }]);
     }
-    if (master.cwipaccid != null && master.cwipaccname) {
-      setCWIPAccOptions([{ value: String(master.cwipaccid), label: master.cwipaccname }]);
+    const cwipAccLabel = master.cwipaccount ?? master.cwipaccname;
+    if (master.cwipaccid != null && cwipAccLabel) {
+      setCWIPAccOptions([{ value: String(master.cwipaccid), label: cwipAccLabel }]);
     }
-    if (master.costcenteraccid != null && master.costcentername) {
-      setCostCenterOptions([{ value: String(master.costcenteraccid), label: master.costcentername }]);
+    const costCenterLabel = master.costcenteraccount ?? master.costcentername;
+    if (master.costcenteraccid != null && costCenterLabel) {
+      setCostCenterOptions([{ value: String(master.costcenteraccid), label: costCenterLabel }]);
     }
-    if (master.assetitemid != null && master.assetitemname) {
-      setAssetItemOptions([{ value: String(master.assetitemid), label: master.assetitemname }]);
+    const assetItemLabel = master.assetitemname ?? master.assetitem;
+    if (master.assetitemid != null && assetItemLabel) {
+      setAssetItemOptions([{ value: String(master.assetitemid), label: assetItemLabel }]);
     }
   }, []);
 

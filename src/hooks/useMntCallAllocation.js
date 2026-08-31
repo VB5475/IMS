@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -85,7 +86,8 @@ function applyAllocationDefaults(headerValues) {
  * Fill:     fn_tbl_rb_mntallocation via FN_Fetch_Data
  */
 export function useMntCallAllocation() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});

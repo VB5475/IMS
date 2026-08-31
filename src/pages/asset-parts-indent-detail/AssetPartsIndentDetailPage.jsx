@@ -6,6 +6,7 @@ import { Package } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
@@ -26,7 +27,8 @@ function buildListParams() {
 
 export default function AssetPartsIndentDetailPage() {
   const navigate = useNavigate();
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { UserCheck } from "lucide-react";
+import { UserCheck, Send } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
-import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
+import { withGetRetry } from "../../utils/apiRetry";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useNotification } from "../../context/NotificationContext";
 import { normalizeListRows, createListActionsColumn } from "../../utils/listGridUtils";
+import { resolveListRowId } from "../../utils/listColumns";
+import { resolveRowFieldValue } from "../../utils/gridUtils";
+import { parseApiErrMsg } from "../../utils/apiResponse";
+import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { useCustomerMaster } from "../../hooks/useCustomerMaster";
 import CustomerMasterForm from "./CustomerMasterForm";
 import { CM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
@@ -23,7 +29,7 @@ function buildCustomerMasterReportParams() {
   ];
 }
 
-function buildListParams() {
+function buildListParams(divisionId) {
   const session = getUserSession();
   const today = formatTranDate(new Date(), { invalidValue: "" });
   return {
@@ -32,7 +38,7 @@ function buildListParams() {
     JSon: JSON.stringify([
       {
         prmcompanyid: session.companyId,
-        prmdivisionid: CM_CONFIG.LIST_DIVISION_ID,
+        prmdivisionid: divisionId,
         prmfromdate: today,
         prmtodate: today,
         prmentrytype: CM_CONFIG.ENTRY_TYPE,
@@ -59,7 +65,10 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function CustomerMasterPage() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
+  const { post: postWkf } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
 
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
@@ -77,10 +86,92 @@ export default function CustomerMasterPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const gridRef = useRef(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
   const [editRecordId, setEditRecordId] = useState(null);
+
+  // "Approval Initiator" button (WKF) — visibility is a per-login,
+  // per-trantype backend flag, same pattern as Purchase Order/Purchase
+  // Quotation's. Defaults to "NO" (safe default-deny) until the fetch resolves.
+  const [wkfBtnVisible, setWkfBtnVisible] = useState("NO");
+  const [sendingApproval, setSendingApproval] = useState(false);
+
+  // The division this page actually uses everywhere it needs one (list fetch
+  // + WKF send) — resolved dynamically from the logged-in user's own real
+  // division(s) via fn_tbl_fetchuserwsdivision (same SP/pattern PQ, PO,
+  // Purchase Indent, CWIP To FA etc. all already use), 2026-08-27 /pm.
+  // CM_CONFIG.LIST_DIVISION_ID stays as the seed/fallback value.
+  const [effectiveDivisionId, setEffectiveDivisionId] = useState(CM_CONFIG.LIST_DIVISION_ID);
+
+  // appstatusid-driven row color + Edit/Delete lock, per src/config/approvalStatusConfig.js.
+  const getRowState = useApprovalRowStatus("customer-master");
+
+  useEffect(() => {
+    const session = getUserSession();
+    postWkf(ENDPOINTS.WKF_HANDLE_BUTTON_VISIBILITY, {
+      prmref_is_trantypeid: CM_CONFIG.WKF_TRAN_TYPE_ID,
+      prmloginid: session.loginId,
+    })
+      .then((res) => {
+        const row = Array.isArray(res) ? res[0] : res;
+        setWkfBtnVisible(row?.iswkfbtnvisible === "YES" ? "YES" : "NO");
+      })
+      .catch((err) => {
+        console.warn("[CustomerMasterPage] WKF button visibility fetch failed:", err);
+        setWkfBtnVisible("NO");
+      });
+
+    get(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: OBJ_TYPE.FUNCTION,
+      ObjName: "fn_tbl_fetchuserwsdivision",
+      JSon: JSON.stringify([{
+        prmuserid: session.loginId,
+        prmcompanyid: session.companyId,
+        prmyearid: session.yearId,
+      }]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    })
+      .then((rows) => {
+        const first = (rows || [])[0];
+        const id = first ? resolveRowFieldValue(first, "divisionid") : null;
+        if (id != null) setEffectiveDivisionId(Number(id));
+      })
+      .catch((err) => console.warn("[CustomerMasterPage] User division fetch failed:", err));
+  }, [postWkf, get]);
+
+  // Customer Master's list rows carry no per-row division field (confirmed
+  // live — company-wide admin master, same as Supplier Master) —
+  // effectiveDivisionId (the resolved user division, see above) is the only
+  // "division" this module has.
+  const handleSendForApproval = useCallback(async () => {
+    if (!selectedId) {
+      notify.error("Select a customer before sending it for approval.");
+      return;
+    }
+    const session = getUserSession();
+    setSendingApproval(true);
+    try {
+      const result = await postWkf(ENDPOINTS.WKF_SEND_FOR_APPROVAL, {
+        prmref_is_trantypeid: CM_CONFIG.WKF_TRAN_TYPE_ID,
+        prmtranid: Number(selectedId),
+        prmcolnamesoftranid: "idnumber",
+        prmyearid: session.yearId,
+        prmloginid: session.loginId,
+        prmdivisionid: effectiveDivisionId,
+      });
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { notify.error(message); return; }
+      notify.success(message);
+    } catch (err) {
+      console.error("[CustomerMasterPage] Send for approval failed:", err);
+      notify.error(err?.message || "Failed to send for approval. Please try again.");
+    } finally {
+      setSendingApproval(false);
+    }
+  }, [selectedId, effectiveDivisionId, postWkf, notify]);
 
   usePageHeader({
     title: "Customer Master",
@@ -97,7 +188,7 @@ export default function CustomerMasterPage() {
     try {
       setLoading(true);
       setError(null);
-      const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams());
+      const json = await get(ENDPOINTS.FN_FETCH_DATA, buildListParams(effectiveDivisionId));
       setData(normalizeListRows(json ?? []));
     } catch (err) {
       console.error("[CustomerMasterPage] list fetch failed:", err);
@@ -105,7 +196,7 @@ export default function CustomerMasterPage() {
     } finally {
       setLoading(false);
     }
-  }, [get]);
+  }, [get, effectiveDivisionId]);
 
   useEffect(() => {
     fetchCustomerList();
@@ -156,7 +247,20 @@ export default function CustomerMasterPage() {
           onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
-        />
+        >
+          {wkfBtnVisible === "YES" && (
+            <button
+              type="button"
+              className="sm-list__wkf-btn"
+              onClick={handleSendForApproval}
+              disabled={!selectedId || sendingApproval}
+              title="Select a customer, then send it for approval"
+            >
+              <Send size={13} strokeWidth={2.5} />
+              {sendingApproval ? "Sending…" : "Approval Initiator"}
+            </button>
+          )}
+        </ListPanelHeader>
 
         <EnterpriseDataGrid
           ref={gridRef}
@@ -179,6 +283,12 @@ export default function CustomerMasterPage() {
           deleteProcName={CM_CONFIG.DELETE_PROC_NAME}
           onDeleteSuccess={fetchCustomerList}
           fill
+          selectable
+          singleSelect
+          selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
+          onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
+          getRowKey={(row) => String(resolveListRowId(row) ?? "")}
+          getRowState={getRowState}
         />
       </section>
 

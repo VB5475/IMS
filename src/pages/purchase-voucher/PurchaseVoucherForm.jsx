@@ -35,6 +35,7 @@ import { usePurchaseVoucher } from "../../hooks/usePurchaseVoucher";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -52,6 +53,7 @@ import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
+import { getCheckboxValue } from "../../utils/masterFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
@@ -103,6 +105,8 @@ function mapHeaderValuesToFilterValues(headerValues) {
     creditstartdate: headerValues.creditstartdate ?? "",
     narration: headerValues.narration ?? "",
     remarks: headerValues.remarks ?? "",
+    assetclientid: String(headerValues.assetclientid ?? ""),
+    isclientasset: headerValues.isclientasset ?? 0,
   };
 }
 
@@ -161,7 +165,8 @@ export default function PurchaseVoucherForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
@@ -169,6 +174,7 @@ export default function PurchaseVoucherForm() {
     divisionOptions, pvTypeOptions, supplierOptions,
     costCenterOptions,
     locationOptions, fetchLocationOptions, clearLocations,
+    clientAssetOptions, fetchClientAssetOptions, clearClientAssets,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,
@@ -258,6 +264,8 @@ export default function PurchaseVoucherForm() {
 
   // ── Edit-mode gate ─────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
+  // Client(Asset) dropdown is only enabled while Is Client Asset is checked.
+  const [isClientAssetChecked, setIsClientAssetChecked] = useState(false);
 
   // Document Log modal (F6) — scoped to this voucher's record id, gated on
   // the session's Document Log permission flags. Mirrors Purchase Indent's
@@ -351,6 +359,7 @@ export default function PurchaseVoucherForm() {
       seedOptionsFromMaster(master);
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
       setFilterResetKey((k) => k + 1);
+      setIsClientAssetChecked(getCheckboxValue(headerValues.isclientasset) === 1);
 
       // seedOptionsFromMaster only seeds dropdowns the master-fill row embeds
       // a display name for (divisionname, suppliername, ...) — the master
@@ -359,6 +368,12 @@ export default function PurchaseVoucherForm() {
       if (headerValues.divisionid) {
         fetchLocationOptions(headerValues.divisionid);
       }
+      // Same gap as location — master fill has no assetclientname either, and
+      // this field can be RB-frozen (islockoneditmodeallow) so it may never
+      // pass through fetchUnlockedHeaderDropdowns. Fetch directly (division-
+      // independent, like Supplier) so a saved selection still resolves to a
+      // real label instead of a raw id.
+      fetchClientAssetOptions();
 
       if (headerValues.currencyname || headerValues.currencyrate) {
         setCurrencyExternalValues({
@@ -383,7 +398,7 @@ export default function PurchaseVoucherForm() {
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, fetchLocationOptions]);
+  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, fetchLocationOptions, fetchClientAssetOptions]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -431,7 +446,8 @@ export default function PurchaseVoucherForm() {
     costcenterid: costCenterOptions,
     locationid: locationOptions,
     basedonid: PV_CONFIG.BASED_ON_OPTIONS,
-  }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions, locationOptions]);
+    assetclientid: clientAssetOptions,
+  }), [divisionOptions, pvTypeOptions, supplierOptions, costCenterOptions, locationOptions, clientAssetOptions]);
 
   // ── syncedFilters — built straight from the live RB column ──────────
   const buildFilterDefFromApiCol = useCallback(
@@ -499,11 +515,19 @@ export default function PurchaseVoucherForm() {
       let tone = "editable";
       if (!isEditMode) tone = "view";
       else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
+
+      // Client(Asset) only makes sense while Is Client Asset is checked —
+      // lock it the same way an RB-frozen field would look, without
+      // touching the RB metadata itself.
+      if (f.FilterColName === "assetclientid" && tone === "editable" && !isClientAssetChecked) {
+        tone = "view";
+      }
+
       tones[f.FilterColName] = tone;
       if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
     });
     return tones;
-  }, [syncedFilters, isEditMode, isEditRoute]);
+  }, [syncedFilters, isEditMode, isEditRoute, isClientAssetChecked]);
 
   // ── Filter change / cascade ────────────────────────────────────────
   const handleFilterChange = useCallback(async (colName, val) => {
@@ -519,6 +543,7 @@ export default function PurchaseVoucherForm() {
       headerValuesRef.current.configid = 0;
       headerValuesRef.current.supplierid = 0;
       headerValuesRef.current.locationid = 0;
+      headerValuesRef.current.assetclientid = 0;
       clearPvTypes();
       clearLocations();
       itemGridRef.current?.clearRows?.();
@@ -587,6 +612,14 @@ export default function PurchaseVoucherForm() {
       const next = Number(val) ? 1 : 0;
       headerValuesRef.current.selectallputtouse = next;
       itemGridRef.current?.updateAllRows?.({ puttouse: next });
+      return;
+    }
+
+    if (colName === "isclientasset") {
+      setIsClientAssetChecked(getCheckboxValue(val) === 1);
+      // Selection reset (blank the visible dropdown) is handled by
+      // PV_FILTER_CASCADE_RESETS — mirrors it in headerValuesRef.
+      headerValuesRef.current.assetclientid = 0;
       return;
     }
   }, [fetchPVTypes, clearPvTypes, fetchSupplierInfo, getSupplierCurrency, fetchCostCenters, fetchLocationOptions, clearLocations]);
@@ -875,6 +908,7 @@ export default function PurchaseVoucherForm() {
       billno: "", billdate: getTodayDateInputValue(),
       costcenterid: 0, creditstartdate: getTodayDateInputValue(),
       narration: "", remarks: "", tranmstgenid: 0,
+      isclientasset: 0, assetclientid: 0,
       companyid: resetSession.companyId, yearid: resetSession.yearId,
       loginid: resetSession.loginId, idnumber: 0, funccode: PV_CONFIG.RB_MASTER,
     };
@@ -903,13 +937,14 @@ export default function PurchaseVoucherForm() {
     setFilterResetKey,
     setLoadedFilterValues,
     setGridRows,
-    extraClearFns: [clearPvTypes, docLog.resetDocGuid],
+    extraClearFns: [clearPvTypes, clearClientAssets, docLog.resetDocGuid],
     // Back to a blank new-entry state (post-save, or Cancel on a new record)
     // — re-issue a fresh GUID for whatever the user enters next, same as the
     // initial mount fetch. No-op on an edit route (isNewRoute is false there).
     extraReset: () => {
       if (isNewRoute) docLog.fetchDocGuid();
       setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+      setIsClientAssetChecked(false);
       // null (not blank strings) — billno/billdate are ordinary RB header
       // fields already blank in the New-record initialValues; a blank merge
       // isn't needed and, unlike currency, must never later stomp a freshly

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Layers, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -88,7 +89,7 @@ function buildColumnsFromData(data, navigate) {
           aria-label={`Edit C2F ${row.tranno ?? ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/rb_astcwip2famst/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
+            navigate(`${C2F_CONFIG.ROUTE_PATH}/${row.c2fid ?? row.idnumber}/edit`, { state: { record: row } });
           }}
         >
           <Pencil size={13} strokeWidth={2} />
@@ -100,7 +101,8 @@ function buildColumnsFromData(data, navigate) {
 
 export default function CWIPToFAPage() {
   const navigate = useNavigate();
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -12,9 +12,10 @@
 //
 // Cascade: Division → PO Type
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import axios from "axios";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -114,7 +115,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function usePurchaseOrder(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Header (master) state ───────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);

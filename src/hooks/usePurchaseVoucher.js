@@ -11,8 +11,9 @@
 //   fetchCostCenters(divisionId, date)   — Cost Center dropdown
 //   No amend, no 3rd detail table (simpler than PO)
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -102,7 +103,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function usePurchaseVoucher(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Header (master) state ───────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);
@@ -115,8 +117,10 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [costCenterOptions, setCostCenterOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
+  const [clientAssetOptions, setClientAssetOptions] = useState([]);
 
   const [isLoadingPvTypes, setIsLoadingPvTypes] = useState(false);
+  const [isLoadingClientAssets, setIsLoadingClientAssets] = useState(false);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   // ── Detail grid state ───────────────────────────────────────────────
@@ -217,6 +221,42 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
 
   const clearLocations = useCallback(() => setLocationOptions([]), []);
 
+  // ── fetchClientAssetOptions ─────────────────────────────────────────
+  // Same SP as Supplier (division-independent, prmdivisionid: 0), filtered
+  // to party type "C" instead of "S" — mirrors fetchHeaderMeta's supplier
+  // fetch below.
+  const fetchClientAssetOptions = useCallback(async () => {
+    setIsLoadingClientAssets(true);
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: PV_CONFIG.SUPPLIER_SP,
+        JSon: JSON.stringify([{
+          prmdivisionid: 0,
+          prmloginid: getUserSession().loginId,
+          prmyearid: getUserSession().yearId,
+          prmpartytype: PV_CONFIG.ASSET_CLIENT_PARTY_TYPE,
+        }]),
+        p_ErrCode: -1, p_ErrMsg: "",
+      });
+      const rows = res || [];
+      const opts = rows.map((r) => ({
+        value: String(r.supplierid ?? r.partyid),
+        label: r.suppliername ?? r.partyname,
+      }));
+      setClientAssetOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[PV] Client(Asset) fetch failed:", err);
+      setClientAssetOptions([]);
+      return [];
+    } finally {
+      setIsLoadingClientAssets(false);
+    }
+  }, [get]);
+
+  const clearClientAssets = useCallback(() => setClientAssetOptions([]), []);
+
   // ── fetchCostCenters ────────────────────────────────────────────────
   const fetchCostCenters = useCallback(async (divisionId, tranDate) => {
     try {
@@ -275,6 +315,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
       if (skipListDropdowns) {
         setDivisionOptions([]);
         setSupplierOptions([]);
+        setClientAssetOptions([]);
         return;
       }
 
@@ -300,6 +341,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
           }]),
           p_ErrCode: -1, p_ErrMsg: "",
         }).catch((err) => { console.warn("[PV] Supplier fetch failed:", err); return null; }),
+        fetchClientAssetOptions(),
       ]);
 
       setDivisionOptions(
@@ -326,7 +368,7 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     } finally {
       setHeaderFetching(false);
     }
-  }, [get]);
+  }, [get, fetchClientAssetOptions]);
 
   // ── fetchDetailMeta ─────────────────────────────────────────────────
   const fetchDetailMeta = useCallback(async () => {
@@ -476,8 +518,10 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     }
     if (needsConfig && divisionId) tasks.push(fetchPVTypes(divisionId));
     if (needsCostCenter) tasks.push(fetchCostCenters(divisionId, tranDate));
+    const needsClientAsset = headerColumns.some((c) => c.colname === "assetclientid" && isEditable(c));
+    if (needsClientAsset) tasks.push(fetchClientAssetOptions());
     await Promise.all(tasks);
-  }, [headerColumns, get, fetchPVTypes, fetchCostCenters]);
+  }, [headerColumns, get, fetchPVTypes, fetchCostCenters, fetchClientAssetOptions]);
 
   // ── fetchEditRecord ─────────────────────────────────────────────────
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
@@ -512,6 +556,8 @@ export function usePurchaseVoucher(baseURL = API_BASE_URL) {
     costCenterOptions,
     locationOptions, isLoadingLocations,
     fetchLocationOptions, clearLocations,
+    clientAssetOptions, isLoadingClientAssets,
+    fetchClientAssetOptions, clearClientAssets,
     isLoadingPvTypes,
     fetchPVTypes, clearPvTypes,
     fetchSupplierInfo, getSupplierCurrency,

@@ -75,4 +75,9 @@ export const CM_CONFIG = {
   // DOCUMENT_LOG_CONFIG.ADMIN_REF_DEPARTMENT_ID) — Customer Master is an
   // admin/setup master too, not a Purchase-department transaction.
   DM_TRAN_TYPE_ID: 65,
+
+  // Workflow "Approval Initiator" button (WKF), user-confirmed 2026-08-27
+  // /pm — own trantype id, overriding the one inherited via ...SM_CONFIG
+  // above (Supplier Master's is 168).
+  WKF_TRAN_TYPE_ID: 167,
 };

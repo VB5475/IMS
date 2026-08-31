@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, CBO_MODE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { controlTypeMap } from "../../data/dummyData";
@@ -645,7 +646,8 @@ export default function EnterpriseFilterPanel({
   apiBaseUrl,
   children = null,
 }) {
-  const { get } = useApi(apiBaseUrl);
+  const { get: rawGet } = useApi(apiBaseUrl);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [filters, setFilters] = useState(staticFilters || []);
   const [dropdownOptions, setDropdownOptions] = useState({});

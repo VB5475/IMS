@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { AlertCircle, Trash2, Package, FileText, Printer, Save } from "lucide-react";
+import { AlertCircle, Trash2, Package, FileText, ClipboardList, Printer, Save } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import EnterpriseSummaryPanel from "../../components/filters/EnterpriseSummaryPanel";
 import EntryGrid from "../../components/grid/EntryGrid";
@@ -23,6 +23,7 @@ import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useNotification } from "../../context/NotificationContext";
+import TermsPickerModal from "../../components/purchase-inquiry/TermsPickerModal";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 const DocumentLogModal = lazy(() => import("../../components/txn/DocumentLogModal"));
 import { DOCUMENT_LOG_CONFIG as DOC_LOG_CFG } from "../../components/txn/documentLogConfig";
@@ -30,6 +31,7 @@ import SearchSelect from "../../components/ui/SearchSelect";
 import { usePurchaseQuotation } from "../../hooks/usePurchaseQuotation";
 import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -70,12 +72,12 @@ import {
   QTN_HEADER_FILTERS,
   QTN_GRID_TABS,
   APPROVED_OPTS,
-  TERMS_COLUMNS,
   QTN_FILTER_CASCADE_RESETS,
   QTN_ITEM_PICKER_CONTEXT_FIELDS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
+  buildTermsPickerJsonPayload,
 } from "./constants";
 import "./PurchaseQuotationForm.css";
 
@@ -123,6 +125,38 @@ function mapPickerToItemRow(item, allColumns) {
   return row;
 }
 
+// Row-identity / audit columns present on every rb_purqtn*det RB — must
+// always come from getColDefault (0 for a brand-new row), never from the
+// picker source object (same PICKER_OVERLAY_EXCLUDED_KEYS fix as Purchase
+// Inquiry's Terms/Supplier tabs — see PurchaseInquiryForm.jsx).
+const TERMS_PICKER_OVERLAY_EXCLUDED_KEYS = new Set([
+  "idnumber",
+  "masterid",
+  "detailid",
+  "compuniquekey",
+  "randomgenid",
+  "tranmstgenid",
+  "childfkey",
+  "entrystatus",
+]);
+
+// Map a terms-picker row → RB-driven Terms grid row (rb_purqtntncdet columns).
+function mapTermsPickerRowToGridRow(item, allGridColumns, overrides = {}) {
+  const row = { id: nextTempId() };
+  allGridColumns.forEach(({ key, colDataType }) => {
+    row[key] = getColDefault(colDataType);
+  });
+  Object.entries(item).forEach(([k, v]) => {
+    const lk = k.toLowerCase();
+    if (lk === "id" || TERMS_PICKER_OVERLAY_EXCLUDED_KEYS.has(lk)) return;
+    if (v != null && Object.prototype.hasOwnProperty.call(row, lk)) row[lk] = v;
+  });
+  Object.entries(overrides).forEach(([k, v]) => {
+    if (Object.prototype.hasOwnProperty.call(row, k)) row[k] = v;
+  });
+  return row;
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export default function PurchaseQuotationForm() {
@@ -136,6 +170,7 @@ export default function PurchaseQuotationForm() {
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
+  const [termsCellErrors, setTermsCellErrors] = useState(null);
 
   // 2026-08-14 (/pm) — the "Fix N error(s) before saving" banner (built once,
   // at validation time, into formErrors) doesn't auto-update as the user
@@ -154,13 +189,17 @@ export default function PurchaseQuotationForm() {
 
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
+  const termsGridRef = useRef(null);
   const summaryRef = useRef(null);
   const filterPanelRef = useRef(null);
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
+  const termsColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const queuedTermsRowsRef = useRef([]);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
 
   const {
@@ -187,6 +226,10 @@ export default function PurchaseQuotationForm() {
     fetchUnlockedHeaderDropdowns,
     fireCellEvent,
     eventColumns,
+    termsColumns,
+    allTermsColumns,
+    fetchTermsDetailMeta,
+    fetchTermsGridColumns,
   } = usePurchaseQuotation(API_BASE_URL);
 
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
@@ -302,8 +345,10 @@ export default function PurchaseQuotationForm() {
   const [activeTab, setActiveTab] = useState("items");
 
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
+  const [termsSelectionCount, setTermsSelectionCount] = useState(0);
   const [gridRows, setGridRows] = useState([]);
-  const activeSelectionCount = activeTab === "items" ? itemSelectionCount : 0;
+  const activeSelectionCount =
+    activeTab === "items" ? itemSelectionCount : activeTab === "terms" ? termsSelectionCount : 0;
 
   const [approvedFilter, setApprovedFilter] = useState("all");
   const [isGridLoading, setIsGridLoading] = useState(false);
@@ -313,6 +358,12 @@ export default function PurchaseQuotationForm() {
   const [itemModalColumns, setItemModalColumns] = useState([]);
   const [itemModalLoading, setItemModalLoading] = useState(false);
   const [itemModalError, setItemModalError] = useState(null);
+
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsModalItems, setTermsModalItems] = useState([]);
+  const [termsModalColumns, setTermsModalColumns] = useState([]);
+  const [termsModalLoading, setTermsModalLoading] = useState(false);
+  const [termsModalError, setTermsModalError] = useState(null);
 
   usePageHeader({
     title: isNewRoute ? PAGE_TITLE_NEW : PAGE_TITLE,
@@ -326,7 +377,8 @@ export default function PurchaseQuotationForm() {
   useEffect(() => {
     fetchHeaderMeta({ skipListDropdowns: isEditRoute });
     fetchDetailMeta();
-  }, [fetchHeaderMeta, fetchDetailMeta, isEditRoute]);
+    fetchTermsDetailMeta();
+  }, [fetchHeaderMeta, fetchDetailMeta, fetchTermsDetailMeta, isEditRoute]);
 
   const loadEditRecord = useCallback(async () => {
     setRecordLoading(true);
@@ -336,7 +388,7 @@ export default function PurchaseQuotationForm() {
       const params = resolveEditLoadParams(recordId, listRecord, {
         idFields: [],
       });
-      const { master, headerValues, details } = await fetchEditRecord(params);
+      const { master, headerValues, details, termsDetails } = await fetchEditRecord(params);
 
       if (!master || !headerValues) {
         throw new Error("Quotation record not found.");
@@ -359,13 +411,25 @@ export default function PurchaseQuotationForm() {
       } else {
         queuedRowsRef.current = syncedDetails;
       }
+
+      const activeTermsCols = await fetchTermsGridColumns(
+        headerValues.divisionid ?? 0,
+        editRecordGridColumnOpts(master)
+      );
+      if (activeTermsCols?.length > 0) termsColumnsLoadedRef.current = true;
+      const syncedTermsDetails = syncEditGridDropdownValues(termsDetails, activeTermsCols || []);
+      if (termsGridRef.current?.loadRows) {
+        termsGridRef.current.loadRows(syncedTermsDetails);
+      } else {
+        queuedTermsRowsRef.current = syncedTermsDetails;
+      }
     } catch (err) {
       console.error("[PQ] Edit record load failed:", err);
       setRecordLoadError(err?.message || "Failed to load quotation record.");
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, fetchGridColumns]);
+  }, [recordId, listRecord, fetchEditRecord, fetchGridColumns, fetchTermsGridColumns]);
 
   useEffect(() => {
     if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
@@ -377,7 +441,12 @@ export default function PurchaseQuotationForm() {
       masterRow: loadedMasterRow,
       fetchUnlockedDropdowns: true,
     });
-  }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns]);
+    fetchTermsGridColumns(divisionId, {
+      existingRecordEdit: true,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+  }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns, fetchTermsGridColumns]);
 
   useEffect(() => {
     if (allColumns.length === 0 || gridColumnsLoadedRef.current || isEditRoute) return;
@@ -385,6 +454,13 @@ export default function PurchaseQuotationForm() {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
   }, [allColumns, fetchGridColumns, isEditRoute]);
+
+  useEffect(() => {
+    if (allTermsColumns.length === 0 || termsColumnsLoadedRef.current || isEditRoute) return;
+    fetchTermsGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
+      if (cols?.length > 0) termsColumnsLoadedRef.current = true;
+    });
+  }, [allTermsColumns, fetchTermsGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || allColumns.length === 0) return;
@@ -401,6 +477,17 @@ export default function PurchaseQuotationForm() {
       queuedRowsRef.current = [];
     }
   }, [columns]);
+
+  useEffect(() => {
+    if (termsColumns.length > 0 && termsGridRef.current && queuedTermsRowsRef.current.length > 0) {
+      if (termsGridRef.current.loadRows) {
+        termsGridRef.current.loadRows(queuedTermsRowsRef.current);
+      } else {
+        queuedTermsRowsRef.current.forEach((r) => termsGridRef.current.addRow(r));
+      }
+      queuedTermsRowsRef.current = [];
+    }
+  }, [termsColumns]);
 
   const addItemRow = useCallback((row) => {
     if (itemGridRef.current) itemGridRef.current.addRow(row);
@@ -461,8 +548,14 @@ export default function PurchaseQuotationForm() {
         setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
         clearQuotationTypes();
         clearSuppliers();
+        // MRD cascade rule: division change clears any previously-picked
+        // Terms & Conditions rows tied to the old division (same rule
+        // Purchase Inquiry's Terms tab follows on divisionid change).
+        termsGridRef.current?.clearRows?.();
+        setTermsSelectionCount(0);
         if (val && val !== "0") {
           const [quotationTypes] = await Promise.all([fetchQuotationTypes(val), fetchSupplierOptions(val)]);
+          fetchTermsGridColumns(val);
           focusFieldAfterCascade(filterPanelRef, "configid", quotationTypes?.length === 1);
         }
         return buildCurrencyPatchFromSupplier(null);
@@ -473,6 +566,7 @@ export default function PurchaseQuotationForm() {
     [
       fetchQuotationTypes,
       fetchSupplierOptions,
+      fetchTermsGridColumns,
       clearQuotationTypes,
       clearSuppliers,
       getSupplierRow,
@@ -600,6 +694,18 @@ export default function PurchaseQuotationForm() {
     }
   }, [columns, allColumns, fetchGridColumns, isEditRoute, isEditMode, loadedMasterRow]);
 
+  const ensureTermsColumns = useCallback(async () => {
+    if (termsColumnsLoadedRef.current && termsColumns.length > 0) return termsColumns;
+    if (allTermsColumns.length === 0) return [];
+    const activeCols = await fetchTermsGridColumns(headerValuesRef.current?.divisionid ?? 0, {
+      existingRecordEdit: isEditRoute,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
+    if (activeCols?.length > 0) termsColumnsLoadedRef.current = true;
+    return activeCols;
+  }, [termsColumns, allTermsColumns, fetchTermsGridColumns, isEditRoute, loadedMasterRow]);
+
   // ── Select Item (Items tab) ────────────────────────────────────────
   // Flow:
   //   1. Pick RB code + row-fetch SP by BasedOn ('0' Direct | '2' Inquiry Based)
@@ -719,17 +825,99 @@ export default function PurchaseQuotationForm() {
     [ensureItemColumns, allColumns, addItemRow, handleCellEvent]
   );
 
-  // ── Delete selected rows (items grid) ──────────────────────────────
+  // ── Select Terms (Terms tab) ────────────────────────────────────────
+  // Same 3-step flow as handleSelectItem: RB code → RBID → GetDetailColData
+  // (picker's own columns) → row-fetch SP. Mirrors Purchase Inquiry's
+  // handleSelectTerms (PurchaseInquiryForm.jsx).
+  const handleSelectTerms = useCallback(async () => {
+    const headerValues = headerValuesRef.current;
+    const headerFieldNames = new Set(QTN_HEADER_FILTERS.map((f) => f.FilterParameterID));
+    const headerColsToValidate = headerColumns.filter((c) => headerFieldNames.has(c.colname));
+    const headerErrorMap = validateApiColumnsByField(headerValues, headerColsToValidate, {
+      zeroValidFields: new Set(["basedonid"]),
+    });
+    setFieldErrors(headerErrorMap);
+    if (Object.keys(headerErrorMap).length > 0) {
+      setFormErrors(["Please fix the highlighted field(s) below."]);
+      return;
+    }
+    setFormErrors([]);
+
+    setTermsModalOpen(true);
+    setTermsModalItems([]);
+    setTermsModalColumns([]);
+    setTermsModalError(null);
+    setTermsModalLoading(true);
+
+    try {
+      const rbRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: QTN_CONFIG.SP_RB_META,
+        JSon: JSON.stringify([{ prmrbcode: QTN_CONFIG.RB_TERMS_PICKER }]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const rbRow = rbRes?.[0];
+      if (!rbRow) throw new Error("Could not load terms & conditions picker configuration.");
+
+      const colRes = await getLive(ENDPOINTS.GET_DETAIL_COL_DATA, {
+        prmMasterID: rbRow.rbid,
+        prmLoginID: getUserSession().loginId,
+      });
+      const gridColumns = buildGridColumns(colRes || [], {}, { filterable: false, allEditable: false });
+      setTermsModalColumns(gridColumns);
+
+      const rowRes = await getLive(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: OBJ_TYPE.FUNCTION,
+        ObjName: QTN_CONFIG.SP_TERMS_PICKER,
+        JSon: JSON.stringify([buildTermsPickerJsonPayload(headerValues, getUserSession().loginId)]),
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      setTermsModalItems(rowRes || []);
+    } catch (err) {
+      console.error("[PQ] Terms picker fetch failed:", err);
+      setTermsModalError(err?.message || "Failed to fetch terms & conditions.");
+    } finally {
+      setTermsModalLoading(false);
+    }
+  }, [getLive, headerColumns]);
+
+  const handleInsertTerms = useCallback(
+    async (selectedTerms) => {
+      if (!selectedTerms?.length) return;
+      setActiveTab("terms");
+
+      const activeCols = await ensureTermsColumns();
+      if (!activeCols?.length) return;
+
+      const existing = termsGridRef.current?.getRows?.() ?? [];
+      const existingIds = new Set(existing.map((r) => String(r.termid ?? r.id)));
+      const divisionId = Number(headerValuesRef.current?.divisionid) || 0;
+
+      selectedTerms.forEach((item) => {
+        const tid = String(item.termid ?? item.TermID ?? item.id);
+        if (existingIds.has(tid)) return;
+        existingIds.add(tid);
+        termsGridRef.current?.addRow(
+          mapTermsPickerRowToGridRow(item, allTermsColumns, { divisionid: divisionId })
+        );
+      });
+    },
+    [ensureTermsColumns, allTermsColumns]
+  );
+
+  // ── Delete selected rows (active tab's grid) ────────────────────────
   const handleDeleteSelected = useCallback(() => {
-    const ref = itemGridRef;
+    const ref = activeTab === "terms" ? termsGridRef : itemGridRef;
     if (!ref?.current) return;
     const selected = ref.current.getSelectedRows?.() ?? [];
     if (selected.length === 0) return;
     ref.current.removeRows?.(selected.map((r) => r.id));
-  }, []);
+  }, [activeTab]);
 
   const { resetFormToInitialState, discardChanges, completeSuccessfulSave } = useTransactionFormReset({
-    storageKeys: [QTN_CONFIG.STORAGE_HEADER_META, QTN_CONFIG.STORAGE_ENTRY_META],
+    storageKeys: [QTN_CONFIG.STORAGE_HEADER_META, QTN_CONFIG.STORAGE_ENTRY_META, QTN_CONFIG.STORAGE_TERMS_META],
     buildDefaultHeaderValues,
     headerValuesRef,
     queuedRowsRef,
@@ -758,6 +946,20 @@ export default function PurchaseQuotationForm() {
       summaryRef.current?.resetOverrides?.();
       setFieldErrors({});
       setDetailCellErrors(null);
+      // Terms tab — same reset shape as the item grid above, but this grid
+      // and its picker modal aren't wired into useTransactionFormReset's
+      // built-in fields (that hook only knows about the single primary
+      // item grid), so they're cleared here instead.
+      queuedTermsRowsRef.current = [];
+      termsColumnsLoadedRef.current = false;
+      termsGridRef.current?.clearRows?.();
+      setTermsSelectionCount(0);
+      setTermsCellErrors(null);
+      setTermsModalOpen(false);
+      setTermsModalItems([]);
+      setTermsModalColumns([]);
+      setTermsModalLoading(false);
+      setTermsModalError(null);
       // Back to a blank new-entry state — re-issue a fresh GUID for whatever
       // the user enters next, same as the initial mount fetch. No-op on an
       // edit route (isNewRoute is false there).
@@ -788,10 +990,21 @@ export default function PurchaseQuotationForm() {
       const { errors: detailErrors, cellErrors: detailCellErrs } = validateGridRowsDetailed(itemRows, columns, { requireAtLeastOne: true });
       setDetailCellErrors(detailCellErrs);
 
+      // Terms & Conditions is optional — no requireAtLeastOne, same as
+      // Purchase Inquiry's Terms tab (only per-row cell validity is enforced).
+      const termsRows = termsGridRef.current?.getRows?.() ?? [];
+      const { cellErrors: termsCellErrs } = validateGridRowsDetailed(termsRows, termsColumns);
+      setTermsCellErrors(termsCellErrs);
+
       const headerBannerMsg =
         Object.keys(headerErrorMap).length > 0 ? ["Please fix the highlighted field(s) below."] : [];
       const allErrors = [...headerBannerMsg, ...(itemRows.length === 0 ? detailErrors : [])];
-      if (Object.keys(headerErrorMap).length > 0 || detailCellErrs.size > 0 || itemRows.length === 0) {
+      if (
+        Object.keys(headerErrorMap).length > 0
+        || detailCellErrs.size > 0
+        || termsCellErrs.size > 0
+        || itemRows.length === 0
+      ) {
         setFormErrors(allErrors);
         return false;
       }
@@ -813,9 +1026,20 @@ export default function PurchaseQuotationForm() {
       const detRows = itemRows.map(({ id, ...rest }) =>
         buildSaveRowFromColumns(rest, allColumns, sessionFields)
       );
+      const termsDetailRows = termsRows.map(({ id, ...rest }) =>
+        buildSaveRowFromColumns(rest, allTermsColumns, sessionFields)
+      );
 
+      // DBA-confirmed payload key for Post_RB_PurQtnMst_Save's Terms &
+      // Conditions param — see QTN_CONFIG.TERMS_SAVE_JSON_KEY.
       const payload = await withSaveContextFields(
-        buildSaveJsonFields({ label: "PQ", mst: mstRow, det: detRows }),
+        buildSaveJsonFields({
+          label: "PQ",
+          mst: mstRow,
+          det: detRows,
+          termsDet: termsDetailRows,
+          termsDetKey: QTN_CONFIG.TERMS_SAVE_JSON_KEY,
+        }),
         { divisionId: hv.divisionid, isEdit: isEditRoute }
       );
 
@@ -847,7 +1071,7 @@ export default function PurchaseQuotationForm() {
         setIsSavingQtn(false);
       }
     },
-    [headerColumns, allColumns, columns, postSave, completeSuccessfulSave, isEditRoute, recordId, docLog.finalizeSave, flushPendingCellEvents]
+    [headerColumns, allColumns, columns, allTermsColumns, termsColumns, postSave, completeSuccessfulSave, isEditRoute, recordId, docLog.finalizeSave, flushPendingCellEvents]
   );
 
   const handleSaveAndPrint = useCallback(async () => {
@@ -880,7 +1104,8 @@ export default function PurchaseQuotationForm() {
 
   const handleSelectListShortcut = useCallback(() => {
     if (activeTab === "items") handleSelectItem();
-  }, [activeTab, handleSelectItem]);
+    else if (activeTab === "terms") handleSelectTerms();
+  }, [activeTab, handleSelectItem, handleSelectTerms]);
 
   const handleToggleCollapsible = useCallback(() => {
     itemGridRef.current?.toggleFocusedRowCollapsible?.();
@@ -888,6 +1113,10 @@ export default function PurchaseQuotationForm() {
 
   const itemGridConfig = {
     columns,
+    pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
+  };
+  const termsGridConfig = {
+    columns: termsColumns,
     pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] },
   };
   const combinedError = metaError || headerError || recordLoadError;
@@ -1013,6 +1242,19 @@ export default function PurchaseQuotationForm() {
                 </button>
               )}
 
+              {activeTab === "terms" && (
+                <button
+                  type="button"
+                  className="eg-tab-btn"
+                  onClick={handleSelectTerms}
+                  disabled={!isEditMode}
+                  title={FORM_SHORTCUT_TITLES.selectList}
+                >
+                  <ClipboardList size={12} strokeWidth={2.5} />
+                  Select Terms
+                </button>
+              )}
+
               <div className="pq-tab-filter">
                 <span className="pq-tab-filter__label">Approved</span>
                 <SearchSelect
@@ -1035,28 +1277,20 @@ export default function PurchaseQuotationForm() {
               </button>
             </>
           }
-          tabContentOverride={
-            activeTab === "terms" ? (
-              <div className="pq-terms-pane">
-                <table className="pq-terms-table">
-                  <thead>
-                    <tr>
-                      {TERMS_COLUMNS.map((c) => (
-                        <th key={c}>{c}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan={TERMS_COLUMNS.length} className="pq-terms-empty">
-                        No terms &amp; conditions added.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ) : null
-          }
+          tabPanes={{
+            terms: (
+              <EntryGrid
+                ref={termsGridRef}
+                config={termsGridConfig}
+                title=""
+                hideBottomPanel
+                readOnly={isEditRoute && !isEditMode}
+                emptyMessage="No data found in the list."
+                onSelectionChange={setTermsSelectionCount}
+                cellErrors={termsCellErrors}
+              />
+            ),
+          }}
           readOnly={isEditRoute && !isEditMode}
           emptyMessage="No items yet. Click Select Item above."
           onSelectionChange={setItemSelectionCount}
@@ -1093,6 +1327,16 @@ export default function PurchaseQuotationForm() {
           onInsert={handleInsertItems}
         />
       </Suspense>
+
+      <TermsPickerModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        items={termsModalItems}
+        columns={termsModalColumns}
+        isLoading={termsModalLoading}
+        error={termsModalError}
+        onInsert={handleInsertTerms}
+      />
 
       <Suspense fallback={null}>
         <DocumentLogModal

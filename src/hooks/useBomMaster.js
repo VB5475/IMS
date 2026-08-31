@@ -1,7 +1,8 @@
 // useBomMaster.js — Header meta + detail grid for Assets BOM Master
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { BOM_CONFIG } from "../pages/bom-master/constants";
@@ -74,7 +75,8 @@ async function loadRbMeta(get, rbCode, storageKey) {
 }
 
 export function useBomMaster(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerAllColumns, setHeaderAllColumns] = useState([]);

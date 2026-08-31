@@ -2,8 +2,9 @@
 // Mirrors usePurchaseOrder (supplier + currency) + Inquiry terms detail pattern.
 // MRD_Template4PurchaseRateContract.docx (Richa, 03-Jul-2026).
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -103,7 +104,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function usePurchaseRateContract(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerRbMeta, setHeaderRbMeta] = useState(null);

@@ -3,8 +3,9 @@
 // SupplierMasterForm.jsx/Page.jsx history. SM_CONFIG.RB_DETAIL/SP_DETAIL_FILL
 // stay in constants.js since Customer Master's own hook still uses them.)
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
@@ -34,7 +35,8 @@ function mapTableToOptions(rows, valueKey, labelKey) {
 }
 
 export function useSupplierMaster(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Master (header) ────────────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);

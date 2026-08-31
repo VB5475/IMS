@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -17,6 +18,7 @@ import {
   isVisibleApiCol,
   hasVisibleCol,
 } from "../utils/gridUtils";
+import { fetchRbStructure } from "../utils/rbMetaCache";
 
 function buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber }) {
   return [
@@ -98,29 +100,22 @@ function mapDeptRows(rows) {
   }));
 }
 
-async function loadRbDetailGridMeta(get, rbCode, storageKey) {
-  const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-    ObjType: 2,
-    ObjName: AHS_CONFIG.SP_RB_META,
-    JSon: JSON.stringify([{ prmRBCode: rbCode }]),
-    p_ErrCode: -1,
-    p_ErrMsg: "",
+// Structure-fetch pilot (2026-08-29 /pm) — the GetDetailColData call this
+// used to make unconditionally now only fires when rbversion (returned by
+// AHS_CONFIG.SP_RB_META) has actually changed since the last cached fetch.
+// See src/utils/rbMetaCache.js for the caching mechanics.
+async function loadRbDetailGridMeta(get, baseURL, rbCode, storageKey) {
+  return fetchRbStructure(get, baseURL, rbCode, {
+    spRbMeta: AHS_CONFIG.SP_RB_META,
+    rbCodeParam: "prmRBCode",
+    loginId: DEFAULT_LOGIN_ID,
+    storageKey,
   });
-  const tableRow = metaData?.[0];
-  if (!tableRow) throw new Error(`No RB metadata returned for ${rbCode}.`);
-
-  const meta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
-  localStorage.setItem(storageKey, JSON.stringify(meta));
-
-  const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
-    prmMasterID: meta.RBID,
-    prmLoginID: DEFAULT_LOGIN_ID,
-  });
-  return { meta, apiColumns: colData || [] };
 }
 
 export function useAstHealthStatus(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);
@@ -263,24 +258,16 @@ export function useAstHealthStatus(baseURL = API_BASE_URL) {
     setHeaderFetching(true);
     setHeaderError(null);
     try {
-      const metaData = await get(ENDPOINTS.FN_FETCH_DATA, {
-        ObjType: 2,
-        ObjName: AHS_CONFIG.SP_RB_META,
-        JSon: JSON.stringify([{ prmRBCode: AHS_CONFIG.RB_MASTER }]),
-        p_ErrCode: -1,
-        p_ErrMsg: "",
+      // Structure-fetch pilot (2026-08-29 /pm) — GetDetailColData is skipped
+      // when the cached rbversion for RB_MASTER still matches the live one.
+      // See src/utils/rbMetaCache.js.
+      const { apiColumns } = await fetchRbStructure(get, baseURL, AHS_CONFIG.RB_MASTER, {
+        spRbMeta: AHS_CONFIG.SP_RB_META,
+        rbCodeParam: "prmRBCode",
+        loginId: DEFAULT_LOGIN_ID,
+        storageKey: AHS_CONFIG.STORAGE_HEADER_META,
       });
-      const tableRow = metaData?.[0];
-      if (!tableRow) throw new Error("No health status header RB metadata returned from server.");
-
-      const hdrMeta = { RBID: tableRow.rbid, SaveProcName: tableRow.saveprocname };
-      localStorage.setItem(AHS_CONFIG.STORAGE_HEADER_META, JSON.stringify(hdrMeta));
-
-      const colData = await get(ENDPOINTS.GET_DETAIL_COL_DATA, {
-        prmMasterID: hdrMeta.RBID,
-        prmLoginID: DEFAULT_LOGIN_ID,
-      });
-      const cols = colData || [];
+      const cols = apiColumns;
       setHeaderColumns(cols);
 
       if (skipListDropdowns) {
@@ -302,7 +289,7 @@ export function useAstHealthStatus(baseURL = API_BASE_URL) {
     } finally {
       setHeaderFetching(false);
     }
-  }, [get, fetchDivisions, fetchToLocations, fetchToDepartments]);
+  }, [get, baseURL, fetchDivisions, fetchToLocations, fetchToDepartments]);
 
   const fetchDetailMeta = useCallback(async () => {
     setIsFetching(true);
@@ -310,6 +297,7 @@ export function useAstHealthStatus(baseURL = API_BASE_URL) {
     try {
       const { meta, apiColumns } = await loadRbDetailGridMeta(
         get,
+        baseURL,
         AHS_CONFIG.RB_DETAIL,
         AHS_CONFIG.STORAGE_ENTRY_META
       );
@@ -327,7 +315,7 @@ export function useAstHealthStatus(baseURL = API_BASE_URL) {
     } finally {
       setIsFetching(false);
     }
-  }, [get]);
+  }, [get, baseURL]);
 
   const fetchGridColumns = useCallback(async (divisionID = 0, editOpts = false) => {
     const opts = typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};

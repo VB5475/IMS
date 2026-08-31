@@ -13,8 +13,9 @@
 // Cascading filters (page onFilterChange):
 //   Division → Inquiry Type
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
@@ -138,7 +139,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function usePurchaseInquiry(baseURL = API_BASE_URL) {
-  const { get, post } = useApi(baseURL);
+  const { get: rawGet, post } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Header (master) state ─────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);

@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Package } from "lucide-react";
+import { Package, Send } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import { DEFAULT_SESSION_ID } from "../../api/constants";
+import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
+import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE, DEFAULT_SESSION_ID } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
+import { useNotification } from "../../context/NotificationContext";
 import { useItemMaster } from "../../hooks/useItemMaster";
 import { useMainGroupMaster } from "../../hooks/useMainGroupMaster";
 import { useSubMainGroupMaster } from "../../hooks/useSubMainGroupMaster";
 import { useSubGroupMaster } from "../../hooks/useSubGroupMaster";
+import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { formatTranDate } from "../../utils/dateFormat";
 import { buildListColumnsFromApi, resolveListRowId } from "../../utils/listColumns";
 import { createListActionsColumn } from "../../utils/listGridUtils";
+import { resolveRowFieldValue } from "../../utils/gridUtils";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import ItemMasterForm from "./ItemMasterForm";
 import MainGroupMasterForm from "../main-group-master/MainGroupMasterForm";
 import SubMainGroupMasterForm from "../sub-main-group-master/SubMainGroupMasterForm";
@@ -52,6 +58,11 @@ function buildListParams() {
 }
 
 export default function ItemMasterPage() {
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
+  const { post: postWkf } = useApi(API_BASE_URL_IMS);
+  const notify = useNotification();
+
   const {
     fetchHeaderMeta,
     headerColumns: fieldDefs,
@@ -83,6 +94,89 @@ export default function ItemMasterPage() {
   const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
   const [selectedId, setSelectedId] = useState(null);
   const gridRef = useRef(null);
+
+  // "Approval Initiator" button (WKF) — visibility is a per-login,
+  // per-trantype backend flag, same pattern as Purchase Order/Purchase
+  // Quotation's. Defaults to "NO" (safe default-deny) until the fetch resolves.
+  const [wkfBtnVisible, setWkfBtnVisible] = useState("NO");
+  const [sendingApproval, setSendingApproval] = useState(false);
+
+  // The division this page actually uses everywhere it needs one (currently
+  // just the WKF send — the list fetch below has its own prmdivisionid line
+  // commented out, unrelated to this) — resolved dynamically from the
+  // logged-in user's own real division(s) via fn_tbl_fetchuserwsdivision
+  // (same SP/pattern PQ, PO, Purchase Indent, CWIP To FA etc. all already
+  // use), 2026-08-27 /pm. IM_CONFIG.LIST_DIVISION_ID stays as the seed/
+  // fallback value.
+  const [effectiveDivisionId, setEffectiveDivisionId] = useState(IM_CONFIG.LIST_DIVISION_ID);
+
+  // AppStatusID-driven row color + Edit/Delete lock, per src/config/approvalStatusConfig.js.
+  const getRowState = useApprovalRowStatus("item-master");
+
+  useEffect(() => {
+    const session = getUserSession();
+    postWkf(ENDPOINTS.WKF_HANDLE_BUTTON_VISIBILITY, {
+      prmref_is_trantypeid: IM_CONFIG.WKF_TRAN_TYPE_ID,
+      prmloginid: session.loginId,
+    })
+      .then((res) => {
+        const row = Array.isArray(res) ? res[0] : res;
+        setWkfBtnVisible(row?.iswkfbtnvisible === "YES" ? "YES" : "NO");
+      })
+      .catch((err) => {
+        console.warn("[ItemMasterPage] WKF button visibility fetch failed:", err);
+        setWkfBtnVisible("NO");
+      });
+
+    get(ENDPOINTS.FN_FETCH_DATA, {
+      ObjType: OBJ_TYPE.FUNCTION,
+      ObjName: "fn_tbl_fetchuserwsdivision",
+      JSon: JSON.stringify([{
+        prmuserid: session.loginId,
+        prmcompanyid: session.companyId,
+        prmyearid: session.yearId,
+      }]),
+      p_ErrCode: -1,
+      p_ErrMsg: "",
+    })
+      .then((rows) => {
+        const first = (rows || [])[0];
+        const id = first ? resolveRowFieldValue(first, "divisionid") : null;
+        if (id != null) setEffectiveDivisionId(Number(id));
+      })
+      .catch((err) => console.warn("[ItemMasterPage] User division fetch failed:", err));
+  }, [postWkf, get]);
+
+  // Item Master's list rows carry no per-row division field (confirmed live —
+  // company-wide admin master; its own list call sends no division param at
+  // all) — effectiveDivisionId (the resolved user division, see above) is
+  // the only "division" this module has.
+  const handleSendForApproval = useCallback(async () => {
+    if (!selectedId) {
+      notify.error("Select an item before sending it for approval.");
+      return;
+    }
+    const session = getUserSession();
+    setSendingApproval(true);
+    try {
+      const result = await postWkf(ENDPOINTS.WKF_SEND_FOR_APPROVAL, {
+        prmref_is_trantypeid: IM_CONFIG.WKF_TRAN_TYPE_ID,
+        prmtranid: Number(selectedId),
+        prmcolnamesoftranid: "idnumber",
+        prmyearid: session.yearId,
+        prmloginid: session.loginId,
+        prmdivisionid: effectiveDivisionId,
+      });
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { notify.error(message); return; }
+      notify.success(message);
+    } catch (err) {
+      console.error("[ItemMasterPage] Send for approval failed:", err);
+      notify.error(err?.message || "Failed to send for approval. Please try again.");
+    } finally {
+      setSendingApproval(false);
+    }
+  }, [selectedId, effectiveDivisionId, postWkf, notify]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -344,7 +438,20 @@ export default function ItemMasterPage() {
           onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
-        />
+        >
+          {wkfBtnVisible === "YES" && (
+            <button
+              type="button"
+              className="im-list__wkf-btn"
+              onClick={handleSendForApproval}
+              disabled={!selectedId || sendingApproval}
+              title="Select an item, then send it for approval"
+            >
+              <Send size={13} strokeWidth={2.5} />
+              {sendingApproval ? "Sending…" : "Approval Initiator"}
+            </button>
+          )}
+        </ListPanelHeader>
 
         <EnterpriseDataGrid
           ref={gridRef}
@@ -372,6 +479,7 @@ export default function ItemMasterPage() {
           selectedRowKeys={selectedId != null ? [String(selectedId)] : []}
           onSelectionChange={(keys) => setSelectedId(keys[0] != null ? keys[0] : null)}
           getRowKey={(row) => String(resolveListRowId(row) ?? "")}
+          getRowState={getRowState}
         />
       </section>
 
