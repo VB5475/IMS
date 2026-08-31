@@ -88,8 +88,10 @@ function buildDivisionParams() {
   };
 }
 
-function buildReportBoardParams(divisionId, sessionId, filters = {}) {
+function buildReportBoardParams(divisionId, sessionId, filters = {}, pagination = {}) {
   const session = getUserSession();
+  const pageNumber = Math.max(1, Number(pagination.pageNumber) || 1);
+  const pageSize = Math.max(1, Number(pagination.pageSize) || DEFAULT_PAGE_SIZE);
   return {
     ObjType: DASHBOARD_CONFIG.REPORT_OBJ_TYPE,
     ObjName: DASHBOARD_CONFIG.SP_REPORT_DATA,
@@ -105,11 +107,39 @@ function buildReportBoardParams(divisionId, sessionId, filters = {}) {
         prmsubmaingroupid: Number(filters.subMainGroupId) || 0,
         prmsearchtext: "",
         prmOptionType: filters.assignStatus || DASHBOARD_CONFIG.DEFAULT_ASSIGN_STATUS,
+        prmPageNumber: pageNumber,
+        prmPageSize: pageSize,
       },
     ]),
     p_ErrCode: -1,
     p_ErrMsg: "",
   };
+}
+
+function resolveTotalRowCount(rows, pageNumber, pageSize) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 0) return 0;
+
+  const first = list[0];
+  for (const key of [
+    "totalrecords",
+    "TotalRecords",
+    "totalcount",
+    "TotalCount",
+    "recordcount",
+    "RecordCount",
+  ]) {
+    const total = Number(first?.[key]);
+    if (Number.isFinite(total) && total >= 0) return total;
+  }
+
+  const safePage = Math.max(1, Number(pageNumber) || 1);
+  const safeSize = Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE);
+  if (list.length < safeSize) {
+    return (safePage - 1) * safeSize + list.length;
+  }
+  // Full page — allow Next; exact total comes from API when available.
+  return safePage * safeSize + 1;
 }
 
 function buildMainGroupParams(divisionId) {
@@ -289,6 +319,8 @@ export default function ReportBoardPanel({
   // split (8/10, own option arrays) — now the same shared table config every
   // list page uses, in both compact and full-width rendering modes.
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRowCount, setTotalRowCount] = useState(0);
   // 2026-08-17 (/pm) — search moved from the grid's own row into this
   // toolbar, before Division (same "search in the title/toolbar row"
   // pattern rolled out to every list page, see project_search_titlebar_rollout.md).
@@ -441,9 +473,10 @@ export default function ReportBoardPanel({
   }, [fetchSubMainGroups, selectedDivision, selectedMainGroup]);
 
   const fetchReportBoards = useCallback(
-    async (divisionId, filters) => {
+    async (divisionId, filters, pageNumber, rowsPerPage) => {
       if (!divisionId) {
         setData([]);
+        setTotalRowCount(0);
         setLoading(false);
         return;
       }
@@ -452,13 +485,19 @@ export default function ReportBoardPanel({
         setError(null);
         const json = await get(
           ENDPOINTS.FN_FETCH_DATA,
-          buildReportBoardParams(divisionId, sessionId, filters)
+          buildReportBoardParams(divisionId, sessionId, filters, {
+            pageNumber,
+            pageSize: rowsPerPage,
+          })
         );
-        setData(Array.isArray(json) ? json : []);
+        const rows = Array.isArray(json) ? json : [];
+        setData(rows);
+        setTotalRowCount(resolveTotalRowCount(rows, pageNumber, rowsPerPage));
       } catch (err) {
         console.error("[ReportBoardPanel] fetch failed:", err);
         setError("Failed to load report board data.");
         setData([]);
+        setTotalRowCount(0);
       } finally {
         setLoading(false);
       }
@@ -467,11 +506,16 @@ export default function ReportBoardPanel({
   );
 
   useEffect(() => {
-    fetchReportBoards(selectedDivision, {
-      mainGroupId: selectedMainGroup,
-      subMainGroupId: selectedSubMainGroup,
-      assignStatus,
-    });
+    fetchReportBoards(
+      selectedDivision,
+      {
+        mainGroupId: selectedMainGroup,
+        subMainGroupId: selectedSubMainGroup,
+        assignStatus,
+      },
+      currentPage,
+      pageSize
+    );
     const previousDivision = previousDivisionRef.current;
     if (previousDivision && previousDivision !== selectedDivision) {
       setSelectedRowKeys([]);
@@ -481,7 +525,9 @@ export default function ReportBoardPanel({
     previousDivisionRef.current = selectedDivision;
   }, [
     assignStatus,
+    currentPage,
     fetchReportBoards,
+    pageSize,
     selectedDivision,
     selectedMainGroup,
     selectedSubMainGroup,
@@ -490,6 +536,7 @@ export default function ReportBoardPanel({
   // Group resets happen in the change handlers, not in an effect, so a
   // division switch triggers a single batched refetch instead of two.
   const handleDivisionChange = useCallback((value) => {
+    setCurrentPage(1);
     setSelectedDivision(value);
     setSelectedMainGroup("");
     setSelectedSubMainGroup("");
@@ -498,9 +545,25 @@ export default function ReportBoardPanel({
   }, []);
 
   const handleMainGroupChange = useCallback((value) => {
+    setCurrentPage(1);
     setSelectedMainGroup(value);
     setSelectedSubMainGroup("");
     setSubMainGroupOptions([]);
+  }, []);
+
+  const handleSubMainGroupChange = useCallback((value) => {
+    setCurrentPage(1);
+    setSelectedSubMainGroup(value);
+  }, []);
+
+  const handleAssignStatusChange = useCallback((value) => {
+    setCurrentPage(1);
+    setAssignStatus(value);
+  }, []);
+
+  const handlePageSizeChange = useCallback((nextSize) => {
+    setCurrentPage(1);
+    setPageSize(nextSize);
   }, []);
 
   const selectedRows = useMemo(() => {
@@ -741,7 +804,7 @@ export default function ReportBoardPanel({
           id="rbp-page-size"
           className="ng-select rbp-panel__pagesize-select"
           value={pageSize}
-          onChange={(e) => setPageSize(Number(e.target.value))}
+          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
           aria-label="Rows per page"
         >
           {PAGE_SIZE_OPTIONS.map((n) => (
@@ -755,6 +818,7 @@ export default function ReportBoardPanel({
     [
       downloadingQr,
       handleDownloadQrCodes,
+      handlePageSizeChange,
       handlePrintStickers,
       pageSize,
       printingStickers,
@@ -841,7 +905,7 @@ export default function ReportBoardPanel({
               id="rbp-sub-main-group"
               className="ng-select rbp-panel__pagesize-select rbp-panel__group-select"
               value={selectedSubMainGroup}
-              onChange={(e) => setSelectedSubMainGroup(e.target.value)}
+              onChange={(e) => handleSubMainGroupChange(e.target.value)}
               aria-label="Sub Main Group"
               disabled={!selectedMainGroup || subMainGroupOptions.length === 0}
             >
@@ -860,7 +924,7 @@ export default function ReportBoardPanel({
                     name="rbp-assign-status"
                     value={option.value}
                     checked={assignStatus === option.value}
-                    onChange={() => setAssignStatus(option.value)}
+                    onChange={() => handleAssignStatusChange(option.value)}
                   />
                   <span>{option.label}</span>
                 </label>
@@ -877,8 +941,12 @@ export default function ReportBoardPanel({
           error={error}
           loaderText="Loading Report Boards…"
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={handlePageSizeChange}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
+          paginationMode="server"
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          totalRowCount={totalRowCount}
           emptyMessage={selectedDivision ? "No report board data found." : "Select a division."}
           hideHeader
           fill={fill}

@@ -135,6 +135,10 @@ function orderColumnsWithActionsFirst(columns, selectable = false) {
  * loaderText     {string}          Loader label  (default: 'Loading…')
  * defaultPageSize{number}          Initial rows per page (default: 10)
  * pageSizeOptions{number[]}        Rows-per-page choices (default: [5,10,20,50,99])
+ * paginationMode {'client'|'server'} Client slice (default) or server-driven pages
+ * currentPage    {number}          Controlled page when paginationMode='server'
+ * onPageChange   {(page) => void}  Page change callback for server pagination
+ * totalRowCount  {number}          Total rows from API for server pagination
  * emptyMessage   {string}          Empty-state text (default: 'No records found.')
  * bottomPanelExtras {ReactNode}    Extra controls rendered in the pagination bar
  * searchable     {boolean}         Enable text search across visible columns
@@ -175,6 +179,10 @@ function EnterpriseDataGrid({
   pageSizeOptions = [5, 10, 20, 50, 99],
   pageSize: pageSizeProp,
   onPageSizeChange,
+  paginationMode = "client",
+  currentPage: currentPageProp,
+  onPageChange,
+  totalRowCount = 0,
   emptyMessage = "No records found.",
   bottomPanelExtras = null,
   hideHeader = false,
@@ -220,6 +228,8 @@ function EnterpriseDataGrid({
     meta: null,
   });
   const itemsPerPage = pageSizeProp ?? internalPageSize;
+  const isServerPagination = paginationMode === "server";
+  const activePage = isServerPagination ? Math.max(1, currentPageProp ?? 1) : currentPage;
 
   const handleSearchChange = useCallback(
     (q) => {
@@ -336,9 +346,9 @@ function EnterpriseDataGrid({
       const value = typeof next === "function" ? next(itemsPerPage) : next;
       if (onPageSizeChange) onPageSizeChange(value);
       else setInternalPageSize(value);
-      setCurrentPage(1);
+      if (!isServerPagination) setCurrentPage(1);
     },
-    [itemsPerPage, onPageSizeChange]
+    [isServerPagination, itemsPerPage, onPageSizeChange]
   );
 
   // One ref per column for anchor positioning — keyed by col.key
@@ -456,12 +466,23 @@ function EnterpriseDataGrid({
     onSearchStats?.({ matchCount: filteredData.length, totalCount: data.length });
   }, [filteredData.length, data.length, onSearchStats]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage));
+  const paginationTotalRows = isServerPagination ? Math.max(0, totalRowCount) : sortedData.length;
+  const totalPages = Math.max(1, Math.ceil(paginationTotalRows / itemsPerPage));
 
   const currentData = useMemo(() => {
+    if (isServerPagination) return sortedData;
     const start = (currentPage - 1) * itemsPerPage;
     return sortedData.slice(start, start + itemsPerPage);
-  }, [sortedData, currentPage, itemsPerPage]);
+  }, [currentPage, isServerPagination, itemsPerPage, sortedData]);
+
+  const goToPage = useCallback(
+    (nextPage) => {
+      const safePage = Math.max(1, Math.min(totalPages, nextPage));
+      if (isServerPagination) onPageChange?.(safePage);
+      else setCurrentPage(safePage);
+    },
+    [isServerPagination, onPageChange, totalPages]
+  );
 
   const selectedKeySet = useMemo(
     () => new Set((selectedRowKeys || []).map(String)),
@@ -625,7 +646,13 @@ function EnterpriseDataGrid({
   // card height and flashes.
   const overlayLoad = loading && !error && data.length > 0;
   const blockingLoad = loading && !overlayLoad;
-  const showPagination = !blockingLoad && !error && filteredData.length > 0;
+  const showPagination =
+    !blockingLoad && !error && (isServerPagination ? paginationTotalRows > 0 : filteredData.length > 0);
+  const paginationStart =
+    paginationTotalRows === 0 ? 0 : (activePage - 1) * itemsPerPage + 1;
+  const paginationEnd = isServerPagination
+    ? Math.min(activePage * itemsPerPage, paginationTotalRows)
+    : Math.min(activePage * itemsPerPage, filteredData.length);
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
@@ -849,10 +876,10 @@ function EnterpriseDataGrid({
           <div className="ng-bottom-panel">
             {showPagination && (
               <p className="ng-pagination-info">
-                Showing <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> –{" "}
-                <strong>{Math.min(currentPage * itemsPerPage, filteredData.length)}</strong> of{" "}
-                <strong>{filteredData.length}</strong> entries
-                {filteredData.length !== data.length && ` (filtered from ${data.length})`}
+                Showing <strong>{paginationStart}</strong> –{" "}
+                <strong>{paginationEnd}</strong> of{" "}
+                <strong>{paginationTotalRows}</strong> entries
+                {!isServerPagination && filteredData.length !== data.length && ` (filtered from ${data.length})`}
               </p>
             )}
             {bottomPanelExtras && (
@@ -862,15 +889,15 @@ function EnterpriseDataGrid({
               <div className="ng-pagination-controls">
                 <button
                   className="ng-page-btn"
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  disabled={currentPage === 1}
+                  onClick={() => goToPage(activePage - 1)}
+                  disabled={activePage === 1}
                 >
                   <ChevronLeft size={16} /> Previous
                 </button>
                 <button
                   className="ng-page-btn"
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(activePage + 1)}
+                  disabled={activePage >= totalPages}
                 >
                   Next <ChevronRight size={16} />
                 </button>
