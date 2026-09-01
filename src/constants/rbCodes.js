@@ -122,6 +122,8 @@ export const RB_CODES = Object.freeze({
   ITEM_MASTER_UPLOAD_EXCEL: "rb_xluplditemmst",
   /** Dashboard report-board stock detail columns */
   DASHBOARD_AST_STOCK_DETAIL: "rb_aststkadbdtl",
+  /** Asset Summary dashboard — sub main group wise stock (Home module) */
+  ASSET_SUMMARY: "rb_aststkadbsmgws",
 
   // ── Maintenance ─────────────────────────────────────────────────
   MAINTENANCE_DASHBOARD: "rb_mntdashboard",
@@ -212,6 +214,8 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.BOM_MASTER]: "/assets-bom-master",
   [RB_CODES.ASSETS_ITEM_OPENING_EXCEL]: "/account/master/asset-item-opening-excel",
   [RB_CODES.ITEM_MASTER_UPLOAD_EXCEL]: "/admin/master/item-master-upload-excel",
+
+  [RB_CODES.ASSET_SUMMARY]: "/asset-summary",
 
   [RB_CODES.MAINTENANCE_DASHBOARD]: "/maintenance-dashboard",
   [RB_CODES.COMPLAINT_REGISTER]: "/complaint-register",

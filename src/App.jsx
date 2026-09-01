@@ -24,6 +24,7 @@ import { getModuleRights } from "./session/moduleRights";
 
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
 const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
+const AssetSummaryPage = lazy(() => import("./pages/asset-summary/AssetSummaryPage"));
 const ReportWorkspacePage = lazy(() => import("./pages/report-workspace/ReportWorkspacePage"));
 const TxnEntryPage = lazy(() => import("./pages/txn-entry/TxnEntryPage"));
 const PurchaseInquiryPage = lazy(() => import("./pages/purchase-inquiry/PurchaseInquiryPage"));
@@ -304,6 +305,7 @@ const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <EnterpriseDashboard /> },
+          rbLeaf({ rb: RB.ASSET_SUMMARY, element: <AssetSummaryPage /> }),
           { path: "main/:reportBoardId", element: <ReportWorkspacePage /> },
 
           {

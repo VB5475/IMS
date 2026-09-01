@@ -130,6 +130,7 @@ const NAV_SECTIONS = [
     visible: true,
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSET_SUMMARY), icon: BarChart3, label: "Asset Summary", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.WORKFLOW_DASHBOARD), icon: Workflow, label: "Workflow Dashboard", end: false, visible: true },
     ],
   },
