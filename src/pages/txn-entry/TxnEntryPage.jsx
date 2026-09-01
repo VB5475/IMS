@@ -19,6 +19,7 @@ import EntryGrid from "../../components/grid/EntryGrid";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useTxnEntry } from "../../hooks/useTxnEntry";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { controlTypeMap } from "../../data/dummyData";
 import {
   buildGridColumns,
@@ -70,7 +71,8 @@ const nextTempId = () => _tempId--;
 export default function TxnEntryPage() {
   const { id: routeId } = useParams();
   const genIDNumber = routeId ? 1 : 0;
-  const { get } = useApi(API_BASE_URL_OLD);
+  const { get: rawGet } = useApi(API_BASE_URL_OLD);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const notify = useNotification();
   const gridRef = useRef(null);
 

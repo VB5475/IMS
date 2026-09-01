@@ -49,6 +49,10 @@ export const MACNG_CONFIG = {
   SP_LIST: "fn_tbl_rb_mntamcnewmst_list",
   LIST_DIVISION_ID: 15,
 
+  // WKF "Approval Initiator" send-for-approval button (2026-08-31 /pm) —
+  // user-confirmed transaction-type id.
+  WKF_TRAN_TYPE_ID: 387,
+
   STORAGE_HEADER_META: "macngHeaderMeta",
   STORAGE_ENTRY_META: "macngEntryMeta",
   STORAGE_TERMS_META: "macngTermsMeta",

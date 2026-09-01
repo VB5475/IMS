@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -26,7 +27,8 @@ function mapTableToOptions(rows, valueKey, labelKey) {
 }
 
 export function useStateMaster() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns,  setHeaderColumns]  = useState([]);
   const [allColumns,     setAllColumns]     = useState([]);

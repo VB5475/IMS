@@ -7,6 +7,7 @@ import DashboardFilterPanelV2 from "../../components/filters/DashboardFilterPane
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import RefreshButton from "../../components/ui/RefreshButton";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { API_BASE_URL, ENDPOINTS } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
@@ -92,7 +93,8 @@ function buildFetchParams(objName, jsonRow, objType = MAINTENANCE_DASHBOARD_CONF
 }
 
 export default function MaintenanceDashboard() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const notify = useNotification();
   const session = useMemo(() => getUserSession(), []);
   const initialValues = useMemo(() => ({

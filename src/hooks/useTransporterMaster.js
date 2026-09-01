@@ -12,8 +12,9 @@
 // fields are Text/Checkbox per the MRD) — unlike DOP Master, there's no
 // Tran Type/Entity/Department/Company fetch here.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { TM_CONFIG } from "../pages/transporter-master/constants";
@@ -76,7 +77,8 @@ async function loadRbMeta(get, rbCode, storageKey) {
 }
 
 export function useTransporterMaster(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerAllColumns, setHeaderAllColumns] = useState([]);

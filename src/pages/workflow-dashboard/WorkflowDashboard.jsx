@@ -13,6 +13,7 @@ import { Search, Workflow } from "lucide-react";
 import DashboardFilterPanelV2 from "../../components/filters/DashboardFilterPanelV2";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { API_BASE_URL, API_BASE_URL_IMS, ENDPOINTS, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
@@ -95,7 +96,8 @@ function buildFetchParams(objName, jsonRow, objType = OBJ_TYPE.FUNCTION) {
 }
 
 export default function WorkflowDashboard() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post } = useApi(API_BASE_URL_IMS);
   const navigate = useNavigate();
   const location = useLocation();

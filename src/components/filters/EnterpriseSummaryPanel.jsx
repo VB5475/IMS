@@ -103,11 +103,19 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
       }, 0);
     });
 
-    // Auto Round Off = the adjustment that rounds the summed source keys UP
-    // to the next whole number (e.g. raw 1234.12 → auto round off +0.88, so
-    // Net Base Amount comes out to 1235). Business rule confirmed by PM
-    // 2026-07-25: always ceil (never round-to-nearest, never down) — still
-    // just a DEFAULT, a manual override (below) always wins.
+    // Auto Round Off = the adjustment that rounds the summed source keys to
+    // the NEAREST whole number, half-up at the .50 boundary — standard
+    // commercial/GST-invoice rounding (e.g. raw 53861.10 → auto round off
+    // -0.10, netting to 53861; raw 1234.62 → +0.38, netting to 1235).
+    // Business rule changed 2026-08-31 (/pm) — replaces the prior "always
+    // ceil, never down" rule from 2026-07-25. Still just a DEFAULT, a manual
+    // override (below) always wins.
+    //
+    // The nearest-vs-boundary decision is done in integer paise (not the raw
+    // float) so a sum landing exactly on a .50 boundary can't be nudged to
+    // the wrong side by binary floating-point drift (e.g. 53861.50 stored as
+    // 53861.499999999996) — paise is always an exact integer, so `% 100`
+    // gives an exact remainder with no such risk.
     roundingFields.forEach(({ detKey, mstKey, roundToNearestFromKeys }) => {
       const k = mstKey || detKey;
       const raw = roundToNearestFromKeys.reduce((acc, srcKey) => {
@@ -115,7 +123,10 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
         const effective = override !== undefined ? Number(override) : totals[srcKey];
         return acc + (Number.isFinite(effective) ? effective : 0);
       }, 0);
-      totals[k] = Math.ceil(raw) - raw;
+      const paise = Math.round(raw * 100);
+      const remainder = ((paise % 100) + 100) % 100;
+      const nearestWholePaise = remainder >= 50 ? paise - remainder + 100 : paise - remainder;
+      totals[k] = (nearestWholePaise - paise) / 100;
     });
 
     // Resolve against each source's EFFECTIVE value — a manual override on an

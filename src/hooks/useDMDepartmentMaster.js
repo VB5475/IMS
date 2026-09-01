@@ -2,8 +2,9 @@
 // Header-only master, no dropdowns/detail grids — closest existing pattern
 // is useAccountGroupMaster.js minus the Main Group special-casing.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import {
@@ -25,7 +26,8 @@ function buildMasterFillParameterString({ companyId, yearId, loginId, sessionId,
 }
 
 export function useDMDepartmentMaster() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

@@ -60,9 +60,12 @@ export const PURCHASE_GST_SUMMARY_FIELDS = [
   { SummaryParameterID: "mstcgst", detKey: "cgst" },
   { SummaryParameterID: "mstsgst", detKey: "sgst" },
   { SummaryParameterID: "mstigst", detKey: "igst" },
-  // Auto-calculated (business rule confirmed by PM 2026-07-24, same as PV/PO):
-  // the adjustment that rounds the base+expense+tax total to the nearest
-  // whole number — still manually editable on top (2026-07-23 rule).
+  // Auto-calculated, same as PV/PO: the adjustment that rounds the
+  // base+expense+tax total to the NEAREST whole number, half-up at the .50
+  // boundary (business rule 2026-08-31 /pm, replacing an interim "always
+  // ceil" rule from 2026-07-25 — see EnterpriseSummaryPanel.jsx's own
+  // roundToNearestFromKeys comment for the calculation) — still manually
+  // editable on top (2026-07-23 rule).
   {
     SummaryParameterID: "mstroundoff", detKey: "roundoff", editable: true,
     roundToNearestFromKeys: ["mstbaseamount", "mstexpense", "mstcgst", "mstsgst", "mstigst"],

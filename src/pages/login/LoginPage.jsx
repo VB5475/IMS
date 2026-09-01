@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Lock,
@@ -8,6 +8,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -231,7 +232,8 @@ function LoginForm({
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post: postAuth } = useApi(API_BASE_URL_IMS);
   const { login, isAuthenticated } = useUser();
 

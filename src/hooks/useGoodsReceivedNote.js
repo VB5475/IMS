@@ -1,7 +1,8 @@
 // useGoodsReceivedNote.js — Header meta, detail grid, and filter dropdowns for GRN
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
@@ -128,7 +129,8 @@ function mapTableToOptions(rows, valueKey, labelKey) {
 }
 
 export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerRbMeta, setHeaderRbMeta] = useState(null);
@@ -141,12 +143,14 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
   const [transporterOptions, setTransporterOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
+  const [clientAssetOptions, setClientAssetOptions] = useState([]);
   const supplierRowsRef = useRef(new Map());
   const [isLoadingGrnTypes, setIsLoadingGrnTypes] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [isLoadingTransporters, setIsLoadingTransporters] = useState(false);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState(false);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [isLoadingClientAssets, setIsLoadingClientAssets] = useState(false);
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
@@ -245,6 +249,49 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     },
     [get]
   );
+
+  const fetchClientAssetOptions = useCallback(
+    async (divisionId) => {
+      if (!divisionId || divisionId === "0") {
+        setClientAssetOptions([]);
+        return [];
+      }
+
+      setIsLoadingClientAssets(true);
+      try {
+        const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+          ObjType: OBJ_TYPE.FUNCTION,
+          ObjName: GRN_CONFIG.SUPPLIER_SP,
+          JSon: JSON.stringify([
+            {
+              prmdivisionid: Number(divisionId),
+              prmloginid: getUserSession().loginId,
+              prmyearid: getUserSession().yearId,
+              prmpartytype: GRN_CONFIG.ASSET_CLIENT_PARTY_TYPE,
+            },
+          ]),
+          p_ErrCode: -1,
+          p_ErrMsg: "",
+        });
+        const rows = res || [];
+        const opts = rows.map((r) => ({
+          value: String(Math.round(Number(r.supplierid))),
+          label: r.suppliername,
+        }));
+        setClientAssetOptions(opts);
+        return opts;
+      } catch (err) {
+        console.warn("[GRN] Client(Asset) fetch failed:", err);
+        setClientAssetOptions([]);
+        return [];
+      } finally {
+        setIsLoadingClientAssets(false);
+      }
+    },
+    [get]
+  );
+
+  const clearClientAssets = useCallback(() => setClientAssetOptions([]), []);
 
   const fetchTransporterOptions = useCallback(
     async (divisionId) => {
@@ -683,22 +730,26 @@ export function useGoodsReceivedNote(baseURL = API_BASE_URL) {
     transporterOptions,
     destinationOptions,
     locationOptions,
+    clientAssetOptions,
     fetchGrnTypes,
     fetchSupplierOptions,
     fetchTransporterOptions,
     fetchDestinationOptions,
     fetchLocationOptions,
+    fetchClientAssetOptions,
     getSupplierRow,
     clearGrnTypes,
     clearSuppliers,
     clearTransporters,
     clearDestinations,
     clearLocations,
+    clearClientAssets,
     isLoadingGrnTypes,
     isLoadingSuppliers,
     isLoadingTransporters,
     isLoadingDestinations,
     isLoadingLocations,
+    isLoadingClientAssets,
     columns,
     allColumns,
     allIndentColumns,

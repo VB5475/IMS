@@ -51,6 +51,10 @@ export const MACR_CONFIG = {
   SP_LIST: "fn_tbl_rb_mntamcrnwmst_list",
   LIST_DIVISION_ID: 15,
 
+  // WKF "Approval Initiator" send-for-approval button (2026-08-31 /pm) —
+  // user-confirmed transaction-type id.
+  WKF_TRAN_TYPE_ID: 386,
+
   STORAGE_HEADER_META: "macrHeaderMeta",
   STORAGE_ENTRY_META: "macrEntryMeta",
   STORAGE_TERMS_META: "macrTermsMeta",

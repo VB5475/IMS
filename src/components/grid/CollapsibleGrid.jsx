@@ -146,7 +146,16 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
   const resolvedEmptyMessage =
     emptyMessage ?? (isInline ? "No child records." : "No data available.");
 
-  // Sync rows into EntryGrid when the rows prop changes.
+  // Sync rows into EntryGrid when the rows prop changes — and also the first
+  // time the grid actually mounts. A panel that starts collapsed
+  // (defaultExpanded=false) doesn't mount EntryGrid until hasOpenedOnce
+  // flips true (see the body render below); if `rows` was already set
+  // before that first expand and never changes again, a [rows]-only
+  // dependency array never re-fires once gridRef.current exists, so the
+  // grid opens empty despite genuinely having data. hasOpenedOnce is a
+  // no-op dependency for every already-working case (inline, and panel with
+  // defaultExpanded=true both mount immediately, so it's already true on
+  // the first real run) — it only matters for a panel's first-ever expand.
   useEffect(() => {
     if (!gridRef.current?.loadRows) return;
     if (rows?.length) {
@@ -154,7 +163,7 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
     } else {
       gridRef.current.clearRows?.();
     }
-  }, [rows]);
+  }, [rows, hasOpenedOnce]);
 
   // Forward all EntryGrid imperative methods to parent refs.
   useImperativeHandle(ref, () => ({
@@ -249,7 +258,16 @@ const CollapsibleGrid = forwardRef(function CollapsibleGrid(
           hideBottomPanel={hideBottomPanel}
           hidePagination={resolvedHidePagination}
           emptyMessage={resolvedEmptyMessage}
-          initialRows={initialRows}
+          // Falls back to `rows` when the caller didn't pass an explicit
+          // initialRows — EntryGrid populates from this prop in its own
+          // mount effect, which is immune to the lazy-load timing race the
+          // ref-based "sync rows" effect above has (see its comment): if
+          // EntryGrid's dynamic import hasn't resolved yet by the time that
+          // effect runs — the common case for a panel's very first-ever
+          // expand on a page — gridRef.current is still null and the sync
+          // silently no-ops. EntryGrid reads this prop once it actually
+          // exists, so it can't miss the window like an external ref can.
+          initialRows={initialRows ?? (rows?.length ? rows : null)}
           onSave={onSave}
           onCellEvent={onCellEvent}
           eventColumns={eventColumns}

@@ -414,25 +414,52 @@
 }
 
 /* ─── Approval-status row coloring (getRowState prop, see
-   src/config/approvalStatusConfig.js) ─────────────────────────────── */
+   src/config/approvalStatusConfig.js) — lightened project-wide 2026-08-31
+   /pm after being piloted (and confirmed) on Purchase Quotation first; the
+   old shade now doubles as the hover shade one step darker. ───────────── */
 .ng-table tbody tr.ng-row--status-approved td,
 .ng-table tbody tr.ng-row--status-approved td.ng-col--action {
-  background: #d1fae5;
+  background: #ecfdf5;
 }
 
 .ng-table tbody tr.ng-row--status-approved:hover td,
 .ng-table tbody tr.ng-row--status-approved:hover td.ng-col--action {
-  background: #a7f3d0;
+  background: #d1fae5;
 }
 
 .ng-table tbody tr.ng-row--status-inApproval td,
 .ng-table tbody tr.ng-row--status-inApproval td.ng-col--action {
-  background: #fef3c7;
+  background: #fffbeb;
 }
 
 .ng-table tbody tr.ng-row--status-inApproval:hover td,
 .ng-table tbody tr.ng-row--status-inApproval:hover td.ng-col--action {
-  background: #fde68a;
+  background: #fef3c7;
+}
+
+/* Approval-status glyph in the actions column (rendered whenever getRowState
+   returns a matching statusKey — project-wide, no per-page flag) — sits
+   alongside Edit/Delete, not instead of the row tint above. Approved = green
+   checkmark; pending approval = solid amber/yellow dot, per user's literal
+   "tickmark" / "yellow filled circle" spec (2026-08-31 /pm). */
+.ng-status-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.ng-status-marker--approved {
+  color: #059669;
+}
+
+.ng-status-marker--in-approval {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f5b800;
 }
 
 /* ─── Link cell (isLink columns) ──────────────────────────────────── */

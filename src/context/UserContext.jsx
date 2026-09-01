@@ -9,6 +9,7 @@ import {
 } from "../session/userSession";
 import { extractMenuRights, MENU_RIGHTS_SP } from "../session/moduleRights";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE } from "../api/constants";
 
 initUserSession();
@@ -18,7 +19,8 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [user, setUser] = useState(() => getUserSession());
   const { post } = useApi(API_BASE_URL_IMS);
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   // Share one in-flight request when login and the auth-shell remount both
   // ask for permissions at the same time (e.g. right after a successful login).
   const inflightRef = useRef(null);

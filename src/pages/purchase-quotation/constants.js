@@ -14,7 +14,6 @@ import {
   DEFAULT_BASED_ON_FILTER_VALUES,
   PURCHASE_API,
   PURCHASE_GST_SUMMARY_FIELDS,
-  TERMS_COLUMNS,
 } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
@@ -25,7 +24,6 @@ import {
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
-export { TERMS_COLUMNS };
 export const QTN_READONLY_FIELDS = ["currencyname", "currencyrate"];
 export { DEFAULT_BASED_ON_FILTER_VALUES as QTN_FILTER_INITIAL_VALUES };
 
@@ -67,12 +65,30 @@ export const QTN_CONFIG = {
   RB_ITEM_PICKER_DIRECT: "rb_purqtnselonlyitem",
   RB_ITEM_PICKER_INQUIRY: "rb_purqtnselinqitem",
 
+  // Terms & Conditions tab (2026-08-29 /pm) — same RB-driven grid + picker
+  // pattern as Purchase Inquiry's Terms tab (PI_CONFIG.RB_TERMS_DETAIL /
+  // RB_TERMS_PICKER). RB-provided.
+  RB_TERMS_DETAIL: "rb_purqtntncdet",
+  RB_TERMS_PICKER: "rb_purqtntncselonly",
+
   SP_MASTER_FILL: "fn_tbl_rb_purqtnmst",
   SP_DETAIL_FILL: "fn_tbl_rb_purqtndet",
 
   SP_ITEM_PICKER_DIRECT: "fn_tbl_rb_purqtnselonlyitem",
   SP_ITEM_PICKER_INQUIRY: "fn_tbl_rb_purqtnselinqitem",
   SP_GRID_EVENT: "fn_tbl_rb_purqtndet_event",
+  SP_TERMS_DETAIL_FILL: "fn_tbl_rb_purqtntncdet",
+  // Terms picker row-fetch SP — RB-provided signature:
+  // fn_tbl_rb_purqtntncselonly(@prmdivisionid int, @prmtrandate date,
+  // @prmloginid int, @prmconfigid int, @prmquotid int) — see
+  // buildTermsPickerJsonPayload below.
+  SP_TERMS_PICKER: "fn_tbl_rb_purqtntncselonly",
+
+  // DBA-confirmed save payload key for Terms & Conditions detail rows
+  // (Post_RB_PurQtnMst_Save) — distinct spelling from both Purchase
+  // Inquiry's default (prmPurTermsNConditiontDetJson) and Purchase Rate
+  // Contract's (prmTermsNCondDetJSon). Verbatim, do not "fix".
+  TERMS_SAVE_JSON_KEY: "prmPurTermNConditionDetJSon",
 
   BASED_ON_OPTIONS: [
     // BASED_ON.DIRECT, 
@@ -82,6 +98,7 @@ export const QTN_CONFIG = {
 
   STORAGE_HEADER_META: "pqHeaderMeta",
   STORAGE_ENTRY_META: "pqEntryMeta",
+  STORAGE_TERMS_META: "pqTermsMeta",
 
   SP_QUOTATION_LIST: "fn_tbl_rb_purqtnmst_list",
   LIST_DIVISION_ID: 15,
@@ -164,4 +181,15 @@ export function buildItemPickerJsonPayload(headerValues, loginId) {
     configYearId: getUserSession().yearId,
     tranBook: QTN_CONFIG.TRAN_BOOK,
   });
+}
+
+/** fn_tbl_rb_purqtntncselonly payload — RB-provided param signature (5 args, no company/year). */
+export function buildTermsPickerJsonPayload(headerValues, loginId) {
+  return {
+    prmdivisionid: Number(headerValues.divisionid) || 0,
+    prmtrandate: formatTranDate(headerValues.trandate),
+    prmloginid: loginId,
+    prmconfigid: Number(headerValues.configid) || 0,
+    prmquotid: Number(headerValues.idnumber) || 0,
+  };
 }

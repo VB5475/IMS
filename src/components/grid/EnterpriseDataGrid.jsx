@@ -7,7 +7,7 @@
 //     ('list' | 'date' | 'number' | 'text')
 
 import React, { useState, useMemo, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
-import { ChevronLeft, ChevronRight, Filter, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, Pencil, Trash2, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL_IMS, ENDPOINTS } from "../../api/constants";
@@ -25,6 +25,9 @@ import "./EnterpriseDataGrid.css";
 
 const ACTION_COLUMN_KEYS = new Set(["_actions", "_action_edit", "_action_delete", "_action_select"]);
 const SELECT_COLUMN_KEY = "_action_select";
+
+// Project-wide default sort — see the `defaultSort` prop doc below.
+const DEFAULT_SORT = { key: "idnumber", direction: "desc" };
 
 function isActionColumn(col) {
   return ACTION_COLUMN_KEYS.has(col.key) || col.isAction;
@@ -203,10 +206,26 @@ function EnterpriseDataGrid({
   getRowKey = (row, index) =>
     String(row?.IDNUMBER ?? row?.idnumber ?? row?.IDNumber ?? row?.MasterID ?? index),
   // (row) => { statusKey, locked, selectable } — e.g. useApprovalRowStatus(moduleKey).
-  // statusKey adds a `ng-row--status-<statusKey>` class; locked disables that
-  // row's Edit/Delete actions. Rows it returns a no-op state for (or when this
-  // prop is omitted) render exactly as before. See src/config/approvalStatusConfig.js.
+  // statusKey adds a `ng-row--status-<statusKey>` class and renders a small
+  // glyph in the actions column next to Edit/Delete (checkmark for
+  // "approved", filled amber dot for "inApproval" — project-wide since
+  // 2026-08-31 /pm, piloted on Purchase Quotation first). `locked` disables
+  // that row's Edit/Delete actions. Rows it returns a no-op state for (or
+  // when this prop is omitted) render exactly as before — no flag needed to
+  // opt in, every page already passing getRowState gets this automatically.
+  // See src/config/approvalStatusConfig.js.
   getRowState = null,
+  // Initial sort, applied once on mount — { key, direction: "asc"|"desc" }.
+  // Project-wide default (2026-08-27 /pm, "newest first everywhere"): every
+  // list page's own record id, descending. `key` is resolved the same
+  // case-insensitive way as everything else in this grid (resolveRowFieldValue),
+  // so this one default works regardless of a module's actual column casing
+  // (idnumber / IDNumber / IDNUMBER all seen across real list SPs in this app)
+  // — no per-page wiring needed for the blanket rule. A module that needs a
+  // different rule can still override via this prop; see
+  // src/config/defaultSortConfig.js for the (currently empty) per-module
+  // override table and its `useDefaultSort(moduleKey)` hook.
+  defaultSort = DEFAULT_SORT,
 }, ref) {
   const navigate = useNavigate();
   const notify = useNotification();
@@ -214,7 +233,7 @@ function EnterpriseDataGrid({
   const { postDelete } = useApi(API_BASE_URL_IMS);
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilterCol, setActiveFilterCol] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState(defaultSort);
   const [currentPage, setCurrentPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(defaultPageSize);
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
@@ -415,8 +434,13 @@ function EnterpriseDataGrid({
     const col = displayColumns.find((c) => c.key === sortConfig.key);
     const data = [...filteredData];
     data.sort((a, b) => {
-      const rawA = a[sortConfig.key];
-      const rawB = b[sortConfig.key];
+      // resolveRowFieldValue first — case-insensitive, same resolver getRowKey's
+      // own default already relies on — so a config-driven key like "idnumber"
+      // sorts correctly regardless of a module's real column casing
+      // (idnumber / IDNumber / IDNUMBER all seen across real list SPs in this
+      // app); raw property access stays as a fallback for anything it misses.
+      const rawA = resolveRowFieldValue(a, sortConfig.key) ?? a[sortConfig.key];
+      const rawB = resolveRowFieldValue(b, sortConfig.key) ?? b[sortConfig.key];
       const aVal = col?.dropdownOptions
         ? (col.dropdownOptions.find((o) => String(o.value) === String(rawA))?.label ?? rawA)
         : rawA;
@@ -582,8 +606,17 @@ function EnterpriseDataGrid({
       const deleteMeta = col.getDeleteMeta?.(row) ?? {};
       const rowId = deleteMeta.id ?? row?.IDNUMBER ?? row?.idnumber ?? row?.IDNumber ?? 0;
       const isDeleting = deletingRowIds.has(String(rowId));
+      const statusKey = getRowState?.(row)?.statusKey;
       return (
         <div className="ng-action-btns">
+          {statusKey === "approved" && (
+            <span className="ng-status-marker ng-status-marker--approved" title="Approved" aria-label="Approved">
+              <Check size={11} strokeWidth={3.5} />
+            </span>
+          )}
+          {statusKey === "inApproval" && (
+            <span className="ng-status-marker ng-status-marker--in-approval" title="Pending Approval" aria-label="Pending Approval" />
+          )}
           {!col.hideEdit && (
             <button
               type="button"

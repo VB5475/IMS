@@ -36,6 +36,7 @@ import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useAstDepIT } from "../../hooks/useAstDepIT";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { getUserSession } from "../../session/userSession";
 import {
   ENDPOINTS,
@@ -184,7 +185,8 @@ export default function AssetsDepreciationITActForm() {
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 

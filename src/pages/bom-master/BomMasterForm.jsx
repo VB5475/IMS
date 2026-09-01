@@ -12,6 +12,7 @@ import { useNotification } from "../../context/NotificationContext";
 const OrderItemModal = lazy(() => import("../../components/txn/OrderItemModal"));
 import { useBomMaster } from "../../hooks/useBomMaster";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -130,7 +131,8 @@ export default function BomMasterForm() {
 
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { post: postSave } = useApi(API_BASE_URL_IMS);
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
 
   const {
     headerColumns, headerAllColumns, headerFetching, headerError, fetchHeaderMeta,

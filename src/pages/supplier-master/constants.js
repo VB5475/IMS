@@ -77,6 +77,9 @@ export const SM_CONFIG = {
   // scopes to DM Department Master id 6 ("ADMIN"), not 1 ("PURCHASE") like
   // the Purchase-flow transaction forms use.
   DM_TRAN_TYPE_ID: 64,
+
+  // Workflow "Approval Initiator" button (WKF), user-confirmed 2026-08-27 /pm.
+  WKF_TRAN_TYPE_ID: 168,
 };
 
 // ── Header field blocks — live schema all comes from one flat GetDetailColData

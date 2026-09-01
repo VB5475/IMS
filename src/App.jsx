@@ -158,6 +158,7 @@ const DepartmentMasterPage = lazy(() => import("./pages/department-master/Depart
 const CompanyPage = lazy(() => import("./pages/company/CompanyPage"));
 const AccountGroupMasterPage = lazy(() => import("./pages/account-group-master/AccountGroupMasterPage"));
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
+const VoucherTypeMasterPage = lazy(() => import("./pages/voucher-type-master/VoucherTypeMasterPage"));
 const DopMasterPage = lazy(() => import("./pages/dop-master/DopMasterPage"));
 const DopMasterForm = lazy(() => import("./pages/dop-master/DopMasterForm"));
 const TransporterMasterPage = lazy(() => import("./pages/transporter-master/TransporterMasterPage"));
@@ -503,6 +504,7 @@ const router = createBrowserRouter([
           rbLeaf({ rb: RB.COMPANY, element: <CompanyPage /> }),
           rbLeaf({ rb: RB.ACCOUNT_GROUP_MASTER, element: <AccountGroupMasterPage /> }),
           rbLeaf({ rb: RB.ACCOUNT_MASTER, element: <AccountMasterPage /> }),
+          rbLeaf({ rb: RB.VOUCHER_TYPE_MASTER, element: <VoucherTypeMasterPage /> }),
           rbModule({
             rb: RB.DOP_MASTER,
             list: <DopMasterPage />,

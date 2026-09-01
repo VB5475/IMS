@@ -2,8 +2,9 @@
 // fetch, and save for the Purchase Quotation Comparison single-page module.
 // No RB anywhere (client-confirmed) — every field here is a plain SP call.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { formatTranDate } from "../utils/dateFormat";
@@ -41,7 +42,8 @@ function extractErrorMessage(rows, fallback) {
 }
 
 export function usePurchaseQuotationComparison() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const [divisionOptions, setDivisionOptions] = useState([]);

@@ -3,8 +3,9 @@
 // screen. Single flat grid, no master/detail split, no division cascade —
 // GetMasterDataFill(idNumber=0) already returns every ledger Account row.
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { buildSaveJsonFields, withSaveContextFields } from "../utils/savePayload";
@@ -37,7 +38,8 @@ function mapRowsToGridRows(rows) {
 }
 
 export function useAssetDepreciationPercentage() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const [columns, setColumns] = useState([]);

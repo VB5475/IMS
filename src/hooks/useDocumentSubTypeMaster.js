@@ -6,8 +6,9 @@
 // Both sourced from explicit fn_tbl_* fetches (GetFilterDetail fails live
 // for these RB columns, same as DOP/DocType).
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import {
@@ -50,7 +51,8 @@ function mapIdNameRows(rows, extraLabelKeys = []) {
 }
 
 export function useDocumentSubTypeMaster() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

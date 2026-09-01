@@ -2,8 +2,9 @@
 // shared by every report in REPORTS_LIST's filter modal (see
 // reportsConfig.js). Location cascades off Division (clear + refetch on
 // Division change), same pattern as City Master's Country→State cascade.
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { REPORTS_FILTER_CONFIG } from "../constants/reportsConfig";
@@ -22,7 +23,8 @@ function mapOptions(rows, valueKeys, labelKeys) {
 }
 
 export function useReportFilterOptions() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);

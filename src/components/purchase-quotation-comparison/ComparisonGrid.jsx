@@ -3,10 +3,21 @@
 // static columns, and neither shared grid component supports grouped per-supplier
 // sub-columns or cross-row "Best" badge logic. See /tl architecture sign-off.
 
-import React from "react";
-import { AlertTriangle, Check, Info, Rows3 } from "lucide-react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { AlertTriangle, Check, Info, Rows3, GripVertical } from "lucide-react";
 import { formatTranDate } from "../../utils/dateFormat";
 import "./ComparisonGrid.css";
+
+// Supplier columns are user-resizable/reorderable (2026-08-31 /pm — heavy
+// content like a long Terms line was forcing table-layout:auto to blow the
+// whole table wide instead of wrapping, pushing later items off-screen).
+// table-layout:fixed + an explicit <colgroup> below makes column widths
+// authoritative, so long content wraps (grows the row) instead of growing
+// the column. The Item column stays fixed — only supplier columns move.
+const ITEM_COL_WIDTH = 220;
+const DEFAULT_SUPPLIER_COL_WIDTH = 240;
+const MIN_SUPPLIER_COL_WIDTH = 160;
+const MAX_SUPPLIER_COL_WIDTH = 560;
 
 function formatCurrency(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -54,6 +65,89 @@ export default function ComparisonGrid({
   const { lowestRateSupplierIdByItem } = badges;
   const { bestRateSupplierIdByItem = {}, bestRateExplanationByItem = {} } = bestRate ?? {};
 
+  // Column order + widths are local UI state, not persisted — reset whenever
+  // the underlying supplier SET changes (a different inquiry loaded), so a
+  // custom arrangement from one inquiry never leaks onto an unrelated one.
+  const supplierIdsKey = suppliers.map((s) => s.supplierid).join("|");
+  const [order, setOrder] = useState(() => suppliers.map((s) => s.supplierid));
+  const [colWidths, setColWidths] = useState({});
+  const prevKeyRef = useRef(supplierIdsKey);
+
+  useEffect(() => {
+    if (prevKeyRef.current !== supplierIdsKey) {
+      setOrder(suppliers.map((s) => s.supplierid));
+      setColWidths({});
+      prevKeyRef.current = supplierIdsKey;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplierIdsKey]);
+
+  const orderedSuppliers = useMemo(() => {
+    const bySupplierId = new Map(suppliers.map((s) => [s.supplierid, s]));
+    return order.map((id) => bySupplierId.get(id)).filter(Boolean);
+  }, [order, suppliers]);
+
+  // ── Column resize (drag the handle on a supplier column's right edge) ──
+  const resizingRef = useRef(null); // { supplierId, startX, startWidth }
+
+  const handleResizeMove = useCallback((e) => {
+    const r = resizingRef.current;
+    if (!r) return;
+    const delta = e.clientX - r.startX;
+    const next = Math.min(MAX_SUPPLIER_COL_WIDTH, Math.max(MIN_SUPPLIER_COL_WIDTH, r.startWidth + delta));
+    setColWidths((prev) => ({ ...prev, [r.supplierId]: next }));
+  }, []);
+
+  const handleResizeEnd = useCallback(() => {
+    resizingRef.current = null;
+    document.removeEventListener("mousemove", handleResizeMove);
+    document.removeEventListener("mouseup", handleResizeEnd);
+  }, [handleResizeMove]);
+
+  const handleResizeStart = useCallback(
+    (e, supplierId) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startWidth = colWidths[supplierId] ?? DEFAULT_SUPPLIER_COL_WIDTH;
+      resizingRef.current = { supplierId, startX: e.clientX, startWidth };
+      document.addEventListener("mousemove", handleResizeMove);
+      document.addEventListener("mouseup", handleResizeEnd);
+    },
+    [colWidths, handleResizeMove, handleResizeEnd]
+  );
+
+  // Stop listening if the component unmounts mid-drag.
+  useEffect(() => () => {
+    document.removeEventListener("mousemove", handleResizeMove);
+    document.removeEventListener("mouseup", handleResizeEnd);
+  }, [handleResizeMove, handleResizeEnd]);
+
+  // ── Column reorder (drag a supplier header, drop it before another) ────
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const handleColumnDrop = useCallback((targetId) => {
+    setOrder((prev) => {
+      if (!draggedId || draggedId === targetId) return prev;
+      const draggedIndex = prev.indexOf(draggedId);
+      const targetIndex = prev.indexOf(targetId);
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+      // Direction-aware insert: dragging forward drops AFTER the target
+      // (target slides left into dragged's old spot); dragging backward
+      // drops BEFORE it. Using the target's plain post-removal index for
+      // both directions makes a 2-column drag a no-op (removing the one
+      // before it always shifts the target back to the same slot) — this
+      // is what actually needs the direction check, not a style choice.
+      const next = prev.filter((id) => id !== draggedId);
+      const newTargetIndex = next.indexOf(targetId);
+      const insertAt = draggedIndex < targetIndex ? newTargetIndex + 1 : newTargetIndex;
+      next.splice(insertAt, 0, draggedId);
+      return next;
+    });
+    setDraggedId(null);
+    setDragOverId(null);
+  }, [draggedId]);
+
   const hasData = items.length > 0 && suppliers.length > 0;
 
   if (!hasData) {
@@ -72,26 +166,53 @@ export default function ComparisonGrid({
           Comparison Grid — {items.length} item{items.length !== 1 ? "s" : ""} ×{" "}
           {suppliers.length} supplier{suppliers.length !== 1 ? "s" : ""}
         </span>
+        <span className="pqc-grid-title__hint">Drag a supplier's grip to reorder · drag its right edge to resize</span>
       </div>
       <div className="pqc-grid-wrap pqc-grid-wrap--titled">
       <table className="pqc-grid">
+        <colgroup>
+          <col style={{ width: `${ITEM_COL_WIDTH}px` }} />
+          {orderedSuppliers.map((s) => (
+            <col key={s.supplierid} style={{ width: `${colWidths[s.supplierid] ?? DEFAULT_SUPPLIER_COL_WIDTH}px` }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             <th className="pqc-grid__item-col pqc-grid__item-col--sticky">Item</th>
-            {suppliers.map((s) => {
+            {orderedSuppliers.map((s) => {
               const anyExpiring = items.some((item) => {
                 const cell = cells.get(cellKey(item.itemid, s.supplierid));
                 return cell && isExpiringSoon(cell.expirydate);
               });
               return (
-                <th key={s.supplierid} className="pqc-grid__supplier-col">
-                  <div className="pqc-grid__supplier-name">{s.suppliername}</div>
+                <th
+                  key={s.supplierid}
+                  className={`pqc-grid__supplier-col${dragOverId === s.supplierid ? " pqc-grid__supplier-col--drop-target" : ""}${draggedId === s.supplierid ? " pqc-grid__supplier-col--dragging" : ""}`}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDraggedId(s.supplierid); }}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverId(s.supplierid); }}
+                  onDragLeave={() => setDragOverId((prev) => (prev === s.supplierid ? null : prev))}
+                  onDrop={(e) => { e.preventDefault(); handleColumnDrop(s.supplierid); }}
+                  onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                >
+                  <div className="pqc-grid__supplier-header">
+                    <span className="pqc-grid__supplier-grip" title="Drag to reorder" aria-hidden="true">
+                      <GripVertical size={12} strokeWidth={2} />
+                    </span>
+                    <div className="pqc-grid__supplier-name">{s.suppliername}</div>
+                  </div>
                   {anyExpiring && (
                     <div className="pqc-grid__expiry-warning">
                       <AlertTriangle size={11} strokeWidth={2} />
                       Expires soon
                     </div>
                   )}
+                  <div
+                    className="pqc-grid__col-resize-handle"
+                    title="Drag to resize column"
+                    onMouseDown={(e) => handleResizeStart(e, s.supplierid)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
                 </th>
               );
             })}
@@ -104,7 +225,7 @@ export default function ComparisonGrid({
                 <div className="pqc-grid__item-name">{item.itemname}</div>
                 <div className="pqc-grid__item-code">{item.itemcode}</div>
               </td>
-              {suppliers.map((s) => {
+              {orderedSuppliers.map((s) => {
                 const cell = cells.get(cellKey(item.itemid, s.supplierid));
                 const isLowestRate = lowestRateSupplierIdByItem[item.itemid] === s.supplierid;
                 const isBestRate = bestRateSupplierIdByItem[item.itemid] === s.supplierid;
@@ -163,10 +284,18 @@ export default function ComparisonGrid({
                           Qty {cell.qty}
                           {cell.deliverydate && <> · Del. {formatTranDate(cell.deliverydate)}</>}
                         </div>
+                        <div className="pqc-grid__cell-landcost">
+                          Land Cost: {formatCurrency(cell.landcost)}
+                        </div>
                         {cell.qtnno && (
                           <div className="pqc-grid__cell-qtn">
                             Qtn #{cell.qtnno}
                             {cell.qtndate && <> · {formatTranDate(cell.qtndate)}</>}
+                          </div>
+                        )}
+                        {cell.terms && (
+                          <div className="pqc-grid__cell-terms">
+                            Terms: {cell.terms}
                           </div>
                         )}
                       </div>

@@ -10,8 +10,9 @@
 // Cascading filters (page onFilterChange):
 //   Division → Quotation Type + Supplier
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { getUserSession } from "../session/userSession";
 import {
   ENDPOINTS,
@@ -117,7 +118,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function usePurchaseQuotation(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Header (master) state ─────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);
@@ -142,6 +144,15 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
 
   const rawDetailColumnsRef = useRef([]);
   const rawDetailRbMetaRef = useRef(null);
+
+  // ── Terms & Conditions tab (rb_purqtntncdet) grid state — same RB-driven
+  // pattern as the item detail grid above (loadRbDetailGridMeta +
+  // fetchDropdownOptions + buildGridColumns). Mirrors Purchase Inquiry's
+  // Terms tab (usePurchaseInquiry.js).
+  const [termsColumns, setTermsColumns] = useState([]);
+  const [allTermsColumns, setAllTermsColumns] = useState([]);
+  const rawTermsColumnsRef = useRef([]);
+  const rawTermsRbMetaRef = useRef(null);
 
   const fetchQuotationTypes = useCallback(
     async (divisionId) => {
@@ -406,6 +417,51 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     [get]
   );
 
+  const fetchTermsDetailMeta = useCallback(async () => {
+    try {
+      const { meta, apiColumns } = await loadRbDetailGridMeta(
+        get,
+        QTN_CONFIG.RB_TERMS_DETAIL,
+        QTN_CONFIG.STORAGE_TERMS_META
+      );
+      rawTermsRbMetaRef.current = meta;
+      rawTermsColumnsRef.current = apiColumns;
+      setAllTermsColumns(
+        apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null }))
+      );
+    } catch (err) {
+      console.error("[PQ] fetchTermsDetailMeta failed:", err);
+    }
+  }, [get]);
+
+  const fetchTermsGridColumns = useCallback(
+    async (divisionID = 0, editOpts = false) => {
+      const apiColumns = rawTermsColumnsRef.current;
+      const meta = rawTermsRbMetaRef.current;
+
+      if (!apiColumns.length || !meta) {
+        console.warn("[PQ] fetchTermsGridColumns called before fetchTermsDetailMeta completed.");
+        return [];
+      }
+
+      try {
+        const gridColumns = await fetchAndBuildGridColumns(get, {
+          apiColumns,
+          rbId: meta.RBID,
+          funcCode: QTN_CONFIG.RB_TERMS_DETAIL,
+          divisionID,
+          editOpts,
+        });
+        setTermsColumns(gridColumns);
+        return gridColumns;
+      } catch (err) {
+        console.error("[PQ] fetchTermsGridColumns failed:", err);
+        return [];
+      }
+    },
+    [get]
+  );
+
   const fetchEditRecord = useCallback(
     async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
       const prmParameters = buildMasterDataFillParams({
@@ -416,7 +472,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         idNumber,
       });
 
-      const [mstRes, detRes] = await Promise.all([
+      const [mstRes, detRes, termsRes] = await Promise.all([
         get(ENDPOINTS.GET_MASTER_DATA_FILL, {
           prmProcedure: QTN_CONFIG.SP_MASTER_FILL,
           prmParameters,
@@ -427,6 +483,11 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
           prmParameters,
           prmFuncCode: QTN_CONFIG.RB_DETAIL,
         }),
+        get(ENDPOINTS.GET_MASTER_DATA_FILL, {
+          prmProcedure: QTN_CONFIG.SP_TERMS_DETAIL_FILL,
+          prmParameters,
+          prmFuncCode: QTN_CONFIG.RB_TERMS_DETAIL,
+        }),
       ]);
 
       const master = mstRes?.[0] ?? null;
@@ -435,6 +496,7 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
         master,
         headerValues: master ? mapMasterRowToHeaderValues(master) : null,
         details: mapDetailRowsToGridRows(detRes || []),
+        termsDetails: mapDetailRowsToGridRows(termsRes || []),
       };
     },
     [get]
@@ -505,5 +567,9 @@ export function usePurchaseQuotation(baseURL = API_BASE_URL) {
     fetchEditRecord,
     fireCellEvent,
     isEventFiring,
+    termsColumns,
+    allTermsColumns,
+    fetchTermsDetailMeta,
+    fetchTermsGridColumns,
   };
 }

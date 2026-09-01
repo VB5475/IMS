@@ -8,8 +8,9 @@
 // URLSearchParams serialisation is handled inside useApi — callers
 // just pass a plain { key: value } object.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { REPORT_WORKSPACE_CONFIG } from "../pages/report-workspace/constants";
@@ -19,7 +20,8 @@ import { useNotification } from "../context/NotificationContext";
 // ── Hook ─────────────────────────────────────────────────────────────
 
 export function useGridSearch(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const notify = useNotification();
 
   const [columns, setColumns] = useState([]);

@@ -31,6 +31,10 @@ export const RB_CODES = Object.freeze({
   CUSTOMER_MASTER: "rb_customermst",
   ACCOUNT_GROUP_MASTER: "rb_acountgroupmst",
   ACCOUNT_MASTER: "rb_accountmst",
+  // MRD_TemplateVoucherTypeMst (1).docx (Aditya, 20-Aug-2026, module code
+  // "Account") — flat master, explicitly named in the MRD's own RB Structure
+  // Detail + header-panel notes (not a placeholder like some other MRDs).
+  VOUCHER_TYPE_MASTER: "rb_vouchertypemst",
   TRANSPORTER_MASTER: "rb_transportermst",
   // MRD_Template4CountryMaster.docx / MRD_Template4CityMaster.docx (Aditya,
   // 17-Jun-2026) — flat masters, City cascades off Country (Country -> State).
@@ -165,6 +169,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.SUPPLIER_MASTER]: "/admin/master/supplier-master",
   [RB_CODES.ACCOUNT_GROUP_MASTER]: "/admin/account-group-master",
   [RB_CODES.ACCOUNT_MASTER]: "/admin/account-master",
+  [RB_CODES.VOUCHER_TYPE_MASTER]: "/admin/voucher-type-master",
   // MRD's own routes are malformed ("/Admin/Master/Supplier – Transporter
   // Master" — literal en-dash, duplicated "Supplier") — using the sibling
   // Supplier/Customer Master route shape instead.

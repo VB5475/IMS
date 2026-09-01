@@ -102,6 +102,46 @@ export const APPROVAL_STATUS_CONFIG = {
       100: { statusKey: "inApproval", locked: true, selectable: true },
     },
   },
+  // 2026-08-27 /pm — WKF Approval Initiator rollout to 3 admin masters.
+  // Unlike Purchase Quotation's list SP (confirmed to lack appstatusid
+  // entirely), Supplier/Customer/Item Master's list SPs DO return it
+  // (live-verified) — this rule is actually functional here, not a no-op.
+  "supplier-master": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "customer-master": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "item-master": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  // 2026-08-31 /pm — WKF Approval Initiator rollout to Maintenance modules.
+  "maintenance-contract-renewal": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
+  "maintenance-new-contract": {
+    field: "appstatusid",
+    rules: {
+      1: { statusKey: "approved", locked: true, selectable: true },
+      100: { statusKey: "inApproval", locked: true, selectable: true },
+    },
+  },
 };
 
 const NO_OP_STATE = { statusKey: null, locked: false, selectable: true };

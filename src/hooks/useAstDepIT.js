@@ -17,8 +17,9 @@
 //   hardcoded 7 the sibling assets-depreciation module uses), prmloginid,
 //   prmcompanyid, prmyearid
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { DIT_CONFIG } from "../pages/assets-depreciation-it-act/constants";
@@ -70,7 +71,8 @@ function mapDetailRowsToGridRows(rows) {
 }
 
 export function useAstDepIT(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Header (master) state ──────────────────────────────────────────────
   const [headerColumns, setHeaderColumns] = useState([]);
