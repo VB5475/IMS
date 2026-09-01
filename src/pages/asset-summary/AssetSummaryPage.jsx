@@ -6,7 +6,7 @@ import { API_BASE_URL, ENDPOINTS } from "../../api/constants";
 import { getStoredSessionId, getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../../constants/tableConfig";
+import { isNumericColumnDef } from "../../utils/columnValidation";
 import { ASSET_SUMMARY_CONFIG } from "./constants";
 import "./AssetSummaryPage.css";
 
@@ -95,13 +95,18 @@ export default function AssetSummaryPage() {
   const session = useMemo(() => getUserSession(), []);
 
   const [columns, setColumns] = useState([]);
+  const [gridColumns, setGridColumns] = useState([]);
   const [data, setData] = useState([]);
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [selectedDivision, setSelectedDivision] = useState("");
   const [columnsLoading, setColumnsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  const numericTotalColumns = useMemo(
+    () => gridColumns.filter((col) => col.key !== "cb" && isNumericColumnDef(col)),
+    [gridColumns]
+  );
 
   usePageHeader({
     title: "Asset Summary",
@@ -133,13 +138,15 @@ export default function AssetSummaryPage() {
         prmMasterID: rbId,
         prmLoginID: Number(session.loginId) || 1,
       });
-      const gridColumns = buildGridColumns(apiColumns || [], {}, {
+      const builtColumns = buildGridColumns(apiColumns || [], {}, {
         filterable: true,
         allEditable: false,
       });
-      setColumns(toEnterpriseDataGridColumns(gridColumns));
+      setGridColumns(builtColumns);
+      setColumns(toEnterpriseDataGridColumns(builtColumns));
     } catch (err) {
       console.error("[AssetSummary] column fetch failed:", err);
+      setGridColumns([]);
       setColumns([]);
       setError(err?.message || "Failed to load asset summary columns.");
     } finally {
@@ -237,11 +244,11 @@ export default function AssetSummaryPage() {
           loading={loading || columnsLoading}
           error={error}
           loaderText="Loading asset summary…"
-          pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           emptyMessage={selectedDivision ? "No asset summary data found." : "Select a division."}
           hideHeader
+          hidePagination
+          showNumericColumnTotals
+          numericTotalColumns={numericTotalColumns}
           fill
           variant="dashboard-v2"
           getRowKey={getRowKey}
