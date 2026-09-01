@@ -6,8 +6,9 @@
 // See constants.js for the confirmed live-SP gap around round-tripping
 // already-saved checks.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { normalizeDetailColLinks, resolveDetailColLinks } from "../utils/masterFormUtils";
@@ -30,7 +31,8 @@ function mapIdNameRows(rows, labelKeys = ["name", "Name"]) {
 }
 
 export function useDMTT2DocTypeMaster() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

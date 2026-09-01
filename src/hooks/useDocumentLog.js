@@ -5,8 +5,9 @@
 // components/txn/documentLogConfig.js for the "why" and for the real API
 // contract confirmed 2026-07-30 via the actual DM API spec doc.
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, buildSaveRowFromColumns, nowStoredValue } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { resolveDetailColLinks, normalizeDetailColLinks } from "../utils/masterFormUtils";
@@ -42,7 +43,8 @@ function buildDocFormData({ mode, yearId, loginId, divisionId, mstRow, file }) {
 }
 
 export function useDocumentLog() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const [docsColumns, setDocsColumns] = useState([]);

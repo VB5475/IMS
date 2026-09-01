@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { MapPin } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -59,7 +60,8 @@ function buildColumnsFromData(data, onEdit) {
 }
 
 export default function LocationMasterPage() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // Field defs (from GetDetailColData) + dropdown options fetched once — passed down to form
   const {

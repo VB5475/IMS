@@ -35,6 +35,7 @@ import { useGoodsReceivedNote } from "../../hooks/useGoodsReceivedNote";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -58,6 +59,7 @@ import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { validateApiColumnsByField, validateGridRows, validateGridRowsDetailed } from "../../utils/columnValidation";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
+import { getCheckboxValue } from "../../utils/masterFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { usePendingCellEventFlush } from "../../hooks/usePendingCellEventFlush";
@@ -115,6 +117,8 @@ function mapHeaderValuesToFilterValues(headerValues, masterRow = null) {
     drivername: headerValues.drivername ?? "",
     drivercontactno: headerValues.drivercontactno ?? "",
     driverlicenceno: headerValues.driverlicenceno ?? "",
+    assetclientid: String(headerValues.assetclientid ?? ""),
+    isclientasset: headerValues.isclientasset ?? 0,
   };
 }
 
@@ -192,7 +196,8 @@ export default function GoodsReceivedNoteForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post } = useApi(API_BASE_URL_IMS);
 
   const {
@@ -207,6 +212,7 @@ export default function GoodsReceivedNoteForm() {
     transporterOptions,
     destinationOptions,
     locationOptions,
+    clientAssetOptions,
     fetchGrnTypes,
     clearGrnTypes,
     fetchSupplierOptions,
@@ -215,14 +221,17 @@ export default function GoodsReceivedNoteForm() {
     fetchTransporterOptions,
     fetchDestinationOptions,
     fetchLocationOptions,
+    fetchClientAssetOptions,
     clearTransporters,
     clearDestinations,
     clearLocations,
+    clearClientAssets,
     isLoadingGrnTypes,
     isLoadingSuppliers,
     isLoadingTransporters,
     isLoadingDestinations,
     isLoadingLocations,
+    isLoadingClientAssets,
     columns,
     allColumns,
     allIndentColumns,
@@ -291,6 +300,8 @@ export default function GoodsReceivedNoteForm() {
   const [filterResetKey, setFilterResetKey] = useState(0);
   const [currencyExternalValues, setCurrencyExternalValues] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  // Client(Asset) dropdown is only enabled while Is Client Asset is checked.
+  const [isClientAssetChecked, setIsClientAssetChecked] = useState(false);
 
   // Document Log modal (F6) — scoped to this GRN's record id, gated on the
   // session's Document Log permission flags. Mirrors PurchaseIndentForm.jsx's
@@ -409,6 +420,8 @@ export default function GoodsReceivedNoteForm() {
       drivername: "",
       drivercontactno: "",
       driverlicenceno: "",
+      isclientasset: 0,
+      assetclientid: 0,
       companyid: resetSession.companyId,
       yearid: resetSession.yearId,
       loginid: resetSession.loginId,
@@ -421,12 +434,14 @@ export default function GoodsReceivedNoteForm() {
     clearGrnTypes();
     clearSuppliers();
     clearTransporters();
+    clearClientAssets();
     clearIndentDetailMeta();
     docLog.resetDocGuid();
 
     setApprovedFilter("all");
     setIsGridLoading(false);
     setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
+    setIsClientAssetChecked(false);
     clearItemGridState();
     setFilterResetKey((k) => k + 1);
     setFieldErrors({});
@@ -440,6 +455,7 @@ export default function GoodsReceivedNoteForm() {
     clearGrnTypes,
     clearSuppliers,
     clearTransporters,
+    clearClientAssets,
     clearIndentDetailMeta,
     clearItemGridState,
     exitEditMode,
@@ -478,6 +494,7 @@ export default function GoodsReceivedNoteForm() {
       editRecordLoadedRef.current = true;
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues, master));
       setFilterResetKey((k) => k + 1);
+      setIsClientAssetChecked(getCheckboxValue(headerValues.isclientasset) === 1);
 
       const divisionId = headerValues.divisionid ?? 0;
       if (divisionId) {
@@ -492,6 +509,7 @@ export default function GoodsReceivedNoteForm() {
           fetchSupplierOptions(divisionId),
           fetchTransporterOptions(divisionId),
           fetchLocationOptions(divisionId),
+          fetchClientAssetOptions(divisionId),
         ]);
         if (headerValues.transporterid) {
           await fetchDestinationOptions(divisionId, headerValues.transporterid);
@@ -528,6 +546,7 @@ export default function GoodsReceivedNoteForm() {
     fetchTransporterOptions,
     fetchDestinationOptions,
     fetchLocationOptions,
+    fetchClientAssetOptions,
     fetchIndentDetailColumns,
   ]);
 
@@ -600,7 +619,8 @@ export default function GoodsReceivedNoteForm() {
     transporterid: transporterOptions,
     destinationid: destinationOptions,
     locationid: locationOptions,
-  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions, locationOptions]);
+    assetclientid: clientAssetOptions,
+  }), [divisionOptions, grnTypeOptions, supplierOptions, transporterOptions, destinationOptions, locationOptions, clientAssetOptions]);
 
   // Filter definitions are built straight from the live RB column (caption,
   // control type, lock state, validation constraints) — no hand-maintained
@@ -648,12 +668,19 @@ export default function GoodsReceivedNoteForm() {
         if (!isEditMode) tone = "view";
         else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
 
+        // Client(Asset) only makes sense while Is Client Asset is checked —
+        // lock it the same way an RB-frozen field would look, without
+        // touching the RB metadata itself.
+        if (f.FilterColName === "assetclientid" && tone === "editable" && !isClientAssetChecked) {
+          tone = "view";
+        }
+
         tones[f.FilterColName] = tone;
         if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
       });
       return tones;
     },
-    [isEditMode, isEditRoute]
+    [isEditMode, isEditRoute, isClientAssetChecked]
   );
 
   const headerFieldTones = useMemo(
@@ -702,11 +729,13 @@ export default function GoodsReceivedNoteForm() {
         headerValuesRef.current.currencyrate = "";
         headerValuesRef.current.transporterid = 0;
         headerValuesRef.current.destinationid = 0;
+        headerValuesRef.current.assetclientid = 0;
         setCurrencyExternalValues({ currencyname: "", currencyrate: "" });
         clearGrnTypes();
         clearLocations();
         clearSuppliers();
         clearTransporters();
+        clearClientAssets();
         void refreshItemGridMeta(val);
         if (val && val !== "0") {
           await Promise.all([
@@ -714,6 +743,7 @@ export default function GoodsReceivedNoteForm() {
             fetchLocationOptions(val),
             fetchSupplierOptions(val),
             fetchTransporterOptions(val),
+            fetchClientAssetOptions(val),
           ]);
           focusFieldAfterCascade(filterPanelRef, "configid");
         }
@@ -734,6 +764,13 @@ export default function GoodsReceivedNoteForm() {
         void refreshItemGridMeta(headerValuesRef.current.divisionid);
       }
 
+      if (colName === "isclientasset") {
+        setIsClientAssetChecked(getCheckboxValue(val) === 1);
+        // Selection reset (blank the visible dropdown) is handled by
+        // GRN_FILTER_CASCADE_RESETS — mirrors it in headerValuesRef.
+        headerValuesRef.current.assetclientid = 0;
+      }
+
       return undefined;
     },
     [
@@ -743,6 +780,7 @@ export default function GoodsReceivedNoteForm() {
       clearSuppliers,
       clearTransporters,
       clearDestinations,
+      clearClientAssets,
       clearItemGridState,
       refreshItemGridMeta,
       fetchGrnTypes,
@@ -750,6 +788,7 @@ export default function GoodsReceivedNoteForm() {
       fetchSupplierOptions,
       fetchTransporterOptions,
       fetchDestinationOptions,
+      fetchClientAssetOptions,
     ]
   );
 
@@ -1172,7 +1211,8 @@ export default function GoodsReceivedNoteForm() {
     isLoadingSuppliers ||
     isLoadingTransporters ||
     isLoadingDestinations ||
-    isLoadingLocations;
+    isLoadingLocations ||
+    isLoadingClientAssets;
 
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,

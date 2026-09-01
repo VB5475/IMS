@@ -305,6 +305,17 @@
   margin-bottom: 20px;
 }
 
+/* Divider between one module (section) and the next — every section except
+   the first gets a top border, so each module's own item list is bounded by
+   a line above and below (the next section's line, or the sidebar footer
+   for the last one). Applies in both expanded and collapsed-rail mode, since
+   both render inside the same .ent-sidebar__section wrapper (2026-08-31 /pm
+   follow-up — "before and after of the main module navigation"). */
+.ent-sidebar__section:not(:first-child) {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 14px;
+}
+
 .ent-sidebar__section-label {
   /* Was 10px / 40% white — read as barely-there against the dark navy
      background (user-reported, matches the same low-contrast pattern the
@@ -373,9 +384,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 36px;
-  padding: 0 12px;
-  margin-bottom: 2px;
+  /* min-height (not a fixed height) + real vertical padding + line-height —
+     long labels ("Assets Health Status Updation") wrap to 2 lines, and a
+     fixed 36px/0-padding row squeezed that second line against the row
+     below it, reading as visually "congested" (user-reported 2026-08-31,
+     screenshot of the expanded Assets section). Padding lets 2-line items
+     grow instead of clipping their own breathing room. */
+  min-height: 36px;
+  padding: 7px 12px;
+  margin-bottom: 4px;
   color: var(--sidebar-text);
   /* A touch larger than --font-size-base (13px) and medium-weight rather
      than regular — both make a real, visible difference on the dark
@@ -383,6 +400,7 @@
      rest of the app's 13px baseline. */
   font-size: 15px;
   font-weight: 500;
+  line-height: 1.25;
   transition:
     background var(--transition),
     color var(--transition);
@@ -398,6 +416,18 @@ button.ent-sidebar__link {
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* Divider between every nav item within a section (renderSectionItems in
+   AppShell.jsx — after every item except the last one in the list), in both
+   the expanded accordion and the collapsed-rail flyout. Originally a sparse,
+   curated grouping cue for just Assets/Master; widened to every item in
+   every section per explicit follow-up ask (2026-08-31 /pm) — the "keep it
+   sparse" recommendation was overridden on purpose, not an oversight. */
+.ent-sidebar__divider {
+  height: 1px;
+  margin: 4px 12px 8px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ent-sidebar__link-icon {

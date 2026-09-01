@@ -31,6 +31,16 @@
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
+.pqc-grid-title__hint {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+}
+
 .pqc-grid-wrap {
   overflow: auto;
   max-height: min(70vh, 640px);
@@ -47,8 +57,14 @@
 .pqc-grid {
   border-collapse: separate;
   border-spacing: 0;
-  width: max-content;
-  min-width: 100%;
+  /* table-layout:fixed + the <colgroup> in ComparisonGrid.jsx make column
+     widths authoritative (2026-08-31 /pm) — a long unbroken line (e.g.
+     Terms) used to force auto-layout to blow the whole table wide instead
+     of wrapping, pushing later items off-screen. Now heavy content wraps
+     and grows the ROW instead, and the horizontal scrollbar on
+     .pqc-grid-wrap only ever appears once real column widths (resized by
+     the user, see .pqc-grid__col-resize-handle) exceed the viewport. */
+  table-layout: fixed;
   font-family: "Inter", system-ui, sans-serif;
   font-size: 0.85rem;
 }
@@ -105,11 +121,64 @@ thead .pqc-grid__item-col--sticky {
 }
 
 .pqc-grid__supplier-col {
-  min-width: 180px;
+  position: relative;
+  overflow-wrap: break-word;
+}
+
+/* Column being dragged (reorder) — dimmed so the drop target reads clearly. */
+.pqc-grid__supplier-col--dragging {
+  opacity: 0.4;
+}
+
+/* Column currently under a dragged column — highlighted as the drop target. */
+.pqc-grid__supplier-col--drop-target {
+  background: color-mix(in srgb, var(--primary) 18%, var(--col-base-header-bg));
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.pqc-grid__supplier-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.pqc-grid__supplier-grip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: grab;
+}
+
+.pqc-grid__supplier-grip:active {
+  cursor: grabbing;
 }
 
 .pqc-grid__supplier-name {
   font-size: 11px;
+  overflow-wrap: break-word;
+}
+
+/* Drag handle on a supplier column's right edge — widens/narrows that one
+   column (colWidths state in ComparisonGrid.jsx), clamped between
+   MIN/MAX_SUPPLIER_COL_WIDTH. Sits over the border, not inside the padded
+   content, so it doesn't compete with clicks on the header text. */
+.pqc-grid__col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+
+.pqc-grid__col-resize-handle:hover,
+.pqc-grid__col-resize-handle:active {
+  background: var(--primary);
+  opacity: 0.5;
 }
 
 .pqc-grid__expiry-warning {
@@ -163,6 +232,7 @@ thead .pqc-grid__item-col--sticky {
   padding: 10px 30px 10px 14px;
   cursor: pointer;
   transition: background-color 0.12s ease;
+  overflow-wrap: break-word;
 }
 
 .pqc-grid__cell-select:hover {
@@ -282,6 +352,24 @@ thead .pqc-grid__item-col--sticky {
   margin-top: 2px;
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.pqc-grid__cell-landcost {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.pqc-grid__cell-terms {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  /* Wraps within the (now fixed-width, user-resizable) column instead of
+     truncating — widen the column via .pqc-grid__col-resize-handle to see
+     more per line. Long unbroken text still can't force the column wider,
+     it just wraps to more lines and grows the row (2026-08-31 /pm). */
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .pqc-grid__footnote {

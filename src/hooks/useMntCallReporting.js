@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -152,7 +153,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
  * Header + Required Parts / Old Parts grids + item pickers.
  */
 export function useMntCallReporting() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Package2, Pencil } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
@@ -95,7 +96,8 @@ function buildColumnsFromData(data, navigate) {
 
 export default function AssetsItemOpeningPage() {
   const navigate = useNavigate();
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);

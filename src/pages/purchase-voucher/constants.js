@@ -38,6 +38,9 @@ export const PV_CONFIG = {
   SUPPLIER_PARTY_TYPE: "S",
   SUPPLIER_SP: "fn_tbl_fetchcustomersuppliertranws4web",
 
+  /** Client(Asset) dropdown — same SP as Supplier (SUPPLIER_SP), filtered by party type. */
+  ASSET_CLIENT_PARTY_TYPE: "C",
+
   // RB codes for item picker modal (3 modes based on BasedOnID)
   // 2026-07-29: user corrected the mapping — BasedOnID 0 = Direct, 2 = GRN
   // Base (1 = PO Base, unchanged). Was previously 0=GRN/2=Direct; every
@@ -104,7 +107,11 @@ export const PV_CONFIG = {
 export const PV_GRID_TABS = [{ id: "items", label: "Item Grid" }];
 
 export const PV_FILTER_CASCADE_RESETS = {
-  divisionid: ["configid", "supplierid", "locationid"],
+  divisionid: ["configid", "supplierid", "locationid", "assetclientid"],
+
+  // Client(Asset) is only meaningful while Is Client Asset is checked — clear
+  // any selection whenever the checkbox is toggled (either direction).
+  isclientasset: ["assetclientid"],
 };
 
 export const PV_SUMMARY_FIELDS = [

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeftRight, Send } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -45,7 +46,8 @@ function buildListParams() {
 
 export default function AssetsEmployeeTransferPage() {
   const navigate = useNavigate();
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post: postWkf } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
 
@@ -158,9 +160,17 @@ export default function AssetsEmployeeTransferPage() {
     const directDivisionId = Number(resolveRowFieldValue(row, "fromdivisionid"));
     let divisionId = Number.isFinite(directDivisionId) && directDivisionId > 0 ? directDivisionId : null;
     if (!divisionId) {
+      // Live-confirmed 2026-08-31: the list SP returns a plain "division"
+      // column (matches PO's list-page pattern), never "fromdivision" —
+      // that fallback alone always missed, which silently blocked Send For
+      // Approval before it ever reached the API.
       const divisionName = row
         ? String(
-            resolveRowFieldValue(row, "fromdivision") ?? resolveRowFieldValue(row, "fromdivisionname") ?? ""
+            resolveRowFieldValue(row, "fromdivision")
+              ?? resolveRowFieldValue(row, "fromdivisionname")
+              ?? resolveRowFieldValue(row, "division")
+              ?? resolveRowFieldValue(row, "divisionname")
+              ?? ""
           ).trim().toLowerCase()
         : "";
       divisionId = divisionNameToId[divisionName];

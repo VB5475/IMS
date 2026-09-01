@@ -15,8 +15,9 @@
 // on the live header RB (2026-08-12 bug fix) — fetched the same
 // non-cascading way as Department/Company, not tied to any other field.
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -157,7 +158,8 @@ function useDetailGridPipeline(get, rbCode, storageKey) {
 }
 
 export function useDopMaster(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

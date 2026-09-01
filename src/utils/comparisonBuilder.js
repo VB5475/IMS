@@ -8,6 +8,9 @@
 // negotiationrate, baserate, deliverydate, supplierid, itemid, qtnmstid, qtndetid,
 // isselected. No discount-percent field exists on this SP at all — the mockup's
 // "Disc%" cell text isn't backed by real data and has been dropped from the grid.
+//
+// landcost and terms added 2026-08-31 (/pm) — real fields on the same SP, not
+// previously surfaced anywhere in this grid.
 
 function firstDefined(row, keys) {
   for (const k of keys) {
@@ -66,6 +69,9 @@ export function pivotQuotationRows(flatRows = []) {
       // live fields (see file header), previously fetched but unused.
       baserate: Number(firstDefined(row, ["baserate", "BaseRate"]) ?? 0) || 0,
       negotiationrate: Number(firstDefined(row, ["negotiationrate", "NegotiationRate"]) ?? 0) || 0,
+      // Real per-quote fields, not previously surfaced in this grid (2026-08-31 /pm).
+      landcost: Number(firstDefined(row, ["landcost", "LandCost"]) ?? 0) || 0,
+      terms: firstDefined(row, ["terms", "Terms"]),
     });
   });
 

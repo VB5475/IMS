@@ -5,8 +5,9 @@
 // pages/dm-tran-type-link/constants.js for the full investigation this
 // module's shape was derived from.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import {
@@ -76,7 +77,8 @@ function dedupeOptions(options) {
 }
 
 export function useDMTranTypeLink() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [rawColumns, setRawColumns] = useState([]);

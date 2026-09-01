@@ -42,6 +42,7 @@ import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayl
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { focusFieldAfterCascade } from "../../utils/focusUtils";
 import { queryEditableFilterFields, resolveEditLoadParams } from "../../utils/txnFormUtils";
+import { withGetRetry } from "../../utils/apiRetry";
 import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -181,7 +182,12 @@ export default function AssetsEmployeeIssueForm() {
   const srSearchRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  // Retry pilot (2026-08-29 /pm) — read calls retry automatically on network
+  // error/exception, per the configurable apiRetryCount (public/config.json).
+  // postSave is deliberately NOT wrapped: retrying a Save whose response was
+  // lost to a network error risks submitting it twice — see apiRetry.js.
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 

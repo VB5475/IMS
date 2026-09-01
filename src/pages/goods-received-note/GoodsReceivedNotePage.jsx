@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ClipboardList, Send } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
@@ -56,7 +57,8 @@ function buildListParams() {
 
 export default function GoodsReceivedNotePage() {
   const navigate = useNavigate();
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const { post: postWkf } = useApi(API_BASE_URL_IMS);
   const notify = useNotification();
 

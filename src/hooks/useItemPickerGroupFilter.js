@@ -8,8 +8,9 @@
 // payload shape differ per module — this hook just hands back the 5 extra
 // params (prmmaingroupid/prmsubmaingroupid/prmsearchtext/prmotherstr/prmjson)
 // to spread into that call.
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 
@@ -20,7 +21,8 @@ import { getUserSession } from "../session/userSession";
  * @param {string} config.formTag - module's FORM_TAG / RB_MASTER, sent as prmfrmtype
  */
 export function useItemPickerGroupFilter({ spMainGroup, spSubMainGroup, formTag }) {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [mainGroupOptions, setMainGroupOptions] = useState([]);
   const [subMainGroupOptions, setSubMainGroupOptions] = useState([]);

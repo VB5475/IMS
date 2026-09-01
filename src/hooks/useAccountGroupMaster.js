@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import {
@@ -97,7 +98,8 @@ function isVisibleHeaderCol(col) {
 }
 
 export function useAccountGroupMaster() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [dropdownOptions, setDropdownOptions] = useState({});

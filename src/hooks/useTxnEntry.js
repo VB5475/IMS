@@ -12,8 +12,9 @@
 //
 // All API calls go through useApi().get(endpoint, params).
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi, getApiClient } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { getUserSession } from "../session/userSession";
 import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, getColDefault, OBJ_TYPE } from "../api/constants";
 import { TXN_CONFIG } from "../pages/txn-entry/constants";
@@ -24,7 +25,8 @@ import { isNumericColDataType, buildDetJSON } from "../utils/columnValidation";
 // ── Hook ─────────────────────────────────────────────────────────────
 
 export function useTxnEntry(baseURL = API_BASE_URL) {
-  const { get, post } = useApi(baseURL);
+  const { get: rawGet, post } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   // ── Grid (detail) state ─────────────────────────────────────────
   const [rbMeta, setRbMeta] = useState(null);

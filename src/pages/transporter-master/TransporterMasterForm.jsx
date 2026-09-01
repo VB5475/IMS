@@ -31,6 +31,7 @@ import { validateApiColumnsByField, validateGridRowsDetailed } from "../../utils
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { isLockOnEditModeCol, isTruthyApiFlag, syncHeaderFilterWithApiCol } from "../../utils/gridUtils";
+import { queryEditableFilterFields } from "../../utils/txnFormUtils";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useEntryFormKeyboard } from "../../hooks/useEntryFormKeyboard";
 import { completeTransactionSave } from "../../hooks/useTransactionFormReset";
@@ -92,6 +93,7 @@ export default function TransporterMasterForm() {
   const headerValuesRef = useRef({});
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
   const [filterResetKey, setFilterResetKey] = useState(0);
+  const filterPanelRef = useRef(null);
 
   const detailGridRef = useRef(null);
   const detailColumnsLoadedRef = useRef(false);
@@ -291,6 +293,17 @@ export default function TransporterMasterForm() {
     if (!cols?.length) return;
     const row = { id: nextTempId() };
     detailAllColumns.forEach(({ key, colDataType }) => { row[key] = getColDefault(colDataType); });
+    // Single-option dropdown auto-select (same intent as the header rollout,
+    // 2026-08-25 — deferred there for grid columns since it needs a per-form
+    // row-builder change, not a shared EntryGrid patch). City is this grid's
+    // only dropdown column (ColCtrlType 4) — when it resolves to exactly one
+    // option, a new row shouldn't force the user to open it and pick the
+    // only choice on every single row.
+    cols.forEach((col) => {
+      if (col.controlType === 4 && col.dropdownOptions?.length === 1) {
+        row[col.key] = col.dropdownOptions[0].value;
+      }
+    });
     detailGridRef.current?.addRow(row);
     setDetailRowCount((n) => n + 1);
   }, [ensureDetailColumns, detailAllColumns]);
@@ -325,7 +338,7 @@ export default function TransporterMasterForm() {
     resetFormToInitialState();
   }, [isEditRoute, loadEditRecord, resetFormToInitialState]);
 
-  // Declared here (not further down with enterEditMode) — completeSuccessfulSave
+  // Declared here (not further down with enterEditModeWithFocus) — completeSuccessfulSave
   // below references it directly in its own useCallback body/deps, which
   // evaluate immediately on render, so a later `const` would throw "Cannot
   // access 'exitEditMode' before initialization" (TDZ) on every render.
@@ -389,7 +402,31 @@ export default function TransporterMasterForm() {
     discardChanges();
   }, [discardChanges]);
 
-  const enterEditMode = useCallback(() => setIsEditMode(true), []);
+  // Focus-on-Add / Tab-forward — same pattern as DOP Master (the module this
+  // form was modeled on), which this form was missing since its 2026-08-03
+  // scaffold: without it, clicking Add (or Alt+A) left focus wherever it
+  // already was instead of landing on the first editable header field, and
+  // Tab out of the last header field fell through to native browser order
+  // instead of advancing to Add Row.
+  const focusFirstEditableFilterField = useCallback(() => {
+    const fields = queryEditableFilterFields(filterPanelRef.current);
+    if (fields.length === 0) return false;
+    fields[0].focus();
+    return true;
+  }, []);
+
+  const focusAddDetailButton = useCallback(() => {
+    addDetailBtnRef.current?.focus();
+  }, []);
+
+  const enterEditModeWithFocus = useCallback(() => {
+    setIsEditMode(true);
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (!focusFirstEditableFilterField()) focusAddDetailButton();
+      }, 80);
+    });
+  }, [focusFirstEditableFilterField, focusAddDetailButton]);
 
   const headerMetaReady = headerColumns.length > 0 && !headerFetching;
   const combinedError = headerError || detailMetaError;
@@ -400,7 +437,7 @@ export default function TransporterMasterForm() {
     isEditMode,
     isSaving,
     addDisabled: !headerMetaReady,
-    onAdd: enterEditMode,
+    onAdd: enterEditModeWithFocus,
     onSave: handleSave,
     onCancel: handleCancel,
     onSelectList: handleAddDetailRow,
@@ -434,6 +471,7 @@ export default function TransporterMasterForm() {
         ) : (
           <EnterpriseFilterPanel
             key={filterResetKey}
+            panelRef={filterPanelRef}
             title="Transporter Master Details"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
@@ -443,6 +481,7 @@ export default function TransporterMasterForm() {
             disabled={headerFetching || !headerMetaReady}
             fieldTones={filterFieldTones}
             fieldErrors={fieldErrors}
+            onLastFieldTabForward={isEditMode ? focusAddDetailButton : null}
           />
         )}
       </section>
@@ -505,7 +544,7 @@ export default function TransporterMasterForm() {
       <ActionBar
         alignEnd
         isEditMode={isEditMode}
-        onAdd={enterEditMode}
+        onAdd={enterEditModeWithFocus}
         onCancel={handleCancel}
         addLabel={isEditRoute ? "Edit" : "Add"}
         addAccessKey="a"

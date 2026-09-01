@@ -3,8 +3,9 @@
 //   fetchDetailMeta  → rb_xluplditemmst → GET_DETAIL_COL_DATA
 //   fetchGridColumns → buildGridColumns (read-only — data comes from Excel upload)
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -33,7 +34,8 @@ async function loadRbDetailGridMeta(get, rbCode, storageKey) {
 }
 
 export function useItemMasterUploadExcel(baseURL = API_BASE_URL) {
-  const { get } = useApi(baseURL);
+  const { get: rawGet } = useApi(baseURL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);

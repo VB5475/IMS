@@ -15,6 +15,7 @@ import { useAstRgo } from "../../hooks/useAstRgo";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -131,7 +132,8 @@ export default function AssetsReturnableGatePassOutForm() {
   const resetScanStateRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 

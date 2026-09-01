@@ -89,6 +89,68 @@
   overflow: hidden;
 }
 
+/* Select All / Clear Selection — operates on the full filtered dataset,
+ * unlike the grid's own header checkbox (page-scoped by design, shared
+ * across every list page in the app). */
+.apin-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted, var(--surface));
+}
+
+.apin-selection-toolbar__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.apin-selection-toolbar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.apin-selection-toolbar__btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.apin-selection-toolbar__btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.apin-selection-toolbar__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.apin-selection-toolbar__btn--preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Preview Selection modal — each master item is a CollapsibleGrid panel
+ * (shared component, same collapsible pattern used elsewhere in the app),
+ * so the only page-specific styling needed is the gap between panels. */
+.apin-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Both grids here have very few, narrow data columns — under the shared
  * grid's auto table-layout (used whenever a selectable/action column is
  * present, for horizontal-scroll support elsewhere), the browser stretches

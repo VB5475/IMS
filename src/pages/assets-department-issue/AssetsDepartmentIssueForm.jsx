@@ -13,6 +13,7 @@ import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilter
 import { useAstDepIssue } from "../../hooks/useAstDepIssue";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useApi } from "../../api/useApi";
+import { withGetRetry } from "../../utils/apiRetry";
 import {
   ENDPOINTS,
   API_BASE_URL,
@@ -149,7 +150,8 @@ export default function AssetsDepartmentIssueForm() {
   const pendingScanSrNoRef = useRef("");
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
-  const { get: getLive } = useApi(API_BASE_URL);
+  const { get: rawGetLive } = useApi(API_BASE_URL);
+  const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
   const { post: postSave } = useApi(API_BASE_URL_IMS);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
 

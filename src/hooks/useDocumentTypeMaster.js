@@ -5,8 +5,9 @@
 // the Department options are fetched via an explicit fn_tbl_* call, same
 // pattern as DOP Master's header dropdowns.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, DEFAULT_SESSION_ID } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import {
@@ -39,7 +40,8 @@ function mapDepartmentRows(rows) {
 }
 
 export function useDocumentTypeMaster() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
 
   const [headerColumns, setHeaderColumns] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);

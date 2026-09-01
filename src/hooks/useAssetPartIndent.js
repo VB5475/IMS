@@ -1,8 +1,9 @@
 // useAssetPartIndent.js — fetches both grids' full datasets for Asset Part
 // Indent. Both SPs take the same six params (company/division/year/from/
 // to/login) and return their whole result set — no per-row drill-down call.
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "../api/useApi";
+import { withGetRetry } from "../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL, OBJ_TYPE } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { formatTranDate } from "../utils/dateFormat";
@@ -22,7 +23,8 @@ function buildFetchParams({ divisionId, fromDate, toDate }) {
 }
 
 export function useAssetPartIndent() {
-  const { get } = useApi(API_BASE_URL);
+  const { get: rawGet } = useApi(API_BASE_URL);
+  const get = useMemo(() => withGetRetry(rawGet), [rawGet]);
   const [masterRows, setMasterRows] = useState([]);
   const [detailRows, setDetailRows] = useState([]);
   const [loading, setLoading] = useState(false);
