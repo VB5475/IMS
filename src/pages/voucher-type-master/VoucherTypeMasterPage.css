@@ -1,0 +1,152 @@
+/* VoucherTypeMasterPage.css — scoped to .vtm-* namespace */
+
+/* ── Listing page ──────────────────────────────────────────────────── */
+.vtm-list-page { flex: 1; min-height: 0; }
+
+.vtm-list-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.vtm-list-panel--fill { flex: 1; min-height: 0; }
+
+/* ── Modal form layout ─────────────────────────────────────────────── */
+.vtm-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border, #d8dee8);
+  border-top: 1px solid var(--border, #d8dee8);
+}
+
+.vtm-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 14px;
+  background: #fff;
+}
+
+.vtm-form-label {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
+  user-select: none;
+}
+
+.vtm-form-label--required::after { content: " *"; color: #e53e3e; font-size: 10px; }
+
+.vtm-form-control {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.vtm-form-input--error {
+  border-color: var(--danger, #dc2626) !important;
+}
+
+.vtm-form-input--error:focus {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15) !important;
+}
+
+.vtm-form-dropdown--error .search-select__trigger {
+  border-color: var(--danger, #dc2626);
+}
+
+.vtm-form-field-error {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .vtm-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .vtm-form { grid-template-columns: 1fr; }
+}
+
+.vtm-form-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  background: #fff;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.vtm-form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(30,74,122,0.12); }
+.vtm-form-input[readonly] { background: var(--field-view-bg, #e6f1fc); cursor: default; }
+
+.vtm-form-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 6px 0 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.vtm-form-checkbox:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* ── Modal footer buttons ──────────────────────────────────────────── */
+.master-modal-footer-actions { display: flex; align-items: center; gap: 8px; }
+
+.master-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.master-modal-btn--save { background: var(--primary); color: #fff; }
+.master-modal-btn--save:hover:not(:disabled) { filter: brightness(1.08); }
+.master-modal-btn--cancel { background: var(--surface); color: var(--text-secondary); border-color: var(--border-dark, #c3c6d0); }
+.master-modal-btn--cancel:hover:not(:disabled) { background: #f0f4f8; }
+.master-modal-btn--edit { background: var(--primary); color: #fff; }
+.master-modal-btn--edit:hover:not(:disabled) { filter: brightness(1.08); }
+.master-modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Modal body states ─────────────────────────────────────────────── */
+.master-modal-loader { padding: 40px 24px; text-align: center; font-size: 13px; color: var(--text-secondary); }
+
+.master-modal-error,
+.master-modal-save-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+}
