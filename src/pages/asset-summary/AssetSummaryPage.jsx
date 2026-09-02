@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import SearchSelect from "../../components/ui/SearchSelect";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL, ENDPOINTS } from "../../api/constants";
 import { getStoredSessionId, getUserSession } from "../../session/userSession";
@@ -215,24 +216,18 @@ export default function AssetSummaryPage() {
           <label htmlFor="asset-summary-division" className="asset-summary-page__label">
             Division
           </label>
-          <select
+          <SearchSelect
             id="asset-summary-division"
-            className="ng-select asset-summary-page__select"
+            className="asset-summary-page__select"
             value={selectedDivision}
-            onChange={(e) => setSelectedDivision(e.target.value)}
-            aria-label="Division"
+            onChange={setSelectedDivision}
+            options={divisionOptions}
+            placeholder="Select"
+            searchPlaceholder="Search division…"
+            ariaLabel="Division"
             disabled={divisionOptions.length === 0}
-          >
-            {divisionOptions.length === 0 ? (
-              <option value="">Select</option>
-            ) : (
-              divisionOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))
-            )}
-          </select>
+            compact
+          />
         </div>
       </section>
 

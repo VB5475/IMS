@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
 import GridSearch from "../grid/GridSearch";
+import SearchSelect from "../ui/SearchSelect";
 import Modal from "../ui/Modal";
 import { useApi } from "../../api/useApi";
 import { withGetRetry } from "../../utils/apiRetry";
@@ -123,6 +124,8 @@ function resolveTotalRowCount(rows, pageNumber, pageSize) {
 
   const first = list[0];
   for (const key of [
+    "totalgridrowcount",
+    "TotalGridRowCount",
     "totalrecords",
     "TotalRecords",
     "totalcount",
@@ -423,8 +426,8 @@ export default function ReportBoardPanel({
     }
   }, [get]);
 
-  const fetchSubMainGroups = useCallback(async (divisionId, mainGroupId) => {
-    if (!divisionId || !mainGroupId) {
+  const fetchSubMainGroups = useCallback(async (divisionId, mainGroupId = 0) => {
+    if (!divisionId) {
       setSubMainGroupOptions([]);
       setSelectedSubMainGroup("");
       return [];
@@ -471,7 +474,7 @@ export default function ReportBoardPanel({
   }, [fetchMainGroups, selectedDivision]);
 
   useEffect(() => {
-    fetchSubMainGroups(selectedDivision, selectedMainGroup);
+    fetchSubMainGroups(selectedDivision, selectedMainGroup || 0);
   }, [fetchSubMainGroups, selectedDivision, selectedMainGroup]);
 
   const fetchReportBoards = useCallback(
@@ -550,7 +553,6 @@ export default function ReportBoardPanel({
     setCurrentPage(1);
     setSelectedMainGroup(value);
     setSelectedSubMainGroup("");
-    setSubMainGroupOptions([]);
   }, []);
 
   const handleSubMainGroupChange = useCallback((value) => {
@@ -855,82 +857,78 @@ export default function ReportBoardPanel({
             </button>
           </div>
           <div className="rbp-panel__toolbar">
-            <GridSearch
-              query={searchQuery}
-              onChange={setSearchQuery}
-              matchCount={searchStats.matchCount}
-              totalCount={searchStats.totalCount}
-            />
-            <label htmlFor="rbp-division" className="rbp-panel__pagesize-label">
-              Division
-            </label>
-            <select
-              id="rbp-division"
-              className="ng-select rbp-panel__pagesize-select rbp-panel__division-select"
-              value={selectedDivision}
-              onChange={(e) => handleDivisionChange(e.target.value)}
-              aria-label="Division"
-              disabled={divisionOptions.length === 0}
-            >
-              {divisionOptions.length === 0 ? (
-                <option value="">Select</option>
-              ) : (
-                divisionOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))
-              )}
-            </select>
-            <label htmlFor="rbp-main-group" className="rbp-panel__pagesize-label">
-              Main Group
-            </label>
-            <select
-              id="rbp-main-group"
-              className="ng-select rbp-panel__pagesize-select rbp-panel__group-select"
-              value={selectedMainGroup}
-              onChange={(e) => handleMainGroupChange(e.target.value)}
-              aria-label="Main Group"
-              disabled={!selectedDivision || mainGroupOptions.length === 0}
-            >
-              <option value="">All</option>
-              {mainGroupOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="rbp-sub-main-group" className="rbp-panel__pagesize-label">
-              Sub Main Group
-            </label>
-            <select
-              id="rbp-sub-main-group"
-              className="ng-select rbp-panel__pagesize-select rbp-panel__group-select"
-              value={selectedSubMainGroup}
-              onChange={(e) => handleSubMainGroupChange(e.target.value)}
-              aria-label="Sub Main Group"
-              disabled={!selectedMainGroup || subMainGroupOptions.length === 0}
-            >
-              <option value="">All</option>
-              {subMainGroupOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="rbp-panel__assign-radios" role="radiogroup" aria-label="Assignment status">
-              {DASHBOARD_ASSIGN_OPTIONS.map((option) => (
-                <label key={option.value} className="rbp-panel__assign-option">
-                  <input
-                    type="radio"
-                    name="rbp-assign-status"
-                    value={option.value}
-                    checked={assignStatus === option.value}
-                    onChange={() => handleAssignStatusChange(option.value)}
-                  />
-                  <span>{option.label}</span>
+            <div className="rbp-panel__toolbar-inner">
+              <GridSearch
+                query={searchQuery}
+                onChange={setSearchQuery}
+                matchCount={searchStats.matchCount}
+                totalCount={searchStats.totalCount}
+              />
+              <div className="rbp-panel__filter-field">
+                <label htmlFor="rbp-division" className="rbp-panel__pagesize-label">
+                  Division
                 </label>
-              ))}
+                <SearchSelect
+                  id="rbp-division"
+                  className="rbp-panel__filter-select rbp-panel__division-select"
+                  value={selectedDivision}
+                  onChange={handleDivisionChange}
+                  options={divisionOptions}
+                  placeholder="Select"
+                  searchPlaceholder="Search division…"
+                  ariaLabel="Division"
+                  disabled={divisionOptions.length === 0}
+                  compact
+                />
+              </div>
+              <div className="rbp-panel__filter-field">
+                <label htmlFor="rbp-main-group" className="rbp-panel__pagesize-label">
+                  Main Group
+                </label>
+                <SearchSelect
+                  id="rbp-main-group"
+                  className="rbp-panel__filter-select rbp-panel__group-select"
+                  value={selectedMainGroup}
+                  onChange={handleMainGroupChange}
+                  options={mainGroupOptions}
+                  placeholder="All"
+                  searchPlaceholder="Search main group…"
+                  ariaLabel="Main Group"
+                  disabled={!selectedDivision}
+                  compact
+                />
+              </div>
+              <div className="rbp-panel__filter-field">
+                <label htmlFor="rbp-sub-main-group" className="rbp-panel__pagesize-label">
+                  Sub Main Group
+                </label>
+                <SearchSelect
+                  id="rbp-sub-main-group"
+                  className="rbp-panel__filter-select rbp-panel__group-select"
+                  value={selectedSubMainGroup}
+                  onChange={handleSubMainGroupChange}
+                  options={subMainGroupOptions}
+                  placeholder="All"
+                  searchPlaceholder="Search sub main group…"
+                  ariaLabel="Sub Main Group"
+                  disabled={!selectedDivision}
+                  compact
+                />
+              </div>
+              <div className="rbp-panel__assign-radios" role="radiogroup" aria-label="Assignment status">
+                {DASHBOARD_ASSIGN_OPTIONS.map((option) => (
+                  <label key={option.value} className="rbp-panel__assign-option">
+                    <input
+                      type="radio"
+                      name="rbp-assign-status"
+                      value={option.value}
+                      checked={assignStatus === option.value}
+                      onChange={() => handleAssignStatusChange(option.value)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </header>

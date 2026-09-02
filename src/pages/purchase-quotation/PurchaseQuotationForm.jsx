@@ -244,14 +244,14 @@ export default function PurchaseQuotationForm() {
     trancode: "",
     trandate: getTodayDateInputValue(),
     configid: 0,
-    inquiryexpirydate: null,
+    inquiryexpirydate: getTodayDateInputValue(),
     divisionid: 0,
     supplierid: 0,
     currencyid: "",
     currencyrate: "",
     basedonid: "",
     suppquotno: "",
-    suppquotdate: null,
+    suppquotdate: getTodayDateInputValue(),
     contactperson: "",
     remarks: "",
     companyid: session.companyId,
@@ -266,7 +266,12 @@ export default function PurchaseQuotationForm() {
   // 2026-07-24 remains for that dropdown.
   const filterInitialValues = useMemo(() => {
     if (loadedFilterValues) return loadedFilterValues;
-    return { basedonid: "", trandate: getTodayDateInputValue() };
+    return {
+      basedonid: "",
+      trandate: getTodayDateInputValue(),
+      inquiryexpirydate: getTodayDateInputValue(),
+      suppquotdate: getTodayDateInputValue(),
+    };
   }, [loadedFilterValues]);
 
   // Incrementing this forces EnterpriseFilterPanel to remount and re-apply
@@ -323,14 +328,14 @@ export default function PurchaseQuotationForm() {
       trancode: "",
       trandate: getTodayDateInputValue(),
       configid: 0,
-      inquiryexpirydate: null,
+      inquiryexpirydate: getTodayDateInputValue(),
       divisionid: 0,
       supplierid: 0,
       currencyid: "",
       currencyrate: "",
       basedonid: "",
       suppquotno: "",
-      suppquotdate: null,
+      suppquotdate: getTodayDateInputValue(),
       contactperson: "",
       remarks: "",
       companyid: resetSession.companyId,

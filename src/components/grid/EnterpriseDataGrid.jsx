@@ -494,8 +494,9 @@ function EnterpriseDataGrid({
   // Let an externally-rendered search box (e.g. one placed in the page's
   // title bar instead of this card's own header) show the same match count.
   useEffect(() => {
-    onSearchStats?.({ matchCount: filteredData.length, totalCount: data.length });
-  }, [filteredData.length, data.length, onSearchStats]);
+    const apiTotal = isServerPagination ? Math.max(0, totalRowCount) : data.length;
+    onSearchStats?.({ matchCount: filteredData.length, totalCount: apiTotal });
+  }, [filteredData.length, data.length, isServerPagination, onSearchStats, totalRowCount]);
 
   const paginationTotalRows = isServerPagination ? Math.max(0, totalRowCount) : sortedData.length;
   const totalPages = Math.max(1, Math.ceil(paginationTotalRows / itemsPerPage));
