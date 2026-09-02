@@ -15,6 +15,7 @@ import { useNotification } from "../../context/NotificationContext";
 import { useModuleRights } from "../../hooks/useModuleRights";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { formatListDate, isDateColumnDef } from "../../utils/dateFormat";
+import { formatColumnDisplayValue } from "../../utils/columnValidation";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { inferListColumnFilterType } from "../../utils/listGridUtils";
 import Loader from "../ui/Loader";
@@ -142,6 +143,9 @@ function orderColumnsWithActionsFirst(columns, selectable = false) {
  * currentPage    {number}          Controlled page when paginationMode='server'
  * onPageChange   {(page) => void}  Page change callback for server pagination
  * totalRowCount  {number}          Total rows from API for server pagination
+ * hidePagination {boolean}         Show all rows and hide the pagination bar
+ * showNumericColumnTotals {boolean} Footer row with sums for numeric columns
+ * numericTotalColumns {object[]}   Grid column defs (with columnMeta) to total
  * emptyMessage   {string}          Empty-state text (default: 'No records found.')
  * bottomPanelExtras {ReactNode}    Extra controls rendered in the pagination bar
  * searchable     {boolean}         Enable text search across visible columns
@@ -186,6 +190,9 @@ function EnterpriseDataGrid({
   currentPage: currentPageProp,
   onPageChange,
   totalRowCount = 0,
+  hidePagination = false,
+  showNumericColumnTotals = false,
+  numericTotalColumns = [],
   emptyMessage = "No records found.",
   bottomPanelExtras = null,
   hideHeader = false,
@@ -487,17 +494,36 @@ function EnterpriseDataGrid({
   // Let an externally-rendered search box (e.g. one placed in the page's
   // title bar instead of this card's own header) show the same match count.
   useEffect(() => {
-    onSearchStats?.({ matchCount: filteredData.length, totalCount: data.length });
-  }, [filteredData.length, data.length, onSearchStats]);
+    const apiTotal = isServerPagination ? Math.max(0, totalRowCount) : data.length;
+    onSearchStats?.({ matchCount: filteredData.length, totalCount: apiTotal });
+  }, [filteredData.length, data.length, isServerPagination, onSearchStats, totalRowCount]);
 
   const paginationTotalRows = isServerPagination ? Math.max(0, totalRowCount) : sortedData.length;
   const totalPages = Math.max(1, Math.ceil(paginationTotalRows / itemsPerPage));
 
   const currentData = useMemo(() => {
-    if (isServerPagination) return sortedData;
+    if (hidePagination || isServerPagination) return sortedData;
     const start = (currentPage - 1) * itemsPerPage;
     return sortedData.slice(start, start + itemsPerPage);
-  }, [currentPage, isServerPagination, itemsPerPage, sortedData]);
+  }, [currentPage, hidePagination, isServerPagination, itemsPerPage, sortedData]);
+
+  const numericTotalKeys = useMemo(
+    () => new Set((numericTotalColumns || []).map((col) => col.key)),
+    [numericTotalColumns]
+  );
+
+  const columnTotals = useMemo(() => {
+    if (!showNumericColumnTotals || numericTotalKeys.size === 0) return {};
+    const totals = {};
+    for (const col of numericTotalColumns) {
+      totals[col.key] = sortedData.reduce((sum, row) => {
+        const raw = resolveRowFieldValue(row, col.key) ?? row[col.key];
+        const val = Number(raw);
+        return sum + (Number.isFinite(val) ? val : 0);
+      }, 0);
+    }
+    return totals;
+  }, [numericTotalColumns, numericTotalKeys, showNumericColumnTotals, sortedData]);
 
   const goToPage = useCallback(
     (nextPage) => {
@@ -680,7 +706,10 @@ function EnterpriseDataGrid({
   const overlayLoad = loading && !error && data.length > 0;
   const blockingLoad = loading && !overlayLoad;
   const showPagination =
-    !blockingLoad && !error && (isServerPagination ? paginationTotalRows > 0 : filteredData.length > 0);
+    !hidePagination
+    && !blockingLoad
+    && !error
+    && (isServerPagination ? paginationTotalRows > 0 : filteredData.length > 0);
   const paginationStart =
     paginationTotalRows === 0 ? 0 : (activePage - 1) * itemsPerPage + 1;
   const paginationEnd = isServerPagination
@@ -688,10 +717,11 @@ function EnterpriseDataGrid({
     : Math.min(activePage * itemsPerPage, filteredData.length);
 
   /* ── Render ───────────────────────────────────────────────────────── */
+  const stickyTotalsLayout = fill && showNumericColumnTotals;
+
   return (
     <div
-      className={`ng-card ${fill ? "ng-card--fill" : ""} ${variant ? `ng-card--${variant}` : ""
-        }`.trim()}
+      className={`ng-card ${fill ? "ng-card--fill" : ""}${stickyTotalsLayout ? " ng-card--sticky-totals" : ""}${variant ? ` ng-card--${variant}` : ""}`.trim()}
     >
       <ConfirmDialog
         isOpen={deleteConfirmState.open}
@@ -892,6 +922,55 @@ function EnterpriseDataGrid({
                     </tr>
                   )}
                 </tbody>
+                {showNumericColumnTotals && sortedData.length > 0 && numericTotalKeys.size > 0 && (
+                  <tfoot>
+                    <tr className="ng-total-row">
+                      {(() => {
+                        let totalLabelPlaced = false;
+                        return displayColumns.map((col, ci) => {
+                          if (isActionColumn(col)) {
+                            return <td key={ci} className="ng-total-cell" />;
+                          }
+                          if (numericTotalKeys.has(col.key)) {
+                            const metaCol = numericTotalColumns.find((item) => item.key === col.key);
+                            const totalValue = columnTotals[col.key] ?? 0;
+                            const display = metaCol
+                              ? formatColumnDisplayValue(totalValue, metaCol)
+                              : String(totalValue);
+                            return (
+                              <td
+                                key={ci}
+                                className="ng-total-cell ng-total-cell--value"
+                                style={{ textAlign: cellAlign(col, ci), ...getColStyle(col) }}
+                              >
+                                {display}
+                              </td>
+                            );
+                          }
+                          if (!totalLabelPlaced) {
+                            totalLabelPlaced = true;
+                            return (
+                              <td
+                                key={ci}
+                                className="ng-total-cell ng-total-cell--label"
+                                style={{ textAlign: cellAlign(col, ci), ...getColStyle(col) }}
+                              >
+                                Total
+                              </td>
+                            );
+                          }
+                          return (
+                            <td
+                              key={ci}
+                              className="ng-total-cell"
+                              style={{ textAlign: cellAlign(col, ci), ...getColStyle(col) }}
+                            />
+                          );
+                        });
+                      })()}
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
 

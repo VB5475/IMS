@@ -10,6 +10,7 @@ import {
   inputFormatToDatePicker,
   mapDigitCaretToFormattedPosition,
   parseDateInputDisplay,
+  getTodayDateInputValue,
   parseFlexibleDate,
   resolveDateInputFormat,
   toNativeDateInputValue,
@@ -243,6 +244,23 @@ export default function DateInput({
 
   const showCalendar = !readOnly && !disabled;
 
+  const startOfDay = useCallback((date) => {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }, []);
+
+  const calendarOpenToDate = useMemo(() => {
+    if (selected) return startOfDay(selected);
+    const today =
+      parseFlexibleDate(getTodayDateInputValue()) ??
+      startOfDay(new Date());
+    const todayDay = startOfDay(today);
+    const minDay = minDate ? startOfDay(minDate) : null;
+    const maxDay = maxDate ? startOfDay(maxDate) : null;
+    if (minDay && todayDay < minDay) return minDay;
+    if (maxDay && todayDay > maxDay) return maxDay;
+    return todayDay;
+  }, [selected, minDate, maxDate, startOfDay]);
+
   useEffect(() => {
     if (!calendarOpen || DatePickerComponent) return undefined;
     let cancelled = false;
@@ -265,6 +283,7 @@ export default function DateInput({
         >
           {DatePickerComponent ? (
             <DatePickerComponent
+              key={`date-cal-${calendarOpenToDate.getFullYear()}-${calendarOpenToDate.getMonth()}-${selected?.getTime() ?? "empty"}`}
               inline
               selected={selected}
               onChange={handleCalendarSelect}
@@ -272,13 +291,7 @@ export default function DateInput({
               maxDate={maxDate ?? undefined}
               dateFormat={pickerFormat}
               calendarClassName="date-input-calendar"
-              // Keep openDate within allowed range so month/year nav respects config.
-              openToDate={
-                selected
-                || minDate
-                || maxDate
-                || undefined
-              }
+              openToDate={calendarOpenToDate}
             />
           ) : (
             <div className="date-input-calendar-loading" role="status">
