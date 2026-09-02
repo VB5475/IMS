@@ -105,6 +105,7 @@ export const RB_CODES = Object.freeze({
   // sibling module's established shorthand — resolved there).
   ASSETS_DEPRECIATION_IT_ACT: "rb_astdepitmst",
   ASSET_DEPRECIATION_PERCENTAGE: "rb_astdepPerc",
+  FAR: "rb_astfar",
   ASSETS_WRITE_OFF: "rb_astwriteoffmst",
   ASSETS_EMPLOYEE_ISSUE: "rb_astempissmst",
   ASSETS_EMPLOYEE_TRANSFER: "rb_astemptrfmst",
@@ -203,6 +204,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ASSETS_DEPRECIATION]: "/assets-depreciation",
   [RB_CODES.ASSETS_DEPRECIATION_IT_ACT]: "/assets-depreciation-it-act",
   [RB_CODES.ASSET_DEPRECIATION_PERCENTAGE]: "/asset-depreciation-percentage",
+  [RB_CODES.FAR]: "/far",
   [RB_CODES.ASSETS_WRITE_OFF]: "/assets-write-off",
   [RB_CODES.ASSETS_EMPLOYEE_ISSUE]: "/assets-employee-issue",
   [RB_CODES.ASSETS_EMPLOYEE_TRANSFER]: "/assets-employee-transfer",

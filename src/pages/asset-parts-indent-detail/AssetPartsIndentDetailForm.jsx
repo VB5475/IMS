@@ -124,6 +124,11 @@ export default function AssetPartsIndentDetailForm() {
   const [loadedMasterRow, setLoadedMasterRow] = useState(null);
   const [loadedFilterValues, setLoadedFilterValues] = useState(null);
   const [filterResetKey, setFilterResetKey] = useState(0);
+  // Routine cascade updates (division / asset item / scan fields) patch the
+  // mounted panel via externalValues — NOT filterResetKey. Remounting on every
+  // pick re-triggers the panel's single-option auto-select and loops API calls
+  // when only one division (or asset item) exists.
+  const [externalValues, setExternalValues] = useState(null);
 
   const itemGridRef = useRef(null);
   const itemGridSectionRef = useRef(null);
@@ -132,6 +137,7 @@ export default function AssetPartsIndentDetailForm() {
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
   const editRecordLoadedRef = useRef(false);
+  const editModePreparedRef = useRef(false);
   const pendingClearActionRef = useRef(null);
 
   const { post: postSave } = useApi(API_BASE_URL_IMS);
@@ -181,7 +187,7 @@ export default function AssetPartsIndentDetailForm() {
     fetchGridColumns(headerValuesRef.current?.divisionid ?? 0).then((cols) => {
       if (cols?.length > 0) gridColumnsLoadedRef.current = true;
     });
-  }, [allColumns, fetchGridColumns, isEditRoute]);
+  }, [allColumns.length, fetchGridColumns, isEditRoute]);
 
   useEffect(() => {
     if (columns.length > 0 && itemGridRef.current && queuedRowsRef.current.length > 0) {
@@ -191,8 +197,13 @@ export default function AssetPartsIndentDetailForm() {
     }
   }, [columns]);
 
-  const syncHeaderToFilterPanel = useCallback((hv) => {
+  const pushExternalValues = useCallback((hv) => {
+    setExternalValues(mapHeaderValuesToFilterValues(hv));
+  }, []);
+
+  const remountFilterPanel = useCallback((hv) => {
     setLoadedFilterValues(mapHeaderValuesToFilterValues(hv));
+    setExternalValues(null);
     setFilterResetKey((k) => k + 1);
   }, []);
 
@@ -240,8 +251,7 @@ export default function AssetPartsIndentDetailForm() {
       editRecordLoadedRef.current = true;
 
       seedOptionsFromMaster(master);
-      setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValuesRef.current));
-      setFilterResetKey((k) => k + 1);
+      remountFilterPanel(headerValuesRef.current);
 
       const divId = headerValues.divisionid ?? 0;
       const activeCols = await fetchGridColumns(divId, editRecordGridColumnOpts(master));
@@ -257,7 +267,7 @@ export default function AssetPartsIndentDetailForm() {
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns, remountFilterPanel]);
 
   const resetNewEntry = useCallback(() => {
     localStorage.removeItem(APID_CONFIG.STORAGE_HEADER_META);
@@ -283,6 +293,7 @@ export default function AssetPartsIndentDetailForm() {
     setDetailRowCount(0);
     itemGridRef.current?.clearRows?.();
     setLoadedFilterValues(null);
+    setExternalValues(null);
     setFilterResetKey((k) => k + 1);
     setFormErrors([]);
     setFieldErrors({});
@@ -308,16 +319,21 @@ export default function AssetPartsIndentDetailForm() {
   }, [isEditRoute, allColumns.length, loadEditRecord]);
 
   useEffect(() => {
-    if (!isEditRoute || !isEditMode || !loadedMasterRow) return;
+    if (!isEditMode) {
+      editModePreparedRef.current = false;
+    }
+  }, [isEditMode]);
+
+  useEffect(() => {
+    if (!isEditRoute || !isEditMode || !editRecordLoadedRef.current || editModePreparedRef.current) return;
+    editModePreparedRef.current = true;
+    const divisionId = headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0;
     fetchUnlockedHeaderDropdowns(headerValuesRef.current);
-    fetchGridColumns(
-      headerValuesRef.current?.divisionid ?? loadedMasterRow?.divisionid ?? 0,
-      {
-        existingRecordEdit: true,
-        masterRow: loadedMasterRow,
-        fetchUnlockedDropdowns: true,
-      }
-    );
+    fetchGridColumns(divisionId, {
+      existingRecordEdit: true,
+      masterRow: loadedMasterRow,
+      fetchUnlockedDropdowns: true,
+    });
   }, [isEditRoute, isEditMode, loadedMasterRow, fetchUnlockedHeaderDropdowns, fetchGridColumns]);
 
   const handleFilterChange = useCallback(async (colName, val) => {
@@ -346,14 +362,14 @@ export default function AssetPartsIndentDetailForm() {
         itemGridRef.current?.clearRows?.();
         setDetailRowCount(0);
         if (Number(val) > 0) await fetchAstItems(val);
-        syncHeaderToFilterPanel(hv);
+        pushExternalValues(hv);
         if (Number(val) > 0 && astItemKey) focusHeaderField(astItemKey);
       });
       return;
     }
 
     if (astItemKey && col === String(astItemKey).toLowerCase()) {
-      syncHeaderToFilterPanel(hv);
+      pushExternalValues(hv);
       if (val && String(val) !== "0" && srNoKey) focusHeaderField(srNoKey);
       return;
     }
@@ -366,7 +382,7 @@ export default function AssetPartsIndentDetailForm() {
           hv[srNoKey] = parsed.astsrno || trimmed;
           if (tagIdKey && parsed.asttagid) hv[tagIdKey] = parsed.asttagid;
           if (mlnKey && parsed.mln) hv[mlnKey] = parsed.mln;
-          syncHeaderToFilterPanel(hv);
+          pushExternalValues(hv);
           if (mlnKey && parsed.mln) focusHeaderField(mlnKey);
           else if (tagIdKey && parsed.asttagid) focusHeaderField(tagIdKey);
         }
@@ -376,7 +392,7 @@ export default function AssetPartsIndentDetailForm() {
     headerColumns,
     requestGridClear,
     fetchAstItems,
-    syncHeaderToFilterPanel,
+    pushExternalValues,
     focusHeaderField,
   ]);
 
@@ -637,6 +653,7 @@ export default function AssetPartsIndentDetailForm() {
             title="Asset Parts Indent Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
+            externalValues={externalValues}
             cascadeResets={cascadeResets}
             onFilterChange={handleFilterChange}
             isSearching={filterBusy || recordLoading}

@@ -1,0 +1,80 @@
+.far-page {
+  gap: 12px;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.far-page__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.far-page__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.far-page__filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.far-page__label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.far-page__select.search-select {
+  min-width: 180px;
+  width: 180px;
+}
+
+.far-page__select.search-select--compact .search-select__trigger {
+  height: 30px;
+  font-size: 11px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.far-page__select.search-select--compact .search-select__trigger:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.far-page__select.search-select--open .search-select__trigger,
+.far-page__select.search-select--compact .search-select__trigger:focus-visible {
+  box-shadow: 0 0 0 2px rgba(30, 74, 122, 0.12);
+}
+
+.far-page__grid {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.far-page__grid > .ng-card {
+  flex: 1;
+  min-height: 0;
+}
