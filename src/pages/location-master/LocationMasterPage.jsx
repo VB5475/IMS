@@ -6,7 +6,8 @@ import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { createListActionsColumn } from "../../utils/listGridUtils";
+import { createListActionsColumn, isAlwaysHiddenColumnKey } from "../../utils/listGridUtils";
+import { formatTranDate } from "../../utils/dateFormat";
 import { useLocationMaster } from "../../hooks/useLocationMaster";
 import LocationMasterForm from "./LocationMasterForm";
 import { LM_CONFIG, ENTRY_FORM_LABEL } from "./constants";
@@ -24,11 +25,18 @@ function buildLocationMasterReportParams() {
 }
 
 function buildListParams() {
+  const today = formatTranDate(new Date(), { invalidValue: "" });
+  const session = getUserSession();
   return {
     ObjType: LM_CONFIG.LIST_OBJ_TYPE,
     ObjName: LM_CONFIG.SP_LIST,
     JSon: JSON.stringify([{
-      prmcompanyid: getUserSession().companyId,
+      prmcompanyid: session.companyId,
+      prmdivisionid: LM_CONFIG.LIST_DIVISION_ID,
+      prmyearid: session.yearId,
+      prmfromdate: today,
+      prmtodate: today,
+      prmloginid: session.loginId,
     }]),
     p_ErrCode: -1,
     p_ErrMsg: "",
@@ -48,7 +56,7 @@ function toLabel(key) {
 
 function buildColumnsFromData(data, onEdit) {
   if (!data || data.length === 0) return [];
-  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k) && !isAlwaysHiddenColumnKey(k));
   return [
     ...keys.map((key) => ({ key, label: toLabel(key), filterable: true, align: "left" })),
     createListActionsColumn({

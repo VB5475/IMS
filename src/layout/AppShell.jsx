@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
+  Clock,
   FileSpreadsheet,
   ClipboardList,
   FileText,
@@ -90,6 +91,7 @@ import {
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
+import { useAutoLogoutCountdown } from "../hooks/useAutoLogoutCountdown";
 import ChangePasswordModal from "../pages/change-password/ChangePasswordModal";
 import {
   PROD_BASE_PROJECT,
@@ -104,6 +106,18 @@ import ReportFilterModal from "../components/reports/ReportFilterModal";
 import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
+
+// Auto-logout countdown turns warning-red once under this much time is left,
+// so the header timer doubles as the "you're about to be logged out" nudge
+// the feature never had before.
+const AUTO_LOGOUT_WARNING_MS = 2 * 60 * 1000;
+
+function formatAutoLogoutRemaining(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 // Per-report icon, keyed by REPORTS_LIST's own `key` — every entry used to
 // share FileBarChart2 (a single generic bar-chart icon for all 9 reports),
@@ -398,6 +412,7 @@ export default function AppShell({ children }) {
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
   const { userName, userId, logout, menuRights } = useUser();
+  const autoLogoutRemainingMs = useAutoLogoutCountdown();
 
   // Collapsed rail has no room for labels/search — reset any in-progress
   // filter so re-expanding the sidebar always starts from the full nav tree.
@@ -737,6 +752,14 @@ export default function AppShell({ children }) {
                 <div className="ent-topbar__divider" />
               </>
             )}
+            <div
+              className={`ent-autologout-timer${autoLogoutRemainingMs <= AUTO_LOGOUT_WARNING_MS ? " ent-autologout-timer--warning" : ""}`}
+              title="Time remaining before you're automatically logged out due to inactivity"
+            >
+              <Clock size={13} strokeWidth={2} />
+              <span>{formatAutoLogoutRemaining(autoLogoutRemainingMs)}</span>
+            </div>
+            <div className="ent-topbar__divider" />
             <div className="ent-topbar__profile-menu">
               <div className="ent-topbar__profile">
                 <div className="ent-topbar__profile-text">

@@ -7,7 +7,7 @@ import { ENDPOINTS, API_BASE_URL, API_BASE_URL_IMS, OBJ_TYPE } from "../../api/c
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useNotification } from "../../context/NotificationContext";
-import { normalizeListRows, createListActionsColumn } from "../../utils/listGridUtils";
+import { normalizeListRows, createListActionsColumn, isAlwaysHiddenColumnKey } from "../../utils/listGridUtils";
 import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
@@ -53,7 +53,7 @@ const HIDDEN_COLS = new Set(["idnumber"]);
 
 function buildColumnsFromData(data, onEdit) {
   if (!data || data.length === 0) return [];
-  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k) && !isAlwaysHiddenColumnKey(k));
   return [
     ...keys.map((key) => ({ key, label: key, filterable: true, align: "left" })),
     createListActionsColumn({

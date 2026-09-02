@@ -271,7 +271,7 @@ export default function DopMasterForm() {
 
   useEffect(() => {
     if (userAllColumns.length === 0 || userColumnsLoadedRef.current || isEditRoute) return;
-    fetchUserGridColumns(0).then((cols) => {
+    fetchUserGridColumns(headerValuesRef.current.divisionid).then((cols) => {
       if (cols?.length > 0) userColumnsLoadedRef.current = true;
     });
   }, [userAllColumns, fetchUserGridColumns, isEditRoute]);
@@ -302,7 +302,7 @@ export default function DopMasterForm() {
 
       if (headerValues.tranid) {
         const tranTypeCode = tranTypeOptions.find((o) => o.value === String(headerValues.tranid))?.code;
-        await fetchEntityOptions(tranTypeCode);
+        await fetchEntityOptions(tranTypeCode, headerValues.divisionid);
       }
       setIsAmountEnabled(Number(headerValues.dopisamountbased) === 1);
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
@@ -310,7 +310,7 @@ export default function DopMasterForm() {
 
       const [amountCols, userCols] = await Promise.all([
         fetchAmountGridColumns(0, { existingRecordEdit: true, masterRow: master, fetchUnlockedDropdowns: false }),
-        fetchUserGridColumns(0, { existingRecordEdit: true, masterRow: master, fetchUnlockedDropdowns: false }),
+        fetchUserGridColumns(headerValues.divisionid, { existingRecordEdit: true, masterRow: master, fetchUnlockedDropdowns: false }),
       ]);
       if (amountCols?.length > 0) amountColumnsLoadedRef.current = true;
       if (userCols?.length > 0) userColumnsLoadedRef.current = true;
@@ -349,7 +349,7 @@ export default function DopMasterForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode) return;
     fetchAmountGridColumns(0, { existingRecordEdit: true, fetchUnlockedDropdowns: true });
-    fetchUserGridColumns(0, { existingRecordEdit: true, fetchUnlockedDropdowns: true });
+    fetchUserGridColumns(headerValuesRef.current.divisionid, { existingRecordEdit: true, fetchUnlockedDropdowns: true });
   }, [isEditRoute, isEditMode, fetchAmountGridColumns, fetchUserGridColumns]);
 
   // ── syncedFilters (fully dynamic from API, colseqno-sorted) ───────────────
@@ -411,7 +411,7 @@ export default function DopMasterForm() {
     if (userAllColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchUserGridColumns(0);
+      const activeCols = await fetchUserGridColumns(headerValuesRef.current.divisionid);
       if (activeCols?.length > 0) userColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -466,9 +466,21 @@ export default function DopMasterForm() {
       if (val && val !== "0") {
         // Entity fetch keys off the Tran Type's code (e.g. "PUR_IND"), not its id.
         const tranTypeCode = tranTypeOptions.find((o) => o.value === String(val))?.code;
-        await fetchEntityOptions(tranTypeCode);
+        await fetchEntityOptions(tranTypeCode, headerValuesRef.current.divisionid);
         focusFieldAfterCascade(filterPanelRef, "configurationid");
       }
+      return;
+    }
+
+    if (colName === "divisionid") {
+      // Employee Detail's User Name dropdown is division-scoped (@prmDivisionID),
+      // but its columns are fetched eagerly on mount — before Division has a
+      // real value — and then cached (userColumnsLoadedRef). Without this,
+      // ensureUserColumns() would keep serving that stale, divisionid=0
+      // fetch forever no matter what the user later picks here. Invalidating
+      // the cache on every Division change forces the next Add-Employee-time
+      // ensureUserColumns() call to actually refetch with the real value.
+      userColumnsLoadedRef.current = false;
       return;
     }
 

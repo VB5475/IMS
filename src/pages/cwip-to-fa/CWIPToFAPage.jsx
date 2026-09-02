@@ -11,7 +11,7 @@ import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { createListActionsColumn } from "../../utils/listGridUtils";
+import { createListActionsColumn, isAlwaysHiddenColumnKey } from "../../utils/listGridUtils";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./CWIPToFAPage.css";
@@ -67,7 +67,7 @@ function toLabel(key) {
 
 function buildColumnsFromData(data, navigate) {
   if (!data || data.length === 0) return [];
-  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k) && !isAlwaysHiddenColumnKey(k));
   return [
     ...keys.map((key) => ({
       key,

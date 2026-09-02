@@ -620,40 +620,130 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   cursor: pointer;
-  color: #94a3b8; /* muted by default — blends with header */
-  margin-left: 2px;
-  opacity: 0.55;
+  color: #5b6b82; /* clearly readable against the header by default, not just on hover */
+  background: rgba(91, 107, 130, 0.08);
+  margin-left: 3px;
+  opacity: 1;
   transition:
-    opacity var(--transition),
+    background var(--transition),
     color var(--transition);
   vertical-align: middle;
   line-height: 0;
-  /* no background, no border, no padding — pure icon */
 }
 
 .ng-filter-icon:hover {
-  opacity: 1;
   color: var(--primary);
+  background: rgba(30, 74, 122, 0.12);
 }
 
 .ng-filter-icon--active {
-  opacity: 1;
-  color: var(--primary);
+  color: #fff;
+  background: var(--primary);
 }
 
 /* Filter-applied badge on the column filter icon */
 .ng-filter-dot {
   position: absolute;
-  top: -2px;
+  top: -3px;
   right: -3px;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #ef4444;
   border: 1.5px solid #fff;
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
   pointer-events: none;
+}
+
+/* ─── Consolidated filter bar (opt-in via showFilterBar) ──────────── */
+.eg-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border, #d8dee6);
+  background: var(--bg, #e8eef4);
+  flex-shrink: 0;
+}
+
+.eg-filter-bar__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #64748b);
+  flex-shrink: 0;
+}
+
+.eg-filter-bar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.eg-filter-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary, #475569);
+  background: #fff;
+  border: 1px solid var(--border-dark, #c3c6d0);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+
+.eg-filter-chip:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.eg-filter-chip--active {
+  color: var(--primary);
+  background: rgba(30, 74, 122, 0.08);
+  border-color: var(--primary);
+}
+
+.eg-filter-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
+
+.eg-filter-bar__clear {
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary, #64748b);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.eg-filter-bar__clear:hover {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fef2f2;
 }
 
 /* ─── Dashboard V2 variant ───────────────────────────────────────── */
@@ -730,13 +820,17 @@
 
 .ng-card--dashboard-v2 .ng-filter-icon {
   color: #517a9e;
-  opacity: 0.65;
+  background: rgba(81, 122, 158, 0.12);
 }
 
-.ng-card--dashboard-v2 .ng-filter-icon:hover,
-.ng-card--dashboard-v2 .ng-filter-icon--active {
+.ng-card--dashboard-v2 .ng-filter-icon:hover {
   color: var(--ng-v2-ocean);
-  opacity: 1;
+  background: rgba(6, 96, 167, 0.16);
+}
+
+.ng-card--dashboard-v2 .ng-filter-icon--active {
+  color: #fff;
+  background: var(--ng-v2-ocean);
 }
 
 .ng-card--dashboard-v2 .ng-filter-dot {

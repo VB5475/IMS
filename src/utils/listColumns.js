@@ -3,7 +3,7 @@
  * Uses common API id fields — casing may differ per endpoint.
  */
 import { formatListDate } from "./dateFormat";
-import { inferListColumnFilterType, resolveListCellValue } from "./listGridUtils";
+import { inferListColumnFilterType, resolveListCellValue, isAlwaysHiddenColumnKey } from "./listGridUtils";
 
 export function resolveListRowId(row) {
   if (!row || typeof row !== "object") return null;
@@ -28,7 +28,7 @@ function isIdNumberKey(key) {
 function extractListKeys(data, excludeSet) {
   if (!Array.isArray(data) || data.length === 0) return [];
 
-  const isExcluded = (key) => excludeSet.has(key) || isIdNumberKey(key);
+  const isExcluded = (key) => excludeSet.has(key) || isIdNumberKey(key) || isAlwaysHiddenColumnKey(key);
 
   const keys = Object.keys(data[0]).filter((key) => !isExcluded(key));
   const seen = new Set(keys);

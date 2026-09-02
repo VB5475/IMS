@@ -180,14 +180,20 @@ export function useDopMaster(baseURL = API_BASE_URL) {
   // ── fetchEntityOptions — cascade from Tran Type ───────────────────────────
   // Takes the Tran Type's "code" (e.g. "PUR_IND"), not its idnumber — the
   // entity-fetch SP's @prmref_trantype expects the code, per live confirmation.
+  // @prmdivisionid is optional at the call site (falls back to the session's
+  // division) since Entity's own MRD-given signature scopes the list by
+  // division too, not just Tran Type — see the SP_ENTITY param confirmation.
   const fetchEntityOptions = useCallback(
-    async (tranTypeCode) => {
+    async (tranTypeCode, divisionId) => {
       if (!tranTypeCode || tranTypeCode === "0") { setEntityOptions([]); return []; }
       try {
         const res = await get(ENDPOINTS.FN_FETCH_DATA, {
           ObjType: 2,
           ObjName: DOP_CONFIG.SP_ENTITY,
-          JSon: JSON.stringify([{ prmref_trantype: String(tranTypeCode) }]),
+          JSon: JSON.stringify([{
+            prmref_trantype: String(tranTypeCode),
+            prmdivisionid: Number(divisionId) || 0,
+          }]),
           p_ErrCode: -1,
           p_ErrMsg: "",
         });

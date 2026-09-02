@@ -7,6 +7,6 @@
   "_uiGuardNote": "No -> right-click and DevTools shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U) are blocked with a toast. Yes -> guard off, normal browser behavior.",
   "baseDomain": "http://122.179.135.100:8095/",
   "_baseDomainNote": "Root server URL (protocol + host + port, trailing slash required) that all API base URLs are built from. Edit this file on the server and reload — no rebuild needed.",
-  "apiRetryCount": 1,
+  "apiRetryCount": 5,
   "_apiRetryCountNote": "Extra attempts after the first failed API call (network error/exception) before giving up, per request — e.g. 1 = try once, retry once more on failure (2 attempts total). 0 disables retry. Edit this file on the server and reload — no rebuild needed."
 }
