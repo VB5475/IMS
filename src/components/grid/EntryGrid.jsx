@@ -198,6 +198,15 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
     // match count next to its own search box (mirrors what GridSearch's
     // matchCount prop shows internally).
     onFilteredCountChange = null,
+    // Initial sort — defaults to the grid's historical "no sort" so editable
+    // transaction grids keep their API row order. Read-only pickers pass the
+    // same "newest first" default the list pages use ({ key:"idnumber",
+    // direction:"desc" }) so opened items match the listing's ordering.
+    defaultSort = { key: null, direction: "asc" },
+    // true → suppress the internal "N row(s) selected · Clear selection" bar
+    // (e.g. pickers that surface the same info + a Clear action in their own
+    // toolbar row to save vertical space). Selection still works via the ref.
+    hideSelectionBar = false,
     // (row) => boolean — rows for which this returns true render with a dimmed
     // style and can't be checkbox-selected (e.g. an item-picker row that's
     // already been inserted into the target grid once, per source key).
@@ -275,7 +284,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState(defaultSort);
   const [scrollState, setScrollState] = useState({ left: false, right: false });
   const [columnWidths, setColumnWidths] = useState(() => {
     const map = {};
@@ -381,6 +390,9 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       },
       getSelectedRows() {
         return rowsRef.current.filter((r) => selectedIds.has(String(r.id)));
+      },
+      clearSelection() {
+        setSelectedIds(new Set());
       },
       updateRow(rowId, fields) {
         const apply = (list) =>
@@ -1245,7 +1257,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
         <div className="grid-tab-content">{tabContentOverride}</div>
       ) : (
         <BodyWrap {...bodyWrapProps}>
-          {selectedIds.size > 0 && (
+          {!hideSelectionBar && selectedIds.size > 0 && (
             <div className="selection-bar">
               <span>{selectedIds.size} row(s) selected</span>
               <button type="button" onClick={() => setSelectedIds(new Set())}>
@@ -1318,7 +1330,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                               title={filterActive ? `Filter applied on ${col.name}` : `Filter ${col.name}`}
                               data-filter-active={filterActive ? "true" : "false"}
                             >
-                              <Filter size={11} strokeWidth={filterActive ? 2.5 : 2} />
+                              <Filter size={13} strokeWidth={filterActive ? 2.5 : 2} />
                               {filterActive && <span className="eg-filter-dot" aria-hidden="true" />}
                             </span>
                           )}

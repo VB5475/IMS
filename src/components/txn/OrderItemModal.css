@@ -12,8 +12,8 @@
 .oim-filter-bar {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 8px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -21,18 +21,26 @@
 .oim-filter-bar__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 220px;
-  font-size: 11px;
+  gap: 3px;
+  min-width: 170px;
+  flex: 1 1 170px;
+  max-width: 240px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
+/* Item Name is a short free-text field — doesn't need the same width as the
+   group dropdowns. */
+.oim-filter-bar__field:has(.oim-filter-bar__text) {
+  max-width: 200px;
+}
+
 .oim-filter-bar__text {
-  height: 34px;
+  height: 30px;
   padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text);
@@ -49,16 +57,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
+  height: 30px;
+  padding: 0 13px;
   border: none;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 700;
   color: #fff;
   background: var(--primary, #1a56db);
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .oim-filter-bar__btn:hover:not(:disabled) {
@@ -189,13 +198,50 @@
 }
 
 .oim-toolbar__selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 600;
   color: var(--success);
-  padding: 2px 8px;
+  padding: 2px 4px 2px 8px;
   background: rgba(8, 153, 73, 0.08);
   border: 1px solid rgba(8, 153, 73, 0.25);
   border-radius: var(--radius-sm);
+}
+
+/* "Clear selection" moved onto the Available Items row (was EntryGrid's own
+   selection bar, hidden here via hideSelectionBar) to save vertical space. */
+.oim-toolbar__clear {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.oim-toolbar__clear:hover {
+  color: var(--danger, #dc2626);
+  border-color: var(--danger, #dc2626);
+  background: #fff;
+}
+
+/* Grid search lives here (right of the "Available Items" row) instead of
+   inside the grid — see OrderItemModal.jsx. */
+.oim-toolbar__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.oim-toolbar__right .eg-search {
+  width: clamp(180px, 26vw, 300px);
 }
 
 /* ── Footer ── */

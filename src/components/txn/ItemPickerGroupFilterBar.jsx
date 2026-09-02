@@ -32,6 +32,7 @@ export default function ItemPickerGroupFilterBar({
           options={mainGroupOptions}
           placeholder="All main groups"
           ariaLabel="Item Main Group"
+          compact
         />
       </label>
       <label className="oim-filter-bar__field">
@@ -43,6 +44,7 @@ export default function ItemPickerGroupFilterBar({
           placeholder="All sub main groups"
           ariaLabel="Item Sub Main Group"
           disabled={subMainAlwaysEnabled ? false : !mainGroupValue}
+          compact
         />
       </label>
       {showItemName && (

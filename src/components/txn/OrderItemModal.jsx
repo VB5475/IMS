@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import Modal from "../ui/Modal";
 const EntryGrid = lazy(() => import("../grid/EntryGrid"));
+import GridSearch from "../grid/GridSearch";
 import Loader from "../ui/Loader";
 import AlertPanel from "../ui/AlertPanel";
 import { usePickerModalKeyboard } from "../../hooks/useEntryFormKeyboard";
@@ -48,6 +49,11 @@ export default function OrderItemModal({
   const cancelBtnRef = useRef(null);
   const insertBtnRef = useRef(null);
   const [selectedCount, setSelectedCount] = useState(0);
+  // Grid search is lifted here so it can sit right-aligned in the toolbar row
+  // (aligned with "Available Items") instead of inside the grid — EntryGrid
+  // renders with searchable={false} and filters off externalSearchQuery.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredCount, setFilteredCount] = useState(0);
   // Same dismissible-banner pattern the Save button's validation already
   // uses (AlertPanel) instead of this modal's own bespoke single-string
   // strip. Dismiss state is local/self-contained here (not lifted to the
@@ -56,7 +62,10 @@ export default function OrderItemModal({
   const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setSelectedCount(0);
+    if (isOpen) {
+      setSelectedCount(0);
+      setSearchQuery("");
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -64,6 +73,16 @@ export default function OrderItemModal({
   }, [isOpen, error]);
 
   const normalizedItems = useMemo(() => items.map(lowercaseRowKeys), [items]);
+
+  // Seed the toolbar search count with the full set; EntryGrid refines it via
+  // onFilteredCountChange once search / column filters narrow the rows.
+  useEffect(() => {
+    setFilteredCount(normalizedItems.length);
+  }, [normalizedItems.length]);
+
+  const handleClearSelection = useCallback(() => {
+    gridRef.current?.clearSelection?.();
+  }, []);
 
   const handleInsert = useCallback(() => {
     if (!gridRef.current) return;
@@ -200,10 +219,28 @@ export default function OrderItemModal({
                 <span className="oim-toolbar__count">
                   {normalizedItems.length} record{normalizedItems.length !== 1 ? "s" : ""}
                 </span>
+                {selectedCount > 0 && (
+                  <span className="oim-toolbar__selected">
+                    {selectedCount} selected
+                    <button
+                      type="button"
+                      className="oim-toolbar__clear"
+                      onClick={handleClearSelection}
+                      title="Clear selection"
+                    >
+                      Clear
+                    </button>
+                  </span>
+                )}
               </div>
-              {selectedCount > 0 && (
-                <span className="oim-toolbar__selected">{selectedCount} selected</span>
-              )}
+              <div className="oim-toolbar__right">
+                <GridSearch
+                  query={searchQuery}
+                  onChange={setSearchQuery}
+                  matchCount={filteredCount}
+                  totalCount={normalizedItems.length}
+                />
+              </div>
             </div>
 
             <Suspense
@@ -222,6 +259,11 @@ export default function OrderItemModal({
                 disableSelection={false}
                 initialRows={normalizedItems}
                 hideBottomPanel
+                searchable={false}
+                externalSearchQuery={searchQuery}
+                onFilteredCountChange={setFilteredCount}
+                hideSelectionBar
+                defaultSort={{ key: "idnumber", direction: "desc" }}
                 emptyMessage="No items found for the selected criteria."
                 onSelectionChange={setSelectedCount}
                 isRowDisabled={isRowDisabled}

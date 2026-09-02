@@ -1171,42 +1171,51 @@
 }
 
 /* ===== COLUMN FILTER ICON (opt-in via col.filterable — picker grids) ===== */
+/* Per-column filter icon — always clearly visible + markable, matching the
+   list pages' .ng-filter-icon (ceca100 restyle). A boxed, readable icon by
+   default (not a faint hover-only glyph), with a filled active state and a
+   red dot badge when a filter is applied. */
 .eg-filter-icon {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   cursor: pointer;
-  color: #94a3b8;
+  color: #5b6b82;
+  background: rgba(91, 107, 130, 0.08);
   flex-shrink: 0;
-  opacity: 0.55;
-  transition: opacity var(--transition), color var(--transition);
+  margin-left: 3px;
+  transition: background var(--transition), color var(--transition);
   vertical-align: middle;
   line-height: 0;
 }
 
 .eg-filter-icon:hover {
-  opacity: 1;
   color: var(--primary);
+  background: rgba(30, 74, 122, 0.12);
 }
 
 .eg-filter-icon--active {
-  opacity: 1;
-  color: var(--primary);
+  color: #fff;
+  background: var(--primary);
 }
 
 .eg-filter-dot {
   position: absolute;
-  top: -2px;
+  top: -3px;
   right: -3px;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #ef4444;
   border: 1.5px solid #fff;
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
   pointer-events: none;
 }
+
 
 .erp-table thead th:hover .header-actions {
   opacity: 1;
