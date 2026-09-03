@@ -36,12 +36,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(30, 74, 122, 0.18) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, transparent 0%, rgba(30, 74, 122, 0.18) 50%, transparent 100%);
 }
 
 /* --header-gradient (enterprise.css) is a LIGHT near-white gradient, not the
@@ -386,6 +381,21 @@
   white-space: nowrap;
   user-select: none;
   vertical-align: middle;
+}
+
+/* Fill report grids: wrap headers and scroll header + body together (dashboard-style). */
+.ng-card--fill:not(.ng-card--sticky-totals) .ng-table thead th {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+  vertical-align: bottom;
+}
+
+.ng-card--fill:not(.ng-card--sticky-totals) .ng-th-inner {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  row-gap: 2px;
 }
 
 .ng-table thead th:last-child {

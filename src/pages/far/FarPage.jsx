@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Landmark } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import GridSearch from "../../components/grid/GridSearch";
+import GridRowCount from "../../components/grid/GridRowCount";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL, ENDPOINTS } from "../../api/constants";
 import { getStoredSessionId, getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
-import { isNumericColumnDef } from "../../utils/columnValidation";
 import { FAR_CONFIG } from "./constants";
 import "./FarPage.css";
 
@@ -96,18 +97,14 @@ export default function FarPage() {
   const session = useMemo(() => getUserSession(), []);
 
   const [columns, setColumns] = useState([]);
-  const [gridColumns, setGridColumns] = useState([]);
   const [data, setData] = useState([]);
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [selectedDivision, setSelectedDivision] = useState("");
   const [columnsLoading, setColumnsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const numericTotalColumns = useMemo(
-    () => gridColumns.filter((col) => col.key !== "cb" && isNumericColumnDef(col)),
-    [gridColumns]
-  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStats, setSearchStats] = useState({ matchCount: 0, totalCount: 0 });
 
   usePageHeader({
     title: "FAR",
@@ -143,11 +140,9 @@ export default function FarPage() {
         filterable: true,
         allEditable: false,
       });
-      setGridColumns(builtColumns);
       setColumns(toEnterpriseDataGridColumns(builtColumns));
     } catch (err) {
       console.error("[FAR] column fetch failed:", err);
-      setGridColumns([]);
       setColumns([]);
       setError(err?.message || "Failed to load FAR columns.");
     } finally {
@@ -212,22 +207,29 @@ export default function FarPage() {
           <Landmark size={14} strokeWidth={2} />
           <span>FAR</span>
         </div>
-        <div className="far-page__filters">
-          <label htmlFor="far-division" className="far-page__label">
-            Division
-          </label>
-          <SearchSelect
-            id="far-division"
-            className="far-page__select"
-            value={selectedDivision}
-            onChange={setSelectedDivision}
-            options={divisionOptions}
-            placeholder="Select"
-            searchPlaceholder="Search division…"
-            ariaLabel="Division"
-            disabled={divisionOptions.length === 0}
-            compact
+        <div className="far-page__toolbar-inner">
+          <GridSearch query={searchQuery} onChange={setSearchQuery} />
+          <GridRowCount
+            matchCount={searchStats.matchCount}
+            totalCount={searchStats.totalCount}
           />
+          <div className="far-page__filters">
+            <label htmlFor="far-division" className="far-page__label">
+              Division
+            </label>
+            <SearchSelect
+              id="far-division"
+              className="far-page__select"
+              value={selectedDivision}
+              onChange={setSelectedDivision}
+              options={divisionOptions}
+              placeholder="Select"
+              searchPlaceholder="Search division…"
+              ariaLabel="Division"
+              disabled={divisionOptions.length === 0}
+              compact
+            />
+          </div>
         </div>
       </section>
 
@@ -242,10 +244,12 @@ export default function FarPage() {
           emptyMessage={selectedDivision ? "No FAR data found." : "Select a division."}
           hideHeader
           hidePagination
-          showNumericColumnTotals
-          numericTotalColumns={numericTotalColumns}
           fill
-          variant="dashboard-v2"
+          searchable
+          hideSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchStats={setSearchStats}
           getRowKey={getRowKey}
         />
       </section>
