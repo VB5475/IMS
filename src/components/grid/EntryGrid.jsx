@@ -30,6 +30,7 @@ import React, {
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, StickyNote, Filter } from "lucide-react";
 import GridSearch from "./GridSearch";
+import GridRowCount from "./GridRowCount";
 const SearchSelect = lazy(() => import("../ui/SearchSelect"));
 import TxnEntryBottomPanel from "./EntryGridBottomPanel";
 const CollapsibleGrid = lazy(() => import("./CollapsibleGrid"));
@@ -1205,12 +1206,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           </div>
           <div className="grid-tabbar__controls">
             {searchable && (
-              <GridSearch
-                query={searchQuery}
-                onChange={handleSearchChange}
-                matchCount={filteredRows.length}
-                totalCount={rows.length}
-              />
+              <>
+                <GridSearch query={searchQuery} onChange={handleSearchChange} />
+                <GridRowCount matchCount={filteredRows.length} totalCount={rows.length} />
+              </>
             )}
             {headerControls}
           </div>
@@ -1220,12 +1219,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
           <h2 className="grid-title">{title}</h2>
           <div className="grid-header__controls">
             {searchable && (
-              <GridSearch
-                query={searchQuery}
-                onChange={handleSearchChange}
-                matchCount={filteredRows.length}
-                totalCount={rows.length}
-              />
+              <>
+                <GridSearch query={searchQuery} onChange={handleSearchChange} />
+                <GridRowCount matchCount={filteredRows.length} totalCount={rows.length} />
+              </>
             )}
             {headerControls}
           </div>
@@ -1233,12 +1230,10 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
       ) : searchable || headerControls ? (
         <div className="eg-search-bar">
           {searchable && (
-            <GridSearch
-              query={searchQuery}
-              onChange={handleSearchChange}
-              matchCount={filteredRows.length}
-              totalCount={rows.length}
-            />
+            <>
+              <GridSearch query={searchQuery} onChange={handleSearchChange} />
+              <GridRowCount matchCount={filteredRows.length} totalCount={rows.length} />
+            </>
           )}
           {headerControls}
         </div>

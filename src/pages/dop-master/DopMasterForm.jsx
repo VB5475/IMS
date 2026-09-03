@@ -31,6 +31,7 @@ import { AlertCircle, Trash2, Save, PlusCircle, X } from "lucide-react";
 import EnterpriseFilterPanel from "../../components/filters/EnterpriseFilterPanel";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
 import GridSearch from "../../components/grid/GridSearch";
+import GridRowCount from "../../components/grid/GridRowCount";
 const GridNumberInput = lazy(() => import("../../components/grid/GridNumberInput"));
 import ActionBar from "../../components/ui/ActionBar";
 import AlertPanel from "../../components/ui/AlertPanel";
@@ -1151,12 +1152,12 @@ export default function DopMasterForm() {
                       <GridSearch
                         query={employeeSearch[band.id] ?? ""}
                         onChange={(q) => handleEmployeeSearchChange(band.id, q)}
+                      />
+                      <GridRowCount
                         matchCount={employeeMatchCounts[band.id] ?? employeeCounts[band.id] ?? 0}
                         totalCount={employeeCounts[band.id] ?? 0}
+                        label="employees"
                       />
-                      <span className="dop-band-card__employee-count">
-                        {employeeCounts[band.id] ?? 0} employee{(employeeCounts[band.id] ?? 0) === 1 ? "" : "s"}
-                      </span>
                       <button
                         type="button"
                         className="eg-tab-btn"

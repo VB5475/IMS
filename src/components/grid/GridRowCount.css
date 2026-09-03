@@ -1,0 +1,24 @@
+.grid-row-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border, #d8dee6);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface, #ffffff);
+  font-size: 11px;
+  color: var(--text-secondary, #42474f);
+  white-space: nowrap;
+}
+
+.grid-row-count strong {
+  font-weight: 700;
+  color: var(--primary, #1e4a7a);
+}
+
+.grid-row-count__label {
+  font-weight: 600;
+  color: var(--text-muted, #737780);
+}

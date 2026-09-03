@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import EnterpriseDataGrid from "../grid/EnterpriseDataGrid";
 import GridSearch from "../grid/GridSearch";
+import GridRowCount from "../grid/GridRowCount";
 import SearchSelect from "../ui/SearchSelect";
 import Modal from "../ui/Modal";
 import { useApi } from "../../api/useApi";
@@ -861,6 +862,8 @@ export default function ReportBoardPanel({
               <GridSearch
                 query={searchQuery}
                 onChange={setSearchQuery}
+              />
+              <GridRowCount
                 matchCount={searchStats.matchCount}
                 totalCount={searchStats.totalCount}
               />
