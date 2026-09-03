@@ -46,8 +46,6 @@ export default function AssetsClientAllocationPage() {
   usePageHeader({
     title: "Assets Client Allocation",
     subtitle: "Allocate and issue assets to clients.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

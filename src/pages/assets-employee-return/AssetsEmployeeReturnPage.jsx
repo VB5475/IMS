@@ -71,8 +71,6 @@ export default function AssetsEmployeeReturnPage() {
   usePageHeader({
     title: "Assets Employee Return",
     subtitle: "Return assets and issued items from employees.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

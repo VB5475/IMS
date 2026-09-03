@@ -1242,6 +1242,25 @@
   font-size: 0.8em;
 }
 
+/* Active sort direction — always visible, tinted. */
+.sort-icon--active {
+  opacity: 1;
+  color: var(--primary);
+}
+
+/* Neutral "this column is sortable" hint — faint at rest, revealed when the
+   header row is hovered, so sortability is discoverable without adding visual
+   noise to every column at all times. */
+.sort-icon--hint {
+  opacity: 0;
+  color: var(--text-muted, #94a3b8);
+  transition: opacity var(--transition);
+}
+
+.erp-table thead th:hover .sort-icon--hint {
+  opacity: 0.55;
+}
+
 .filter-icon:hover,
 .sort-icon:hover {
   transform: scale(1.1);

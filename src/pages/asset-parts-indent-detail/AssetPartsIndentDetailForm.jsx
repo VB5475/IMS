@@ -169,6 +169,7 @@ export default function AssetPartsIndentDetailForm() {
           : `Indent #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: APID_CONFIG.ROUTE_PATH,
+    backLabel: "APID",
   });
 
   useEffect(() => {

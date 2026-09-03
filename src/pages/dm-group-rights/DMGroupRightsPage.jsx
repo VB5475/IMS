@@ -20,8 +20,6 @@ export default function DMGroupRightsPage() {
   usePageHeader({
     title: "Group Rights",
     subtitle: "Pick a Group and Department, click Get Detail, then set Upload/View/Delete rights per document type.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

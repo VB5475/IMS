@@ -471,6 +471,7 @@ export default function GoodsReceivedNoteForm() {
       : `GRN #${recordId || routeId || "—"} — fill in the header fields, then use the Item Grid tab.`,
     showBack: true,
     backTo: GRN_CONFIG.ROUTE_PATH,
+    backLabel: "GRN",
   });
 
   useEffect(() => {

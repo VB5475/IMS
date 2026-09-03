@@ -19,8 +19,6 @@ export default function UserWiseGroupRightsPage() {
     title: "User Wise Group Rights",
     subtitle:
       "Pick a Group, Module and Type, click Search, then grant form rights and report approval rights for that group.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

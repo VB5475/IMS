@@ -92,8 +92,6 @@ export default function DepartmentMasterPage() {
   usePageHeader({
     title: "Department Master",
     subtitle: "Browse departments or create a new department record.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

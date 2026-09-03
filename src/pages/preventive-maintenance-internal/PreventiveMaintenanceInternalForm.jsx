@@ -247,6 +247,7 @@ export default function PreventiveMaintenanceInternalForm() {
           : `Preventive Maintenance Internal #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: PMI_CONFIG.ROUTE_PATH,
+    backLabel: "PMI",
   });
 
   useEffect(() => {

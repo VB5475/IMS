@@ -46,8 +46,6 @@ export default function AssetsRevaluationPage() {
   usePageHeader({
     title: "Assets Revaluation",
     subtitle: "Update asset item revaluation records.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

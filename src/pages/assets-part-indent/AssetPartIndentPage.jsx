@@ -7,7 +7,7 @@
 // detailitemid against ANY selected Master row — neither fetch function
 // takes a per-row filter parameter.
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { PackageSearch, Save, Eye } from "lucide-react";
+import { PackageSearch, Save, Eye, Download } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
 import SearchSelect from "../../components/ui/SearchSelect";
@@ -26,6 +26,7 @@ import { getTodayDateInputValue } from "../../utils/dateFormat";
 import { getUserSession } from "../../session/userSession";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
+import { exportSideBySideTablesToExcel } from "../../utils/excelExport";
 import { APIN_CONFIG, APIN_MASTER_KEY_FIELDS } from "./constants";
 import "./AssetPartIndentPage.css";
 
@@ -75,6 +76,16 @@ function detailRowKey(row, index) {
   return `${masterRowKey(row)}-${index}`;
 }
 
+// Excel export needs plain objects keyed by column.key (raw property access,
+// same contract as csvExport.js's buildCsvContent) — this page's own columns
+// come from dynamic API data with mixed-case field names, so every read goes
+// through resolveRowFieldValue rather than direct property access.
+function resolveRowByColumns(row, columns) {
+  const out = {};
+  columns.forEach((c) => { out[c.key] = resolveRowFieldValue(row, c.key) ?? ""; });
+  return out;
+}
+
 export default function AssetPartIndentPage() {
   const notify = useNotification();
   const { post: postSave } = useApi(API_BASE_URL_IMS);
@@ -92,8 +103,6 @@ export default function AssetPartIndentPage() {
   usePageHeader({
     title: "Asset Part Indent",
     subtitle: "Browse asset part items and their matching transactions.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {
@@ -252,6 +261,59 @@ export default function AssetPartIndentPage() {
     return Array.from(groups.values());
   }, [selectedDetailRows, selectedMasterRows]);
 
+  // Real .xlsx, one sheet: Master Items table, then a titled Matching
+  // Transactions table stacked below it once Master Items ends — both with
+  // Grouped by Division + Item Name, summing Base Qty, plus a bold grand-
+  // total row — the Summary table in the Excel export (no on-screen
+  // equivalent; this is export-only, built fresh from the current
+  // selection each time).
+  const summaryRows = useMemo(() => {
+    const groups = new Map();
+    selectedDetailRows.forEach((row) => {
+      const division = resolveRowFieldValue(row, "Division") ?? "";
+      const itemName = resolveRowFieldValue(row, "Item Name") ?? "";
+      const qty = Number(resolveRowFieldValue(row, "Base Qty")) || 0;
+      const key = `${division}-${itemName}`;
+      if (!groups.has(key)) groups.set(key, { division, itemName, totalQty: 0 });
+      groups.get(key).totalQty += qty;
+    });
+    const rows = Array.from(groups.values()).sort(
+      (a, b) => a.division.localeCompare(b.division) || a.itemName.localeCompare(b.itemName)
+    );
+    const grandTotal = rows.reduce((sum, r) => sum + r.totalQty, 0);
+    rows.push({ division: "", itemName: "Total :", totalQty: grandTotal, __isTotal: true });
+    return rows;
+  }, [selectedDetailRows]);
+
+  // Real .xlsx, one sheet, three tables side by side — Transactions | Master
+  // | Summary — matching a reference report layout the user provided,
+  // rather than stacked (the earlier design, which needed cross-table width
+  // matching that side-by-side tables don't need at all).
+  const handleExportExcel = useCallback(() => {
+    const tables = [
+      {
+        title: "Transactions",
+        columns: detailColumns,
+        rows: selectedDetailRows.map((r) => resolveRowByColumns(r, detailColumns)),
+      },
+      {
+        title: "Master",
+        columns: masterColumns,
+        rows: selectedMasterRows.map((r) => resolveRowByColumns(r, masterColumns)),
+      },
+      {
+        title: "Summary",
+        columns: [
+          { key: "division", label: "Division" },
+          { key: "itemName", label: "Item Name" },
+          { key: "totalQty", label: "Total Qty" },
+        ],
+        rows: summaryRows,
+      },
+    ];
+    exportSideBySideTablesToExcel(tables, "Asset_Part_Indent_export.xlsx");
+  }, [masterColumns, detailColumns, selectedMasterRows, selectedDetailRows, summaryRows]);
+
   // Posts only the checked (2026-08-25 /pm) Detail rows — prmStrDetJSON is
   // "selected rows array objects" per the user's own API spec, not the full
   // filtered set. Division comes from the filter bar's own selection, same
@@ -323,6 +385,16 @@ export default function AssetPartIndentPage() {
         </div>
         <button type="button" className="apin-search-btn" onClick={handleSearch} disabled={loading}>
           {loading ? "Loading…" : "Search"}
+        </button>
+        <button
+          type="button"
+          className="apin-export-btn"
+          onClick={handleExportExcel}
+          disabled={selectedDetailKeys.length === 0}
+          title="Export the selected Master Items and their Matching Transactions to Excel"
+        >
+          <Download size={14} strokeWidth={2} />
+          Export to Excel
         </button>
       </section>
 

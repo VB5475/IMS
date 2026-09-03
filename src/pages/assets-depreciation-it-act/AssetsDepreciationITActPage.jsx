@@ -73,8 +73,6 @@ export default function AssetsDepreciationITActPage() {
   usePageHeader({
     title: "Calculate Depreciation IT Act",
     subtitle: "Create and manage Assets depreciation.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

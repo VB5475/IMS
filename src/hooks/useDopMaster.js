@@ -99,22 +99,32 @@ function useDetailGridPipeline(get, rbCode, storageKey) {
   const rawColumnsRef = useRef([]);
   const rawMetaRef = useRef(null);
 
+  // In-flight de-dupe — the mount effect and a fast edit load (via
+  // fetchGridColumns' self-heal below) can both ask for the meta before the
+  // first request resolves; share one request instead of firing two.
+  const inflightMetaRef = useRef(null);
   const fetchDetailMeta = useCallback(async () => {
-    setIsFetching(true);
-    setMetaError(null);
-    try {
-      const { meta, apiColumns } = await loadRbDetailGridMeta(get, rbCode, storageKey);
-      rawMetaRef.current = meta;
-      rawColumnsRef.current = apiColumns;
-      setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
-      return apiColumns;
-    } catch (err) {
-      console.error(`[DOP] fetchDetailMeta failed for ${rbCode}:`, err);
-      setMetaError(err?.message || "Failed to load grid configuration.");
-      return [];
-    } finally {
-      setIsFetching(false);
-    }
+    if (inflightMetaRef.current) return inflightMetaRef.current;
+    const run = (async () => {
+      setIsFetching(true);
+      setMetaError(null);
+      try {
+        const { meta, apiColumns } = await loadRbDetailGridMeta(get, rbCode, storageKey);
+        rawMetaRef.current = meta;
+        rawColumnsRef.current = apiColumns;
+        setAllColumns(apiColumns.map((c) => ({ key: c.colname, colDataType: c.coldatatype || null })));
+        return apiColumns;
+      } catch (err) {
+        console.error(`[DOP] fetchDetailMeta failed for ${rbCode}:`, err);
+        setMetaError(err?.message || "Failed to load grid configuration.");
+        return [];
+      } finally {
+        setIsFetching(false);
+        inflightMetaRef.current = null;
+      }
+    })();
+    inflightMetaRef.current = run;
+    return run;
   }, [get, rbCode, storageKey]);
 
   const fetchGridColumns = useCallback(
@@ -122,12 +132,18 @@ function useDetailGridPipeline(get, rbCode, storageKey) {
       const opts = typeof editOpts === "boolean" ? { existingRecordEdit: editOpts } : editOpts || {};
       const { existingRecordEdit = false, masterRow = null, fetchUnlockedDropdowns = true } = opts;
 
-      const apiColumns = rawColumnsRef.current;
-      const meta = rawMetaRef.current;
+      let apiColumns = rawColumnsRef.current;
+      let meta = rawMetaRef.current;
       if (!apiColumns.length || !meta) {
-        console.warn(`[DOP] fetchGridColumns called before fetchDetailMeta completed for ${rbCode}.`);
-        return [];
+        // The detail-grid meta is fetched in parallel with the header meta on
+        // mount, so a fast edit load can reach here before it resolves. Load
+        // it now (deduped) instead of bailing with empty columns — returning
+        // [] here left the Amount/Employee detail grids with no columns on
+        // edit, so their rows couldn't render until the user entered edit mode.
+        apiColumns = await fetchDetailMeta();
+        meta = rawMetaRef.current;
       }
+      if (!apiColumns.length || !meta) return [];
 
       try {
         const colDropdownOptions = await fetchDropdownOptions(get, apiColumns, meta.RBID, {
@@ -151,7 +167,7 @@ function useDetailGridPipeline(get, rbCode, storageKey) {
         return [];
       }
     },
-    [get, rbCode]
+    [get, rbCode, fetchDetailMeta]
   );
 
   return { columns, allColumns, isFetching, metaError, fetchDetailMeta, fetchGridColumns };

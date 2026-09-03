@@ -717,7 +717,7 @@ export default function AppShell({ children }) {
                 onClick={() => navigate(header.backTo || "/")}
               >
                 <ArrowLeft size={14} />
-                <span>Back</span>
+                <span>{header.backLabel ? `Go to ${header.backLabel} List` : "Go To List"}</span>
               </button>
             )}
             <div className="ent-topbar__titles">

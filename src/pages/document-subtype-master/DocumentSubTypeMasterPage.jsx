@@ -54,8 +54,6 @@ export default function DocumentSubTypeMasterPage() {
   usePageHeader({
     title: "Document SubType Master",
     subtitle: "Browse document subtypes or create a new document subtype record.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

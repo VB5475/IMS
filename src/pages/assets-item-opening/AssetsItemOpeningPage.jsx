@@ -110,8 +110,6 @@ export default function AssetsItemOpeningPage() {
   usePageHeader({
     title: "Assets Item Opening",
     subtitle: "Create and manage asset item opening entries.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);

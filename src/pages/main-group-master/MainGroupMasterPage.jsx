@@ -74,8 +74,6 @@ export default function MainGroupMasterPage() {
   usePageHeader({
     title: "Main Group Master",
     subtitle: "Browse main groups or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

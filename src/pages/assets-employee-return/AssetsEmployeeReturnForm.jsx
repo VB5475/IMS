@@ -261,6 +261,7 @@ export default function AssetsEmployeeReturnForm() {
           : `Return #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: AER_CONFIG.ROUTE_PATH,
+    backLabel: "AER",
   });
 
   useEffect(() => {

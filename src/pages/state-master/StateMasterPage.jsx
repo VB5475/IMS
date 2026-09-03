@@ -110,8 +110,6 @@ export default function StateMasterPage() {
   usePageHeader({
     title: "State Master",
     subtitle: "Browse states or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

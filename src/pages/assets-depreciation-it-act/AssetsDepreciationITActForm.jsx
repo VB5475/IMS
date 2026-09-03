@@ -276,6 +276,7 @@ export default function AssetsDepreciationITActForm() {
           : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: DIT_CONFIG.ROUTE_PATH,
+    backLabel: "DIT",
   });
 
   // ── Mount: load metadata ──────────────────────────────────────────────

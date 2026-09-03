@@ -62,8 +62,6 @@ export default function AccountMasterPage() {
   usePageHeader({
     title: "Account Master",
     subtitle: "Browse accounts or create a new account record.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

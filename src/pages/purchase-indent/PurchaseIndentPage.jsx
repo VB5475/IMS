@@ -89,8 +89,6 @@ export default function PurchaseIndentPage() {
   usePageHeader({
     title: "Purchase Indents",
     subtitle: "Browse purchase indents or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {
@@ -171,6 +169,11 @@ export default function PurchaseIndentPage() {
     return buildPurchaseIndentReportParams(selectedId);
   }, [selectedId, notify]);
 
+  const handleDeleteSuccess = useCallback(async () => {
+    await fetchIndents();
+    setSelectedId(null);
+  }, [fetchIndents]);
+
   const handleExportCsv = useCallback(() => {
     const { rows, columns } = gridRef.current?.getExportData() ?? {};
     exportRowsToCsv(rows, columns, "Purchase_Indents_export.csv");
@@ -202,13 +205,15 @@ export default function PurchaseIndentPage() {
       const { success, message } = parseApiErrMsg(result);
       if (!success) { notify.error(message); return; }
       notify.success(message);
+      await fetchIndents();
+      setSelectedId(null);
     } catch (err) {
       console.error("[PurchaseIndentPage] Send for approval failed:", err);
       notify.error(err?.message || "Failed to send for approval. Please try again.");
     } finally {
       setSendingApproval(false);
     }
-  }, [selectedId, data, divisionNameToId, postWkf, notify]);
+  }, [selectedId, data, divisionNameToId, postWkf, notify, fetchIndents]);
 
   return (
     <div className="workspace-page ind-list-page">
@@ -265,7 +270,7 @@ export default function PurchaseIndentPage() {
           onSearchChange={setSearchQuery}
           onSearchStats={setSearchStats}
           deleteProcName={IND_CONFIG.DELETE_PROC_NAME}
-          onDeleteSuccess={fetchIndents}
+          onDeleteSuccess={handleDeleteSuccess}
           fill
           selectable
           singleSelect

@@ -115,8 +115,6 @@ export default function CWIPToFAPage() {
   usePageHeader({
     title: "CWIP To FA",
     subtitle: "Capital Work In Progress to Fixed Assets conversions.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);

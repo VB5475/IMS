@@ -117,8 +117,6 @@ export default function AssetsDepreciationPage() {
   usePageHeader({
     title: "Company Act Depreciation",
     subtitle: "Create and manage asset depreciation entries.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);

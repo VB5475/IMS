@@ -265,6 +265,7 @@ export default function AssetsReturnableGatePassOutForm() {
           : `Gate Pass Out #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: ARGO_CONFIG.ROUTE_PATH,
+    backLabel: "ARGO",
   });
 
   useEffect(() => {

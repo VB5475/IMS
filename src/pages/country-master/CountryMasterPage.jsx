@@ -106,8 +106,6 @@ export default function CountryMasterPage() {
   usePageHeader({
     title: "Country Master",
     subtitle: "Browse countries or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

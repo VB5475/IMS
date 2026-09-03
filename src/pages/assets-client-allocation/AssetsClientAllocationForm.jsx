@@ -262,6 +262,7 @@ export default function AssetsClientAllocationForm() {
           : `Client Allocation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: ACA_CONFIG.ROUTE_PATH,
+    backLabel: "ACA",
   });
 
   useEffect(() => {

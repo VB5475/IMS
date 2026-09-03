@@ -87,8 +87,6 @@ export default function GoodsReceivedNotePage() {
   usePageHeader({
     title: "Goods Received Note",
     subtitle: "Browse goods received notes or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

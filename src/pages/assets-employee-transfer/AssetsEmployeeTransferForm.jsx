@@ -260,6 +260,7 @@ export default function AssetsEmployeeTransferForm() {
           : `Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: AET_CONFIG.ROUTE_PATH,
+    backLabel: "AET",
   });
 
   useEffect(() => {

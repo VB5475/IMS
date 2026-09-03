@@ -89,8 +89,6 @@ export default function PurchaseQuotationPage() {
   usePageHeader({
     title: "Purchase Quotation",
     subtitle: "Browse purchase quotations or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

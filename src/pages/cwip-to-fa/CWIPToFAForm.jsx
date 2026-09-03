@@ -303,7 +303,8 @@ export default function CWIPToFAForm() {
           ? recordLoadError
           : `C2F #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   C2F_CONFIG.ROUTE_PATH,
+    backTo: C2F_CONFIG.ROUTE_PATH,
+    backLabel: "C2F",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────

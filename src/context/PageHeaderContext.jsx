@@ -5,6 +5,7 @@ const DEFAULT_HEADER = {
   subtitle: null,
   showBack: false,
   backTo: "/",
+  backLabel: null,
 };
 
 const PageHeaderContext = createContext(null);
@@ -41,16 +42,22 @@ export function usePageHeaderContext() {
  * Register page title/subtitle/back in the app layout top bar.
  * No-op when used outside PageHeaderProvider (original standalone app).
  */
-export function usePageHeader({ title, subtitle, showBack = false, backTo = "/" } = {}) {
+export function usePageHeader({
+  title,
+  subtitle,
+  showBack = false,
+  backTo = "/",
+  backLabel = null,
+} = {}) {
   const ctx = useContext(PageHeaderContext);
   const setHeader = ctx?.setHeader;
   const resetHeader = ctx?.resetHeader;
 
   useEffect(() => {
     if (!setHeader) return undefined;
-    setHeader({ title, subtitle, showBack, backTo });
+    setHeader({ title, subtitle, showBack, backTo, backLabel });
     return () => resetHeader?.();
-  }, [setHeader, resetHeader, title, subtitle, showBack, backTo]);
+  }, [setHeader, resetHeader, title, subtitle, showBack, backTo, backLabel]);
 }
 
 export function getDefaultRouteTitle(pathname) {

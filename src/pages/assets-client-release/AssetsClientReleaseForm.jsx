@@ -250,6 +250,7 @@ export default function AssetsClientReleaseForm() {
           : `Client Allocation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: ACR_CONFIG.ROUTE_PATH,
+    backLabel: "ACR",
   });
 
   useEffect(() => {

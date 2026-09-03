@@ -63,8 +63,6 @@ export default function AssetsWriteOffPage() {
   usePageHeader({
     title: "Assets Write Off",
     subtitle: "Create and manage asset write-off entries.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

@@ -134,6 +134,7 @@ export default function TransporterMasterForm() {
           : `Transporter #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: TM_CONFIG.ROUTE_PATH,
+    backLabel: "TM",
   });
 
   // ── Mount: load metadata ────────────────────────────────────────────────

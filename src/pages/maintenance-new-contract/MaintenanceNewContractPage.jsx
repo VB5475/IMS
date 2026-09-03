@@ -57,8 +57,6 @@ export default function MaintenanceNewContractPage() {
   usePageHeader({
     title: "Maintenance Contract (New)",
     subtitle: "Generate maintenance contracts for asset items.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

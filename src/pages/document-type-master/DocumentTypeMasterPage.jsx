@@ -53,8 +53,6 @@ export default function DocumentTypeMasterPage() {
   usePageHeader({
     title: "Document Type Master",
     subtitle: "Browse document types or create a new document type record.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

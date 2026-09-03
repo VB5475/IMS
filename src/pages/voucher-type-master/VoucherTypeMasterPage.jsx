@@ -108,8 +108,6 @@ export default function VoucherTypeMasterPage() {
   usePageHeader({
     title: "Voucher Type Master",
     subtitle: "Browse voucher types or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

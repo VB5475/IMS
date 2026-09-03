@@ -343,6 +343,7 @@ export default function AssetsEmployeeIssueForm() {
           : `Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: AEI_CONFIG.ROUTE_PATH,
+    backLabel: "AEI",
   });
 
   useEffect(() => {

@@ -315,6 +315,7 @@ export default function PurchaseVoucherForm() {
           : `PV #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: PV_CONFIG.ROUTE_PATH,
+    backLabel: "PV",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────

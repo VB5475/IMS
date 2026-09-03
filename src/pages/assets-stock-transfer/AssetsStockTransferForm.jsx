@@ -255,6 +255,7 @@ export default function AssetsStockTransferForm() {
           : `Stock Transfer #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: AST_CONFIG.ROUTE_PATH,
+    backLabel: "AST",
   });
 
   useEffect(() => {

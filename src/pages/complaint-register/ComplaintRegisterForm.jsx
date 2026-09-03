@@ -253,6 +253,7 @@ export default function ComplaintRegisterForm() {
           : `Complaint #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: MCR_CONFIG.ROUTE_PATH,
+    backLabel: "MCR",
   });
 
   useEffect(() => {

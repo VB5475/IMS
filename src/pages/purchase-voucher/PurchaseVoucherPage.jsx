@@ -85,8 +85,6 @@ export default function PurchaseVoucherPage() {
   usePageHeader({
     title: "Purchase Vouchers",
     subtitle: "Browse purchase vouchers or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

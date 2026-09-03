@@ -93,8 +93,6 @@ export default function PurchaseOrderPage() {
   usePageHeader({
     title: "Purchase Orders",
     subtitle: "Browse purchase orders or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

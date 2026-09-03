@@ -271,7 +271,8 @@ export default function AssetsDepreciationForm() {
           ? recordLoadError
           : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   DPC_CONFIG.ROUTE_PATH,
+    backTo: DPC_CONFIG.ROUTE_PATH,
+    backLabel: "DPC",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────

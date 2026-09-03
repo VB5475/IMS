@@ -239,6 +239,7 @@ export default function AssetsReturnableGatePassInForm() {
           : `Gate Pass In #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: ARGI_CONFIG.ROUTE_PATH,
+    backLabel: "ARGI",
   });
 
   useEffect(() => {

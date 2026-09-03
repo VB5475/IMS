@@ -68,6 +68,32 @@
   cursor: not-allowed;
 }
 
+.apin-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.apin-export-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.apin-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .apin-error {
   padding: 10px 14px;
   border: 1px solid var(--danger, #e11d48);

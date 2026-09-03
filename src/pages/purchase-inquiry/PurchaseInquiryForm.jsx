@@ -506,6 +506,7 @@ export default function PurchaseInquiryForm() {
       : `Inquiry #${recordId || routeId || "—"} — fill in the header fields, then use Item Grid or Suppliers tabs.`,
     showBack: true,
     backTo: PI_CONFIG.ROUTE_PATH,
+    backLabel: "PI",
   });
 
   useEffect(() => {

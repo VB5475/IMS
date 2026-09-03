@@ -377,6 +377,7 @@ export default function PurchaseQuotationForm() {
       : `Quotation #${recordId || routeId || "—"} — fill in the header fields, then use the Item Grid tab.`,
     showBack: true,
     backTo: QTN_CONFIG.ROUTE_PATH,
+    backLabel: "QTN",
   });
 
   useEffect(() => {

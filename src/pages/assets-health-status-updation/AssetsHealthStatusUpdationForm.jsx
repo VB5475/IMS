@@ -279,6 +279,7 @@ export default function AssetsHealthStatusUpdationForm() {
           : `Health Status #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: AHS_CONFIG.ROUTE_PATH,
+    backLabel: "AHS",
   });
 
   useEffect(() => {

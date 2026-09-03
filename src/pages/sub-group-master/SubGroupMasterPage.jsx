@@ -103,8 +103,6 @@ export default function SubGroupMasterPage() {
   usePageHeader({
     title: "Sub Group Master",
     subtitle: "Browse sub groups or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

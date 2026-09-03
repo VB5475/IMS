@@ -44,8 +44,6 @@ export default function AssetsClientReleasePage() {
   usePageHeader({
     title: "Assets Client Release",
     subtitle: "Release assets from client allocation.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

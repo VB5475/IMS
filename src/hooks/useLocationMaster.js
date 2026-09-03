@@ -92,14 +92,14 @@ export function useLocationMaster() {
       setLocationTypeOptions(
         (locTypeData || []).map((r) => ({
           value: r.idnumber,
-          label: String(r.code + " - " + r.locationtype),
+          label: String(r.locationtype ?? ""),
         })).filter((o) => o.value != null)
       );
 
       setPremisesOptions(
         (premisesData || []).map((r) => ({
           value: r.idnumber,
-          label: String(r.idnumber + " - " + r.locationname),
+          label: String(r.locationname ?? ""),
         })).filter((o) => o.value != null)
       );
 

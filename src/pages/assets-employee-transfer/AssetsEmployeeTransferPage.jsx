@@ -73,8 +73,6 @@ export default function AssetsEmployeeTransferPage() {
   usePageHeader({
     title: "Employee Location Transfer",
     subtitle: "Transfer employee-held assets between locations and departments.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

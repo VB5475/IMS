@@ -46,8 +46,6 @@ export default function ComplaintRegisterPage() {
   usePageHeader({
     title: "Complaint Register",
     subtitle: "Register and track maintenance complaints.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

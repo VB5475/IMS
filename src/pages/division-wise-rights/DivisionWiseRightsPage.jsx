@@ -19,8 +19,6 @@ export default function DivisionWiseRightsPage() {
   usePageHeader({
     title: "Division Wise User Right",
     subtitle: "Assign transaction and report division access per user.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

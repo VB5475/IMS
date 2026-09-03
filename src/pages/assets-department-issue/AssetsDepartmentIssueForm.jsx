@@ -276,6 +276,7 @@ export default function AssetsDepartmentIssueForm() {
           : `Department Issue #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: ADI_CONFIG.ROUTE_PATH,
+    backLabel: "ADI",
   });
 
   useEffect(() => {

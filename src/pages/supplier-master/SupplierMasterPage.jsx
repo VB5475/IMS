@@ -178,8 +178,6 @@ export default function SupplierMasterPage() {
   usePageHeader({
     title: "Supplier Master",
     subtitle: "Browse suppliers or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

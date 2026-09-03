@@ -78,7 +78,7 @@ function buildEventColumnSet(apiColumns, fallbackKeys = []) {
 function mapAccountRows(rows) {
   return (rows || []).map((r) => ({
     value: String(r.accountid ?? r.acid ?? 0),
-    label: String((r.accode ?? "") + " | " + (r.acname ?? "")),
+    label: String(r.acname ?? ""),
   }));
 }
 
@@ -354,14 +354,14 @@ export function useAstWriteOff(baseURL = API_BASE_URL) {
     if (master.accountid != null && master.accountid !== 0 && accLabel) {
       setAssetsAccOptions([{
         value: String(master.accountid),
-        label: String((master.accode ?? "") + " | " + accLabel),
+        label: String(accLabel ?? ""),
       }]);
     }
     const plLabel = master.profitlossacname ?? master.profitlossactname;
     if (master.profitlossactid != null && master.profitlossactid !== 0 && plLabel) {
       setProfitLossAccOptions([{
         value: String(master.profitlossactid),
-        label: String((master.profitlossaccode ?? "") + " | " + plLabel),
+        label: String(plLabel ?? ""),
       }]);
     }
   }, []);

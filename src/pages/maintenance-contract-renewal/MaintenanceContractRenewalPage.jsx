@@ -57,8 +57,6 @@ export default function MaintenanceContractRenewalPage() {
   usePageHeader({
     title: "Maintenance Contract Renewal",
     subtitle: "Renew maintenance contracts from prior contract detail.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

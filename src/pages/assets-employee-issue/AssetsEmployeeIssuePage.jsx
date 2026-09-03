@@ -73,8 +73,6 @@ export default function AssetsEmployeeIssuePage() {
   usePageHeader({
     title: "Assets Employee Issue",
     subtitle: "Issue assets and items to employees.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

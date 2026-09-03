@@ -196,7 +196,8 @@ export default function AssetsItemOpeningForm() {
           ? recordLoadError
           : `Entry #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   AOP_CONFIG.ROUTE_PATH,
+    backTo: AOP_CONFIG.ROUTE_PATH,
+    backLabel: "AOP",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────

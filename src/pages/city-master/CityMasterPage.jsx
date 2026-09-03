@@ -109,8 +109,6 @@ export default function CityMasterPage() {
   usePageHeader({
     title: "City Master",
     subtitle: "Browse cities or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

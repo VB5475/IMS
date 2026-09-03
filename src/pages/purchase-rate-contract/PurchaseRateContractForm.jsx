@@ -295,6 +295,7 @@ export default function PurchaseRateContractForm() {
           : `Contract #${recordId || routeId || "—"} — click Edit (Alt+A) to modify.`,
     showBack: true,
     backTo: PRC_CONFIG.ROUTE_PATH,
+    backLabel: "PRC",
   });
 
   useEffect(() => {

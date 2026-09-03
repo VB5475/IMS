@@ -226,6 +226,7 @@ export default function AssetsWriteOffForm() {
           : `Write Off #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: AWF_CONFIG.ROUTE_PATH,
+    backLabel: "AWF",
   });
 
   useEffect(() => {

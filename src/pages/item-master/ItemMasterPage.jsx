@@ -209,8 +209,6 @@ export default function ItemMasterPage() {
   usePageHeader({
     title: "Item Master",
     subtitle: "Browse items or create a new inventory item.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

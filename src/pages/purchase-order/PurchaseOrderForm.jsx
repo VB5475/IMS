@@ -323,6 +323,7 @@ export default function PurchaseOrderForm() {
           : `PO #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: PO_CONFIG.ROUTE_PATH,
+    backLabel: "PO",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────

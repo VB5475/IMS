@@ -251,6 +251,7 @@ export default function AssetsRevaluationForm() {
           : `Revaluation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: ARV_CONFIG.ROUTE_PATH,
+    backLabel: "ARV",
   });
 
   useEffect(() => {

@@ -65,8 +65,6 @@ export default function AssetsHealthStatusUpdationPage() {
   usePageHeader({
     title: "Assets Health Status Updation",
     subtitle: "Update asset item health status records.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

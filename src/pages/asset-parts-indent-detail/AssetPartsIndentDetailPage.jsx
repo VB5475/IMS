@@ -41,8 +41,6 @@ export default function AssetPartsIndentDetailPage() {
   usePageHeader({
     title: "Asset Parts Indent Detail",
     subtitle: "Browse indent records or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

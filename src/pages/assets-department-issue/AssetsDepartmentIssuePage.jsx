@@ -65,8 +65,6 @@ export default function AssetsDepartmentIssuePage() {
   usePageHeader({
     title: "Assets Department Issue",
     subtitle: "Issue assets and items to departments.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

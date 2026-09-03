@@ -57,8 +57,6 @@ export default function DopMasterPage() {
   usePageHeader({
     title: "DOP Master",
     subtitle: "Browse delegation-of-power records or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

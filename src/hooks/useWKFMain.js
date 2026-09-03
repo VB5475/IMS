@@ -13,7 +13,8 @@ import { useApi } from "../api/useApi";
 import { API_BASE_URL_IMS } from "../api/constants";
 import { getUserSession } from "../session/userSession";
 import { resolveDetailColLinks } from "../utils/masterFormUtils";
-import { parseApiErrMsg } from "../utils/apiResponse";
+import { parseApiErrMsg, isErrorOnlyRow } from "../utils/apiResponse";
+import { callWithRetry } from "../utils/apiRetry";
 import { WKF_MAIN_CONFIG } from "../pages/wkf-main/constants";
 
 /** Shared identifying params every WKF Main API call needs. */
@@ -25,38 +26,59 @@ function buildIdentityParams({ wkfdashkey }) {
   };
 }
 
+/** Detail/Track/Path/Notes rows, with a lone {ErrCode,ErrMsg} sentinel (a
+ *  proc's "no data / bad key" envelope, e.g. IMS_LIVE's "Transaction Key is
+ *  not numeric") stripped to [] so it shows the grid's empty state instead of
+ *  rendering as a junk ErrCode/ErrMsg row. Same convention as DOP's
+ *  mapDetailRowsToGridRows. */
+function toGridRows(res) {
+  const rows = resolveDetailColLinks(res);
+  if (rows.length === 1 && isErrorOnlyRow(rows[0])) return [];
+  return rows;
+}
+
 export function useWKFMain() {
   const { post } = useApi(API_BASE_URL_IMS);
   const [isActing, setIsActing] = useState(false);
 
+  // Read-only fetches (header/detail/track/path/notes/button-visibility) —
+  // retried on transient network failure via callWithRetry. postAction and
+  // saveNote below are real mutations and must never retry (a lost-response
+  // Save/Action retried blind risks double-submitting it).
   const fetchHeader = useCallback(async (keys) => {
-    const res = await post(WKF_MAIN_CONFIG.HEADER_ENDPOINT, buildIdentityParams(keys));
-    const rows = resolveDetailColLinks(res);
-    return rows[0] ?? null;
+    const res = await callWithRetry(() => post(WKF_MAIN_CONFIG.HEADER_ENDPOINT, buildIdentityParams(keys)));
+    const row = resolveDetailColLinks(res)[0] ?? null;
+    // Surface a backend error envelope (e.g. IMS_LIVE's "Transaction Key is
+    // not numeric...") as a real error instead of returning it as a header
+    // row — otherwise every field silently reads "—" with no explanation.
+    if (row && isErrorOnlyRow(row)) {
+      throw new Error(String(row.ErrMsg ?? row.errmsg ?? "Failed to load workflow header.").trim());
+    }
+    return row;
   }, [post]);
 
   const fetchDetail = useCallback(async (keys) => {
-    const res = await post(WKF_MAIN_CONFIG.DETAIL_ENDPOINT, buildIdentityParams(keys));
-    return resolveDetailColLinks(res);
+    const res = await callWithRetry(() => post(WKF_MAIN_CONFIG.DETAIL_ENDPOINT, buildIdentityParams(keys)));
+    return toGridRows(res);
   }, [post]);
 
   const fetchTrackList = useCallback(async (keys) => {
-    const res = await post(WKF_MAIN_CONFIG.TRACK_LIST_ENDPOINT, buildIdentityParams(keys));
-    return resolveDetailColLinks(res);
+    const res = await callWithRetry(() => post(WKF_MAIN_CONFIG.TRACK_LIST_ENDPOINT, buildIdentityParams(keys)));
+    return toGridRows(res);
   }, [post]);
 
   const fetchPathList = useCallback(async (keys) => {
-    const res = await post(WKF_MAIN_CONFIG.PATH_LIST_ENDPOINT, buildIdentityParams(keys));
-    return resolveDetailColLinks(res);
+    const res = await callWithRetry(() => post(WKF_MAIN_CONFIG.PATH_LIST_ENDPOINT, buildIdentityParams(keys)));
+    return toGridRows(res);
   }, [post]);
 
   const fetchNotesList = useCallback(async (keys) => {
-    const res = await post(WKF_MAIN_CONFIG.NOTES_LIST_ENDPOINT, buildIdentityParams(keys));
-    return resolveDetailColLinks(res);
+    const res = await callWithRetry(() => post(WKF_MAIN_CONFIG.NOTES_LIST_ENDPOINT, buildIdentityParams(keys)));
+    return toGridRows(res);
   }, [post]);
 
   const fetchButtonVisibility = useCallback(async (keys) => {
-    const res = await post(WKF_MAIN_CONFIG.BUTTON_VISIBILITY_ENDPOINT, buildIdentityParams(keys));
+    const res = await callWithRetry(() => post(WKF_MAIN_CONFIG.BUTTON_VISIBILITY_ENDPOINT, buildIdentityParams(keys)));
     const row = resolveDetailColLinks(res)[0] ?? {};
     const isFlagTrue = (v) => v === 1 || v === "1" || v === true;
     return {

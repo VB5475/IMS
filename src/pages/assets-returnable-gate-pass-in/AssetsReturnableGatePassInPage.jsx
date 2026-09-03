@@ -64,8 +64,6 @@ export default function AssetsReturnableGatePassInPage() {
   usePageHeader({
     title: "Assets Returnable Gate Pass In",
     subtitle: "Receive returnable gate pass out assets.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

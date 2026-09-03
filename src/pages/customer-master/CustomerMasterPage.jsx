@@ -176,8 +176,6 @@ export default function CustomerMasterPage() {
   usePageHeader({
     title: "Customer Master",
     subtitle: "Browse customers or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

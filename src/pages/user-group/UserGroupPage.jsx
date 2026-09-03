@@ -57,8 +57,6 @@ export default function UserGroupPage() {
   usePageHeader({
     title: "User Group",
     subtitle: "Browse groups or create a new user access group.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

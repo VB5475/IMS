@@ -59,8 +59,6 @@ export default function PurchaseInquiryPage() {
   usePageHeader({
     title: "Purchase Inquiry",
     subtitle: "Browse purchase inquiries or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

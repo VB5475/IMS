@@ -20,8 +20,6 @@ export default function DMTranTypeLinkPage() {
   usePageHeader({
     title: "DM Tran Type Link",
     subtitle: "Link a Transaction Type to the other Transaction Types it references.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

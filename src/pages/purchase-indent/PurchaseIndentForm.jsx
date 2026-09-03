@@ -306,6 +306,7 @@ export default function PurchaseIndentForm() {
           : `Indent #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: IND_CONFIG.ROUTE_PATH,
+    backLabel: "IND",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────

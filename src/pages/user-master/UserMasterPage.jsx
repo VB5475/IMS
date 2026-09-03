@@ -89,8 +89,6 @@ export default function UserMasterPage() {
   usePageHeader({
     title: "User Master",
     subtitle: "Browse users or create a new system login.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

@@ -40,8 +40,6 @@ export default function ReportWorkspacePage() {
   usePageHeader({
     title: reportTitle,
     subtitle: "Configure filters and search to load data.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

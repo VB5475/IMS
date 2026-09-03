@@ -168,6 +168,7 @@ export default function BomMasterForm() {
           : `BOM #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: BOM_CONFIG.ROUTE_PATH,
+    backLabel: "BOM",
   });
 
   useEffect(() => {

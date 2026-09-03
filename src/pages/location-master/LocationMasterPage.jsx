@@ -95,8 +95,6 @@ export default function LocationMasterPage() {
   usePageHeader({
     title: "Location Master",
     subtitle: "Browse locations or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

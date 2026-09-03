@@ -1306,6 +1306,7 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                             className="header-label"
                             onClick={() => handleSort(col.key)}
                             style={{ cursor: "pointer" }}
+                            title={`Sort by ${col.name}`}
                           >
                             <span className="field-caption">
                               <span>{col.name}</span>
@@ -1314,10 +1315,19 @@ const TxnEntryGridForm = forwardRef(function TxnEntryGridForm(
                                   regardless of the RB's raw ismandatory flag. */}
                               {!isButtonColCtrlType(col.controlType) && isColumnMandatory(col) && <RequiredFieldMark />}
                             </span>
-                            {sortConfig.key === col.key && (
-                              <span className="sort-icon">
-                                {sortConfig.direction === "asc" ? "▲" : "▼"}
-                              </span>
+                            {/* Sort affordance — active columns show the ▲/▼
+                                direction; all other sortable columns show a
+                                faint ⇅ hint (revealed on header hover) so it's
+                                clear the header can be clicked to sort. Button
+                                columns aren't meaningfully sortable. */}
+                            {!isButtonColCtrlType(col.controlType) && (
+                              sortConfig.key === col.key ? (
+                                <span className="sort-icon sort-icon--active" aria-hidden="true">
+                                  {sortConfig.direction === "asc" ? "▲" : "▼"}
+                                </span>
+                              ) : (
+                                <span className="sort-icon sort-icon--hint" aria-hidden="true">⇅</span>
+                              )
                             )}
                           </span>
                           {col.filterable && (

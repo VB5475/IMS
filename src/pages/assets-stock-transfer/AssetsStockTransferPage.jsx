@@ -46,8 +46,6 @@ export default function AssetsStockTransferPage() {
   usePageHeader({
     title: "Assets Stock Transfer",
     subtitle: "Transfer assets between divisions and locations.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(
