@@ -19,7 +19,6 @@ import { ENDPOINTS, API_BASE_URL, DASHBOARD_CONFIG } from "../../api/constants";
 import { DASHBOARD_ASSIGN_OPTIONS } from "../../pages/dashboard/constants";
 import { getUserSession } from "../../session/userSession";
 import { useNotification } from "../../context/NotificationContext";
-import { useStickerPrinter } from "../../hooks/useStickerPrinter";
 import { resolveAssetQrFields } from "../../utils/assetQrUtils";
 import { rbNewPath, RB_ROUTE_PATHS } from "../../constants/rbCodes";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
@@ -304,22 +303,6 @@ export default function ReportBoardPanel({
   const [printingStickers, setPrintingStickers] = useState(false);
   const [printSizeKey, setPrintSizeKey] = useState("50x50");
   const [stickersPerPage, setStickersPerPage] = useState(1);
-
-  
-  const {
-    status: printerStatus,
-    printMode,
-    printers,
-    selectedPrinter,
-    selectPrinter,
-    stickerSize,
-    setStickerSize,
-    isPrinterReady,
-    isBridgeConnected,
-    error: printerError,
-    reconnect: reconnectPrinter,
-    getQz,
-  } = useStickerPrinter();
 
   // 2026-08-14 (/pm): was a locally reinvented compact/default page-size
   // split (8/10, own option arrays) — now the same shared table config every

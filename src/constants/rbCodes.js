@@ -129,6 +129,8 @@ export const RB_CODES = Object.freeze({
   DASHBOARD_AST_STOCK_DETAIL: "rb_aststkadbdtl",
   /** Asset Summary dashboard — sub main group wise stock (Home module) */
   ASSET_SUMMARY: "rb_aststkadbsmgws",
+  /** Asset Health Decision dashboard (Home module) */
+  ASSET_HEALTH_DECISION: "rb_asthealthdecision",
 
   // ── Maintenance ─────────────────────────────────────────────────
   MAINTENANCE_DASHBOARD: "rb_mntdashboard",
@@ -223,6 +225,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ITEM_MASTER_UPLOAD_EXCEL]: "/admin/master/item-master-upload-excel",
 
   [RB_CODES.ASSET_SUMMARY]: "/asset-summary",
+  [RB_CODES.ASSET_HEALTH_DECISION]: "/asset-health-decision",
 
   [RB_CODES.MAINTENANCE_DASHBOARD]: "/maintenance-dashboard",
   [RB_CODES.COMPLAINT_REGISTER]: "/complaint-register",
