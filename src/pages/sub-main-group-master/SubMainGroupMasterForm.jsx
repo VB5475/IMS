@@ -17,10 +17,14 @@ import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { isMasterFieldLocked } from "../../utils/masterFormUtils";
 import { useNotification } from "../../context/NotificationContext";
 import { SMGM_CONFIG, MODAL_TITLE_ADD, MODAL_TITLE_EDIT, MODAL_SUBTITLE } from "./constants";
+import "../../components/forms/MasterFormField.css";
 import "./SubMainGroupMasterPage.css";
 
-// Fields that render as checkbox despite colctrltype=1 (API returns numeric 0/1)
-const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration", "issrnocontrolreq"]);
+// Fields that render as checkbox despite colctrltype=1 (API returns numeric 0/1).
+// isminorasset shares issrnocontrolreq's colctrltype=11 (Numeric Yes/No) but
+// was missing from this list — same class of miss found on Item Master's
+// isdirectpoallow, confirmed via live RB metadata (rbid 10065).
+const CHECKBOX_OVERRIDES = new Set(["usedinautoitemcodegeneration", "issrnocontrolreq", "isminorasset"]);
 
 // Corrected display labels (guards against backend displayname typos)
 const DISPLAY_OVERRIDES = {
@@ -165,20 +169,26 @@ export default function SubMainGroupMasterForm({
     const locked = isLocked(field);
     const error = fieldErrors[key];
 
-    // Checkbox override — numeric 0/1 stored but rendered as checkbox
+    // Checkbox override — numeric 0/1 stored, rendered as a toggle switch
+    // (matches account-group-master's style). No extra wrapper div here:
+    // the row-render loop below already puts "smgm-form-control
+    // smgm-form-control--checkbox" on ITS wrapper, which is the real flex
+    // container — see .smgm-form-control--checkbox in
+    // SubMainGroupMasterPage.css.
     if (CHECKBOX_OVERRIDES.has(key)) {
+      const on = !!formValues[key];
       return (
-        <div className="smgm-form-control--checkbox">
-          <input
-            type="checkbox"
-            className="smgm-form-checkbox"
-            checked={!!formValues[key]}
-            onChange={(e) => handleChange(key, e.target.checked ? 1 : 0)}
+        <div className="master-form-control--toggle">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label={getLabel(field)}
+            className={`master-form-toggle${on ? " master-form-toggle--on" : ""}`}
+            onClick={() => handleChange(key, on ? 0 : 1)}
             disabled={locked}
           />
-          <span className="smgm-form-checkbox-label">
-            {formValues[key] ? "Yes" : "No"}
-          </span>
+          <span className="master-form-toggle-label">{on ? "Yes" : "No"}</span>
         </div>
       );
     }

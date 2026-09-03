@@ -1,0 +1,1 @@
+import"./rolldown-runtime-CMxvf4Kt.js";import{a as e,r as t}from"./vendor-datepicker-CdCCRkxU.js";import{t as n}from"./EnterpriseFilterPanel-yiFOU-nc.js";e();var r=t();function i(e){return(0,r.jsx)(`div`,{className:`dashboard-filter-v2`,children:(0,r.jsx)(n,{...e,layout:`dashboard`})})}export{i as t};

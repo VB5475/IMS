@@ -1,0 +1,1 @@
+import"./rolldown-runtime-CMxvf4Kt.js";import{a as e,r as t}from"./vendor-datepicker-CdCCRkxU.js";import{nt as n}from"./vendor-icons-DHKDCLXQ.js";e();var r=t();function i({text:e=`Loading...`}){return(0,r.jsxs)(`div`,{className:`loader-wrap`,children:[(0,r.jsx)(n,{size:20,className:`loader-spin`}),e&&(0,r.jsx)(`span`,{className:`loader-text`,children:e})]})}export{i as t};
