@@ -88,6 +88,7 @@ import {
   GitBranch,
   Hourglass,
   ClockAlert,
+  Activity,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -146,6 +147,7 @@ const NAV_SECTIONS = [
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true, visible: true },
       { to: rbRoutePath(RB_CODES.ASSET_SUMMARY), icon: BarChart3, label: "Asset Summary", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.ASSET_HEALTH_DECISION), icon: Activity, label: "Asset Health Decision", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.WORKFLOW_DASHBOARD), icon: Workflow, label: "Workflow Dashboard", end: false, visible: true },
     ],
   },

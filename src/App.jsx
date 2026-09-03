@@ -26,6 +26,7 @@ import { getModuleRights } from "./session/moduleRights";
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
 const EnterpriseDashboard = lazy(() => import("./pages/dashboard/EnterpriseDashboard"));
 const AssetSummaryPage = lazy(() => import("./pages/asset-summary/AssetSummaryPage"));
+const AssetHealthDecisionPage = lazy(() => import("./pages/asset-health-decision/AssetHealthDecisionPage"));
 const FarPage = lazy(() => import("./pages/far/FarPage"));
 const ReportWorkspacePage = lazy(() => import("./pages/report-workspace/ReportWorkspacePage"));
 const TxnEntryPage = lazy(() => import("./pages/txn-entry/TxnEntryPage"));
@@ -378,7 +379,8 @@ const router = createBrowserRouter([
             children: [
               { index: true, element: <EnterpriseDashboard /> },
               rbLeaf({ rb: RB.ASSET_SUMMARY, element: <AssetSummaryPage /> }),
-              { path: "main/:reportBoardId", element: <ReportWorkspacePage /> },
+              rbLeaf({ rb: RB.ASSET_HEALTH_DECISION, element: <AssetHealthDecisionPage /> }),
+          { path: "main/:reportBoardId", element: <ReportWorkspacePage /> },
 
               {
                 id: RB.TXN_ENTRY,

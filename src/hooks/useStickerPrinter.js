@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { checkPrintBridge } from "../utils/windowsPrintBridge";
 
 const PRINTER_STORAGE_KEY = "ims_sticker_printer";
 const STICKER_SIZE_STORAGE_KEY = "ims_sticker_size";
@@ -69,19 +68,6 @@ export function useStickerPrinter() {
     setStatus((prev) => (prev === "connected" ? prev : "connecting"));
     setError(null);
 
-    const bridge = await checkPrintBridge();
-    if (!mountedRef.current) return;
-
-    if (bridge?.printers?.length) {
-      const list = bridge.printers;
-      setPrintMode("bridge");
-      setPrinters(list);
-      setStatus("connected");
-      applyPrinterSelection(list, setSelectedPrinterState);
-      setError(null);
-      return;
-    }
-
     try {
       const qzModule = await import("qz-tray");
       const qz = qzModule.default;
@@ -113,9 +99,7 @@ export function useStickerPrinter() {
       setPrintMode("none");
       setPrinters([]);
       setStatus("disconnected");
-      setError(
-        "Run npm run print-bridge in a terminal, or install QZ Tray from qz.io/download."
-      );
+      setError("Install and start QZ Tray from qz.io/download, then click QZ to reconnect.");
       if (import.meta.env.DEV) {
         console.info("[StickerPrinter] unavailable:", err?.message || err);
       }
@@ -125,10 +109,8 @@ export function useStickerPrinter() {
   useEffect(() => {
     mountedRef.current = true;
     connect();
-    const interval = setInterval(connect, 20000);
     return () => {
       mountedRef.current = false;
-      clearInterval(interval);
       const qz = qzRef.current;
       if (qz?.websocket?.isActive()) {
         qz.websocket.disconnect().catch(() => {});
