@@ -30,6 +30,7 @@ import PrintReportButton from "../ui/PrintReportButton";
 import RefreshButton from "../ui/RefreshButton";
 import ExportCsvButton from "../ui/ExportCsvButton";
 import GridSearch from "../grid/GridSearch";
+import GridRowCount from "../grid/GridRowCount";
 import { useModuleRights } from "../../hooks/useModuleRights";
 import { PAGE_SIZE_OPTIONS } from "../../constants/tableConfig";
 import "./ListPanelHeader.css";
@@ -82,7 +83,10 @@ export default function ListPanelHeader({
           </button>
         )}
         {onSearchChange && (
-          <GridSearch query={searchQuery} onChange={onSearchChange} matchCount={matchCount} totalCount={totalCount} />
+          <>
+            <GridSearch query={searchQuery} onChange={onSearchChange} />
+            <GridRowCount matchCount={matchCount} totalCount={totalCount} />
+          </>
         )}
         {onRefresh && <RefreshButton onClick={onRefresh} loading={refreshing} />}
         {print && (

@@ -22,6 +22,7 @@ import Loader from "../ui/Loader";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import ColumnFilter, { applyColumnFilterValue, isFilterActive } from "./Columnfilter";
 import GridSearch from "./GridSearch";
+import GridRowCount from "./GridRowCount";
 import "./EnterpriseDataGrid.css";
 
 const ACTION_COLUMN_KEYS = new Set(["_actions", "_action_edit", "_action_delete", "_action_select"]);
@@ -762,11 +763,10 @@ function EnterpriseDataGrid({
       {/* ── search bar ── */}
       {searchable && !hideSearchBar && (
         <div className="eg-search-bar">
-          <GridSearch
-            query={searchQuery}
-            onChange={handleSearchChange}
+          <GridSearch query={searchQuery} onChange={handleSearchChange} />
+          <GridRowCount
             matchCount={filteredData.length}
-            totalCount={data.length}
+            totalCount={isServerPagination ? Math.max(0, totalRowCount) : data.length}
           />
         </div>
       )}
