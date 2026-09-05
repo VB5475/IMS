@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
+import GridSearch from "../../components/grid/GridSearch";
+import GridRowCount from "../../components/grid/GridRowCount";
 import SearchSelect from "../../components/ui/SearchSelect";
 import { useApi } from "../../api/useApi";
 import { API_BASE_URL, ENDPOINTS } from "../../api/constants";
 import { getStoredSessionId, getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildGridColumns, toEnterpriseDataGridColumns } from "../../utils/gridUtils";
-import { isNumericColumnDef } from "../../utils/columnValidation";
 import { AHD_CONFIG } from "./constants";
 import "./AssetHealthDecisionPage.css";
 
@@ -148,7 +149,6 @@ export default function AssetHealthDecisionPage() {
   const session = useMemo(() => getUserSession(), []);
 
   const [columns, setColumns] = useState([]);
-  const [gridColumns, setGridColumns] = useState([]);
   const [data, setData] = useState([]);
   const [divisionOptions, setDivisionOptions] = useState([]);
   const [mainGroupOptions, setMainGroupOptions] = useState([]);
@@ -161,11 +161,6 @@ export default function AssetHealthDecisionPage() {
   const [columnsLoading, setColumnsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const numericTotalColumns = useMemo(
-    () => gridColumns.filter((col) => col.key !== "cb" && isNumericColumnDef(col)),
-    [gridColumns]
-  );
 
   usePageHeader({
     title: "Asset Health Decision",
@@ -201,11 +196,9 @@ export default function AssetHealthDecisionPage() {
         filterable: true,
         allEditable: false,
       });
-      setGridColumns(builtColumns);
       setColumns(toEnterpriseDataGridColumns(builtColumns));
     } catch (err) {
       console.error("[AHD] column fetch failed:", err);
-      setGridColumns([]);
       setColumns([]);
       setError(err?.message || "Failed to load Asset Health Decision columns.");
     } finally {
@@ -353,65 +346,59 @@ export default function AssetHealthDecisionPage() {
           <Activity size={14} strokeWidth={2} />
           <span>Asset Health Decision</span>
         </div>
-        <div className="ahd-page__filters">
-          <label htmlFor="ahd-division" className="ahd-page__label">
-            Division
-          </label>
-          <SearchSelect
-            id="ahd-division"
-            className="ahd-page__select"
-            value={selectedDivision}
-            onChange={handleDivisionChange}
-            options={divisionOptions}
-            placeholder="Select"
-            searchPlaceholder="Search division…"
-            ariaLabel="Division"
-            disabled={divisionOptions.length === 0}
-            compact
+        <div className="ahd-page__toolbar-inner">
+          <GridSearch
+            query={searchText}
+            onChange={setSearchText}
           />
-          <label htmlFor="ahd-main-group" className="ahd-page__label">
-            Main Group
-          </label>
-          <SearchSelect
-            id="ahd-main-group"
-            className="ahd-page__select"
-            value={selectedMainGroup}
-            onChange={handleMainGroupChange}
-            options={mainGroupOptions}
-            placeholder="All"
-            searchPlaceholder="Search main group…"
-            ariaLabel="Main Group"
-            disabled={!selectedDivision}
-            compact
-          />
-          <label htmlFor="ahd-sub-main-group" className="ahd-page__label">
-            Sub Main Group
-          </label>
-          <SearchSelect
-            id="ahd-sub-main-group"
-            className="ahd-page__select"
-            value={selectedSubMainGroup}
-            onChange={setSelectedSubMainGroup}
-            options={subMainGroupOptions}
-            placeholder="All"
-            searchPlaceholder="Search sub main group…"
-            ariaLabel="Sub Main Group"
-            disabled={!selectedDivision}
-            compact
-          />
-          <label htmlFor="ahd-search" className="ahd-page__label">
-            Search
-          </label>
-          <input
-            id="ahd-search"
-            type="search"
-            className="ahd-page__search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search text…"
-            aria-label="Search text"
-            disabled={!selectedDivision}
-          />
+          <GridRowCount matchCount={data.length} totalCount={data.length} />
+          <div className="ahd-page__filters">
+            <label htmlFor="ahd-division" className="ahd-page__label">
+              Division
+            </label>
+            <SearchSelect
+              id="ahd-division"
+              className="ahd-page__select"
+              value={selectedDivision}
+              onChange={handleDivisionChange}
+              options={divisionOptions}
+              placeholder="Select"
+              searchPlaceholder="Search division…"
+              ariaLabel="Division"
+              disabled={divisionOptions.length === 0}
+              compact
+            />
+            <label htmlFor="ahd-main-group" className="ahd-page__label">
+              Main Group
+            </label>
+            <SearchSelect
+              id="ahd-main-group"
+              className="ahd-page__select"
+              value={selectedMainGroup}
+              onChange={handleMainGroupChange}
+              options={mainGroupOptions}
+              placeholder="All"
+              searchPlaceholder="Search main group…"
+              ariaLabel="Main Group"
+              disabled={!selectedDivision}
+              compact
+            />
+            <label htmlFor="ahd-sub-main-group" className="ahd-page__label">
+              Sub Main Group
+            </label>
+            <SearchSelect
+              id="ahd-sub-main-group"
+              className="ahd-page__select"
+              value={selectedSubMainGroup}
+              onChange={setSelectedSubMainGroup}
+              options={subMainGroupOptions}
+              placeholder="All"
+              searchPlaceholder="Search sub main group…"
+              ariaLabel="Sub Main Group"
+              disabled={!selectedDivision}
+              compact
+            />
+          </div>
         </div>
       </section>
 
@@ -426,10 +413,7 @@ export default function AssetHealthDecisionPage() {
           emptyMessage={selectedDivision ? "No asset health decision data found." : "Select a division."}
           hideHeader
           hidePagination
-          showNumericColumnTotals
-          numericTotalColumns={numericTotalColumns}
           fill
-          variant="dashboard-v2"
           getRowKey={getRowKey}
         />
       </section>
