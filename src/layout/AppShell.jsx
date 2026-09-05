@@ -174,11 +174,11 @@ const NAV_SECTIONS = [
     icon: Banknote,
     visible: true,
     items: [
-      { to: rbRoutePath(RB_CODES.FAR), icon: Landmark, label: "FAR", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.CWIP_TO_FA), icon: Construction, label: "CWIP To FA", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION), icon: TrendingDown, label: "Company Act Depreciation", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSETS_DEPRECIATION_IT_ACT), icon: Calculator, label: "Calculate Depreciation IT Act", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ASSET_DEPRECIATION_PERCENTAGE), icon: Percent, label: "Depreciation Percentage", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.FAR), icon: Landmark, label: "FAR", end: false, visible: true },
     ],
   },
   {
