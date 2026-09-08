@@ -89,6 +89,9 @@ import {
   Hourglass,
   ClockAlert,
   Activity,
+  PackageX,
+  TrendingUp,
+  ScrollText,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
@@ -165,6 +168,8 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.PURCHASE_ORDER), icon: ShoppingCart, label: "Purchase Order", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_RATE_CONTRACT), icon: FileText, label: "Purchase Rate Contract", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE), icon: PackageCheck, label: "Goods Received Note", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PO_SHORT_CLOSE_QTY), icon: PackageX, label: "PO Short Close Qty", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PO_EXCESS_QTY), icon: TrendingUp, label: "PO Excess Qty", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false, visible: false },
     ],
@@ -261,6 +266,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.VOUCHER_TYPE_MASTER), icon: Ticket, label: "Voucher Type Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.TERMS_CONDITION_MASTER), icon: ScrollText, label: "Terms and Condition Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: FileSignature, label: "DOP Master", end: false, visible: true },
     ],
   },

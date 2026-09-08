@@ -59,6 +59,12 @@ const GoodsReceivedNotePage = lazy(
 const GoodsReceivedNoteForm = lazy(
   () => import("./pages/goods-received-note/GoodsReceivedNoteForm")
 );
+const POShortCloseQtyPage = lazy(
+  () => import("./pages/po-short-close-qty/POShortCloseQtyPage")
+);
+const POExcessQtyPage = lazy(
+  () => import("./pages/po-excess-qty/POExcessQtyPage")
+);
 const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
 const CWIPToFAForm = lazy(() => import("./pages/cwip-to-fa/CWIPToFAForm"));
 const AssetsDepreciationPage = lazy(
@@ -211,6 +217,9 @@ const AccountGroupMasterPage = lazy(
 const AccountMasterPage = lazy(() => import("./pages/account-master/AccountMasterPage"));
 const VoucherTypeMasterPage = lazy(
   () => import("./pages/voucher-type-master/VoucherTypeMasterPage")
+);
+const TermsConditionMasterPage = lazy(
+  () => import("./pages/terms-condition-master/TermsConditionMasterPage")
 );
 const DopMasterPage = lazy(() => import("./pages/dop-master/DopMasterPage"));
 const DopMasterForm = lazy(() => import("./pages/dop-master/DopMasterForm"));
@@ -432,6 +441,12 @@ const router = createBrowserRouter([
                 form: <GoodsReceivedNoteForm />,
                 variants: ["new", "edit"],
               }),
+              // PO Short Close Qty (2026-09-07 /pm) — read-only browse page,
+              // no Add/Edit form yet (Phase 1 scope), so rbLeaf not rbModule.
+              rbLeaf({ rb: RB.PO_SHORT_CLOSE_QTY, element: <POShortCloseQtyPage /> }),
+              // PO Excess Qty (2026-09-07 /pm) — sibling of the above, same
+              // shape, same reasoning for rbLeaf over rbModule.
+              rbLeaf({ rb: RB.PO_EXCESS_QTY, element: <POExcessQtyPage /> }),
               rbModule({
                 rb: RB.CWIP_TO_FA,
                 list: <CWIPToFAPage />,
@@ -585,6 +600,7 @@ const router = createBrowserRouter([
               rbLeaf({ rb: RB.ACCOUNT_GROUP_MASTER, element: <AccountGroupMasterPage /> }),
               rbLeaf({ rb: RB.ACCOUNT_MASTER, element: <AccountMasterPage /> }),
               rbLeaf({ rb: RB.VOUCHER_TYPE_MASTER, element: <VoucherTypeMasterPage /> }),
+              rbLeaf({ rb: RB.TERMS_CONDITION_MASTER, element: <TermsConditionMasterPage /> }),
               rbModule({
                 rb: RB.DOP_MASTER,
                 list: <DopMasterPage />,

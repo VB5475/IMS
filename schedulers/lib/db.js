@@ -20,6 +20,8 @@
 //   getResumableRun() -> the most recent 'failed' row with checkpoint
 //     progress, as long as no later run has already succeeded past it — or
 //     null if there's nothing to resume
+//   execTransferEmpSync() -> runs pr_Transfer_IMSEmpSync on this same
+//     connection as the last step of a successful run
 //
 // All queries are parameterized — table/column names are the only
 // interpolated strings, and those come only from config.js's validated
@@ -222,6 +224,16 @@ async function createMssqlDb(config) {
     return failedRun;
   }
 
+  async function execTransferEmpSync() {
+    // Same connection pool as everything above — this proc lives in the
+    // same database as the employee/sync_state tables, so no separate HTTP
+    // call to the IMS web service is needed. SQL Server's default
+    // case-insensitive collation means the name's exact casing here doesn't
+    // matter for the lookup.
+    const result = await pool.request().execute("pr_Transfer_IMSEmpSync");
+    return result.recordset ?? null;
+  }
+
   return {
     connect,
     close,
@@ -235,6 +247,7 @@ async function createMssqlDb(config) {
     failSyncRun,
     getLastSuccessfulSyncState,
     getResumableRun,
+    execTransferEmpSync,
   };
 }
 
@@ -411,6 +424,18 @@ async function createPostgresDb(config) {
     return failedRun;
   }
 
+  async function execTransferEmpSync() {
+    // Unquoted so Postgres folds the name to lowercase before matching the
+    // catalog — consistent with every other fn_/pr_ object in this codebase
+    // being plain lowercase already; this is the one name that arrived with
+    // mixed case, so folding it avoids a quoted-identifier case mismatch.
+    // Assumes this is a genuine PostgreSQL PROCEDURE (CALL) rather than a
+    // FUNCTION (which would need SELECT instead) — unverified against the
+    // real Postgres target, confirm before relying on this where DBTYPE=PG.
+    const result = await pool.query("CALL pr_Transfer_IMSEmpSync();");
+    return result.rows ?? null;
+  }
+
   return {
     connect,
     close,
@@ -424,5 +449,6 @@ async function createPostgresDb(config) {
     failSyncRun,
     getLastSuccessfulSyncState,
     getResumableRun,
+    execTransferEmpSync,
   };
 }

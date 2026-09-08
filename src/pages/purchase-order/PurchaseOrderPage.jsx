@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Send } from "lucide-react";
+import { ShoppingCart, Send, Printer } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import { useApi } from "../../api/useApi";
 import { withGetRetry } from "../../utils/apiRetry";
@@ -18,12 +18,14 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
+import { useReportPrint } from "../../hooks/useReportPrint";
 import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
+import "../../components/ui/PrintReportButton.css";
 
 // PO's report SP takes its own param casing (@prmCompanyID/@prmloginID), not
 // the shared lowercase @prmcompanyid used by buildCompanyReportParam — don't
@@ -173,6 +175,33 @@ export default function PurchaseOrderPage() {
     return buildPurchaseOrderReportParams(selectedId);
   }, [selectedId, notify]);
 
+  // 2026-09-08 /tl — PO-only: print the Annexure report first, then the main
+  // PO report, both via the same GENERATE_REPORT mechanism the shared
+  // PrintReportButton uses elsewhere — but sequenced, so this stays local to
+  // PurchaseOrderPage.jsx rather than changing PrintReportButton/
+  // useReportPrint for all 41 pages that use them. Both reports take the
+  // same params (selected PO id/company/login) since the Annexure is a
+  // companion report for the same record.
+  const { printReport, printing } = useReportPrint();
+  const handlePrint = useCallback(async () => {
+    const params = handlePrintParams();
+    if (params === null) return;
+    try {
+      await printReport({
+        reportTitle: PO_CONFIG.ANNEXURE_REPORT_TITLE,
+        reportFileName: PO_CONFIG.ANNEXURE_REPORT_FILE,
+        jsonParameters: params,
+      });
+      await printReport({
+        reportTitle: PRINT_REPORT_CONFIG["purchase-order"].reportTitle,
+        reportFileName: PRINT_REPORT_CONFIG["purchase-order"].reportFileName,
+        jsonParameters: params,
+      });
+    } catch (err) {
+      notify.error(err?.message || "Failed to generate report.");
+    }
+  }, [handlePrintParams, printReport, notify]);
+
   const handleExportCsv = useCallback(() => {
     const { rows, columns } = gridRef.current?.getExportData() ?? {};
     exportRowsToCsv(rows, columns, "Purchase_Orders_export.csv");
@@ -226,14 +255,24 @@ export default function PurchaseOrderPage() {
           onSearchChange={setSearchQuery}
           matchCount={searchStats.matchCount}
           totalCount={searchStats.totalCount}
-          print={{
-            ...PRINT_REPORT_CONFIG["purchase-order"],
-            buildParams: handlePrintParams,
-          }}
           onExportCsv={handleExportCsv}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
         >
+          {/* Not the shared print prop (→ PrintReportButton) — PO prints the
+              Annexure report first, then the main PO report, which that
+              single-report component can't sequence. Same markup/CSS class
+              as PrintReportButton so it looks identical in the toolbar. */}
+          <button
+            type="button"
+            className="print-report-btn"
+            onClick={handlePrint}
+            disabled={printing}
+            title={printing ? "Generating report…" : "Print Purchase Order"}
+          >
+            <Printer size={14} strokeWidth={2} />
+            <span>{printing ? "Printing…" : "Print"}</span>
+          </button>
           {wkfBtnVisible === "YES" && (
             <button
               type="button"

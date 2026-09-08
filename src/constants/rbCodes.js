@@ -35,6 +35,11 @@ export const RB_CODES = Object.freeze({
   // "Account") — flat master, explicitly named in the MRD's own RB Structure
   // Detail + header-panel notes (not a placeholder like some other MRDs).
   VOUCHER_TYPE_MASTER: "rb_vouchertypemst",
+  // New flat master (2026-09-07 /pm, Vinay/client) — confirmed registered
+  // on IMS_LIVE (RBID 20208). Only 3 real fields (Terms Type dropdown, Code,
+  // Description) — see terms-condition-master/constants.js for open items
+  // (description locked per RB flag, no delete proc, Save endpoint unknown).
+  TERMS_CONDITION_MASTER: "rb_termnconditionmst",
   TRANSPORTER_MASTER: "rb_transportermst",
   // MRD_Template4CountryMaster.docx / MRD_Template4CityMaster.docx (Aditya,
   // 17-Jun-2026) — flat masters, City cascades off Country (Country -> State).
@@ -94,6 +99,16 @@ export const RB_CODES = Object.freeze({
   GOODS_RECEIVED_NOTE: "rb_purgrnmst",
   PURCHASE_VOUCHER: "rb_purpvmst",
   TXN_ENTRY: "rb_sampleinvmst",
+  // PO Short Close Qty — read-only browse page (2026-09-07 /pm). Confirmed
+  // registered on IMS_LIVE (RBID 20263) via fn_fetch_rbdetailbyrbcode,
+  // live-tested with this EXACT mixed case — kept as-given rather than
+  // lowercased to match this file's visual convention, since case-
+  // sensitivity of the backend lookup hasn't been verified either way.
+  PO_SHORT_CLOSE_QTY: "RB_POShortCloseQty",
+  // PO Excess Qty — sibling of PO Short Close Qty, same shape (2026-09-07
+  // /pm). Confirmed registered on IMS_LIVE (RBID 20264). Same mixed-case
+  // note as above applies.
+  PO_EXCESS_QTY: "RB_POExcessQty",
 
   // ── Assets ──────────────────────────────────────────────────────
   CWIP_TO_FA: "rb_astcwip2famst",
@@ -173,6 +188,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ACCOUNT_GROUP_MASTER]: "/admin/account-group-master",
   [RB_CODES.ACCOUNT_MASTER]: "/admin/account-master",
   [RB_CODES.VOUCHER_TYPE_MASTER]: "/admin/voucher-type-master",
+  [RB_CODES.TERMS_CONDITION_MASTER]: "/admin/master/terms-condition-master",
   // MRD's own routes are malformed ("/Admin/Master/Supplier – Transporter
   // Master" — literal en-dash, duplicated "Supplier") — using the sibling
   // Supplier/Customer Master route shape instead.
@@ -201,6 +217,8 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.GOODS_RECEIVED_NOTE]: "/goods-received-note",
   [RB_CODES.PURCHASE_VOUCHER]: "/purchase-voucher",
   [RB_CODES.TXN_ENTRY]: "/txn-entry",
+  [RB_CODES.PO_SHORT_CLOSE_QTY]: "/po-short-close-qty",
+  [RB_CODES.PO_EXCESS_QTY]: "/po-excess-qty",
 
   [RB_CODES.CWIP_TO_FA]: "/cwip-to-fa",
   [RB_CODES.ASSETS_DEPRECIATION]: "/assets-depreciation",

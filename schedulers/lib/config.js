@@ -15,15 +15,7 @@ const ALWAYS_REQUIRED_VARS = [
   "ZINGHR_TOKEN",
   "DBTYPE",
   "DB_TABLENAME",
-  "IMS_API_PROJECT",
 ];
-
-// Same set the frontend's environment switcher offers — see BASE_PROJECTS in
-// src/config/runtimeConfig.js. Kept as a separate literal here (rather than
-// imported) because this folder is standalone and deployable on its own,
-// independent of src/ — see schedulers/README.md.
-const IMS_API_PROJECTS = ["IMS_LIVE", "IMS_PGLIVE", "MV_WSLIVE"];
-const DEFAULT_IMS_API_DOMAIN = "http://122.179.135.100:8095/";
 
 // Both SQL Server and Postgres connection details can stay configured in
 // .env at the same time — only the set matching DBTYPE actually has to be
@@ -79,24 +71,10 @@ export function loadConfig() {
     );
   }
 
-  // Same two-part shape as the frontend's config.json (baseDomain + apiMode,
-  // see src/config/runtimeConfig.js): a domain root plus which backend
-  // project to hit, rather than one hand-assembled URL — so switching
-  // between IMS_LIVE / IMS_PGLIVE / MV_WSLIVE is a one-line env change.
-  const imsApiProject = required("IMS_API_PROJECT").toUpperCase();
-  if (!IMS_API_PROJECTS.includes(imsApiProject)) {
-    throw new Error(`IMS_API_PROJECT must be one of ${IMS_API_PROJECTS.join(", ")}, got: "${imsApiProject}"`);
-  }
-  const imsApiDomainRaw = process.env.IMS_API_DOMAIN || DEFAULT_IMS_API_DOMAIN;
-  const imsApiDomain = imsApiDomainRaw.endsWith("/") ? imsApiDomainRaw : `${imsApiDomainRaw}/`;
-
   return {
     zingHrApiUrl: required("ZINGHR_API_URL"),
     zingHrSubscriptionName: required("ZINGHR_SUBSCRIPTION_NAME"),
     zingHrToken: required("ZINGHR_TOKEN"),
-
-    imsApiProject,
-    imsApiBaseUrl: `${imsApiDomain}${imsApiProject}`,
 
     dbType,
     dbIp: required(ipVar),
@@ -136,8 +114,6 @@ export function describeConfig(config) {
     dbName: config.dbName,
     dbTableName: config.dbTableName,
     dbSyncStateTableName: config.dbSyncStateTableName,
-    imsApiProject: config.imsApiProject,
-    imsApiBaseUrl: config.imsApiBaseUrl,
     dbUsername: config.dbUsername,
     dbPassword: "********",
     zingHrSubscriptionName: config.zingHrSubscriptionName,

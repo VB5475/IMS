@@ -106,6 +106,17 @@ export const PO_CONFIG = {
   SP_PO_LIST: "fn_tbl_rb_purpomst_list",
   LIST_DIVISION_ID: 0,
 
+  // 2026-09-08 /tl — PO Annexure report (user-confirmed), printed via the
+  // same GENERATE_REPORT/Crystal Reports mechanism as the list page's main
+  // Print button (see PRINT_REPORT_CONFIG["purchase-order"] in
+  // printReportConfig.js for that one — sibling .rpt file). PO-only: Print
+  // now fires this report FIRST, then the main PORRSavePrint.rpt report —
+  // see PurchaseOrderPage.jsx's handlePrint. Not added to the shared
+  // printReportConfig.js since that file is one report per page; this is a
+  // PO-specific second report, not a replacement.
+  ANNEXURE_REPORT_TITLE: "Purchase Order Annexure",
+  ANNEXURE_REPORT_FILE: "PORRSavePrint_Annexure.rpt",
+
   // Workflow (WKF) approval — "Approval Initiator" button on the list page,
   // beside Entry Form (2026-08-12 /pm, MRD_Template4WorkFlowDashBoard.docx's
   // companion feature). User-confirmed value.

@@ -37,14 +37,15 @@ database (SQL Server or PostgreSQL). Each run:
 5. Records a final summary (counts, page range, status) in the same
    companion `<DB_TABLENAME>_sync_state` row, so you have a full history of
    every run — including every failed attempt leading up to a success.
-6. As the very last step of a successful run, calls IMS's `/API/Values`
-   REST gateway to run `pr_Transfer_IMSEmpSync` (no params), telling IMS the
-   freshly-synced data is ready to be pulled into its own tables. If this
-   one call fails after its own retries, the run still exits non-zero (so
-   the external scheduler's alerting catches it) but `sync_state` stays
-   `success` — the data sync itself genuinely completed; only the
-   downstream notification didn't, and it isn't worth re-fetching every
-   page over on the next run just for that.
+6. As the very last step of a successful run, executes `pr_Transfer_IMSEmpSync`
+   (no params) directly on the same database connection, handing the
+   freshly-synced data off to IMS's own tables — no separate HTTP call to
+   the IMS web service needed, since the proc lives in the same database
+   this scheduler is already connected to. If it fails, the run still
+   exits non-zero (so the external scheduler's alerting catches it) but
+   `sync_state` stays `success` — the data sync itself genuinely completed;
+   only the hand-off didn't, and it isn't worth re-fetching every page over
+   on the next run just for that.
 
 It does **one pass and exits** — it is not a daemon and does not schedule
 itself. Point an external scheduler at it.
@@ -102,16 +103,6 @@ SQL Server and PostgreSQL connection details are separate var sets
 picks which one is actually used, so switching dialects is a one-line
 change, not a re-entry of credentials. Only the active dialect's vars are
 required; the inactive set can be left blank.
-
-Similarly, `IMS_API_PROJECT` picks which IMS backend the final
-`pr_Transfer_IMSEmpSync` call (step 6 above) targets — one of `IMS_LIVE`,
-`IMS_PGLIVE`, or `MV_WSLIVE`, the same three the frontend's environment
-switcher offers (see `BASE_PROJECTS` in `src/config/runtimeConfig.js`).
-`IMS_API_DOMAIN` is the server root the project name gets joined onto;
-it's optional and defaults to the frontend's own default domain if left
-blank. Make sure `IMS_API_PROJECT` actually matches the backend this
-scheduler's DB connection is meant to represent — nothing cross-checks the
-two automatically.
 
 `.env` is gitignored at the repo root already (`.env`, `.env.*`, with
 `.env.example` explicitly allowed through) — never commit real credentials

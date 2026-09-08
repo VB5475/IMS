@@ -13,7 +13,6 @@
 
 import { loadConfig, describeConfig } from "./lib/config.js";
 import { createZingHrClient } from "./lib/zinghrClient.js";
-import { createImsApiClient } from "./lib/imsApiClient.js";
 import { createDb } from "./lib/db.js";
 import { mapEmployee } from "./lib/mapEmployee.js";
 
@@ -30,7 +29,6 @@ function log(...args) {
 
 async function runSync(config) {
   const zingHr = createZingHrClient(config);
-  const imsApi = createImsApiClient(config);
   const db = await createDb(config);
 
   await db.connect();
@@ -173,20 +171,20 @@ async function runSync(config) {
     await db.completeSyncRun(runId, summary);
     log("Sync completed successfully.", summary);
 
-    // Last step of a successful run: tell IMS the freshly-synced ZingHR
-    // data is ready to be pulled into its own tables. This is a separate
-    // concern from the data sync itself (already durably recorded as
-    // 'success' above), so a failure here doesn't flip sync_state back to
-    // 'failed' — doing that would make the next run re-fetch every page for
-    // nothing just because this one notification call flaked. It's still
-    // surfaced loudly (a non-zero exit code) so the external scheduler's
-    // failure alerting catches it.
+    // Last step of a successful run: run pr_Transfer_IMSEmpSync on the same
+    // connection to hand the freshly-synced data off to IMS's own tables.
+    // This is a separate concern from the data sync itself (already
+    // durably recorded as 'success' above), so a failure here doesn't flip
+    // sync_state back to 'failed' — doing that would make the next run
+    // re-fetch every page for nothing just because this one proc call
+    // failed. It's still surfaced loudly (a non-zero exit code) so the
+    // external scheduler's failure alerting catches it.
     let exitCode = 0;
     try {
-      const transferResult = await imsApi.transferEmpSync();
-      log("pr_Transfer_IMSEmpSync notified IMS successfully.", transferResult);
+      await db.execTransferEmpSync();
+      log("pr_Transfer_IMSEmpSync executed successfully.");
     } catch (err) {
-      log("WARNING: pr_Transfer_IMSEmpSync call failed after the sync itself succeeded:", err.message);
+      log("WARNING: pr_Transfer_IMSEmpSync failed after the sync itself succeeded:", err.message);
       exitCode = 1;
     }
 
