@@ -171,6 +171,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.PO_SHORT_CLOSE_QTY), icon: PackageX, label: "PO Short Close Qty", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PO_EXCESS_QTY), icon: TrendingUp, label: "PO Excess Qty", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PURCHASE_RETURN), icon: RotateCcw, label: "Purchase Return", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false, visible: false },
     ],
   },
