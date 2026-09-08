@@ -89,6 +89,18 @@ export const RB_CODES = Object.freeze({
   PURCHASE_RATE_CONTRACT: "rb_purratecontmst",
   GOODS_RECEIVED_NOTE: "rb_purgrnmst",
   PURCHASE_VOUCHER: "rb_purpvmst",
+  /**
+   * Purchase Return — MRD_Template4PurchaseReturn.docx (Richa, 12-Aug-2026).
+   * Header shape mirrors Purchase Voucher (tax breakup, transporter/driver
+   * logistics fields) but with its own city→transporter→destination cascade
+   * chain (own SPs, no division param — see usePurchaseReturn.js) and a
+   * 2-way item picker: 1=PV Base, 2=Direct. NOTE — that numbering is the
+   * MRD's own explicit instruction ("Hardcode options(1-PV Base,2-Direct)")
+   * and deliberately breaks the "0=Direct" convention every sibling
+   * purchase module uses; kept verbatim per the MRD, flagged here for a
+   * DBA/QA sanity check rather than silently "corrected" to match the others.
+   */
+  PURCHASE_RETURN: "rb_purprmst",
   TXN_ENTRY: "rb_sampleinvmst",
 
   // ── Assets ──────────────────────────────────────────────────────
@@ -190,6 +202,10 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.PURCHASE_RATE_CONTRACT]: "/purchase-rate-contract",
   [RB_CODES.GOODS_RECEIVED_NOTE]: "/goods-received-note",
   [RB_CODES.PURCHASE_VOUCHER]: "/purchase-voucher",
+  // MRD's own routes are malformed ("/purchase- Purchase Return",
+  // "/purchase- Purchase Return /new") — using the sibling Purchase Voucher
+  // route shape instead, same fix applied to Transporter Master above.
+  [RB_CODES.PURCHASE_RETURN]: "/purchase-return",
   [RB_CODES.TXN_ENTRY]: "/txn-entry",
 
   [RB_CODES.CWIP_TO_FA]: "/cwip-to-fa",

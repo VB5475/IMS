@@ -50,6 +50,7 @@ export const PRINT_REPORT_CONFIG = {
   "purchase-order": { reportTitle: "Purchase Order Report", reportFileName: "PORRSavePrint.rpt" },
   "purchase-quotation": { reportTitle: "Purchase Quotation Report", reportFileName: "PurchaseQuotation.rpt" },
   "purchase-voucher": { reportTitle: "Purchase Voucher Report", reportFileName: "PurchaseVoucher.rpt" },
+  "purchase-return": { reportTitle: "Purchase Return Report", reportFileName: "PurchaseReturn.rpt" }, // ⚠️ CONFIRM with DBA — .rpt name unconfirmed, new module
   "sub-group-master": { reportTitle: "Sub Group Master Report", reportFileName: "RptSubGroupMaster.rpt" },
   "sub-main-group-master": { reportTitle: "Sub Main Group Master Report", reportFileName: "RptSubMainGroupList.rpt" },
   "supplier-master": { reportTitle: "Supplier Master Report", reportFileName: "SupplierMaster.rpt" },

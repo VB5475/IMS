@@ -45,6 +45,8 @@ const PurchaseIndentPage = lazy(() => import("./pages/purchase-indent/PurchaseIn
 const PurchaseIndentForm = lazy(() => import("./pages/purchase-indent/PurchaseIndentForm"));
 const PurchaseVoucherPage = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherPage"));
 const PurchaseVoucherForm = lazy(() => import("./pages/purchase-voucher/PurchaseVoucherForm"));
+const PurchaseReturnPage = lazy(() => import("./pages/purchase-return/PurchaseReturnPage"));
+const PurchaseReturnForm = lazy(() => import("./pages/purchase-return/PurchaseReturnForm"));
 const GoodsReceivedNotePage = lazy(() => import("./pages/goods-received-note/GoodsReceivedNotePage"));
 const GoodsReceivedNoteForm = lazy(() => import("./pages/goods-received-note/GoodsReceivedNoteForm"));
 const CWIPToFAPage = lazy(() => import("./pages/cwip-to-fa/CWIPToFAPage"));
@@ -346,6 +348,11 @@ const router = createBrowserRouter([
             rb: RB.PURCHASE_VOUCHER,
             list: <PurchaseVoucherPage />,
             form: <PurchaseVoucherForm />,
+          }),
+          rbModule({
+            rb: RB.PURCHASE_RETURN,
+            list: <PurchaseReturnPage />,
+            form: <PurchaseReturnForm />,
           }),
           rbModule({
             rb: RB.GOODS_RECEIVED_NOTE,
