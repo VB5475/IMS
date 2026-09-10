@@ -153,13 +153,23 @@ export default function DateInput({
       if (!inWrap && !inPopper) setCalendarOpen(false);
     };
 
+    const handleEscape = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setCalendarOpen(false);
+      inputRef.current?.focus();
+    };
+
     window.addEventListener("scroll", repositionPopper, true);
     window.addEventListener("resize", repositionPopper);
     document.addEventListener("mousedown", handleOutside, true);
+    document.addEventListener("keydown", handleEscape, true);
     return () => {
       window.removeEventListener("scroll", repositionPopper, true);
       window.removeEventListener("resize", repositionPopper);
       document.removeEventListener("mousedown", handleOutside, true);
+      document.removeEventListener("keydown", handleEscape, true);
     };
   }, [calendarOpen, repositionPopper]);
 
@@ -232,14 +242,21 @@ export default function DateInput({
       if (readOnly || disabled) return;
       if (e.key === " " && !e.defaultPrevented) {
         e.preventDefault();
-        setCalendarOpen(true);
+        setCalendarOpen((open) => !open);
+        return;
+      }
+      if (e.key === "Escape" && calendarOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        setCalendarOpen(false);
+        return;
       }
       if (e.key === "Tab" && draftRef.current !== null) {
         commitDraftText(draftRef.current ?? e.target.value);
       }
       textProps.onKeyDown?.(e);
     },
-    [disabled, readOnly, textProps, commitDraftText]
+    [disabled, readOnly, textProps, commitDraftText, calendarOpen]
   );
 
   const showCalendar = !readOnly && !disabled;
@@ -317,6 +334,8 @@ export default function DateInput({
           tabIndex={tabIndex}
           title={title}
           aria-label={ariaLabel}
+          aria-haspopup={showCalendar ? "dialog" : undefined}
+          aria-expanded={showCalendar ? calendarOpen : undefined}
           autoComplete={autoComplete}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -334,8 +353,9 @@ export default function DateInput({
             type="button"
             className="date-input-calendar-btn"
             tabIndex={-1}
-            title="Open calendar"
-            aria-label="Open calendar"
+            title={calendarOpen ? "Close calendar (Space or Escape)" : "Open calendar (Space)"}
+            aria-label={calendarOpen ? "Close calendar" : "Open calendar"}
+            aria-expanded={calendarOpen}
             onClick={() => setCalendarOpen((open) => !open)}
           >
             <Calendar size={14} strokeWidth={2} />

@@ -9,7 +9,7 @@ import {
   DEFAULT_SESSION_ID,
 } from "../api/constants";
 import { getUserSession } from "../session/userSession";
-import { MCR_CONFIG } from "../pages/complaint-register/constants";
+import { MCR_CONFIG, buildMcrAssetItemLookup, mapMcrAssetItemRows } from "../pages/complaint-register/constants";
 import {
   fetchDropdownOptions,
   buildGridColumns,
@@ -119,6 +119,9 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
   const [locationOptions, setLocationOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [configOptions, setConfigOptions] = useState([]);
+  const [assetItemOptions, setAssetItemOptions] = useState([]);
+
+  const assetItemLookupRef = useRef(new Map());
 
   const [columns, setColumns] = useState([]);
   const [allColumns, setAllColumns] = useState([]);
@@ -257,6 +260,27 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     }
   }, [get]);
 
+  const fetchAssetItems = useCallback(async () => {
+    try {
+      const res = await get(ENDPOINTS.FN_FETCH_DATA, {
+        ObjType: 2,
+        ObjName: MCR_CONFIG.SP_ASSET_ITEM,
+        JSon: "[]",
+        p_ErrCode: -1,
+        p_ErrMsg: "",
+      });
+      const opts = mapMcrAssetItemRows(res);
+      assetItemLookupRef.current = buildMcrAssetItemLookup(res);
+      setAssetItemOptions(opts);
+      return opts;
+    } catch (err) {
+      console.warn("[MCR] Asset item fetch failed:", err);
+      assetItemLookupRef.current = new Map();
+      setAssetItemOptions([]);
+      return [];
+    }
+  }, [get]);
+
   const fetchHeaderMeta = useCallback(async ({ skipListDropdowns = false } = {}) => {
     setHeaderFetching(true);
     setHeaderError(null);
@@ -286,6 +310,8 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
         setLocationOptions([]);
         setDepartmentOptions([]);
         setConfigOptions([]);
+        setAssetItemOptions([]);
+        assetItemLookupRef.current = new Map();
         return;
       }
 
@@ -293,6 +319,7 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
       if (hasVisibleCol(cols, "divisionid")) tasks.push(fetchDivisions());
       if (hasVisibleCol(cols, "fromlocationid")) tasks.push(fetchLocations());
       if (hasVisibleCol(cols, "fromdeptid")) tasks.push(fetchDepartments());
+      if (hasVisibleCol(cols, "itemname")) tasks.push(fetchAssetItems());
       await Promise.all(tasks);
     } catch (err) {
       console.error("[MCR] fetchHeaderMeta failed:", err);
@@ -300,7 +327,7 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     } finally {
       setHeaderFetching(false);
     }
-  }, [get, fetchDivisions, fetchLocations, fetchDepartments]);
+  }, [get, fetchDivisions, fetchLocations, fetchDepartments, fetchAssetItems]);
 
   const fetchDetailMeta = useCallback(async () => {
     setIsFetching(true);
@@ -375,6 +402,28 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
       master.configname ?? master.ConfigName ?? master.name ?? master.Name,
       setConfigOptions
     );
+    const assetSrno = String(master.srno ?? master.SrNo ?? "").trim();
+    if (assetSrno && assetItemLookupRef.current.has(assetSrno)) {
+      return;
+    }
+    const assetName = master.itemname ?? master.ItemName ?? master.assetname;
+    const assetId = master.itemid ?? master.ItemID ?? master.assetid ?? master.AssetID;
+    const assetTagId = master.assettagid ?? master.AssetTagID ?? assetId ?? "";
+    if (assetSrno || assetName) {
+      const seeded = {
+        value: assetSrno || String(assetId ?? ""),
+        label: assetName && assetSrno ? `${assetName} (${assetSrno})` : String(assetName || assetSrno),
+        assetid: assetId,
+        assetname: assetName,
+        srno: assetSrno,
+        assettagid: String(assetTagId ?? ""),
+      };
+      setAssetItemOptions((prev) => {
+        const exists = prev.some((opt) => String(opt.value) === String(seeded.value));
+        return exists ? prev : [...prev, seeded];
+      });
+      if (assetSrno) assetItemLookupRef.current.set(assetSrno, seeded);
+    }
   }, []);
 
   const fetchUnlockedHeaderDropdowns = useCallback(async (headerValues = {}) => {
@@ -394,8 +443,9 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     if (needsCol("fromlocationid")) tasks.push(fetchLocations(divId));
     if (needsCol("fromdeptid")) tasks.push(fetchDepartments());
     if (needsCol("configid")) tasks.push(fetchConfigOptions(divId));
+    if (needsCol("itemname")) tasks.push(fetchAssetItems());
     await Promise.all(tasks);
-  }, [headerColumns, fetchDivisions, fetchLocations, fetchDepartments, fetchConfigOptions]);
+  }, [headerColumns, fetchDivisions, fetchLocations, fetchDepartments, fetchConfigOptions, fetchAssetItems]);
 
   const fetchEditRecord = useCallback(async ({ companyId, yearId, loginId, sessionId, idNumber }) => {
     const prmParameters = buildMasterDataFillParams({ companyId, yearId, loginId, sessionId, idNumber });
@@ -431,6 +481,9 @@ export function useMntComplaint(baseURL = API_BASE_URL) {
     locationOptions,
     departmentOptions,
     configOptions,
+    assetItemOptions,
+    assetItemLookupRef,
+    fetchAssetItems,
     fetchDivisions,
     fetchLocations,
     fetchDepartments,

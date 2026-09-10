@@ -205,6 +205,8 @@ function EnterpriseDataGrid({
   numericTotalColumns = [],
   emptyMessage = "No records found.",
   bottomPanelExtras = null,
+  /** Optional controls rendered in the card header beside page-size (e.g. Print). */
+  headerExtras = null,
   hideHeader = false,
   fill = false,
   variant = "",
@@ -765,21 +767,24 @@ function EnterpriseDataGrid({
             {icon && <span className="ng-card-icon">{icon}</span>}
             {title}
           </h2>
-          <div className="ng-pagesize-wrapper">
-            <label htmlFor="ng-pagesize-select">Show</label>
-            <select
-              id="ng-pagesize-select"
-              className="ng-select"
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            >
-              {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="ng-pagesize-select">entries</label>
+          <div className="ng-card-header-actions">
+            {headerExtras}
+            <div className="ng-pagesize-wrapper">
+              <label htmlFor="ng-pagesize-select">Show</label>
+              <select
+                id="ng-pagesize-select"
+                className="ng-select"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              >
+                {pageSizeOptions.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="ng-pagesize-select">entries</label>
+            </div>
           </div>
         </div>
       )}

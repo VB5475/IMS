@@ -15,6 +15,7 @@ import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
 import Loader from "../../components/ui/Loader";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import PrintReportButton from "../../components/ui/PrintReportButton";
 import { useNotification } from "../../context/NotificationContext";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useWKFMain } from "../../hooks/useWKFMain";
@@ -27,6 +28,7 @@ import {
   WKF_HEADER_FIELDS,
   WKF_ACTION_BUTTONS,
   WKF_TABS,
+  resolveWkfMainReportPrint,
 } from "./constants";
 import "./WKFMainPage.css";
 
@@ -222,27 +224,56 @@ export default function WKFMainPage() {
   const trackColumns = useMemo(() => buildListColumnsFromRows(trackRows), [trackRows]);
   const pathColumns = useMemo(() => buildListColumnsFromRows(pathRows), [pathRows]);
 
-  const handleSaveNote = useCallback(async () => {
-    const trimmed = noteText.trim();
-    if (!trimmed) return;
+  const detailReportPrint = useMemo(() => resolveWkfMainReportPrint(header), [header]);
+
+  const buildDetailPrintParams = useCallback(() => {
+    if (!detailReportPrint) {
+      notify.error("Print report is not configured for this transaction type.");
+      return null;
+    }
+    return detailReportPrint.buildParams();
+  }, [detailReportPrint, notify]);
+
+  const detailHeaderExtras = useMemo(() => {
+    if (headerLoading) return null;
+    return (
+      <PrintReportButton
+        reportTitle={detailReportPrint?.reportTitle ?? "Transaction Report"}
+        reportFileName={detailReportPrint?.reportFileName ?? ""}
+        buildParams={buildDetailPrintParams}
+        disabled={!detailReportPrint}
+        label="Print"
+      />
+    );
+  }, [headerLoading, detailReportPrint, buildDetailPrintParams]);
+
+  const persistNote = useCallback(async (text, { showSuccess = true } = {}) => {
+    const trimmed = String(text ?? "").trim();
+    if (!trimmed) return { success: false };
     setSavingNote(true);
     try {
       const { success, message } = await saveNote(keys, trimmed);
       if (!success) {
         notify.error(message || "Failed to save note.");
-        return;
+        return { success: false };
       }
-      notify.success(message || "Note saved.");
+      if (showSuccess) notify.success(message || "Note saved.");
       setNoteText("");
       const rows = await fetchNotesList(keys);
       setNotesRows(rows);
+      return { success: true };
     } catch (err) {
       console.error("[WKFMain] note save failed:", err);
       notify.error(err?.message || "Failed to save note.");
+      return { success: false };
     } finally {
       setSavingNote(false);
     }
-  }, [noteText, keys, saveNote, fetchNotesList, notify]);
+  }, [keys, saveNote, fetchNotesList, notify]);
+
+  const handleSaveNote = useCallback(async () => {
+    await persistNote(noteText, { showSuccess: true });
+  }, [noteText, persistNote]);
 
   const handleCancelNote = useCallback(() => setNoteText(""), []);
 
@@ -270,15 +301,23 @@ export default function WKFMainPage() {
     }
   }, [keys, header, postAction, notify, navigate, navFilterValues, navActiveStatus]);
 
-  // Note-required check runs before the confirm prompt, so the user isn't
-  // asked to confirm an action that's just going to be rejected client-side.
-  const handleActionClick = useCallback((btn) => {
+  // Note-required check runs before the confirm prompt. If the user typed a
+  // note but didn't click Save Note, auto-save the draft and continue — no
+  // "Please add a note…" error when the textarea already has content.
+  const handleActionClick = useCallback(async (btn) => {
     if (buttonVisibility?.canaddnote && !isNoteFromCurrentUser(getLatestNote(notesRows))) {
+      const draft = noteText.trim();
+      if (draft) {
+        const { success } = await persistNote(draft, { showSuccess: false });
+        if (!success) return;
+        setPendingAction(btn);
+        return;
+      }
       notify.error("Please add a note before submitting this action.");
       return;
     }
     setPendingAction(btn);
-  }, [buttonVisibility, notesRows, notify]);
+  }, [buttonVisibility, notesRows, noteText, persistNote, notify]);
 
   const handleConfirmAction = useCallback(() => {
     const btn = pendingAction;
@@ -378,6 +417,7 @@ export default function WKFMainPage() {
           >
             <EnterpriseDataGrid
               title="Detail Section"
+              headerExtras={detailHeaderExtras}
               columns={detailColumns}
               data={detailRows}
               loading={detailLoading}
@@ -468,7 +508,7 @@ export default function WKFMainPage() {
                     type="button"
                     className="wkf-main__btn wkf-main__btn--action"
                     onClick={() => handleActionClick(btn)}
-                    disabled={actingKey !== null}
+                    disabled={actingKey !== null || savingNote}
                   >
                     <Send size={13} strokeWidth={2} />
                     {actingKey === btn.key ? `${btn.label}…` : btn.label}

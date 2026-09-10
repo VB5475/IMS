@@ -958,115 +958,115 @@ export default function EnterpriseFilterPanel({
     const dropdownFilters = filters.filter((f) => f.FilterColCtrlType === controlTypeMap.DROPDOWN);
 
     dropdownFilters.forEach((f, i) => {
-        const colName = f.FilterColName;
-        if (autoSelectedFieldsRef.current.has(colName)) return;
-        if (resolveFieldTone(f, fieldTones) !== "editable") return;
+      const colName = f.FilterColName;
+      if (autoSelectedFieldsRef.current.has(colName)) return;
+      if (resolveFieldTone(f, fieldTones) !== "editable") return;
 
-        const opts = dropdownOptions[f.FilterParameterID] ?? f.staticOptions ?? [];
-        const currentVal = values[colName];
-        const isEmpty =
-          currentVal == null || currentVal === "" || currentVal === 0 || currentVal === "0";
-        if (opts.length !== 1) return;
+      const opts = dropdownOptions[f.FilterParameterID] ?? f.staticOptions ?? [];
+      const currentVal = values[colName];
+      const isEmpty =
+        currentVal == null || currentVal === "" || currentVal === 0 || currentVal === "0";
+      if (opts.length !== 1) return;
 
-        // Don't auto-select/auto-advance a field whose own options resolve
-        // independently of an *earlier* dropdown that's still genuinely
-        // unresolved (2+ options, still empty) — e.g. on IMS_PGLIVE, Division
-        // has 2 real options and correctly stays blank, but "Based On" (which
-        // doesn't cascade off Division) still resolves to its one option
-        // immediately and would otherwise jump focus straight past Division.
-        // Whatever this field's single option looks like right now may also
-        // just be stale/wrong until the earlier field is actually chosen.
-        const blockedByEarlierField = dropdownFilters.slice(0, i).some((earlier) => {
-          if (resolveFieldTone(earlier, fieldTones) !== "editable") return false;
-          const earlierOpts = dropdownOptions[earlier.FilterParameterID] ?? earlier.staticOptions ?? [];
-          const earlierVal = values[earlier.FilterColName];
-          const earlierEmpty =
-            earlierVal == null || earlierVal === "" || earlierVal === 0 || earlierVal === "0";
-          return earlierOpts.length !== 1 && earlierEmpty;
-        });
-        if (blockedByEarlierField) return;
-
-        const singleOptValue = resolveFilterOptionValue(opts[0]);
-        // A field can already be non-empty here without the user having
-        // touched it — an RB-configured FilterCtrlDefaultValue seeds it
-        // before this effect ever runs (see fetchFilters above). That's
-        // still a single-option field the user never had to choose on, so
-        // it gets the same auto-advance treatment; only actually-chosen
-        // values (which won't match the one resolvable option) are left
-        // alone.
-        const alreadyOnSingleOpt = !isEmpty && String(currentVal) === String(singleOptValue);
-        if (!isEmpty && !alreadyOnSingleOpt) return;
-
-        autoSelectedFieldsRef.current.add(colName);
-        if (isEmpty) handleChange(colName, singleOptValue);
-
-        if (!root) return;
-        const scheduledAt = Date.now();
-        window.setTimeout(() => {
-          // A Tab landed after this field became eligible — the user has
-          // navigated since, so this advance is stale; let their own
-          // keyboard driving stand instead of stacking a hop on top of it.
-          if (lastUserTabAtRef.current > scheduledAt) return;
-          const current =
-            root.querySelector(`#efq-${colName} .search-select__trigger`) ||
-            root.querySelector(`#efq-${colName}`);
-          if (!current) return;
-          // Every single-option field schedules its own 200ms timer
-          // independently — each becomes eligible at a different moment
-          // (e.g. a field whose options only resolve after a cascade goes
-          // eligible later than one with static options), so these can fire
-          // out of chain order. A field's own advance target is fixed
-          // ("whatever comes right after me"), so if a *later* field in the
-          // chain has already carried focus past that point by the time this
-          // timer fires, applying it here would yank focus backward. Only
-          // apply it when doing so is still a genuine forward move.
-          const fields = [...root.querySelectorAll(FORM_FOCUSABLE_SELECTOR)].filter(
-            (el) => el.offsetParent !== null && el.tabIndex !== -1
-          );
-          const myIndex = fields.indexOf(current);
-          if (myIndex === -1) return;
-          const activeIndex = fields.indexOf(document.activeElement);
-          if (activeIndex !== -1 && activeIndex >= myIndex + 1) return;
-          focusAdjacentFormField(current, {
-            root,
-            // Landing on a SearchSelect via this chain shouldn't pop its
-            // dropdown open — the field the user actually needs to look at
-            // is wherever the chain *finally* stops, and every field it
-            // passes through along the way (also auto-filled, also about to
-            // be advanced past a moment later) would otherwise flash its
-            // list open just before moving on again. Confirmed live on
-            // IMS_PGLIVE: with Division genuinely 2-option, the chain
-            // Division→Quotation Type→Supplier Name flashed Quotation
-            // Type's dropdown open mid-transition, which reads as "stuck"
-            // in a screenshot even though the final position is correct.
-            //
-            // BUT only when the landing field is itself ALSO about to be
-            // auto-advanced past a moment later (single-option) — this used
-            // to stamp the suppress flag unconditionally on whatever field
-            // the chain focused next, including the field where the chain
-            // genuinely stops (2+ real options, no further auto-advance
-            // scheduled for it). That field would then get real focus but
-            // its dropdown would never open — not even on its own later
-            // focus event, since the flag is consumed (deleted) the first
-            // time regardless of whether it was "supposed to" apply. Live-
-            // reproduced on Purchase Inquiry: the chain landing on "Based
-            // On" (a static, always-2-option field, so never itself
-            // eligible for auto-select) left it focused but permanently
-            // closed. 2026-08-27 (/pm).
-            beforeFocus: (el) => {
-              const wrapper = el.closest?.('[id^="efq-"]');
-              const targetColName = wrapper?.id?.replace(/^efq-/, "");
-              const targetFilter = filters.find((tf) => tf.FilterColName === targetColName);
-              if (targetFilter?.FilterColCtrlType !== controlTypeMap.DROPDOWN) return;
-              const targetOpts =
-                dropdownOptions[targetFilter.FilterParameterID] ?? targetFilter.staticOptions ?? [];
-              if (targetOpts.length === 1) {
-                el.dataset.suppressAutoOpen = "1";
-              }
-            },
-          });
-        }, 200);
+      // Don't auto-select/auto-advance a field whose own options resolve
+      // independently of an *earlier* dropdown that's still genuinely
+      // unresolved (2+ options, still empty) — e.g. on IMS_PGLIVE, Division
+      // has 2 real options and correctly stays blank, but "Based On" (which
+      // doesn't cascade off Division) still resolves to its one option
+      // immediately and would otherwise jump focus straight past Division.
+      // Whatever this field's single option looks like right now may also
+      // just be stale/wrong until the earlier field is actually chosen.
+      const blockedByEarlierField = dropdownFilters.slice(0, i).some((earlier) => {
+        if (resolveFieldTone(earlier, fieldTones) !== "editable") return false;
+        const earlierOpts = dropdownOptions[earlier.FilterParameterID] ?? earlier.staticOptions ?? [];
+        const earlierVal = values[earlier.FilterColName];
+        const earlierEmpty =
+          earlierVal == null || earlierVal === "" || earlierVal === 0 || earlierVal === "0";
+        return earlierOpts.length !== 1 && earlierEmpty;
       });
+      if (blockedByEarlierField) return;
+
+      const singleOptValue = resolveFilterOptionValue(opts[0]);
+      // A field can already be non-empty here without the user having
+      // touched it — an RB-configured FilterCtrlDefaultValue seeds it
+      // before this effect ever runs (see fetchFilters above). That's
+      // still a single-option field the user never had to choose on, so
+      // it gets the same auto-advance treatment; only actually-chosen
+      // values (which won't match the one resolvable option) are left
+      // alone.
+      const alreadyOnSingleOpt = !isEmpty && String(currentVal) === String(singleOptValue);
+      if (!isEmpty && !alreadyOnSingleOpt) return;
+
+      autoSelectedFieldsRef.current.add(colName);
+      if (isEmpty) handleChange(colName, singleOptValue);
+
+      if (!root) return;
+      const scheduledAt = Date.now();
+      window.setTimeout(() => {
+        // A Tab landed after this field became eligible — the user has
+        // navigated since, so this advance is stale; let their own
+        // keyboard driving stand instead of stacking a hop on top of it.
+        if (lastUserTabAtRef.current > scheduledAt) return;
+        const current =
+          root.querySelector(`#efq-${colName} .search-select__trigger`) ||
+          root.querySelector(`#efq-${colName}`);
+        if (!current) return;
+        // Every single-option field schedules its own 200ms timer
+        // independently — each becomes eligible at a different moment
+        // (e.g. a field whose options only resolve after a cascade goes
+        // eligible later than one with static options), so these can fire
+        // out of chain order. A field's own advance target is fixed
+        // ("whatever comes right after me"), so if a *later* field in the
+        // chain has already carried focus past that point by the time this
+        // timer fires, applying it here would yank focus backward. Only
+        // apply it when doing so is still a genuine forward move.
+        const fields = [...root.querySelectorAll(FORM_FOCUSABLE_SELECTOR)].filter(
+          (el) => el.offsetParent !== null && el.tabIndex !== -1
+        );
+        const myIndex = fields.indexOf(current);
+        if (myIndex === -1) return;
+        const activeIndex = fields.indexOf(document.activeElement);
+        if (activeIndex !== -1 && activeIndex >= myIndex + 1) return;
+        focusAdjacentFormField(current, {
+          root,
+          // Landing on a SearchSelect via this chain shouldn't pop its
+          // dropdown open — the field the user actually needs to look at
+          // is wherever the chain *finally* stops, and every field it
+          // passes through along the way (also auto-filled, also about to
+          // be advanced past a moment later) would otherwise flash its
+          // list open just before moving on again. Confirmed live on
+          // IMS_PGLIVE: with Division genuinely 2-option, the chain
+          // Division→Quotation Type→Supplier Name flashed Quotation
+          // Type's dropdown open mid-transition, which reads as "stuck"
+          // in a screenshot even though the final position is correct.
+          //
+          // BUT only when the landing field is itself ALSO about to be
+          // auto-advanced past a moment later (single-option) — this used
+          // to stamp the suppress flag unconditionally on whatever field
+          // the chain focused next, including the field where the chain
+          // genuinely stops (2+ real options, no further auto-advance
+          // scheduled for it). That field would then get real focus but
+          // its dropdown would never open — not even on its own later
+          // focus event, since the flag is consumed (deleted) the first
+          // time regardless of whether it was "supposed to" apply. Live-
+          // reproduced on Purchase Inquiry: the chain landing on "Based
+          // On" (a static, always-2-option field, so never itself
+          // eligible for auto-select) left it focused but permanently
+          // closed. 2026-08-27 (/pm).
+          beforeFocus: (el) => {
+            const wrapper = el.closest?.('[id^="efq-"]');
+            const targetColName = wrapper?.id?.replace(/^efq-/, "");
+            const targetFilter = filters.find((tf) => tf.FilterColName === targetColName);
+            if (targetFilter?.FilterColCtrlType !== controlTypeMap.DROPDOWN) return;
+            const targetOpts =
+              dropdownOptions[targetFilter.FilterParameterID] ?? targetFilter.staticOptions ?? [];
+            if (targetOpts.length === 1) {
+              el.dataset.suppressAutoOpen = "1";
+            }
+          },
+        });
+      }, 200);
+    });
   }, [filters, values, dropdownOptions, fieldTones, disabled, handleChange, panelRef]);
 
   const handleActionClick = useCallback(() => {

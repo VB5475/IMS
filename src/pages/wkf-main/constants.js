@@ -1,6 +1,5 @@
 // constants.js — WKF Main (Workflow approval detail page) config.
 // Source: MRD_Template4WKFMain.docx (Shivani, 11-Aug-2026).
-//
 // No RB_MASTER for this module (MRD Section 2: "Master/Header panel (not
 // dynamic)") — the header panel's fields are fixed per Section 3's table,
 // not RB-metadata-driven like every other module in this app. Only the 3
@@ -11,6 +10,10 @@
 // Reached ONLY via a row click on /workflow-dashboard (WorkflowDashboard.jsx)
 // — MRD's "New Form Route: Not Present" + blank "Nav Menu Label" confirmed
 // 2026-08-14 (/pm) via AskUserQuestion: no sidebar nav entry for this route.
+
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
+import { buildCompanyReportParam } from "../../utils/reportParams";
+import { resolveRowFieldValue } from "../../utils/gridUtils";
 
 export const WKF_MAIN_CONFIG = {
   ROUTE_PATH: "/wkfmain",
@@ -96,4 +99,50 @@ export function buildWkfMainSearch(row, index) {
     [WKF_MAIN_CONFIG.PARAM_ROWINDX]: String(index ?? 0),
   });
   return `${WKF_MAIN_CONFIG.ROUTE_PATH}?${params.toString()}`;
+}
+
+/** WKF tran-type code (ref_moduletype) → printReportConfig.js slug.
+ *  Live-confirmed 2026-09-07: Detail Section Print uses the same
+ *  GENERATE_REPORT payload as each module's list Print button
+ *  (Company + @prmidnumber from header.tranid). */
+export const WKF_PRINT_REPORT_BY_TRAN_CODE = Object.freeze({
+  PUR_IND: "purchase-indent",
+  PUR_PO: "purchase-order",
+  PUR_INQ: "purchase-inquiry",
+  PUR_QTN: "purchase-quotation",
+  PUR_INW: "goods-received-note",
+  PUR_PV: "purchase-voucher",
+  RT_GP: "assets-returnable-gate-pass-out",
+});
+
+/** Resolve list-page-equivalent GENERATE_REPORT options from WKF header row. */
+export function resolveWkfMainReportPrint(header) {
+  if (!header) return null;
+
+  const tranCode = String(
+    resolveRowFieldValue(header, "ref_moduletype")
+    ?? resolveRowFieldValue(header, "Ref_ModuleType")
+    ?? ""
+  ).trim().toUpperCase();
+  const configKey = WKF_PRINT_REPORT_BY_TRAN_CODE[tranCode];
+  const printConfig = configKey ? PRINT_REPORT_CONFIG[configKey] : null;
+  if (!printConfig) return null;
+
+  const tranId = resolveRowFieldValue(header, "tranid") ?? resolveRowFieldValue(header, "TranID");
+  if (tranId == null || tranId === "") return null;
+
+  const idText = String(tranId);
+  return {
+    reportTitle: printConfig.reportTitle,
+    reportFileName: printConfig.reportFileName,
+    buildParams: () => [
+      buildCompanyReportParam(),
+      {
+        paramtitle: "ID",
+        paramname: "@prmidnumber",
+        paramval: idText,
+        paramtext: idText,
+      },
+    ],
+  };
 }
