@@ -210,7 +210,7 @@ export default function WorkflowDashboard() {
         WKF_DASHBOARD_CONFIG.SP_INITIATE_BY,
         {
           prmcompanyid: Number(session.companyId) || 1,
-          prmdivisonid: Number(divisionId) || 0,
+          prmdivisionid: Number(divisionId) || 0,
           prmloginid: Number(session.loginId) || 1,
         },
         "initiators"

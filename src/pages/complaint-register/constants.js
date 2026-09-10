@@ -12,7 +12,7 @@ export const MCR_CONFIG = {
   RB_MASTER: RB_CODES.COMPLAINT_REGISTER,
   ROUTE_PATH: rbRoutePath(RB_CODES.COMPLAINT_REGISTER),
   RB_DETAIL: "rb_mntcpndet",
-  RB_ITEM_PICKER: "rb_mntcpnselonly",
+  RB_ITEM_PICKER: "rb_mntcpnpartdet",
 
   MODULE_CODE: "MNT",
   FORM_TAG: "rb_mntcpnmst",
@@ -30,7 +30,9 @@ export const MCR_CONFIG = {
   SP_FROM_LOCATION: "fn_gen_fetchastissfromlocationmaster",
   SP_DEPARTMENT: "fn_gen_fetchdepartmentmaster",
   SP_CONFIG: "fn_tbl_ddl_maintenanceconfiguration",
-  SP_ITEM_PICKER: "fn_tbl_rb_mntcpnselonly",
+  /** Asset Item header dropdown — live-confirmed: empty JSON array, no params. */
+  SP_ASSET_ITEM: "fn_tbl_fetchassetItem",
+  SP_ITEM_PICKER: "fn_tbl_rb_mntcpnpartdet",
   // Select Item popup filters — Main / Sub Main / Item Name (AEI order).
   SP_ITEM_MAIN_GROUP: "fn_fetch_itemmaingroup4popupfilter",
   SP_ITEM_SUB_MAIN_GROUP: "fn_fetch_itemsubmaingroup4popupfilter",
@@ -51,6 +53,45 @@ export const MCR_CONFIG = {
 };
 
 export const MCR_GRID_TABS = [{ id: "items", label: "Item Grid" }];
+
+/** Header fields populated from SP_ASSET_ITEM — never user-editable. */
+export const MCR_READ_ONLY_ASSET_COLS = Object.freeze(["srno", "assettagid"]);
+
+export function resolveMcrColKey(fieldDefs, ...hints) {
+  const lowerHints = hints.map((h) => String(h).toLowerCase());
+  const found = (fieldDefs || []).find((col) => {
+    const name = String(col.colname ?? col.ColName ?? "").toLowerCase();
+    return lowerHints.some((h) => name === h || name.includes(h));
+  });
+  return found?.colname ?? found?.ColName ?? hints[0] ?? "";
+}
+
+export function mapMcrAssetItemRows(rows) {
+  return (rows || [])
+    .map((row) => {
+      const srno = String(row.srno ?? row.SrNo ?? "").trim();
+      const assetname = String(row.assetname ?? row.AssetName ?? "").trim();
+      const assetid = row.assetid ?? row.AssetID ?? 0;
+      if (!srno) return null;
+      return {
+        value: srno,
+        label: assetname ? `${assetname} (${srno})` : srno,
+        assetid,
+        assetname,
+        srno,
+        assettagid: String(assetid ?? ""),
+      };
+    })
+    .filter(Boolean);
+}
+
+export function buildMcrAssetItemLookup(rows) {
+  const map = new Map();
+  mapMcrAssetItemRows(rows).forEach((row) => {
+    map.set(String(row.srno), row);
+  });
+  return map;
+}
 
 export const MCR_FRM_TYPE_OPTIONS = [
   { value: String(MCR_CONFIG.FRM_TYPE), label: MCR_CONFIG.FRM_TYPE_LABEL },
@@ -114,15 +155,6 @@ export function applyMcrHardcodedHeaderValues(headerValues = {}) {
     ...headerValues,
     frmtype: MCR_CONFIG.FRM_TYPE,
   };
-}
-
-export function resolveMcrColKey(fieldDefs, ...hints) {
-  const lowerHints = hints.map((h) => String(h).toLowerCase());
-  const found = (fieldDefs || []).find((col) => {
-    const name = String(col.colname ?? col.ColName ?? "").toLowerCase();
-    return lowerHints.some((h) => name === h || name.includes(h));
-  });
-  return found?.colname ?? found?.ColName ?? hints[0] ?? "";
 }
 
 export function buildMcrCascadeResets(fieldDefs) {

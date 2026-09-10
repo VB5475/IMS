@@ -47,13 +47,14 @@ import {
   MCR_CONFIG,
   MCR_GRID_TABS,
   MCR_FRM_TYPE_OPTIONS,
+  MCR_READ_ONLY_ASSET_COLS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   buildMcrItemPickerJsonPayload,
   applyMcrHardcodedHeaderValues,
   buildMcrCascadeResets,
   validateMcrBusinessRules,
-  buildComplaintRegisterReportParams,
+  resolveMcrColKey,
 } from "./constants";
 import { useReportPrint } from "../../hooks/useReportPrint";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
@@ -91,6 +92,10 @@ function mapHeaderValuesToFilterValues(headerValues) {
     configid: str(headerValues.configid),
     callgenbyuser: headerValues.callgenbyuser ?? "",
     frmtype: str(headerValues.frmtype ?? MCR_CONFIG.FRM_TYPE),
+    itemname: str(headerValues._itemPickerKey ?? headerValues.srno ?? headerValues.itemname),
+    srno: str(headerValues.srno),
+    assettagid: str(headerValues.assettagid),
+    itemid: str(headerValues.itemid),
   };
 }
 
@@ -154,6 +159,7 @@ export default function ComplaintRegisterForm() {
   const {
     headerColumns, headerFetching, headerError, fetchHeaderMeta,
     divisionOptions, locationOptions, departmentOptions, configOptions,
+    assetItemOptions, assetItemLookupRef, fetchAssetItems,
     fetchLocations, fetchDepartments, fetchConfigOptions,
     columns, allColumns, isFetching, metaError,
     fetchDetailMeta, fetchGridColumns,
@@ -201,6 +207,7 @@ export default function ComplaintRegisterForm() {
   }, [loadedFilterValues, callGenByUser]);
 
   const [filterResetKey, setFilterResetKey] = useState(0);
+  const [filterExternalValues, setFilterExternalValues] = useState(null);
   const [activeTab, setActiveTab] = useState("items");
   const [itemSelectionCount, setItemSelectionCount] = useState(0);
   const [isGridLoading, setIsGridLoading] = useState(false);
@@ -219,6 +226,35 @@ export default function ComplaintRegisterForm() {
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
+
+  const pushFilterValues = useCallback((headerValues) => {
+    setFilterExternalValues(mapHeaderValuesToFilterValues(headerValues));
+  }, []);
+
+  const applyAssetItemSelection = useCallback((srnoKey) => {
+    const hv = headerValuesRef.current;
+    const itemNameKey = resolveMcrColKey(headerColumns, "itemname");
+    const srNoKey = resolveMcrColKey(headerColumns, "srno");
+    const tagIdKey = resolveMcrColKey(headerColumns, "assettagid");
+    const itemIdKey = resolveMcrColKey(headerColumns, "itemid");
+    const picked = assetItemLookupRef.current.get(String(srnoKey ?? ""));
+
+    if (picked) {
+      if (itemNameKey) hv[itemNameKey] = picked.assetname;
+      if (srNoKey) hv[srNoKey] = picked.srno;
+      if (tagIdKey) hv[tagIdKey] = picked.assettagid;
+      if (itemIdKey) hv[itemIdKey] = picked.assetid;
+      hv._itemPickerKey = picked.srno;
+    } else {
+      if (itemNameKey) hv[itemNameKey] = "";
+      if (srNoKey) hv[srNoKey] = "";
+      if (tagIdKey) hv[tagIdKey] = "";
+      if (itemIdKey) hv[itemIdKey] = 0;
+      hv._itemPickerKey = "";
+    }
+    pushFilterValues(hv);
+    return picked;
+  }, [headerColumns, assetItemLookupRef, pushFilterValues]);
 
   const cascadeResets = useMemo(() => buildMcrCascadeResets(headerColumns), [headerColumns]);
 
@@ -292,11 +328,21 @@ export default function ComplaintRegisterForm() {
         ...headerValuesRef.current,
         ...headerValues,
       });
+      const loadedSrno = String(headerValues.srno ?? headerValues.SrNo ?? "").trim();
+      if (loadedSrno) headerValuesRef.current._itemPickerKey = loadedSrno;
       setLoadedMasterRow(master);
       editRecordLoadedRef.current = true;
 
       seedOptionsFromMaster(master);
-      setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
+      if (hasVisibleCol(headerColumns, "itemname")) {
+        await fetchAssetItems();
+      }
+      if (loadedSrno) {
+        applyAssetItemSelection(loadedSrno);
+      } else {
+        pushFilterValues(headerValuesRef.current);
+      }
+      setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValuesRef.current));
       setFilterResetKey((k) => k + 1);
 
       const divId = headerValues.divisionid ?? 0;
@@ -312,7 +358,17 @@ export default function ComplaintRegisterForm() {
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, seedOptionsFromMaster, fetchGridColumns]);
+  }, [
+    recordId,
+    listRecord,
+    fetchEditRecord,
+    seedOptionsFromMaster,
+    fetchGridColumns,
+    headerColumns,
+    fetchAssetItems,
+    applyAssetItemSelection,
+    pushFilterValues,
+  ]);
 
   const resetNewEntry = useCallback(() => {
     localStorage.removeItem(MCR_CONFIG.STORAGE_HEADER_META);
@@ -345,6 +401,7 @@ export default function ComplaintRegisterForm() {
     setItemModalColumns([]);
     setItemModalLoading(false);
     setItemModalError(null);
+    setFilterExternalValues(null);
     itemGridRef.current?.clearRows?.();
     setFilterResetKey((k) => k + 1);
     exitEditMode();
@@ -388,7 +445,8 @@ export default function ComplaintRegisterForm() {
     fromdeptid: departmentOptions,
     configid: configOptions,
     frmtype: MCR_FRM_TYPE_OPTIONS,
-  }), [divisionOptions, locationOptions, departmentOptions, configOptions]);
+    itemname: assetItemOptions,
+  }), [divisionOptions, locationOptions, departmentOptions, configOptions, assetItemOptions]);
 
   const dropdownOptionsByCol = useMemo(() => {
     const map = { ...dropdownSources };
@@ -421,10 +479,13 @@ export default function ComplaintRegisterForm() {
   }, [headerColumns, dropdownOptionsByCol]);
 
   const filterFieldTones = useMemo(() => {
+    const readOnlyAssetCols = new Set(MCR_READ_ONLY_ASSET_COLS.map((key) => key.toLowerCase()));
     const tones = {};
     syncedFilters.forEach((f) => {
+      const colKey = String(f.FilterColName ?? f.FilterParameterID ?? "").toLowerCase();
       let tone = "editable";
       if (!isEditMode) tone = "view";
+      else if (readOnlyAssetCols.has(colKey)) tone = "view";
       else if (isEditRoute && f.lockOnEditMode) tone = "frozen";
       tones[f.FilterColName] = tone;
       if (f.FilterParameterID) tones[f.FilterParameterID] = tone;
@@ -460,12 +521,19 @@ export default function ComplaintRegisterForm() {
     });
     const hv = headerValuesRef.current;
     const col = String(colName).toLowerCase();
+    const itemNameKey = resolveMcrColKey(headerColumns, "itemname");
+
+    if (itemNameKey && col === String(itemNameKey).toLowerCase()) {
+      applyAssetItemSelection(val);
+      return;
+    }
 
     if (col === "divisionid") {
       requestGridClear("Division", async () => {
         hv.fromlocationid = 0;
         hv.fromdeptid = 0;
         hv.configid = 0;
+        applyAssetItemSelection("");
         itemGridRef.current?.clearRows?.();
         if (Number(val) > 0) {
           const fetches = [];
@@ -496,6 +564,7 @@ export default function ComplaintRegisterForm() {
     fetchLocations,
     fetchDepartments,
     fetchConfigOptions,
+    applyAssetItemSelection,
   ]);
 
   const ensureItemColumns = useCallback(async () => {
@@ -792,6 +861,7 @@ export default function ComplaintRegisterForm() {
             title="Complaint Register Detail"
             staticFilters={syncedFilters}
             initialValues={filterInitialValues}
+            externalValues={filterExternalValues}
             cascadeResets={cascadeResets}
             onFilterChange={handleFilterChange}
             isSearching={filterBusy || recordLoading}

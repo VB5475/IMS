@@ -28,6 +28,13 @@
   flex-shrink: 0;
 }
 
+.ng-card-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 /* subtle shimmer line at the very top of the header */
 .ng-card-header::after {
   content: "";
