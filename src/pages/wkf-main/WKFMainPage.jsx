@@ -138,6 +138,10 @@ export default function WKFMainPage() {
   const [buttonVisibility, setButtonVisibility] = useState(null);
   const [actingKey, setActingKey] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
+  // Bumped by the header error panel's Retry button to re-run the load
+  // effect below (e.g. after a transient network blip) without navigating
+  // away and back.
+  const [retryTick, setRetryTick] = useState(0);
 
   const pageTitle = header ? readField(header, "pagetitle") : "Workflow Approval";
 
@@ -210,7 +214,9 @@ export default function WKFMainPage() {
       });
 
     return () => { cancelled = true; };
-  }, [wkfdashkey, keys, fetchHeader, fetchDetail, fetchTrackList, fetchPathList, fetchNotesList, fetchButtonVisibility]);
+  }, [wkfdashkey, keys, retryTick, fetchHeader, fetchDetail, fetchTrackList, fetchPathList, fetchNotesList, fetchButtonVisibility]);
+
+  const handleRetryLoad = useCallback(() => setRetryTick((t) => t + 1), []);
 
   const detailColumns = useMemo(() => buildListColumnsFromRows(detailRows), [detailRows]);
   const trackColumns = useMemo(() => buildListColumnsFromRows(trackRows), [trackRows]);
@@ -290,7 +296,7 @@ export default function WKFMainPage() {
     return (
       <div className="workspace-page wkf-main">
         <div className="wkf-main__error">
-          <AlertPanel errors={["No transaction reference was provided. Open this page from the Workflow Dashboard."]} />
+          <AlertPanel title="No transaction selected" errors={["No transaction reference was provided. Open this page from the Workflow Dashboard."]} />
         </div>
       </div>
     );
@@ -326,7 +332,19 @@ export default function WKFMainPage() {
         ))}
       </section>
 
-      {headerError && <AlertPanel errors={[headerError]} />}
+      {headerError && (
+        <div className="wkf-main__error-with-retry">
+          <AlertPanel title="Couldn't load this workflow record" errors={[headerError]} />
+          <button
+            type="button"
+            className="wkf-main__btn wkf-main__btn--ghost"
+            onClick={handleRetryLoad}
+          >
+            <RotateCcw size={13} strokeWidth={2} />
+            Retry
+          </button>
+        </div>
+      )}
 
       {activeTab === "main" && (
         <div className="wkf-main__panel">

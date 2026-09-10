@@ -11,20 +11,13 @@ import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
-import { createListActionsColumn } from "../../utils/listGridUtils";
-import { AOP_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { createListActionsColumn, isAlwaysHiddenColumnKey } from "../../utils/listGridUtils";
+import { AOP_CONFIG, ENTRY_FORM_LABEL, buildAopReportParams } from "./constants";
 import "./AssetsItemOpeningPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAopReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -59,7 +52,7 @@ function toLabel(key) {
 
 function buildColumnsFromData(data, navigate) {
   if (!data || data.length === 0) return [];
-  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k));
+  const keys = Object.keys(data[0]).filter((k) => !HIDDEN_COLS.has(k) && !isAlwaysHiddenColumnKey(k));
   return [
     ...keys.map((key) => ({
       key,
@@ -110,8 +103,6 @@ export default function AssetsItemOpeningPage() {
   usePageHeader({
     title: "Assets Item Opening",
     subtitle: "Create and manage asset item opening entries.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(() => buildColumnsFromData(data, navigate), [data, navigate]);

@@ -48,6 +48,7 @@ import { PURCHASE_API, PURCHASE_GST_SUMMARY_FIELDS } from "../../constants/purch
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { formatTranDate as formatPRTranDate };
 
@@ -159,4 +160,11 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
   return getMissingPickerFields(headerValues, headerColumns, {
     zeroValidFields: new Set(),
   });
+}
+
+// PurchaseReturn.rpt takes no per-record filter — like Purchase Voucher/
+// Inquiry/Quotation, the listing page's Print button (and the form's
+// Save & Print) always run this same company-wide report.
+export function buildPurchaseReturnReportParams() {
+  return [buildCompanyReportParam()];
 }

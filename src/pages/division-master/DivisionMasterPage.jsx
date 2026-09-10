@@ -91,8 +91,6 @@ export default function DivisionMasterPage() {
   usePageHeader({
     title:    "Division Master",
     subtitle: "Browse and update division records.",
-    showBack: true,
-    backTo:   "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

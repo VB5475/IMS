@@ -287,6 +287,7 @@ export default function MaintenanceContractRenewalForm() {
           : `Contract Renewal #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: MACR_CONFIG.ROUTE_PATH,
+    backLabel: "MACR",
   });
 
   useEffect(() => {

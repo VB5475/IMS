@@ -7,19 +7,12 @@ import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { ARV_CONFIG, ENTRY_FORM_LABEL, buildArvListJsonPayload } from "./constants";
+import { ARV_CONFIG, ENTRY_FORM_LABEL, buildArvListJsonPayload, buildArvReportParams } from "./constants";
 import "./AssetsRevaluationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildArvReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {
@@ -46,8 +39,6 @@ export default function AssetsRevaluationPage() {
   usePageHeader({
     title: "Assets Revaluation",
     subtitle: "Update asset item revaluation records.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

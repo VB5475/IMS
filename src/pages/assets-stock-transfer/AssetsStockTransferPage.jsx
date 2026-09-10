@@ -7,19 +7,12 @@ import { withGetRetry } from "../../utils/apiRetry";
 import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { AST_CONFIG, ENTRY_FORM_LABEL, buildAstListJsonPayload } from "./constants";
+import { AST_CONFIG, ENTRY_FORM_LABEL, buildAstListJsonPayload, buildAstReportParams } from "./constants";
 import "./AssetsStockTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAstReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {
@@ -46,8 +39,6 @@ export default function AssetsStockTransferPage() {
   usePageHeader({
     title: "Assets Stock Transfer",
     subtitle: "Transfer assets between divisions and locations.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

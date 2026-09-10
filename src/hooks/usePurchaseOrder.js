@@ -157,7 +157,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       });
       const opts = (res || []).map((r) => ({
           value: r.departmentid,
-          label:  String(r.departmentid + " - " +r.departmentname),
+          label: String(r.departmentname ?? ""),
       }));
       setDepartmentOptions(opts);
       return opts;
@@ -377,7 +377,7 @@ export function usePurchaseOrder(baseURL = API_BASE_URL) {
       setDepartmentOptions(
         (deptData || []).map((r) => ({
           value: r.departmentid,
-          label:  String(r.departmentid + " - " +r.departmentname),
+          label: String(r.departmentname ?? ""),
         }))
       );
     } catch (err) {

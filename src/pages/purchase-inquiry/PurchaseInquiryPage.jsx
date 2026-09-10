@@ -8,19 +8,12 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { PI_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { PI_CONFIG, ENTRY_FORM_LABEL, buildPurchaseInquiryReportParams } from "./constants";
 import "./PurchaseInquiryPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
-
-function buildPurchaseInquiryReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -59,8 +52,6 @@ export default function PurchaseInquiryPage() {
   usePageHeader({
     title: "Purchase Inquiry",
     subtitle: "Browse purchase inquiries or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

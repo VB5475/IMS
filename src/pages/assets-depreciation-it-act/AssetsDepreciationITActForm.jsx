@@ -70,7 +70,10 @@ import {
   DIT_EVENT_COLUMNS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
+  buildDitReportParams,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import "./AssetsDepreciationITActPage.css";
 
 let _ditTempId = -1;
@@ -164,6 +167,7 @@ export default function AssetsDepreciationITActForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrinting } = useReportPrint();
 
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -276,6 +280,7 @@ export default function AssetsDepreciationITActForm() {
           : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: DIT_CONFIG.ROUTE_PATH,
+    backLabel: "DIT",
   });
 
   // ── Mount: load metadata ──────────────────────────────────────────────
@@ -674,9 +679,18 @@ export default function AssetsDepreciationITActForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    // AssetsDepreciationITAct.rpt has no per-record filter (see constants.js)
+    // — this fires the same company-wide report the listing Print button does.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["assets-depreciation-it-act"],
+        jsonParameters: buildDitReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
   const handleDiscardConfirm = useCallback(() => {
@@ -692,7 +706,7 @@ export default function AssetsDepreciationITActForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen,
     isEditMode,
-    isSaving,
+    isSaving: isSaving || isPrinting,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -703,8 +717,8 @@ export default function AssetsDepreciationITActForm() {
 
   const extraButtons = useMemo(() => [
     {
-      key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
-      onClick: handleSaveAndPrint, disabled: isSaving,
+      key: "saveprint", label: isPrinting ? "Printing…" : "Save & Print", Icon: Printer, variant: "print",
+      onClick: handleSaveAndPrint, disabled: isSaving || isPrinting,
       title: FORM_SHORTCUT_TITLES.savePrint,
     },
     {
@@ -712,7 +726,7 @@ export default function AssetsDepreciationITActForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [handleSaveAndPrint, handleSave, isSaving, isPrinting]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;

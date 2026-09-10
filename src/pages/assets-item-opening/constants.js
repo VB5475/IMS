@@ -2,6 +2,7 @@
 // Values aligned to MRD_Template4AssetsItemOpening.docx (Richa, 16-Jun-2026).
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Assets Item Opening";
@@ -73,4 +74,10 @@ export const AOP_ITEM_TYPE_ID = 7;
 /** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
   return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
+}
+
+// AssetsItemOpening.rpt takes no per-record filter — the listing page's
+// Print button (and the form's Save & Print) always run this company-wide report.
+export function buildAopReportParams() {
+  return [buildCompanyReportParam()];
 }

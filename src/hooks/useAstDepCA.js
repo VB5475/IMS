@@ -145,7 +145,7 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
       });
       const opts = (res || []).map((r) => ({
         value: String(r.accountid ?? r.acid ?? 0),
-        label: String((r.accode ?? "") + " | " + (r.acname ?? "")),
+        label: String(r.acname ?? ""),
       }));
       setAssetsAccOptions(opts);
       return opts;
@@ -292,7 +292,7 @@ export function useAstDepCA(baseURL = API_BASE_URL) {
     if (master.fixedastacid != null && accountLabel) {
       setAssetsAccOptions([{
         value: String(master.fixedastacid),
-        label: String((master.accode ?? "") + " | " + accountLabel),
+        label: String(accountLabel ?? ""),
       }]);
     }
   }, []);

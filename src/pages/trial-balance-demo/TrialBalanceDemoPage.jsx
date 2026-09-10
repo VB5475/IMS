@@ -43,8 +43,6 @@ export default function TrialBalanceDemoPage() {
   usePageHeader({
     title: tbReportMeta.title,
     subtitle: `${tbReportMeta.company} · ${tbReportMeta.period}`,
-    showBack: true,
-    backTo: "/",
   });
 
   const filteredRows = useMemo(() => {

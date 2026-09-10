@@ -59,8 +59,6 @@ export default function PurchaseRateContractPage() {
   usePageHeader({
     title: PAGE_TITLE,
     subtitle: "Browse purchase rate contracts or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

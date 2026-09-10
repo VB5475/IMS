@@ -70,7 +70,10 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatPVTranDate,
+  buildPurchaseVoucherReportParams,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseVoucherPage.css";
 
@@ -138,6 +141,7 @@ export default function PurchaseVoucherForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrintingPV } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -315,6 +319,7 @@ export default function PurchaseVoucherForm() {
           : `PV #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: PV_CONFIG.ROUTE_PATH,
+    backLabel: "PV",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -1037,9 +1042,19 @@ export default function PurchaseVoucherForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    // PurchaseVoucher.rpt has no per-record filter (see constants.js) — this
+    // fires the same company-wide report the listing page's Print button
+    // does, just triggered right after this save instead of a separate click.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["purchase-voucher"],
+        jsonParameters: buildPurchaseVoucherReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -1066,7 +1081,7 @@ export default function PurchaseVoucherForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving: isSavingPV,
+    isSaving: isSavingPV || isPrintingPV,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -1086,8 +1101,8 @@ export default function PurchaseVoucherForm() {
     // button does. Mirrors Purchase Indent's rollout.
     ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
-      key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
-      onClick: handleSaveAndPrint, disabled: isSavingPV,
+      key: "saveprint", label: isPrintingPV ? "Printing…" : "Save & Print", Icon: Printer, variant: "print",
+      onClick: handleSaveAndPrint, disabled: isSavingPV || isPrintingPV,
       title: FORM_SHORTCUT_TITLES.savePrint,
     },
     {
@@ -1095,7 +1110,7 @@ export default function PurchaseVoucherForm() {
       onClick: handleSave, disabled: isSavingPV, loading: isSavingPV,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPV, handleSave]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPV, isPrintingPV, handleSave]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;

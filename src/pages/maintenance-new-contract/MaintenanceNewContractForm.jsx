@@ -289,6 +289,7 @@ export default function MaintenanceNewContractForm() {
           : `Maintenance Contract (New) #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: MACNG_CONFIG.ROUTE_PATH,
+    backLabel: "MACNG",
   });
 
   useEffect(() => {

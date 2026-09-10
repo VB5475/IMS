@@ -1,0 +1,68 @@
+.route-error {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg, #f4f6f9);
+}
+
+.route-error__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 380px;
+  padding: 32px 28px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d8dee6);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-md, 0 4px 16px rgba(15, 23, 42, 0.08));
+}
+
+.route-error__icon {
+  color: var(--warning, #e37400);
+  margin-bottom: 14px;
+}
+
+.route-error__icon--spin {
+  color: var(--primary, #1e4a7a);
+  animation: route-error-spin 1s linear infinite;
+}
+
+@keyframes route-error-spin {
+  to { transform: rotate(360deg); }
+}
+
+.route-error__title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text, #161c21);
+}
+
+.route-error__message {
+  margin: 0 0 22px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, #5b6472);
+}
+
+.route-error__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid var(--primary, #1e4a7a);
+  border-radius: var(--radius, 6px);
+  background: var(--primary, #1e4a7a);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.route-error__btn:hover {
+  filter: brightness(1.08);
+}

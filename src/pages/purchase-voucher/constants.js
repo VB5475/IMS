@@ -10,6 +10,7 @@ import { BASED_ON, PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 
 export { formatTranDate as formatPVTranDate };
@@ -213,4 +214,12 @@ export function getMissingItemPickerHeaderFields(headerValues, headerColumns = n
   return getMissingPickerFields(headerValues, headerColumns, {
     zeroValidFields: new Set(["basedonid"]),
   });
+}
+
+// PurchaseVoucher.rpt takes no per-record filter — unlike Indent/PO, the
+// listing page's Print button (and now the form's Save & Print) always runs
+// this same company-wide report, not one scoped to a single voucher. Shared
+// here so both call sites stay identical rather than drifting.
+export function buildPurchaseVoucherReportParams() {
+  return [buildCompanyReportParam()];
 }

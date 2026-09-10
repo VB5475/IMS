@@ -36,6 +36,7 @@ import {
 
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 
 
@@ -368,5 +369,12 @@ export function resolveItemPickerSpName(basedOnId) {
 
   });
 
+}
+
+// GoodsReceivedNote.rpt takes no per-record filter — like several other
+// Purchase-family reports, the listing page's Print button (and the form's
+// Save & Print) always run this same company-wide report.
+export function buildGoodsReceivedNoteReportParams() {
+  return [buildCompanyReportParam()];
 }
 

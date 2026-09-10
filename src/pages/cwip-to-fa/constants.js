@@ -1,6 +1,7 @@
 // constants.js — CWIP To FA (C2F) page config
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "CWIP To FA";
@@ -109,4 +110,10 @@ export function formatC2FTranDate(dateVal) {
 /** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
   return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
+}
+
+// CWIPToFA.rpt takes no per-record filter — the listing page's Print button
+// (and the form's Save & Print) always run this company-wide report.
+export function buildCWIPToFAReportParams() {
+  return [buildCompanyReportParam()];
 }

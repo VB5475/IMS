@@ -160,7 +160,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
       });
       const opts = (res || []).map((r) => ({
         value: String(r.itemid ?? r.idnumber ?? 0),
-        label: String((r.itemcode ? r.itemcode + " | " : "") + (r.itemname ?? "")),
+        label: String(r.itemname ?? ""),
       }));
       setItemOptions(opts);
       return opts;
@@ -191,7 +191,7 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
       });
       const opts = (res || []).map((r) => ({
         value: String(r.accountid ?? r.acid ?? 0),
-        label: String((r.accode ?? "") + " | " + (r.acname ?? "")),
+        label: String(r.acname ?? ""),
       }));
       setAssetsAccOptions(opts);
       return opts;
@@ -327,14 +327,14 @@ export function useAssetsItemOpening(baseURL = API_BASE_URL) {
     if (master.itemid != null && itemLabel) {
       setItemOptions([{
         value: String(master.itemid),
-        label: String((master.itemcode ? master.itemcode + " | " : "") + itemLabel),
+        label: String(itemLabel ?? ""),
       }]);
     }
     const accountLabel = master.account ?? master.accountname ?? master.acname;
     if (master.accountid != null && master.accountid !== 0 && accountLabel) {
       setAssetsAccOptions([{
         value: String(master.accountid),
-        label: String((master.accode ?? "") + " | " + accountLabel),
+        label: String(accountLabel ?? ""),
       }]);
     }
   }, []);

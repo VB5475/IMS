@@ -13,19 +13,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { QTN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
+import { QTN_CONFIG, formatTranDate, ENTRY_FORM_LABEL, buildPurchaseQuotationReportParams } from "./constants";
 import "./PurchaseQuotationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
-
-function buildPurchaseQuotationReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListDateRange() {
   const now = new Date();
@@ -89,8 +82,6 @@ export default function PurchaseQuotationPage() {
   usePageHeader({
     title: "Purchase Quotation",
     subtitle: "Browse purchase quotations or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

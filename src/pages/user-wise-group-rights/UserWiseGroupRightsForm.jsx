@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, RotateCcw, Save, Search } from "lucide-react";
 import MasterFormField from "../../components/forms/MasterFormField";
 import SearchSelect from "../../components/ui/SearchSelect";
@@ -15,7 +15,12 @@ import {
 } from "../../utils/masterFormUtils";
 import { controlTypeMap } from "../../data/dummyData";
 import { useNotification } from "../../context/NotificationContext";
-import { UWGR_CONFIG, UWGR_REPORT_RIGHTS, UWGR_TRANSACTION_RIGHTS } from "./constants";
+import {
+  UWGR_CONFIG,
+  UWGR_REPORT_RIGHTS,
+  UWGR_TRANSACTION_RIGHTS,
+  UWGR_VIEW_GATE_KEY,
+} from "./constants";
 import "./UserWiseGroupRightsPage.css";
 
 const LABEL_OVERRIDES = {
@@ -40,8 +45,13 @@ function asDropdownField(col) {
 }
 
 /** One rights grid — a read-only Function Name column plus a checkbox column
- *  per right, each with a select-all toggle in the grid header. */
+ *  per right, each with a select-all toggle in the grid header. On the grid
+ *  that has a View column, a row's other rights stay disabled until that
+ *  row's own View is checked — View is the prerequisite for granting anything
+ *  else on that row. */
 function RightsGrid({ title, rows, rightDefs, disabled, emptyMessage, onToggleAll, onToggleRow }) {
+  const hasViewGate = rightDefs.some((def) => def.key === UWGR_VIEW_GATE_KEY);
+
   const allChecked = useMemo(
     () =>
       Object.fromEntries(
@@ -53,6 +63,27 @@ function RightsGrid({ title, rows, rightDefs, disabled, emptyMessage, onToggleAl
     [rows, rightDefs]
   );
 
+  // Some-but-not-all rows have this right — the select-all toggle shows the
+  // native indeterminate dash instead of reading as fully off. `indeterminate`
+  // has no JSX prop, only a DOM property, and setting it from an inline ref
+  // callback proved unreliable on the false→true→false round trip — an
+  // effect that re-syncs every render is the standard fix.
+  const someChecked = useMemo(
+    () =>
+      Object.fromEntries(
+        rightDefs.map((def) => [def.key, rows.some((row) => row.values[def.key] === 1)])
+      ),
+    [rows, rightDefs]
+  );
+
+  const toggleRefs = useRef({});
+  useEffect(() => {
+    rightDefs.forEach((def) => {
+      const el = toggleRefs.current[def.key];
+      if (el) el.indeterminate = !allChecked[def.key] && someChecked[def.key];
+    });
+  }, [allChecked, someChecked, rightDefs]);
+
   return (
     <section className="uwgr-grid">
       <header className="uwgr-grid__header">
@@ -63,6 +94,9 @@ function RightsGrid({ title, rows, rightDefs, disabled, emptyMessage, onToggleAl
               <input
                 type="checkbox"
                 checked={allChecked[def.key]}
+                ref={(el) => {
+                  toggleRefs.current[def.key] = el;
+                }}
                 onChange={(e) => onToggleAll(def.key, e.target.checked)}
                 disabled={disabled || rows.length === 0}
               />
@@ -88,22 +122,30 @@ function RightsGrid({ title, rows, rightDefs, disabled, emptyMessage, onToggleAl
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name || "—"}</td>
-                  {rightDefs.map((def) => (
-                    <td key={def.key} className="uwgr-grid__checkbox-col">
-                      <input
-                        type="checkbox"
-                        checked={row.values[def.key] === 1}
-                        onChange={(e) => onToggleRow(row.id, def.key, e.target.checked)}
-                        disabled={disabled}
-                        aria-label={`${def.columnLabel} — ${row.name || row.id}`}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const rowViewChecked = row.values[UWGR_VIEW_GATE_KEY] === 1;
+                return (
+                  <tr key={row.id}>
+                    <td>{row.name || "—"}</td>
+                    {rightDefs.map((def) => {
+                      const needsView = hasViewGate && def.key !== UWGR_VIEW_GATE_KEY;
+                      const viewGated = needsView && !rowViewChecked;
+                      return (
+                        <td key={def.key} className="uwgr-grid__checkbox-col">
+                          <input
+                            type="checkbox"
+                            checked={row.values[def.key] === 1}
+                            onChange={(e) => onToggleRow(row.id, def.key, e.target.checked)}
+                            disabled={disabled || viewGated}
+                            title={viewGated ? "Enable View first to grant this right." : undefined}
+                            aria-label={`${def.columnLabel} — ${row.name || row.id}`}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -119,6 +161,8 @@ export default function UserWiseGroupRightsForm({
   typeOptions = [],
   headerFetching = false,
   headerError = null,
+  transactionRightDefs = UWGR_TRANSACTION_RIGHTS,
+  reportRightDefs = UWGR_REPORT_RIGHTS,
   onSearch,
 }) {
   const { post } = useApi(API_BASE_URL_IMS);
@@ -208,31 +252,47 @@ export default function UserWiseGroupRightsForm({
     [transactionRows, functionFilter]
   );
 
+  // View gates the other rights on a grid that has it (Grid 1 — Report
+  // Rights' lone Approval column has nothing to gate): a row's Insert/
+  // Update/Delete can't be turned on until that row's own View is on, and
+  // turning View off clears whatever else was granted on that row.
+  const applyRightChange = useCallback((rightDefs, row, rightKey, checked) => {
+    const hasViewGate = rightDefs.some((def) => def.key === UWGR_VIEW_GATE_KEY);
+    const nextValues = { ...row.values, [rightKey]: checked ? 1 : 0 };
+    if (hasViewGate && rightKey === UWGR_VIEW_GATE_KEY && !checked) {
+      rightDefs.forEach((def) => {
+        if (def.key !== UWGR_VIEW_GATE_KEY) nextValues[def.key] = 0;
+      });
+    }
+    return { ...row, values: nextValues };
+  }, []);
+
   const makeToggleAll = useCallback(
-    (setRows, visibleRows) => (rightKey, checked) => {
+    (setRows, visibleRows, rightDefs) => (rightKey, checked) => {
       const visibleIds = new Set(visibleRows.map((r) => r.id));
+      const hasViewGate = rightDefs.some((def) => def.key === UWGR_VIEW_GATE_KEY);
       setRows((prev) =>
-        prev.map((row) =>
-          visibleIds.has(row.id)
-            ? { ...row, values: { ...row.values, [rightKey]: checked ? 1 : 0 } }
-            : row
-        )
+        prev.map((row) => {
+          if (!visibleIds.has(row.id)) return row;
+          // Bulk-granting a gated right skips rows whose own View isn't on
+          // yet — same rule as the per-row checkbox being disabled.
+          if (hasViewGate && checked && rightKey !== UWGR_VIEW_GATE_KEY && row.values[UWGR_VIEW_GATE_KEY] !== 1) {
+            return row;
+          }
+          return applyRightChange(rightDefs, row, rightKey, checked);
+        })
       );
     },
-    []
+    [applyRightChange]
   );
 
   const makeToggleRow = useCallback(
-    (setRows) => (rowId, rightKey, checked) => {
+    (setRows, rightDefs) => (rowId, rightKey, checked) => {
       setRows((prev) =>
-        prev.map((row) =>
-          row.id === rowId
-            ? { ...row, values: { ...row.values, [rightKey]: checked ? 1 : 0 } }
-            : row
-        )
+        prev.map((row) => (row.id === rowId ? applyRightChange(rightDefs, row, rightKey, checked) : row))
       );
     },
-    []
+    [applyRightChange]
   );
 
   // Each row goes back as the server sent it, with only this grid's own rights
@@ -276,8 +336,8 @@ export default function UserWiseGroupRightsForm({
       // Both grids return the same columns, so they share the single
       // prmStrMstJSON array the save proc expects.
       const rows = [
-        ...buildSaveRows(transactionRows, UWGR_TRANSACTION_RIGHTS, context),
-        ...buildSaveRows(reportRows, UWGR_REPORT_RIGHTS, context),
+        ...buildSaveRows(transactionRows, transactionRightDefs, context),
+        ...buildSaveRows(reportRows, reportRightDefs, context),
       ];
 
       const payload = withSaveContextFields(
@@ -304,6 +364,8 @@ export default function UserWiseGroupRightsForm({
     headerValues,
     transactionRows,
     reportRows,
+    transactionRightDefs,
+    reportRightDefs,
     selectedGroupId,
     selectedModuleId,
     buildSaveRows,
@@ -398,21 +460,21 @@ export default function UserWiseGroupRightsForm({
           <RightsGrid
             title="Transaction Rights"
             rows={visibleTransactionRows}
-            rightDefs={UWGR_TRANSACTION_RIGHTS}
+            rightDefs={transactionRightDefs}
             disabled={gridsLoading}
             emptyMessage={emptyMessage}
-            onToggleAll={makeToggleAll(setTransactionRows, visibleTransactionRows)}
-            onToggleRow={makeToggleRow(setTransactionRows)}
+            onToggleAll={makeToggleAll(setTransactionRows, visibleTransactionRows, transactionRightDefs)}
+            onToggleRow={makeToggleRow(setTransactionRows, transactionRightDefs)}
           />
 
           <RightsGrid
             title="Report Rights"
             rows={reportRows}
-            rightDefs={UWGR_REPORT_RIGHTS}
+            rightDefs={reportRightDefs}
             disabled={gridsLoading}
             emptyMessage={emptyMessage}
-            onToggleAll={makeToggleAll(setReportRows, reportRows)}
-            onToggleRow={makeToggleRow(setReportRows)}
+            onToggleAll={makeToggleAll(setReportRows, reportRows, reportRightDefs)}
+            onToggleRow={makeToggleRow(setReportRows, reportRightDefs)}
           />
         </div>
 

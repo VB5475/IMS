@@ -49,6 +49,17 @@
   cursor: not-allowed;
 }
 
+.wkf-main__error-with-retry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px 0;
+}
+
+.wkf-main__error-with-retry .alp {
+  flex: 1;
+}
+
 .wkf-main__tabbar {
   display: flex;
   gap: 2px;

@@ -21,18 +21,11 @@ import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { exportRowsToCsv } from "../../utils/csvExport";
-import { AEI_CONFIG, ENTRY_FORM_LABEL, buildAeiListJsonPayload } from "./constants";
+import { AEI_CONFIG, ENTRY_FORM_LABEL, buildAeiListJsonPayload, buildAeiReportParams } from "./constants";
 import "./AssetsEmployeeIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAeiReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {
@@ -73,8 +66,6 @@ export default function AssetsEmployeeIssuePage() {
   usePageHeader({
     title: "Assets Employee Issue",
     subtitle: "Issue assets and items to employees.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
+  Clock,
   FileSpreadsheet,
   ClipboardList,
   FileText,
@@ -88,9 +89,13 @@ import {
   Hourglass,
   ClockAlert,
   Activity,
+  PackageX,
+  TrendingUp,
+  ScrollText,
 } from "lucide-react";
 import { getDefaultRouteTitle, usePageHeaderContext } from "../context/PageHeaderContext";
 import { useUser } from "../context/UserContext";
+import { useAutoLogoutCountdown } from "../hooks/useAutoLogoutCountdown";
 import ChangePasswordModal from "../pages/change-password/ChangePasswordModal";
 import {
   PROD_BASE_PROJECT,
@@ -105,6 +110,18 @@ import ReportFilterModal from "../components/reports/ReportFilterModal";
 import "./AppShell.css";
 
 const BRAND_LOGO_SRC = "/test.png";
+
+// Auto-logout countdown turns warning-red once under this much time is left,
+// so the header timer doubles as the "you're about to be logged out" nudge
+// the feature never had before.
+const AUTO_LOGOUT_WARNING_MS = 2 * 60 * 1000;
+
+function formatAutoLogoutRemaining(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 // Per-report icon, keyed by REPORTS_LIST's own `key` — every entry used to
 // share FileBarChart2 (a single generic bar-chart icon for all 9 reports),
@@ -151,6 +168,8 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.PURCHASE_ORDER), icon: ShoppingCart, label: "Purchase Order", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_RATE_CONTRACT), icon: FileText, label: "Purchase Rate Contract", end: false, visible: false },
       { to: rbRoutePath(RB_CODES.GOODS_RECEIVED_NOTE), icon: PackageCheck, label: "Goods Received Note", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PO_SHORT_CLOSE_QTY), icon: PackageX, label: "PO Short Close Qty", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.PO_EXCESS_QTY), icon: TrendingUp, label: "PO Excess Qty", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_VOUCHER), icon: Receipt, label: "Purchase Voucher", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.PURCHASE_RETURN), icon: RotateCcw, label: "Purchase Return", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.TXN_ENTRY), icon: FileSpreadsheet, label: "Invoices", end: false, visible: false },
@@ -248,6 +267,7 @@ const NAV_SECTIONS = [
       { to: rbRoutePath(RB_CODES.ACCOUNT_GROUP_MASTER), icon: FolderTree, label: "Account Group Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.ACCOUNT_MASTER), icon: Landmark, label: "Account Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.VOUCHER_TYPE_MASTER), icon: Ticket, label: "Voucher Type Master", end: false, visible: true },
+      { to: rbRoutePath(RB_CODES.TERMS_CONDITION_MASTER), icon: ScrollText, label: "Terms and Condition Master", end: false, visible: true },
       { to: rbRoutePath(RB_CODES.DOP_MASTER), icon: FileSignature, label: "DOP Master", end: false, visible: true },
     ],
   },
@@ -402,6 +422,7 @@ export default function AppShell({ children }) {
   const navigate = useNavigate();
   const { header } = usePageHeaderContext() ?? { header: {} };
   const { userName, userId, logout, menuRights } = useUser();
+  const autoLogoutRemainingMs = useAutoLogoutCountdown();
 
   // Collapsed rail has no room for labels/search — reset any in-progress
   // filter so re-expanding the sidebar always starts from the full nav tree.
@@ -706,7 +727,7 @@ export default function AppShell({ children }) {
                 onClick={() => navigate(header.backTo || "/")}
               >
                 <ArrowLeft size={14} />
-                <span>Back</span>
+                <span>{header.backLabel ? `Go to ${header.backLabel} List` : "Go To List"}</span>
               </button>
             )}
             <div className="ent-topbar__titles">
@@ -741,6 +762,14 @@ export default function AppShell({ children }) {
                 <div className="ent-topbar__divider" />
               </>
             )}
+            <div
+              className={`ent-autologout-timer${autoLogoutRemainingMs <= AUTO_LOGOUT_WARNING_MS ? " ent-autologout-timer--warning" : ""}`}
+              title="Time remaining before you're automatically logged out due to inactivity"
+            >
+              <Clock size={13} strokeWidth={2} />
+              <span>{formatAutoLogoutRemaining(autoLogoutRemainingMs)}</span>
+            </div>
+            <div className="ent-topbar__divider" />
             <div className="ent-topbar__profile-menu">
               <div className="ent-topbar__profile">
                 <div className="ent-topbar__profile-text">

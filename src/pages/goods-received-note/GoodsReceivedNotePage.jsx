@@ -13,19 +13,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL } from "./constants";
+import { GRN_CONFIG, formatTranDate, ENTRY_FORM_LABEL, buildGoodsReceivedNoteReportParams } from "./constants";
 import "./GoodsReceivedNotePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
-
-function buildGoodsReceivedNoteReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListDateRange() {
   const now = new Date();
@@ -87,8 +80,6 @@ export default function GoodsReceivedNotePage() {
   usePageHeader({
     title: "Goods Received Note",
     subtitle: "Browse goods received notes or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

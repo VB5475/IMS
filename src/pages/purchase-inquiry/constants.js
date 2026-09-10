@@ -19,6 +19,7 @@ import {
 } from "../../utils/purchaseItemPicker";
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
@@ -180,3 +181,10 @@ export function buildTermsPickerJsonPayload(headerValues, loginId) {
 export const PI_MASTER = {
   headerFields: PI_HEADER_FILTERS,
 };
+
+// PurchaseInquiry.rpt takes no per-record filter — like Purchase Voucher, the
+// listing page's Print button (and the form's Save & Print) always run this
+// same company-wide report. Shared here so both call sites stay identical.
+export function buildPurchaseInquiryReportParams() {
+  return [buildCompanyReportParam()];
+}

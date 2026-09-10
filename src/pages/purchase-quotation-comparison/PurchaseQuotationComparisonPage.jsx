@@ -50,8 +50,6 @@ export default function PurchaseQuotationComparisonPage() {
   usePageHeader({
     title: PAGE_TITLE,
     subtitle: "Compare supplier quotations against a purchase inquiry and select which quote to accept per item.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

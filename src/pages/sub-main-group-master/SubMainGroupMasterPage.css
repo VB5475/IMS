@@ -69,7 +69,15 @@
   align-items: stretch;
 }
 
-.smgm-form-control--checkbox { gap: 8px; }
+/* Missing flex-direction/align-items here meant a checkbox row never
+   actually laid out its checkbox+label side by side (gap alone does
+   nothing without display:flex on a row axis) — same bug already found
+   and fixed on Item Master's equivalent rule. */
+.smgm-form-control--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
 
 .smgm-form-input--error {
   border-color: var(--danger, #dc2626) !important;
