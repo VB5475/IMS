@@ -120,3 +120,70 @@ export async function exportSideBySideTablesToExcel(tables, filename, sheetName 
 
   await downloadWorkbook(wb, filename);
 }
+
+/**
+ * One sheet holding multiple titled tables stacked top to bottom (each gets
+ * its own title row merged across its own column count, its own header row,
+ * its own data rows), with one blank spacer row between consecutive tables —
+ * the vertical counterpart to exportSideBySideTablesToExcel, used where the
+ * tables are naturally a list (e.g. one per date group) rather than a fixed
+ * side-by-side set. Same `__isTotal: true` bold-row convention.
+ *
+ * tables: [{ title, columns: [{key,label}], rows: [...] }]
+ */
+export async function exportStackedTablesToExcel(tables, filename, sheetName = "Sheet1") {
+  const usable = tables.filter((t) => t.rows?.length > 0 && t.columns?.length > 0);
+  if (usable.length === 0) return;
+
+  const ExcelJS = await import("exceljs");
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheetName);
+
+  const colWidths = [];
+
+  usable.forEach((table, tableIndex) => {
+    const colCount = table.columns.length;
+
+    const titleRow = ws.addRow([table.title ?? ""]);
+    titleRow.height = 20;
+    if (colCount > 1) ws.mergeCells(titleRow.number, 1, titleRow.number, colCount);
+    for (let col = 1; col <= colCount; col += 1) {
+      const cell = ws.getCell(titleRow.number, col);
+      cell.fill = TITLE_FILL;
+      if (col === 1) {
+        cell.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+      }
+    }
+
+    const headerRow = ws.addRow(table.columns.map((c) => c.label ?? c.key));
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.fill = HEADER_FILL;
+      cell.border = CELL_BORDER;
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    });
+
+    table.rows.forEach((row, rowIndex) => {
+      const isTotal = row.__isTotal === true;
+      const dataRow = ws.addRow(table.columns.map((c) => row[c.key] ?? ""));
+      dataRow.eachCell((cell) => {
+        cell.border = CELL_BORDER;
+        if (isTotal) cell.font = { bold: true };
+        else if (rowIndex % 2 === 1) cell.fill = BAND_FILL;
+      });
+    });
+
+    table.columns.forEach((c, colIdx) => {
+      const contentLengths = table.rows.map((r) => String(r[c.key] ?? "").length);
+      const width = Math.max(String(c.label ?? c.key).length, ...contentLengths) + 2;
+      colWidths[colIdx] = Math.max(colWidths[colIdx] ?? 0, width, 12);
+    });
+
+    if (tableIndex < usable.length - 1) ws.addRow([]); // blank spacer row
+  });
+
+  ws.columns = colWidths.map((width) => ({ width }));
+
+  await downloadWorkbook(wb, filename);
+}

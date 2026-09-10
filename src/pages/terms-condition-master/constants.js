@@ -33,17 +33,18 @@
 //            this call instead of seeding from the grid row (see
 //            TermsConditionMasterForm.jsx).
 //
-// DELETE_PROC_NAME and SAVE_ENDPOINT are NOT confirmed:
-//  - RB metadata's deleteprocname is empty (delete genuinely isn't
-//    configured server-side yet) — unlike prior masters, this file
-//    deliberately does NOT guess a pr_rb_<rb>_delete name and wire Delete,
-//    since guessing wrong on a destructive action is a real risk, not just
-//    a routing inconvenience. Delete is left off the grid entirely.
-//  - SAVE_ENDPOINT paths across every master in this app are hand-assigned,
-//    inconsistent (Post_RB_X_Save / Post_rb_x_Save / Post_pr_RB_X_Save /
-//    no Post_ prefix at all) and NOT derivable from the save proc name —
-//    confirmed by surveying 60+ existing constants.js files. Left as a
-//    placeholder (see Form.jsx's handleSave) pending the real endpoint.
+// DELETE_PROC_NAME is still NOT confirmed — RB metadata's deleteprocname is
+// empty (delete genuinely isn't configured server-side yet). Unlike prior
+// masters, this file deliberately does NOT guess a pr_rb_<rb>_delete name
+// and wire Delete, since guessing wrong on a destructive action is a real
+// risk, not just a routing inconvenience. Delete is left off the grid
+// entirely.
+//
+// SAVE_ENDPOINT confirmed 2026-09-09 /pm:
+// API/TermnConditionMst/Post_RB_TermnConditionMst_Save — wired into
+// TermsConditionMasterForm.jsx's handleSave, same buildSaveRowFromColumns +
+// useApi().post shape as every other RB master (Voucher Type Master's, this
+// form's own stated template).
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { PURCHASE_API } from "../../constants/purchaseCommon";
 
@@ -63,8 +64,7 @@ export const TCM_CONFIG = {
   // permissive default other unconfirmed masters use (e.g. Account Group,
   // BOM, Company). ⚠️ CONFIRM with DBA.
   LIST_DIVISION_ID: 0,
-  // Not confirmed — see file header. Placeholder only, Save shows a notice
-  // instead of posting until the real endpoint is confirmed.
-  SAVE_ENDPOINT: null,
+  // Confirmed 2026-09-09 /pm.
+  SAVE_ENDPOINT: "/API/TermnConditionMst/Post_RB_TermnConditionMst_Save",
   STORAGE_HEADER_META: "tcmHeaderMeta",
 };

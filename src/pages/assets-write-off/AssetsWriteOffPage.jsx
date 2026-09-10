@@ -13,19 +13,12 @@ import {
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { AWF_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { AWF_CONFIG, ENTRY_FORM_LABEL, buildAwfReportParams } from "./constants";
 import "./AssetsWriteOffPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAwfReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   const year = new Date().getFullYear();

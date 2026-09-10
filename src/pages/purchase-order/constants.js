@@ -18,6 +18,8 @@ import {
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { getUserSession } from "../../session/userSession";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 
 export { formatTranDate };
 export { APPROVED_FILTER_OPTS as APPROVED_OPTS };
@@ -210,5 +212,35 @@ export const PO_ITEM_PICKER_JSON_FIELDS = [
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
   return getMissingPickerFields(headerValues, headerColumns, {
     zeroValidFields: new Set(["basedonid"]),
+  });
+}
+
+// PO's report SP takes its own param casing (@prmCompanyID/@prmloginID), not
+// the shared lowercase @prmcompanyid used by buildCompanyReportParam — shared
+// by the listing page's Print button and the Add/Edit form's Save & Print.
+export function buildPurchaseOrderReportParams(idnumber) {
+  const session = getUserSession();
+  return [
+    { paramtitle: "ID", paramname: "@prmidnumber", paramval: String(idnumber), paramtext: String(idnumber) },
+    { paramtitle: "Company", paramname: "@prmCompanyID", paramval: String(session.companyId), paramtext: session.company?.companyname ?? session.company?.CompanyName ?? "" },
+    { paramtitle: "Login", paramname: "@prmloginID", paramval: String(session.loginId), paramtext: session.userName ?? "" },
+  ];
+}
+
+// PO prints the Annexure report first, then the main PO report, both via the
+// same GENERATE_REPORT mechanism — a PO-only quirk (2026-09-08 /tl), shared
+// here so the listing page's Print button and the form's Save & Print fire
+// the identical two-report sequence instead of each re-implementing it.
+export async function printPurchaseOrderReports(printReport, idnumber) {
+  const params = buildPurchaseOrderReportParams(idnumber);
+  await printReport({
+    reportTitle: PO_CONFIG.ANNEXURE_REPORT_TITLE,
+    reportFileName: PO_CONFIG.ANNEXURE_REPORT_FILE,
+    jsonParameters: params,
+  });
+  await printReport({
+    reportTitle: PRINT_REPORT_CONFIG["purchase-order"].reportTitle,
+    reportFileName: PRINT_REPORT_CONFIG["purchase-order"].reportFileName,
+    jsonParameters: params,
   });
 }

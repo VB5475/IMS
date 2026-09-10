@@ -30,6 +30,8 @@ import ItemPickerGroupFilterBar from "../../components/txn/ItemPickerGroupFilter
 import { usePurchaseIndent } from "../../hooks/usePurchaseIndent";
 import { useItemPickerGroupFilter } from "../../hooks/useItemPickerGroupFilter";
 import { useDocumentLogAccess } from "../../hooks/useDocumentLogAccess";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { useApi } from "../../api/useApi";
 import { withGetRetry } from "../../utils/apiRetry";
 import {
@@ -63,6 +65,7 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatIndentTranDate,
+  buildIndentReportParams,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./PurchaseIndentPage.css";
@@ -124,6 +127,7 @@ export default function PurchaseIndentForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrintingIndent } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -149,6 +153,7 @@ export default function PurchaseIndentForm() {
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const lastSavedIdRef = useRef(null);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: rawGetLive } = useApi(API_BASE_URL);
   const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
@@ -785,6 +790,7 @@ export default function PurchaseIndentForm() {
       // recordId so an Edit save still works even if the message wording
       // ever changes and the regex stops matching.
       const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      lastSavedIdRef.current = savedTranId;
       // Saves any document rows staged in the Documents modal but never
       // explicitly submitted via ITS OWN Save button, then links any docs
       // staged under docGuid (before this transaction existed) to the
@@ -807,9 +813,21 @@ export default function PurchaseIndentForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    const printId = lastSavedIdRef.current;
+    if (printId == null) {
+      notify.error("Saved, but couldn't determine the Indent ID to print. Print it from the list instead.");
+    } else {
+      try {
+        await printReport({
+          ...PRINT_REPORT_CONFIG["purchase-indent"],
+          jsonParameters: buildIndentReportParams(printId),
+        });
+      } catch (err) {
+        notify.error(err?.message || "Saved, but failed to generate the print report.");
+      }
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -827,7 +845,7 @@ export default function PurchaseIndentForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving: isSavingIndent,
+    isSaving: isSavingIndent || isPrintingIndent,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -849,11 +867,11 @@ export default function PurchaseIndentForm() {
       ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
-        label: "Save & Print",
+        label: isPrintingIndent ? "Printing…" : "Save & Print",
         Icon: Printer,
         variant: "print",
         onClick: handleSaveAndPrint,
-        disabled: isSavingIndent,
+        disabled: isSavingIndent || isPrintingIndent,
         title: FORM_SHORTCUT_TITLES.savePrint,
       },
       {
@@ -868,7 +886,7 @@ export default function PurchaseIndentForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingIndent, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingIndent, isPrintingIndent, handleSave]
   );
 
   const itemGridConfig = {

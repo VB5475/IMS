@@ -12,19 +12,12 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { createListActionsColumn, isAlwaysHiddenColumnKey } from "../../utils/listGridUtils";
-import { AOP_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { AOP_CONFIG, ENTRY_FORM_LABEL, buildAopReportParams } from "./constants";
 import "./AssetsItemOpeningPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAopReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

@@ -80,7 +80,10 @@ import {
   buildItemPickerJsonPayload,
   resolveItemPickerRbCode,
   resolveItemPickerSpName,
+  buildGoodsReceivedNoteReportParams,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
 import "./GoodsReceivedNoteForm.css";
 
@@ -170,6 +173,7 @@ export default function GoodsReceivedNoteForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrintingGRN } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -1168,9 +1172,18 @@ export default function GoodsReceivedNoteForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    // GoodsReceivedNote.rpt has no per-record filter (see constants.js) —
+    // this fires the same company-wide report the listing Print button does.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["goods-received-note"],
+        jsonParameters: buildGoodsReceivedNoteReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -1218,7 +1231,7 @@ export default function GoodsReceivedNoteForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving,
+    isSaving: isSaving || isPrintingGRN,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -1239,11 +1252,11 @@ export default function GoodsReceivedNoteForm() {
       ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
-        label: "Save & Print",
+        label: isPrintingGRN ? "Printing…" : "Save & Print",
         Icon: Printer,
         variant: "print",
         onClick: handleSaveAndPrint,
-        disabled: isSaving,
+        disabled: isSaving || isPrintingGRN,
         accessKey: "p",
         title: FORM_SHORTCUT_TITLES.savePrint,
       },
@@ -1259,7 +1272,7 @@ export default function GoodsReceivedNoteForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [docLog.documentsButtonEntry, handleSaveAndPrint, isSaving, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSaving, isPrintingGRN, handleSave]
   );
 
   // Direct mode only — PO Base items fetch immediately, no filter step.

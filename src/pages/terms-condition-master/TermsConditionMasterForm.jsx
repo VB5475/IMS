@@ -12,8 +12,15 @@ import Modal from "../../components/ui/Modal";
 import AlertPanel from "../../components/ui/AlertPanel";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import SearchSelect from "../../components/ui/SearchSelect";
-import { DEFAULT_SESSION_ID, getColDefault } from "../../api/constants";
+import {
+  API_BASE_URL_IMS,
+  DEFAULT_SESSION_ID,
+  getColDefault, buildSaveRowFromColumns,
+} from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
+import { useApi } from "../../api/useApi";
+import { withSaveContextFields } from "../../utils/savePayload";
+import { parseApiErrMsg } from "../../utils/apiResponse";
 import { validateApiColumnsByField } from "../../utils/columnValidation";
 import { isMasterFieldLocked, isMasterCheckboxField, getCheckboxValue } from "../../utils/masterFormUtils";
 import { useNotification } from "../../context/NotificationContext";
@@ -28,6 +35,7 @@ export default function TermsConditionMasterForm({
   dropdownOptions = {}, fetchEditRecord,
 }) {
   const isAddMode = mode === "add";
+  const { post } = useApi(API_BASE_URL_IMS);
 
   const [isEditMode, setIsEditMode] = useState(true);
   const [formValues, setFormValues] = useState({});
@@ -169,8 +177,9 @@ export default function TermsConditionMasterForm({
     );
   }
 
-  // Save endpoint isn't confirmed yet (see constants.js) — validate for real
-  // (so the form itself is fully testable), but stop short of posting.
+  // Real save — same shape as every other RB master's handleSave (Voucher
+  // Type Master's, this form's own stated template). SAVE_ENDPOINT confirmed
+  // 2026-09-09 /pm: API/TermnConditionMst/Post_RB_TermnConditionMst_Save.
   const handleSave = useCallback(async () => {
     setFormErrors([]);
     setFieldValidationFailed(false);
@@ -190,11 +199,37 @@ export default function TermsConditionMasterForm({
       return;
     }
 
-    // SAVE_ENDPOINT isn't confirmed yet (see constants.js) — swap this for
-    // the real post call (buildSaveRowFromColumns + useApi().post, same
-    // shape as every other master's handleSave) once it is.
-    notify.info("Save is not wired up yet — the API for this is coming separately.");
-  }, [visibleFields, formValues, notify]);
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      const saveRow = buildSaveRowFromColumns(formValues, allColumns);
+      visibleFields.forEach((f) => {
+        if (isMasterCheckboxField(f) && f.colname in saveRow) {
+          saveRow[f.colname] = getCheckboxValue(formValues[f.colname]);
+        }
+      });
+      const payload = withSaveContextFields(
+        {
+          prmStrMstJSON: JSON.stringify([saveRow]),
+          prmStrDetJSON: JSON.stringify([]),
+        },
+        { divisionId: 0, isEdit: !isAddMode }
+      );
+      const result = await post(TCM_CONFIG.SAVE_ENDPOINT, payload);
+      const { success, message } = parseApiErrMsg(result);
+      if (!success) { setFormErrors([message]); return; }
+      notify.success(message);
+      setFormValues(buildEmptyFromColumns());
+      setFormErrors([]);
+      setSaveError(null);
+      onSaved?.();
+    } catch (err) {
+      console.error("[TCM Save] Failed:", err);
+      setSaveError(err?.message || "Save failed. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [visibleFields, formValues, allColumns, isAddMode, onSaved, notify, post, buildEmptyFromColumns]);
 
   const handleDiscardConfirm = useCallback(() => {
     const action = discardAction;

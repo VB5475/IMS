@@ -1,19 +1,38 @@
-// AssetPartIndentPage.jsx — Asset Part Indent (2026-08-25 /pm; multi-select
-// Master Items 2026-08-29 /pm)
-// Read-only two-grid browse page: Master grid (parts) on top, Detail grid
-// (transactions) below. Both grids load their full dataset for the chosen
-// Division/From/To Date up front; selecting one or more Master rows filters
-// the already-loaded Detail rows client-side by matching masteritemid AND
-// detailitemid against ANY selected Master row — neither fetch function
-// takes a per-row filter parameter.
-import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { PackageSearch, Save, Eye, Download } from "lucide-react";
+// AssetPartIndentPage.jsx — Asset Part Indent
+// Two tabs sharing one filter bar (Division/From/To Date) and one Search —
+// Export to Excel is NOT shared though: each tab has its own Export button,
+// right above that tab's own content, exporting only that tab's data.
+//  - "Date Range Report" (default) — the original three read-only grids
+//    (Matching Transactions, Master Items, Location Part Count), side by
+//    side. No row selection, no cross-grid filtering, no preview. Save posts
+//    the full currently-loaded Matching Transactions dataset — this is the
+//    only tab with a Save/Cancel action bar, since it's the only one backed
+//    by an actual indent-save flow; the other tab is a pure report view.
+//  - "QTY & Rate" (2026-09-09 /pm) — fn_tbl_AstDateGroupWsPartDetail, same
+//    5-param filter contract as the other SPs, but rendered and exported
+//    grouped by date per the reference the user shared: one small table per
+//    date (Sr No/Particular/Quantity/Rate/Amount, "Total :" row summing
+//    Quantity/Amount), stacked top to bottom — not one flat grid.
+//  - "Per chair Repairing Cost" (2026-09-10 /pm, new) — a single flat grid
+//    over fn_tbl_AstDatePerAssetRepairingCost (SrNo/PO Date/PO Month/Asset
+//    Count/Total Cost/Per Asset Repairing Cost — confirmed live), with an
+//    "Overall TOTAL :" row (Asset Count and Total Cost summed, Per Asset
+//    Repairing Cost re-derived as Total Cost/Asset Count rather than summed
+//    — same average-not-sum pattern as Location Part Count's Average Rate).
+//    The reference the user shared also has Actual/Utilized/Balance Budget
+//    columns; this SP does not return them at all (confirmed live) — a
+//    separate budget-tracking source this fetch has no access to, not
+//    something left out by mistake, so they are not in the list or export.
+// Master Items carries one highlighted trailing row (on-screen and in the
+// Excel export) — Total Qty/Total Amount. Location Part Count carries two
+// highlighted trailing rows — Total Count/Total Amount, then Average Rate
+// (= Total Amount / Total Count) on the row below.
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { PackageSearch, Save, Download } from "lucide-react";
 import EnterpriseDataGrid from "../../components/grid/EnterpriseDataGrid";
-import CollapsibleGrid from "../../components/grid/CollapsibleGrid";
 import SearchSelect from "../../components/ui/SearchSelect";
 import DateInput from "../../components/ui/DateInput";
 import ActionBar from "../../components/ui/ActionBar";
-import Modal from "../../components/ui/Modal";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { useNotification } from "../../context/NotificationContext";
 import { useApi } from "../../api/useApi";
@@ -22,12 +41,12 @@ import { useAssetPartIndent } from "../../hooks/useAssetPartIndent";
 import { useReportFilterOptions } from "../../hooks/useReportFilterOptions";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { buildListColumnsFromRows } from "../../utils/listGridUtils";
-import { getTodayDateInputValue } from "../../utils/dateFormat";
+import { getTodayDateInputValue, parseFlexibleDate } from "../../utils/dateFormat";
 import { getUserSession } from "../../session/userSession";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { withSaveContextFields, buildSaveJsonFields } from "../../utils/savePayload";
-import { exportSideBySideTablesToExcel } from "../../utils/excelExport";
-import { APIN_CONFIG, APIN_MASTER_KEY_FIELDS } from "./constants";
+import { exportSideBySideTablesToExcel, exportStackedTablesToExcel } from "../../utils/excelExport";
+import { APIN_CONFIG } from "./constants";
 import "./AssetPartIndentPage.css";
 
 function buildDefaultFilters() {
@@ -47,62 +66,80 @@ function buildDefaultFilters() {
   };
 }
 
-function masterRowKey(row) {
-  const [masterField, detailField] = APIN_MASTER_KEY_FIELDS;
-  return `${resolveRowFieldValue(row, masterField) ?? ""}-${resolveRowFieldValue(row, detailField) ?? ""}`;
-}
-
-// Human-readable label for grouping the Preview Selection panel — same two
-// columns shown in the Master Items grid itself.
-function masterRowLabel(row) {
-  const item = resolveRowFieldValue(row, "Asset Item Name") ?? "";
-  const material = resolveRowFieldValue(row, "Part Material") ?? "";
-  return [item, material].filter(Boolean).join(" — ") || "—";
-}
-
-// 2026-08-29 /pm — was `${masterRowKey(row)}-${index}`. `index` came from
-// whatever array .map() happened to run over — filteredDetailRows (the full
-// set) in this page, but EnterpriseDataGrid computes its own row keys from
-// currentData (the already-paginated slice, index always restarting at 0
-// per page). Same logical row got two different keys depending on which of
-// those computed it, so selection silently failed to carry over past page 1
-// the moment there were enough matches to paginate — real bug, not just a
-// "does select-all span every page" question. trandetid (confirmed on every
-// live row) is a real per-row id and stays identical no matter which array
-// or page a row is read from; index is now only a last-resort fallback.
-function detailRowKey(row, index) {
-  const trandetid = resolveRowFieldValue(row, "trandetid");
-  if (trandetid != null && trandetid !== "") return `trandetid-${trandetid}`;
-  return `${masterRowKey(row)}-${index}`;
+// EnterpriseDataGrid's own CSS reserves height for a fixed 10 rows by
+// default (--ng-max-rows), regardless of how many rows actually exist — the
+// right default for a normal full-width list page, but it's exactly what
+// left blank space below short grids once three of them share one row
+// here. The variable is documented as overridable via inline style and
+// inherits down through the DOM, so setting it per-section (sized to that
+// grid's own row count, floored at 1 and capped at 10 to match the default
+// page size) makes each box hug its actual content instead.
+function gridRowStyle(rowCount) {
+  return { "--ng-max-rows": Math.min(Math.max(rowCount, 1), 10) };
 }
 
 // Excel export needs plain objects keyed by column.key (raw property access,
 // same contract as csvExport.js's buildCsvContent) — this page's own columns
 // come from dynamic API data with mixed-case field names, so every read goes
-// through resolveRowFieldValue rather than direct property access.
+// through resolveRowFieldValue rather than direct property access. Carries
+// __isSummaryRow through as __isTotal so exportSideBySideTablesToExcel bold-
+// renders it — without this, a Total/Average Rate row that's highlighted
+// on-screen would come out as a plain unbolded row in the export.
 function resolveRowByColumns(row, columns) {
   const out = {};
   columns.forEach((c) => { out[c.key] = resolveRowFieldValue(row, c.key) ?? ""; });
+  if (row.__isSummaryRow) out.__isTotal = true;
   return out;
+}
+
+// 2026-09-10 /pm — every grid on this page only, per request: plain display
+// tables, no per-column sort/filter. buildListColumnsFromRows defaults every
+// column to filterable:true (and sortable is on unless explicitly false), so
+// this strips both back off rather than touching that shared default — scoped
+// to Asset Part Indent's own column-building, not the shared column builder
+// or any other list page.
+function stripGridInteractivity(columns) {
+  return columns.map((c) => ({ ...c, filterable: false, sortable: false }));
+}
+
+const TABS = [
+  { key: "dateRange", label: "Date Range Report" },
+  { key: "dateGroup", label: "Date Wise Part Summary" },
+  { key: "perChairCost", label: "Per Asset Repairing Cost" },
+];
+
+// "25-04-2025" — matches the reference's numeric dd-mm-yyyy group headers,
+// not this app's usual dd-Mon-yyyy list-date display.
+function formatGroupDateLabel(value) {
+  const d = value instanceof Date ? value : parseFlexibleDate(value);
+  if (!d || Number.isNaN(d.getTime())) return String(value ?? "");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}-${mm}-${d.getFullYear()}`;
 }
 
 export default function AssetPartIndentPage() {
   const notify = useNotification();
   const { post: postSave } = useApi(API_BASE_URL_IMS);
   const { divisionOptions, optionsLoading, fetchOptions } = useReportFilterOptions();
-  const { masterRows, detailRows, loading, error, fetchGrids } = useAssetPartIndent();
+  const {
+    masterRows,
+    detailRows,
+    locCountRows,
+    dateGroupRows,
+    perChairCostRows,
+    loading,
+    error,
+    fetchGrids,
+  } = useAssetPartIndent();
 
   const [filters, setFilters] = useState(buildDefaultFilters);
-  const [selectedMasterKeys, setSelectedMasterKeys] = useState([]);
-  const [selectedDetailKeys, setSelectedDetailKeys] = useState([]);
-  // Detail row keys ever shown on this page since the last fresh Search —
-  // see the sticky auto-select effect below.
-  const seenDetailKeysRef = useRef(new Set());
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(TABS[0].key);
 
   usePageHeader({
     title: "Asset Part Indent",
-    subtitle: "Browse asset part items and their matching transactions.",
+    subtitle: "Browse asset part items, their matching transactions, and location-wise part counts.",
   });
 
   useEffect(() => {
@@ -110,18 +147,14 @@ export default function AssetPartIndentPage() {
   }, [fetchOptions]);
 
   const handleSearch = useCallback(() => {
-    setSelectedMasterKeys([]);
-    seenDetailKeysRef.current = new Set();
     fetchGrids(filters);
   }, [filters, fetchGrids]);
 
-  // Discards the current selection/filters and reloads the default view —
-  // same "Cancel = discard" convention as every other transaction form.
+  // Discards the current filters and reloads the default view — same
+  // "Cancel = discard" convention as every other transaction form.
   const handleCancel = useCallback(() => {
     const defaults = buildDefaultFilters();
     setFilters(defaults);
-    setSelectedMasterKeys([]);
-    seenDetailKeysRef.current = new Set();
     fetchGrids(defaults);
   }, [fetchGrids]);
 
@@ -131,196 +164,346 @@ export default function AssetPartIndentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // MasterItemID/DetailItemID drive the match logic but stay hidden from
-  // both grids — 2026-08-25 /pm.
-  const isHiddenKeyColumn = useCallback((col) => {
-    const lower = String(col.key ?? "").toLowerCase();
-    return APIN_MASTER_KEY_FIELDS.includes(lower);
+  // buildListColumnsFromRows infers a per-column minWidth (e.g. 110px for
+  // Rate/QTY/Amount, but 140-200px for text columns) sized for this app's
+  // normal full-width list pages — EnterpriseDataGrid applies minWidth as a
+  // real CSS min-width, which wins over any smaller `width` we set, so three
+  // grids crammed into one row would overflow into horizontal scroll no
+  // matter what `width` says. And even that generic 100-120px guess is too
+  // generous once several narrow columns share one cramped grid (e.g. Sr No
+  // + Rate + QTY + Amount already sums past a ~440px column on its own) —
+  // so narrow columns are instead sized to their own actual longest value
+  // (header included). Remaining (text) columns split whatever width is
+  // left equally, via `min(equal share, that column's own content-fit
+  // width)` — a lone wide column (e.g. Master's Particular) is capped at
+  // what its own values actually need instead of consuming 100% of
+  // whatever's left over, while a grid with several genuinely-wide text
+  // columns (e.g. Matching Transactions) still gets the full equal share it
+  // needs to avoid horizontal scroll, since the content-fit cap only bites
+  // when it's smaller than the share.
+  const NARROW_COLUMN_MAX_WIDTH = 130;
+  // Deliberately low — this is only a floor against a column collapsing to
+  // 0, not a "comfortable" width. A higher floor risks the exact bug this
+  // whole function exists to avoid: EnterpriseDataGrid applies minWidth as
+  // real CSS min-width, so a floor bigger than a cramped grid's own
+  // equal-share calc silently overrides that calc back upward — confirmed
+  // live at 70px, which clamped every wide column up just enough to
+  // reintroduce a few px of horizontal overflow.
+  const FLEX_COLUMN_MIN_WIDTH = 36;
+  const measureContentWidth = useCallback((col, rows) => {
+    let maxLen = String(col.label ?? col.key).length;
+    rows.forEach((row) => {
+      const val = resolveRowFieldValue(row, col.key);
+      if (val != null && val !== "") {
+        const len = String(val).length;
+        if (len > maxLen) maxLen = len;
+      }
+    });
+    return Math.min(Math.max(maxLen * 8 + 28, 56), 260);
   }, []);
-
-  // Both grids here have very few data columns, which starves the checkbox
-  // column of its declared 40px under the shared grid's fixed table-layout —
-  // with no "auto" column left to absorb the table's forced 100% width, the
-  // layout algorithm has nowhere else to redistribute the remainder into.
-  // Giving every data column an explicit, even share of "the rest" removes
-  // that ambiguity so the checkbox column's 40px actually holds.
-  const withEvenWidths = useCallback((cols) => {
+  const withFitWidths = useCallback((cols, rows) => {
     if (cols.length === 0) return cols;
-    const width = `calc((100% - 40px) / ${cols.length})`;
-    return cols.map((col) => ({ ...col, width }));
-  }, []);
+    const isNarrow = (col) => (col.minWidth ?? 140) <= NARROW_COLUMN_MAX_WIDTH;
+    const contentWidths = new Map(cols.map((col) => [col.key, measureContentWidth(col, rows)]));
+    const wideCols = cols.filter((col) => !isNarrow(col));
+    const narrowTotalPx = cols
+      .filter(isNarrow)
+      .reduce((sum, col) => sum + contentWidths.get(col.key), 0);
+    // -12px reserves room for the grid's own vertical scrollbar (8px, see
+    // EnterpriseDataGrid.css's .ng-table-wrapper), which only appears once
+    // wrapped row text pushes content past the reserved row height — without
+    // this the columns are sized against the wrapper's full width, then the
+    // scrollbar shows up afterward and steals it back, causing a few px of
+    // horizontal overflow.
+    const equalShare = wideCols.length > 0 ? `((100% - ${narrowTotalPx}px - 12px) / ${wideCols.length})` : null;
+    return cols.map((col) => {
+      const contentPx = contentWidths.get(col.key);
+      if (isNarrow(col)) {
+        return { ...col, width: `${contentPx}px`, minWidth: contentPx };
+      }
+      return {
+        ...col,
+        width: equalShare ? `min(calc(${equalShare}), ${contentPx}px)` : `${contentPx}px`,
+        minWidth: FLEX_COLUMN_MIN_WIDTH,
+      };
+    });
+  }, [measureContentWidth]);
 
   const masterColumns = useMemo(
-    () => withEvenWidths(buildListColumnsFromRows(masterRows).filter((col) => !isHiddenKeyColumn(col))),
-    [masterRows, isHiddenKeyColumn, withEvenWidths]
+    () => stripGridInteractivity(withFitWidths(buildListColumnsFromRows(masterRows), masterRows)),
+    [masterRows, withFitWidths]
   );
+
+  // Trailing row appended to Master Items (on-screen and in the Excel
+  // export): a highlighted Total row (Qty/Amount summed). Column keys are
+  // detected from masterColumns rather than hardcoded, since they come from
+  // dynamic API data (confirmed live: "Sr No"/"Particular"/"Rate"/"QTY"/
+  // "Amount"). 2026-09-09 /pm — Average Rate moved to Location Part Count.
+  const masterSummaryRows = useMemo(() => {
+    if (masterRows.length === 0) return [];
+    const labelCol = masterColumns.find((c) => /particular/i.test(c.key)) ?? masterColumns[0];
+    const qtyCol = masterColumns.find((c) => /qty/i.test(c.key));
+    const amountCol = masterColumns.find((c) => /amount/i.test(c.key));
+    if (!labelCol || !qtyCol || !amountCol) return [];
+
+    const totalQty = masterRows.reduce((sum, r) => sum + (Number(resolveRowFieldValue(r, qtyCol.key)) || 0), 0);
+    const totalAmount = masterRows.reduce((sum, r) => sum + (Number(resolveRowFieldValue(r, amountCol.key)) || 0), 0);
+
+    return [{
+      [labelCol.key]: "Total :",
+      [qtyCol.key]: totalQty,
+      [amountCol.key]: totalAmount,
+      __isSummaryRow: true,
+    }];
+  }, [masterRows, masterColumns]);
+
+  const masterDisplayRows = useMemo(
+    () => [...masterRows, ...masterSummaryRows],
+    [masterRows, masterSummaryRows]
+  );
+
+  // CallGenPartDtlID is an internal linking id on Matching Transactions rows
+  // (confirmed live: only fn_tbl_AstSrNoWsPartDetail returns it, not the
+  // other two SPs) — hidden from both the on-screen grid and, since
+  // detailColumns also drives handleExportExcel below, the Excel export.
   const detailColumns = useMemo(
-    () => withEvenWidths(buildListColumnsFromRows(detailRows).filter((col) => !isHiddenKeyColumn(col))),
-    [detailRows, isHiddenKeyColumn, withEvenWidths]
+    () =>
+      stripGridInteractivity(
+        withFitWidths(buildListColumnsFromRows(detailRows, { hiddenKeys: ["CallGenPartDtlID"] }), detailRows)
+      ),
+    [detailRows, withFitWidths]
+  );
+  const locCountColumns = useMemo(
+    () => stripGridInteractivity(withFitWidths(buildListColumnsFromRows(locCountRows), locCountRows)),
+    [locCountRows, withFitWidths]
   );
 
-  // Multi-select (2026-08-29 /pm) — Master Items allows selecting more than
-  // one row; Detail is filtered to whatever matches ANY of them.
-  const selectedMasterKeySet = useMemo(() => new Set(selectedMasterKeys), [selectedMasterKeys]);
-  const selectedMasterRows = useMemo(
-    () => masterRows.filter((row) => selectedMasterKeySet.has(masterRowKey(row))),
-    [masterRows, selectedMasterKeySet]
+  // Tab 2 — displayed and exported grouped by date, per the reference: one
+  // small table per date, columns Sr No/Particular/Quantity/Rate/Amount (the
+  // date column itself pulled out to become each group's own title), each
+  // ending in a highlighted Total row (Quantity + Amount summed, same
+  // pattern as Master Items'/Location Part Count's own summary rows above).
+  const dateGroupAllColumns = useMemo(() => buildListColumnsFromRows(dateGroupRows), [dateGroupRows]);
+  const dateGroupDateCol = useMemo(
+    () => dateGroupAllColumns.find((c) => c.filterType === "date") ?? dateGroupAllColumns[0] ?? null,
+    [dateGroupAllColumns]
+  );
+  // Every group's rows share this column set — Sr No/Particular/Quantity/
+  // Rate/Amount minus whichever column turned out to be the date.
+  const dateGroupColumns = useMemo(
+    () =>
+      stripGridInteractivity(
+        buildListColumnsFromRows(dateGroupRows, { hiddenKeys: dateGroupDateCol ? [dateGroupDateCol.key] : [] })
+      ),
+    [dateGroupRows, dateGroupDateCol]
   );
 
-  // Empty until at least one Master row is picked — then narrow to the detail
-  // rows that share BOTH its masteritemid and detailitemid (masteritemid
-  // alone is shared by every part line on the same indent), unioned across
-  // every currently-selected Master row.
-  const filteredDetailRows = useMemo(() => {
-    if (selectedMasterRows.length === 0) return [];
-    const [masterField, detailField] = APIN_MASTER_KEY_FIELDS;
-    const selectedPairs = selectedMasterRows.map((row) => ({
-      masterVal: String(resolveRowFieldValue(row, masterField) ?? ""),
-      detailVal: String(resolveRowFieldValue(row, detailField) ?? ""),
-    }));
-    return detailRows.filter((row) => {
-      const rowMasterVal = String(resolveRowFieldValue(row, masterField) ?? "");
-      const rowDetailVal = String(resolveRowFieldValue(row, detailField) ?? "");
-      return selectedPairs.some(
-        (pair) => pair.masterVal === rowMasterVal && pair.detailVal === rowDetailVal
-      );
-    });
-  }, [detailRows, selectedMasterRows]);
+  const dateGroupBlocks = useMemo(() => {
+    if (!dateGroupDateCol || dateGroupRows.length === 0) return [];
+    const labelCol = dateGroupColumns.find((c) => /particular/i.test(c.key)) ?? dateGroupColumns[0];
+    const qtyCol = dateGroupColumns.find((c) => /qty|quantity/i.test(c.key));
+    const amountCol = dateGroupColumns.find((c) => /amount/i.test(c.key));
 
-  // Auto-select every matching row the first time it's ever seen (2026-08-25
-  // /pm) — the user picks a Master row to see what would be included, then
-  // deselects anything they don't want before Save.
-  //
-  // 2026-08-29 /pm — made additive/sticky. Originally this just replaced the
-  // whole selection with "everything currently in filteredDetailRows" on
-  // every recompute, which was fine for a single Master row but broke the
-  // moment Master Items got multi-select: picking a SECOND Master row
-  // recomputes filteredDetailRows into a bigger array, and this effect would
-  // re-select the FIRST Master row's rows too — silently undoing whatever
-  // the user had already manually deselected for it. seenDetailKeysRef
-  // tracks every row key this page has shown at least once (reset on a
-  // fresh Search/Cancel); a key seen for the first time still auto-selects,
-  // but a key seen before keeps whatever the user last set it to, even if it
-  // temporarily left and re-entered filteredDetailRows via Master-item
-  // toggling.
-  useEffect(() => {
-    const currentKeys = filteredDetailRows.map((row, index) => detailRowKey(row, index));
-    // Classify each key as "already seen" vs "brand new" against a frozen
-    // snapshot BEFORE touching the ref, then mutate the ref. setSelectedDetailKeys'
-    // updater below can run asynchronously (React doesn't guarantee it executes
-    // before this effect body finishes) — reading the *live* ref from inside
-    // that updater meant it could see keys as "already seen" that this very
-    // effect pass had only just marked as seen moments earlier via the
-    // forEach, making every row look pre-existing and none get auto-selected.
-    const alreadySeen = new Set(currentKeys.filter((key) => seenDetailKeysRef.current.has(key)));
-    currentKeys.forEach((key) => seenDetailKeysRef.current.add(key));
-
-    setSelectedDetailKeys((prev) => {
-      const prevSet = new Set(prev);
-      return currentKeys.filter((key) => (alreadySeen.has(key) ? prevSet.has(key) : true));
-    });
-  }, [filteredDetailRows]);
-
-  // 2026-08-29 /pm — EnterpriseDataGrid's own header checkbox is
-  // deliberately page-scoped ("Select all rows on this page", shared across
-  // every list page in the app that uses it — not something to change
-  // globally for this one module). These two operate on the full,
-  // unpaginated filteredDetailRows instead, so re-selecting everything after
-  // manually deselecting some rows can't silently drop rows sitting on a
-  // page the user isn't currently viewing.
-  const handleSelectAllDetail = useCallback(() => {
-    setSelectedDetailKeys(filteredDetailRows.map((row, index) => detailRowKey(row, index)));
-  }, [filteredDetailRows]);
-
-  const handleClearDetailSelection = useCallback(() => {
-    setSelectedDetailKeys([]);
-  }, []);
-
-  // Single source of truth for "what will actually be saved" — used by both
-  // handleSave and the Preview Selection panel below, so the preview can
-  // never show something different from what Save actually sends.
-  const selectedDetailRows = useMemo(() => {
-    const keySet = new Set(selectedDetailKeys);
-    return filteredDetailRows.filter((row, index) => keySet.has(detailRowKey(row, index)));
-  }, [filteredDetailRows, selectedDetailKeys]);
-
-  // 2026-08-29 /pm — optional "Preview Selection" panel. Purely informational:
-  // groups the currently-selected rows by their Master item so it's easy to
-  // eyeball "1 from Chair Handle, 2 from Chair Wheel, ..." before Save.
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const previewGroups = useMemo(() => {
     const groups = new Map();
-    selectedDetailRows.forEach((row) => {
-      const key = masterRowKey(row);
-      if (!groups.has(key)) {
-        const masterRow = selectedMasterRows.find((m) => masterRowKey(m) === key);
-        groups.set(key, { label: masterRow ? masterRowLabel(masterRow) : key, rows: [] });
+    dateGroupRows.forEach((row) => {
+      const rawDate = resolveRowFieldValue(row, dateGroupDateCol.key);
+      const label = formatGroupDateLabel(rawDate);
+      if (!groups.has(label)) {
+        const parsed = parseFlexibleDate(rawDate);
+        groups.set(label, {
+          label,
+          sortKey: parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : 0,
+          rows: [],
+        });
       }
-      groups.get(key).rows.push(row);
+      groups.get(label).rows.push(row);
     });
-    return Array.from(groups.values());
-  }, [selectedDetailRows, selectedMasterRows]);
 
-  // Real .xlsx, one sheet: Master Items table, then a titled Matching
-  // Transactions table stacked below it once Master Items ends — both with
-  // Grouped by Division + Item Name, summing Base Qty, plus a bold grand-
-  // total row — the Summary table in the Excel export (no on-screen
-  // equivalent; this is export-only, built fresh from the current
-  // selection each time).
-  const summaryRows = useMemo(() => {
-    const groups = new Map();
-    selectedDetailRows.forEach((row) => {
-      const division = resolveRowFieldValue(row, "Division") ?? "";
-      const itemName = resolveRowFieldValue(row, "Item Name") ?? "";
-      const qty = Number(resolveRowFieldValue(row, "Base Qty")) || 0;
-      const key = `${division}-${itemName}`;
-      if (!groups.has(key)) groups.set(key, { division, itemName, totalQty: 0 });
-      groups.get(key).totalQty += qty;
-    });
-    const rows = Array.from(groups.values()).sort(
-      (a, b) => a.division.localeCompare(b.division) || a.itemName.localeCompare(b.itemName)
+    return Array.from(groups.values())
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .map((group) => {
+        if (!labelCol || (!qtyCol && !amountCol)) {
+          return { ...group, displayRows: group.rows };
+        }
+        const summaryRow = { [labelCol.key]: "Total :", __isSummaryRow: true };
+        if (qtyCol) {
+          summaryRow[qtyCol.key] = group.rows.reduce(
+            (sum, r) => sum + (Number(resolveRowFieldValue(r, qtyCol.key)) || 0),
+            0
+          );
+        }
+        if (amountCol) {
+          summaryRow[amountCol.key] = group.rows.reduce(
+            (sum, r) => sum + (Number(resolveRowFieldValue(r, amountCol.key)) || 0),
+            0
+          );
+        }
+        return { ...group, displayRows: [...group.rows, summaryRow] };
+      });
+  }, [dateGroupRows, dateGroupDateCol, dateGroupColumns]);
+
+  // Tab 3 — one flat grid (no grouping), with an Overall TOTAL row: Asset
+  // Count and Total Cost summed, Per Asset Repairing Cost re-derived as
+  // Total Cost / Asset Count (an average, not a sum — same pattern as
+  // Location Part Count's Average Rate above).
+  const perChairCostColumns = useMemo(
+    () =>
+      stripGridInteractivity(
+        buildListColumnsFromRows(perChairCostRows).map((c) =>
+          /perassetrepairingcost/i.test(c.key.replace(/\s+/g, ""))
+            ? { ...c, label: "Per Chair Repairing Cost" }
+            : c
+        )
+      ),
+    [perChairCostRows]
+  );
+
+  const perChairCostSummaryRows = useMemo(() => {
+    if (perChairCostRows.length === 0) return [];
+    // Not a date/number column — putting the "Overall TOTAL :" label under a
+    // date-typed column (e.g. "PO Date") doesn't work: the grid formats
+    // date-column cells as dates for display, so a plain label string in
+    // one silently renders as "—" instead of the text (confirmed live).
+    const labelCol =
+      perChairCostColumns.find((c) => c.filterType !== "date" && c.filterType !== "number")
+      ?? perChairCostColumns[0];
+    const qtyCol = perChairCostColumns.find((c) => /assetcount|qty/i.test(c.key.replace(/\s+/g, "")));
+    const totalCostCol = perChairCostColumns.find((c) => /totalcost/i.test(c.key.replace(/\s+/g, "")));
+    const perCostCol = perChairCostColumns.find((c) => /perassetrepairingcost|perchairrepairingcost/i.test(c.key.replace(/\s+/g, "")));
+    if (!labelCol || (!qtyCol && !totalCostCol)) return [];
+
+    const totalQty = qtyCol
+      ? perChairCostRows.reduce((sum, r) => sum + (Number(resolveRowFieldValue(r, qtyCol.key)) || 0), 0)
+      : 0;
+    const totalCost = totalCostCol
+      ? perChairCostRows.reduce((sum, r) => sum + (Number(resolveRowFieldValue(r, totalCostCol.key)) || 0), 0)
+      : 0;
+
+    const summaryRow = { [labelCol.key]: "Overall TOTAL :", __isSummaryRow: true };
+    if (qtyCol) summaryRow[qtyCol.key] = totalQty;
+    if (totalCostCol) summaryRow[totalCostCol.key] = totalCost;
+    if (perCostCol && qtyCol && totalQty !== 0) {
+      summaryRow[perCostCol.key] = Number((totalCost / totalQty).toFixed(2));
+    }
+    return [summaryRow];
+  }, [perChairCostRows, perChairCostColumns]);
+
+  const perChairCostDisplayRows = useMemo(
+    () => [...perChairCostRows, ...perChairCostSummaryRows],
+    [perChairCostRows, perChairCostSummaryRows]
+  );
+
+  // Two trailing rows appended to Location Part Count (2026-09-09 /pm —
+  // moved here from Master Items): a highlighted Total row (summing
+  // whatever numeric columns exist — the dynamic item-count column, e.g.
+  // "Chairs"/"Asset Count", plus Amount) and, below it, a highlighted
+  // Average Rate row (= Total Amount / Total Count). This grid has no Qty/
+  // Rate columns like Master, so the "count" column is detected generically
+  // as whichever numeric column isn't Amount, rather than hardcoded by name
+  // (it varies per item type).
+  const locCountSummaryRows = useMemo(() => {
+    if (locCountRows.length === 0) return [];
+    const labelCol = locCountColumns.find((c) => /floor|location/i.test(c.key)) ?? locCountColumns[0];
+    const amountCol = locCountColumns.find((c) => /amount/i.test(c.key));
+    const countCol = locCountColumns.find(
+      (c) => c.filterType === "number" && c.key !== amountCol?.key
     );
-    const grandTotal = rows.reduce((sum, r) => sum + r.totalQty, 0);
-    rows.push({ division: "", itemName: "Total :", totalQty: grandTotal, __isTotal: true });
-    return rows;
-  }, [selectedDetailRows]);
+    if (!labelCol || !amountCol || !countCol) return [];
 
-  // Real .xlsx, one sheet, three tables side by side — Transactions | Master
-  // | Summary — matching a reference report layout the user provided,
-  // rather than stacked (the earlier design, which needed cross-table width
-  // matching that side-by-side tables don't need at all).
+    const totalCount = locCountRows.reduce((sum, r) => sum + (Number(resolveRowFieldValue(r, countCol.key)) || 0), 0);
+    const totalAmount = locCountRows.reduce((sum, r) => sum + (Number(resolveRowFieldValue(r, amountCol.key)) || 0), 0);
+    const avgRate = totalCount !== 0 ? totalAmount / totalCount : 0;
+
+    const totalRow = {
+      [labelCol.key]: "Total :",
+      [countCol.key]: totalCount,
+      [amountCol.key]: totalAmount,
+      __isSummaryRow: true,
+    };
+    const avgRow = {
+      [labelCol.key]: "Average Rate :",
+      [amountCol.key]: Number(avgRate.toFixed(4)),
+      __isSummaryRow: true,
+    };
+    return [totalRow, avgRow];
+  }, [locCountRows, locCountColumns]);
+
+  const locCountDisplayRows = useMemo(
+    () => [...locCountRows, ...locCountSummaryRows],
+    [locCountRows, locCountSummaryRows]
+  );
+
+  // Shared by Master Items and Location Part Count — the neutral
+  // "ng-row--status-summary" highlight (bold + tinted background) rather
+  // than the approval-status greens/ambers this same getRowState mechanism
+  // is normally used for elsewhere in the app.
+  const getSummaryRowState = useCallback(
+    (row) => (row.__isSummaryRow ? { statusKey: "summary" } : null),
+    []
+  );
+
+  // Real .xlsx, one sheet, three tables side by side — Transactions |
+  // Master | Location Part Count — mirroring the three on-screen grids
+  // exactly (2026-09-09 /pm — the 3rd table used to be a separately
+  // recomputed "Summary" grouping of Matching Transactions that didn't
+  // match the real Location Part Count grid at all; replaced with the same
+  // locCountDisplayRows/locCountColumns the on-screen grid uses, so the
+  // export can never disagree with what's shown). Every table is the full
+  // currently-loaded dataset (2026-09-09 /pm — no more row selection to
+  // export a subset of).
   const handleExportExcel = useCallback(() => {
     const tables = [
       {
-        title: "Transactions",
+        title: "Asset TagID Wise Detail",
         columns: detailColumns,
-        rows: selectedDetailRows.map((r) => resolveRowByColumns(r, detailColumns)),
+        rows: detailRows.map((r) => resolveRowByColumns(r, detailColumns)),
       },
       {
-        title: "Master",
+        title: "Asset Part Wise Summary",
         columns: masterColumns,
-        rows: selectedMasterRows.map((r) => resolveRowByColumns(r, masterColumns)),
+        rows: masterDisplayRows.map((r) => resolveRowByColumns(r, masterColumns)),
       },
       {
-        title: "Summary",
-        columns: [
-          { key: "division", label: "Division" },
-          { key: "itemName", label: "Item Name" },
-          { key: "totalQty", label: "Total Qty" },
-        ],
-        rows: summaryRows,
+        title: "Asset Location Wise Summary",
+        columns: locCountColumns,
+        rows: locCountDisplayRows.map((r) => resolveRowByColumns(r, locCountColumns)),
       },
     ];
     exportSideBySideTablesToExcel(tables, "Asset_Part_Indent_export.xlsx");
-  }, [masterColumns, detailColumns, selectedMasterRows, selectedDetailRows, summaryRows]);
+  }, [masterColumns, detailColumns, masterDisplayRows, detailRows, locCountColumns, locCountDisplayRows]);
 
-  // Posts only the checked (2026-08-25 /pm) Detail rows — prmStrDetJSON is
-  // "selected rows array objects" per the user's own API spec, not the full
-  // filtered set. Division comes from the filter bar's own selection, same
-  // value the grids were just loaded with.
+  // Date Wise Part Summary's own export — one table per date group, stacked,
+  // mirroring the on-screen blocks exactly (same displayRows, same Total row).
+  const handleExportDateGroupExcel = useCallback(() => {
+    const tables = dateGroupBlocks.map((group) => ({
+      title: group.label,
+      columns: dateGroupColumns,
+      rows: group.displayRows.map((r) => resolveRowByColumns(r, dateGroupColumns)),
+    }));
+    exportStackedTablesToExcel(tables, "Asset_Part_Indent_Date_Wise_Part_Summary_export.xlsx");
+  }, [dateGroupBlocks, dateGroupColumns]);
+
+  // Per Asset Repairing Cost's own export — one flat table, Overall TOTAL
+  // row bolded (exportStackedTablesToExcel handles a single-table list fine,
+  // and keeps the same title/header/total styling as the other two tabs).
+  const handleExportPerChairCostExcel = useCallback(() => {
+    const tables = [
+      {
+        title: "Per Asset Repairing Cost",
+        columns: perChairCostColumns,
+        rows: perChairCostDisplayRows.map((r) => resolveRowByColumns(r, perChairCostColumns)),
+      },
+    ];
+    exportStackedTablesToExcel(tables, "Asset_Part_Indent_Per_Asset_Repairing_Cost_export.xlsx");
+  }, [perChairCostColumns, perChairCostDisplayRows]);
+
+  // 2026-09-09 /pm — posts the full currently-loaded Matching Transactions
+  // dataset. Previously posted only the checkbox-selected subset, but the
+  // selection UI has been removed entirely (every grid now just displays
+  // everything it fetched), so "what gets saved" is simply "what's loaded".
   const handleSave = useCallback(async () => {
-    if (selectedDetailKeys.length === 0) {
-      notify.error("Select at least one transaction row before saving.");
+    if (detailRows.length === 0) {
+      notify.error("No transactions to save for the selected filters.");
       return;
     }
     const divisionId = Number(filters.divisionId) || 0;
@@ -330,7 +513,7 @@ export default function AssetPartIndentPage() {
     }
 
     const payload = withSaveContextFields(
-      buildSaveJsonFields({ label: APIN_CONFIG.PAGE_TITLE, det: selectedDetailRows }),
+      buildSaveJsonFields({ label: APIN_CONFIG.PAGE_TITLE, det: detailRows }),
       { divisionId, isEdit: false }
     );
 
@@ -350,7 +533,7 @@ export default function AssetPartIndentPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedDetailKeys, selectedDetailRows, filters.divisionId, postSave, notify, handleCancel]);
+  }, [detailRows, filters.divisionId, postSave, notify, handleCancel]);
 
   return (
     <div className="workspace-page apin-page">
@@ -386,134 +569,194 @@ export default function AssetPartIndentPage() {
         <button type="button" className="apin-search-btn" onClick={handleSearch} disabled={loading}>
           {loading ? "Loading…" : "Search"}
         </button>
-        <button
-          type="button"
-          className="apin-export-btn"
-          onClick={handleExportExcel}
-          disabled={selectedDetailKeys.length === 0}
-          title="Export the selected Master Items and their Matching Transactions to Excel"
-        >
-          <Download size={14} strokeWidth={2} />
-          Export to Excel
-        </button>
       </section>
 
       {error && <div className="apin-error">{error}</div>}
 
-      <section className="apin-grid-section">
-        <EnterpriseDataGrid
-          title="Master Items"
-          icon={<PackageSearch size={16} strokeWidth={2} />}
-          columns={masterColumns}
-          data={masterRows}
-          loading={loading}
-          error={null}
-          loaderText="Loading master items…"
-          emptyMessage="No Asset Part master items found for the selected filters."
-          selectable
-          selectedRowKeys={selectedMasterKeys}
-          onSelectionChange={setSelectedMasterKeys}
-          getRowKey={(row) => masterRowKey(row)}
-        />
-      </section>
+      <div className="apin-tabs" role="tablist" aria-label="Asset Part Indent report tabs">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            className={`apin-tab${activeTab === tab.key ? " apin-tab--active" : ""}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <section className="apin-grid-section">
-        <div className="apin-selection-toolbar">
-          <span className="apin-selection-toolbar__count">
-            {selectedDetailKeys.length} of {filteredDetailRows.length} transaction{filteredDetailRows.length !== 1 ? "s" : ""} selected
-          </span>
-          <div className="apin-selection-toolbar__actions">
+      {activeTab === "dateRange" && (
+        <>
+          <div className="apin-tab-toolbar">
             <button
               type="button"
-              className="apin-selection-toolbar__btn"
-              onClick={handleSelectAllDetail}
-              disabled={filteredDetailRows.length === 0 || selectedDetailKeys.length === filteredDetailRows.length}
+              className="apin-export-btn"
+              onClick={handleExportExcel}
+              disabled={loading}
+              title="Export Asset TagID Wise Detail, Asset Part Wise Summary, and Asset Location Wise Summary to Excel"
             >
-              Select All
-            </button>
-            <button
-              type="button"
-              className="apin-selection-toolbar__btn"
-              onClick={handleClearDetailSelection}
-              disabled={selectedDetailKeys.length === 0}
-            >
-              Clear Selection
-            </button>
-            <button
-              type="button"
-              className="apin-selection-toolbar__btn apin-selection-toolbar__btn--preview"
-              onClick={() => setPreviewOpen(true)}
-              disabled={selectedDetailKeys.length === 0}
-              title="Preview exactly what will be saved"
-            >
-              <Eye size={12} strokeWidth={2} />
-              Preview Selection
+              <Download size={14} strokeWidth={2} />
+              Export to Excel
             </button>
           </div>
-        </div>
-        <EnterpriseDataGrid
-          title="Matching Transactions"
-          columns={detailColumns}
-          data={filteredDetailRows}
-          loading={loading}
-          error={null}
-          loaderText="Loading transactions…"
-          emptyMessage={
-            selectedMasterRows.length > 0
-              ? "No matching transactions for the selected master item(s)."
-              : "Select one or more Master Item rows above to see their matching transactions."
-          }
-          selectable
-          selectedRowKeys={selectedDetailKeys}
-          onSelectionChange={setSelectedDetailKeys}
-          getRowKey={detailRowKey}
-        />
-      </section>
 
-      <ActionBar
-        alignEnd
-        showAddCancel
-        isEditMode
-        onCancel={handleCancel}
-        cancelLabel="Cancel"
-        extraButtons={[
-          {
-            key: "save",
-            label: isSaving ? "Saving…" : "Save",
-            Icon: Save,
-            variant: "save",
-            onClick: handleSave,
-            disabled: isSaving,
-            loading: isSaving,
-            showAlways: true,
-            accessKey: "s",
-          },
-        ]}
-      />
+          <div className="apin-grids-row">
+            <section className="apin-grid-section" style={gridRowStyle(detailRows.length)}>
+              <EnterpriseDataGrid
+                title="Asset TagID Wise Detail"
+                columns={detailColumns}
+                data={detailRows}
+                loading={loading}
+                error={null}
+                hidePagination
+                loaderText="Loading transactions…"
+                emptyMessage="No matching transactions found for the selected filters."
+              />
+            </section>
 
-      <Modal
-        isOpen={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        title="Preview Selection"
-        subtitle={`${selectedDetailRows.length} transaction${selectedDetailRows.length !== 1 ? "s" : ""} across ${previewGroups.length} master item${previewGroups.length !== 1 ? "s" : ""} will be saved`}
-        icon={<Eye size={16} strokeWidth={2} />}
-        size="lg"
-      >
-        <div className="apin-preview">
-          {previewGroups.map((group) => (
-            <CollapsibleGrid
-              key={group.label}
-              title={group.label}
-              recordLabel="row"
-              columns={detailColumns}
-              rows={group.rows}
-              readOnly
-              hideBottomPanel
+            <section className="apin-grid-section" style={gridRowStyle(masterDisplayRows.length)}>
+              <EnterpriseDataGrid
+                title="Asset Part Wise Summary"
+                icon={<PackageSearch size={16} strokeWidth={2} />}
+                columns={masterColumns}
+                data={masterDisplayRows}
+                loading={loading}
+                error={null}
+                hidePagination
+                loaderText="Loading master items…"
+                emptyMessage="No Asset Part master items found for the selected filters."
+                getRowState={getSummaryRowState}
+              />
+            </section>
+
+            <section className="apin-grid-section" style={gridRowStyle(locCountDisplayRows.length)}>
+              <EnterpriseDataGrid
+                title="Asset Location Wise Summary"
+                columns={locCountColumns}
+                data={locCountDisplayRows}
+                loading={loading}
+                error={null}
+                hidePagination
+                loaderText="Loading location part counts…"
+                emptyMessage="No location-wise part counts found for the selected filters."
+                getRowState={getSummaryRowState}
+              />
+            </section>
+          </div>
+        </>
+      )}
+
+      {activeTab === "dateGroup" && (
+        <>
+          <div className="apin-tab-toolbar">
+            <button
+              type="button"
+              className="apin-export-btn"
+              onClick={handleExportDateGroupExcel}
+              disabled={loading || dateGroupBlocks.length === 0}
+              title="Export Date Wise Part Summary (grouped by date) to Excel"
+            >
+              <Download size={14} strokeWidth={2} />
+              Export to Excel
+            </button>
+          </div>
+
+          {dateGroupBlocks.length === 0 ? (
+            <section className="apin-grid-section apin-grid-section--full">
+              <EnterpriseDataGrid
+                title="Date Wise Part Summary"
+                columns={dateGroupColumns}
+                data={dateGroupRows}
+                loading={loading}
+                error={null}
+                hidePagination
+                loaderText="Loading Date Wise Part Summary…"
+                emptyMessage="No Date Wise Part Summary data found for the selected filters."
+              />
+            </section>
+          ) : (
+            <div className="apin-dategroups">
+              {dateGroupBlocks.map((group) => (
+                <section
+                  key={group.label}
+                  className="apin-grid-section apin-grid-section--full"
+                  style={gridRowStyle(group.displayRows.length)}
+                >
+                  <EnterpriseDataGrid
+                    title={group.label}
+                    columns={dateGroupColumns}
+                    data={group.displayRows}
+                    loading={loading}
+                    error={null}
+                    hidePagination
+                    getRowState={getSummaryRowState}
+                  />
+                </section>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === "perChairCost" && (
+        <>
+          <div className="apin-tab-toolbar">
+            <button
+              type="button"
+              className="apin-export-btn"
+              onClick={handleExportPerChairCostExcel}
+              disabled={loading || perChairCostRows.length === 0}
+              title="Export Per Asset Repairing Cost to Excel"
+            >
+              <Download size={14} strokeWidth={2} />
+              Export to Excel
+            </button>
+          </div>
+
+          <section
+            className="apin-grid-section apin-grid-section--full"
+            style={gridRowStyle(perChairCostDisplayRows.length)}
+          >
+            <EnterpriseDataGrid
+              title="Per Asset Repairing Cost"
+              columns={perChairCostColumns}
+              data={perChairCostDisplayRows}
+              loading={loading}
+              error={null}
               hidePagination
+              loaderText="Loading Per Asset Repairing Cost…"
+              emptyMessage="No Per Asset Repairing Cost data found for the selected filters."
+              getRowState={getSummaryRowState}
             />
-          ))}
-        </div>
-      </Modal>
+          </section>
+        </>
+      )}
+
+      {activeTab === "dateRange" && (
+        <ActionBar
+          alignEnd
+          showAddCancel
+          isEditMode
+          onCancel={handleCancel}
+          cancelLabel="Cancel"
+          extraButtons={[
+            {
+              key: "save",
+              label: isSaving ? "Saving…" : "Save",
+              Icon: Save,
+              variant: "save",
+              onClick: handleSave,
+              disabled: isSaving,
+              loading: isSaving,
+              showAlways: true,
+              accessKey: "s",
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

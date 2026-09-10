@@ -19,27 +19,12 @@ import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { useReportPrint } from "../../hooks/useReportPrint";
-import { PO_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { PO_CONFIG, ENTRY_FORM_LABEL, printPurchaseOrderReports } from "./constants";
 import "./PurchaseOrderPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
-import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import "../../components/ui/PrintReportButton.css";
-
-// PO's report SP takes its own param casing (@prmCompanyID/@prmloginID), not
-// the shared lowercase @prmcompanyid used by buildCompanyReportParam — don't
-// reuse that helper here. Print only ever runs against a selected row (2026-08-17
-// /pm — the earlier "no selection = print full list" fallback was removed;
-// PurchaseOrderPage's handlePrintParams now blocks + notifies instead).
-function buildPurchaseOrderReportParams(selectedId) {
-  const session = getUserSession();
-  return [
-    { paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) },
-    { paramtitle: "Company", paramname: "@prmCompanyID", paramval: String(session.companyId), paramtext: session.company?.companyname ?? session.company?.CompanyName ?? "" },
-    { paramtitle: "Login", paramname: "@prmloginID", paramval: String(session.loginId), paramtext: session.userName ?? "" },
-  ];
-}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -167,40 +152,27 @@ export default function PurchaseOrderPage() {
     navigate(`${PO_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
-  const handlePrintParams = useCallback(() => {
-    if (selectedId == null) {
-      notify.error("Select the row to Print.");
-      return null;
-    }
-    return buildPurchaseOrderReportParams(selectedId);
-  }, [selectedId, notify]);
-
   // 2026-09-08 /tl — PO-only: print the Annexure report first, then the main
   // PO report, both via the same GENERATE_REPORT mechanism the shared
   // PrintReportButton uses elsewhere — but sequenced, so this stays local to
   // PurchaseOrderPage.jsx rather than changing PrintReportButton/
   // useReportPrint for all 41 pages that use them. Both reports take the
   // same params (selected PO id/company/login) since the Annexure is a
-  // companion report for the same record.
+  // companion report for the same record. printPurchaseOrderReports (in
+  // ./constants) is shared with the Add/Edit form's Save & Print action so
+  // both fire the identical two-report sequence.
   const { printReport, printing } = useReportPrint();
   const handlePrint = useCallback(async () => {
-    const params = handlePrintParams();
-    if (params === null) return;
+    if (selectedId == null) {
+      notify.error("Select the row to Print.");
+      return;
+    }
     try {
-      await printReport({
-        reportTitle: PO_CONFIG.ANNEXURE_REPORT_TITLE,
-        reportFileName: PO_CONFIG.ANNEXURE_REPORT_FILE,
-        jsonParameters: params,
-      });
-      await printReport({
-        reportTitle: PRINT_REPORT_CONFIG["purchase-order"].reportTitle,
-        reportFileName: PRINT_REPORT_CONFIG["purchase-order"].reportFileName,
-        jsonParameters: params,
-      });
+      await printPurchaseOrderReports(printReport, selectedId);
     } catch (err) {
       notify.error(err?.message || "Failed to generate report.");
     }
-  }, [handlePrintParams, printReport, notify]);
+  }, [selectedId, printReport, notify]);
 
   const handleExportCsv = useCallback(() => {
     const { rows, columns } = gridRef.current?.getExportData() ?? {};

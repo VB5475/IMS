@@ -2,6 +2,7 @@
 // Values aligned to MRD_Template4AssetsClientRelease.docx (Richa, 03-Jul-2026).
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
@@ -195,4 +196,10 @@ export function validateAcrBusinessRules(headerValues = {}) {
   }
 
   return errors;
+}
+
+// AssetsClientRelease.rpt takes no per-record filter — the listing page's
+// Print button (and the form's Save & Print) always run this company-wide report.
+export function buildAcrReportParams() {
+  return [buildCompanyReportParam()];
 }

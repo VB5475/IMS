@@ -11,6 +11,8 @@ export default function UserWiseGroupRightsPage() {
     typeOptions,
     headerFetching,
     headerError,
+    transactionRightDefs,
+    reportRightDefs,
     fetchHeaderMeta,
     fetchRightsGrids,
   } = useUserWiseGroupRights();
@@ -33,6 +35,8 @@ export default function UserWiseGroupRightsPage() {
       typeOptions={typeOptions}
       headerFetching={headerFetching}
       headerError={headerError}
+      transactionRightDefs={transactionRightDefs}
+      reportRightDefs={reportRightDefs}
       onSearch={fetchRightsGrids}
     />
   );

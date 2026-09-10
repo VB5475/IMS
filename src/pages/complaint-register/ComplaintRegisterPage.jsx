@@ -8,18 +8,11 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { exportRowsToCsv } from "../../utils/csvExport";
-import { MCR_CONFIG, ENTRY_FORM_LABEL, buildMcrListJsonPayload } from "./constants";
+import { MCR_CONFIG, ENTRY_FORM_LABEL, buildMcrListJsonPayload, buildComplaintRegisterReportParams } from "./constants";
 import "./ComplaintRegisterPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildComplaintRegisterReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {

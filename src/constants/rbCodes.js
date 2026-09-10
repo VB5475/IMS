@@ -269,6 +269,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ASSET_PARTS_INDENT]: "/asset-parts-indent-detail",
 
   [RB_CODES.WORKFLOW_DASHBOARD]: "/workflow-dashboard",
+  [RB_CODES.DASHBOARD_AST_STOCK_DETAIL]: "/",
 });
 
 /** Absolute public base path for a module (e.g. `/purchase-indent`). */
@@ -303,6 +304,25 @@ export function findRbCodeKey(rbCode) {
   return Object.keys(RB_CODES).find((key) => RB_CODES[key] === value) ?? null;
 }
 
+/**
+ * Extra frontend paths that should carry an existing RB code's rights even
+ * though they are not that RB's own canonical route — RB_ROUTE_PATHS stays
+ * strictly 1:1 per RB code (rbRoutePath()/rbLeaf()/rbModule() all depend on
+ * that), so a second path for the same code can't just be added there.
+ *
+ * 2026-09-09 /pm — Asset Part Indent ("/assets-part-indent") has no RB code
+ * of its own (confirmed: no backend RB was ever given for it — see its own
+ * constants.js). User-requested: whoever has rights to the sibling "Asset
+ * Parts Indent Detail" module (rb_astindentmst, /asset-parts-indent-detail)
+ * should get this page too — same Maintenance-section pair, one shared
+ * permission. This is what both RequireModuleAccess (App.jsx) and the
+ * sidebar's visibleNavSections (AppShell.jsx) fall back to via
+ * findRbByPath for this path; App.jsx's route itself still carries no `id`.
+ */
+const RB_PATH_ALIASES = Object.freeze({
+  "/assets-part-indent": RB_CODES.ASSET_PARTS_INDENT,
+});
+
 /** Resolve RB code from a frontend pathname (longest prefix match). */
 export function findRbByPath(pathname) {
   const path = String(pathname || "").split("?")[0];
@@ -313,6 +333,14 @@ export function findRbByPath(pathname) {
       if (routePath.length > bestLen) {
         best = rbCode;
         bestLen = routePath.length;
+      }
+    }
+  }
+  for (const [aliasPath, rbCode] of Object.entries(RB_PATH_ALIASES)) {
+    if (path === aliasPath || path.startsWith(`${aliasPath}/`)) {
+      if (aliasPath.length > bestLen) {
+        best = rbCode;
+        bestLen = aliasPath.length;
       }
     }
   }

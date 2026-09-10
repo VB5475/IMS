@@ -10,6 +10,7 @@ import { PURCHASE_API } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { getMissingItemPickerHeaderFields as getMissingPickerFields } from "../../utils/purchaseItemPicker";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { formatTranDate as formatIndentTranDate };
 
@@ -100,4 +101,13 @@ export const IND_ITEM_PICKER_JSON_FIELDS = [
 
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
   return getMissingPickerFields(headerValues, headerColumns);
+}
+
+// Shared by the listing page's Print button (selected row) and the Add/Edit
+// form's Save & Print action (just-saved row) — same @prmidnumber shape both times.
+export function buildIndentReportParams(idnumber) {
+  return [
+    buildCompanyReportParam(),
+    { paramtitle: "ID", paramname: "@prmidnumber", paramval: String(idnumber), paramtext: String(idnumber) },
+  ];
 }

@@ -13,18 +13,11 @@ import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { createListActionsColumn, isAlwaysHiddenColumnKey } from "../../utils/listGridUtils";
 import { exportRowsToCsv } from "../../utils/csvExport";
-import { C2F_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { C2F_CONFIG, ENTRY_FORM_LABEL, buildCWIPToFAReportParams } from "./constants";
 import "./CWIPToFAPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildCWIPToFAReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 const MONTH_ABBR = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",

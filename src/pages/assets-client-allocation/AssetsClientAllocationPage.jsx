@@ -8,18 +8,11 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
 import { exportRowsToCsv } from "../../utils/csvExport";
-import { ACA_CONFIG, ENTRY_FORM_LABEL, buildAcaListJsonPayload } from "./constants";
+import { ACA_CONFIG, ENTRY_FORM_LABEL, buildAcaListJsonPayload, buildAcaReportParams } from "./constants";
 import "./AssetsClientAllocationPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAcaReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {

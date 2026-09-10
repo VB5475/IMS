@@ -18,19 +18,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { PV_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { PV_CONFIG, ENTRY_FORM_LABEL, buildPurchaseVoucherReportParams } from "./constants";
 import "./PurchaseVoucherPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
-
-function buildPurchaseVoucherReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   const year = new Date().getFullYear();

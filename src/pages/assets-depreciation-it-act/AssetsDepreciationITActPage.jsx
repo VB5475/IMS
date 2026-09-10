@@ -18,17 +18,13 @@ import { ENDPOINTS, API_BASE_URL } from "../../api/constants";
 import { getUserSession } from "../../session/userSession";
 import { usePageHeader } from "../../context/PageHeaderContext";
 import { buildListPageColumns, normalizeListRows } from "../../utils/listGridUtils";
-import { DIT_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { DIT_CONFIG, ENTRY_FORM_LABEL, buildDitReportParams } from "./constants";
 import "./AssetsDepreciationITActPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
 
 const PRINT_CONFIG = PRINT_REPORT_CONFIG["assets-depreciation-it-act"];
-function buildDitReportParams() {
-  return [buildCompanyReportParam()];
-}
 
 // SP_LIST's full signature per the MRD is fn_tbl_rb_astdepitmst_list(@prmcompanyid,
 // @prmdivisionid, @prmloginid, @prmyearid, @prmfromdate, @prmtodate, @prmaccountid)

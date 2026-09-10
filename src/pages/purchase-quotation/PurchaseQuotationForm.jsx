@@ -78,7 +78,10 @@ import {
   PAGE_TITLE_NEW,
   buildItemPickerJsonPayload,
   buildTermsPickerJsonPayload,
+  buildPurchaseQuotationReportParams,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import "./PurchaseQuotationForm.css";
 
 // ── Temp-ID generator (negative → never clash with real IDs) ─────────
@@ -167,6 +170,7 @@ export default function PurchaseQuotationForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrintingQtn } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -1083,9 +1087,18 @@ export default function PurchaseQuotationForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    // PurchaseQuotation.rpt has no per-record filter (see constants.js) —
+    // this fires the same company-wide report the listing Print button does.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["purchase-quotation"],
+        jsonParameters: buildPurchaseQuotationReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -1133,7 +1146,7 @@ export default function PurchaseQuotationForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving: isSavingQtn,
+    isSaving: isSavingQtn || isPrintingQtn,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -1155,11 +1168,11 @@ export default function PurchaseQuotationForm() {
       ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
-        label: "Save & Print",
+        label: isPrintingQtn ? "Printing…" : "Save & Print",
         Icon: Printer,
         variant: "print",
         onClick: handleSaveAndPrint,
-        disabled: isSavingQtn,
+        disabled: isSavingQtn || isPrintingQtn,
         accessKey: "p",
         title: FORM_SHORTCUT_TITLES.savePrint,
       },
@@ -1175,7 +1188,7 @@ export default function PurchaseQuotationForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingQtn, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingQtn, isPrintingQtn, handleSave]
   );
 
   return (

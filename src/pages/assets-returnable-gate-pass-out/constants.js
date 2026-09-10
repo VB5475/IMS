@@ -1,6 +1,7 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -227,4 +228,10 @@ export function validateArgoBusinessRules(headerValues = {}) {
   }
 
   return errors;
+}
+
+// Rpt_ReturnableGatePass.rpt takes no per-record filter — the listing page's
+// Print button (and the form's Save & Print) always run this company-wide report.
+export function buildGatePassReportParams() {
+  return [buildCompanyReportParam()];
 }

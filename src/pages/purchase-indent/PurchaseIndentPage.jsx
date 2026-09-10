@@ -18,23 +18,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { IND_CONFIG, ENTRY_FORM_LABEL } from "./constants";
+import { IND_CONFIG, ENTRY_FORM_LABEL, buildIndentReportParams } from "./constants";
 import "./PurchaseIndentPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import { exportRowsToCsv } from "../../utils/csvExport";
-
-// Print only ever runs against a selected row (2026-08-17 /pm — the earlier
-// "no selection = print full list" fallback was removed; PurchaseIndentPage's
-// handlePrintParams now blocks + notifies instead, same as Purchase Order).
-function buildPurchaseIndentReportParams(selectedId) {
-  return [
-    buildCompanyReportParam(),
-    { paramtitle: "ID", paramname: "@prmidnumber", paramval: String(selectedId), paramtext: String(selectedId) },
-  ];
-}
 
 function buildListParams() {
   const year = new Date().getFullYear();
@@ -161,12 +150,15 @@ export default function PurchaseIndentPage() {
     navigate(`${IND_CONFIG.ROUTE_PATH}/new`);
   }, [navigate]);
 
+  // Print only ever runs against a selected row (2026-08-17 /pm — the earlier
+  // "no selection = print full list" fallback was removed; this now blocks +
+  // notifies instead, same as Purchase Order).
   const handlePrintParams = useCallback(() => {
     if (selectedId == null) {
       notify.error("Select the row to Print.");
       return null;
     }
-    return buildPurchaseIndentReportParams(selectedId);
+    return buildIndentReportParams(selectedId);
   }, [selectedId, notify]);
 
   const handleDeleteSuccess = useCallback(async () => {

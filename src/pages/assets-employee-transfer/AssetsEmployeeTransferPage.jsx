@@ -20,19 +20,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { AET_CONFIG, ENTRY_FORM_LABEL, buildAetListJsonPayload } from "./constants";
+import { AET_CONFIG, ENTRY_FORM_LABEL, buildAetListJsonPayload, buildAetReportParams } from "./constants";
 import "./AssetsEmployeeTransferPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAetReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {

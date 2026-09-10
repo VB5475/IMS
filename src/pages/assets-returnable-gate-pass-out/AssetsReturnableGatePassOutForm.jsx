@@ -60,7 +60,10 @@ import {
   applyArgoHardcodedHeaderValues,
   buildArgoCascadeResets,
   validateArgoBusinessRules,
+  buildGatePassReportParams,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import "./AssetsReturnableGatePassOutPage.css";
 
 let _argoTempId = -1;
@@ -107,6 +110,7 @@ export default function AssetsReturnableGatePassOutForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrinting } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -808,9 +812,18 @@ export default function AssetsReturnableGatePassOutForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    // Rpt_ReturnableGatePass.rpt has no per-record filter (see constants.js)
+    // — this fires the same company-wide report the listing Print button does.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["assets-returnable-gate-pass-out"],
+        jsonParameters: buildGatePassReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -839,7 +852,7 @@ export default function AssetsReturnableGatePassOutForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving,
+    isSaving: isSaving || isPrinting,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -858,8 +871,8 @@ export default function AssetsReturnableGatePassOutForm() {
     // Add/Edit mode the same way every other extra button does.
     ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
     {
-      key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
-      onClick: handleSaveAndPrint, disabled: isSaving,
+      key: "saveprint", label: isPrinting ? "Printing…" : "Save & Print", Icon: Printer, variant: "print",
+      onClick: handleSaveAndPrint, disabled: isSaving || isPrinting,
       title: FORM_SHORTCUT_TITLES.savePrint,
     },
     {
@@ -867,7 +880,7 @@ export default function AssetsReturnableGatePassOutForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving]);
+  ], [docLog.documentsButtonEntry, handleSaveAndPrint, handleSave, isSaving, isPrinting]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;
