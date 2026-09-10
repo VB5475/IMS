@@ -68,8 +68,10 @@ import {
   PAGE_TITLE,
   PAGE_TITLE_NEW,
   formatTranDate,
+  printPurchaseOrderReports,
 } from "./constants";
 import { buildDirectItemPickerFilterParams } from "../../utils/purchaseItemPicker";
+import { useReportPrint } from "../../hooks/useReportPrint";
 import { controlTypeMap } from "../../data/dummyData";
 import "./PurchaseOrderPage.css";
 
@@ -131,6 +133,7 @@ export default function PurchaseOrderForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrintingPO } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -157,6 +160,7 @@ export default function PurchaseOrderForm() {
   const selectItemBtnRef = useRef(null);
   const gridColumnsLoadedRef = useRef(false);
   const queuedRowsRef = useRef([]);
+  const lastSavedIdRef = useRef(null);
   const { trackCellEvent, flushPendingCellEvents } = usePendingCellEventFlush();
   const { get: rawGetLive } = useApi(API_BASE_URL);
   const getLive = useMemo(() => withGetRetry(rawGetLive), [rawGetLive]);
@@ -323,6 +327,7 @@ export default function PurchaseOrderForm() {
           : `PO #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: PO_CONFIG.ROUTE_PATH,
+    backLabel: "PO",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────
@@ -1030,6 +1035,7 @@ export default function PurchaseOrderForm() {
       // Same Add-mode-gap fix as Purchase Indent — see
       // PurchaseIndentForm.jsx's handleSave for the full reasoning.
       const savedTranId = newId ?? (isEditRoute ? recordId : null);
+      lastSavedIdRef.current = savedTranId;
       await docLog.finalizeSave(savedTranId);
       if (!skipPostSave) completeSuccessfulSave();
       return true;
@@ -1045,9 +1051,18 @@ export default function PurchaseOrderForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    const printId = lastSavedIdRef.current;
+    if (printId == null) {
+      notify.error("Saved, but couldn't determine the PO ID to print. Print it from the list instead.");
+    } else {
+      try {
+        await printPurchaseOrderReports(printReport, printId);
+      } catch (err) {
+        notify.error(err?.message || "Saved, but failed to generate the print report.");
+      }
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -1068,7 +1083,7 @@ export default function PurchaseOrderForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen || docLog.docModalOpen,
     isEditMode,
-    isSaving: isSavingPO,
+    isSaving: isSavingPO || isPrintingPO,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -1089,11 +1104,11 @@ export default function PurchaseOrderForm() {
       ...(docLog.documentsButtonEntry ? [docLog.documentsButtonEntry] : []),
       {
         key: "saveprint",
-        label: "Save & Print",
+        label: isPrintingPO ? "Printing…" : "Save & Print",
         Icon: Printer,
         variant: "print",
         onClick: handleSaveAndPrint,
-        disabled: isSavingPO,
+        disabled: isSavingPO || isPrintingPO,
         accessKey: "p",
         title: FORM_SHORTCUT_TITLES.savePrint,
       },
@@ -1109,7 +1124,7 @@ export default function PurchaseOrderForm() {
         title: FORM_SHORTCUT_TITLES.save,
       },
     ],
-    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPO, handleSave]
+    [docLog.documentsButtonEntry, handleSaveAndPrint, isSavingPO, isPrintingPO, handleSave]
   );
 
   const itemGridConfig = {

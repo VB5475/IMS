@@ -17,6 +17,7 @@ import {
 } from "../../constants/purchaseCommon";
 import { formatTranDate } from "../../utils/dateFormat";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 import {
   buildItemPickerJsonPayload as buildPickerPayload,
   getMissingItemPickerHeaderFields as getMissingPickerFields,
@@ -192,4 +193,11 @@ export function buildTermsPickerJsonPayload(headerValues, loginId) {
     prmconfigid: Number(headerValues.configid) || 0,
     prmquotid: Number(headerValues.idnumber) || 0,
   };
+}
+
+// PurchaseQuotation.rpt takes no per-record filter — like Purchase Voucher
+// and Purchase Inquiry, the listing page's Print button (and the form's
+// Save & Print) always run this same company-wide report.
+export function buildPurchaseQuotationReportParams() {
+  return [buildCompanyReportParam()];
 }

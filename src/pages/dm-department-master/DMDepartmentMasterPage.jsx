@@ -53,8 +53,6 @@ export default function DMDepartmentMasterPage() {
   usePageHeader({
     title: "Department Master",
     subtitle: "Browse DMS departments or create a new department record.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

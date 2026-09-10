@@ -112,8 +112,6 @@ export default function AssetSummaryPage() {
   usePageHeader({
     title: "Asset Summary",
     subtitle: "Review asset stock summary by division.",
-    showBack: true,
-    backTo: "/",
   });
 
   const fetchFunction = useCallback(async (params, sourceName) => {

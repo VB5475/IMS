@@ -26,7 +26,7 @@ export const APID_CONFIG = {
   SP_MASTER_FILL: "fn_tbl_rb_astindentmst",
   SP_DETAIL_FILL: "fn_tbl_rb_astindentdet",
 
-  SAVE_ENDPOINT: "/API/RB_AstIndentMst/Post_RB_AstIndentMst_Save",
+  SAVE_ENDPOINT: "/API/AstPartIndentDet/Post_RB_AstIndentMst_Save",
   SAVE_DETAIL_JSON_KEY: "prmStrDetJSON",
 
   LIST_OBJ_TYPE: 2,

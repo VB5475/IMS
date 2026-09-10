@@ -37,7 +37,7 @@ const UNRESTRICTED = Object.freeze({
   canUpdate: true,
   canDelete: true,
   canApprove: true,
-  known: false,
+  known: true,
 });
 
 /** "pr_RB_AstMntPartCost" → "rb_astmntpartcost" */

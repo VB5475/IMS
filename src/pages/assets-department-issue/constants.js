@@ -2,6 +2,7 @@ import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { parseQrItemPayload } from "../../utils/qrScanJson";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -224,4 +225,10 @@ export function validateAdiBusinessRules(headerValues = {}) {
   }
 
   return errors;
+}
+
+// AssetsDepartmentIssue.rpt takes no per-record filter — the listing page's
+// Print button (and the form's Save & Print) always run this company-wide report.
+export function buildAdiReportParams() {
+  return [buildCompanyReportParam()];
 }

@@ -18,8 +18,6 @@ export default function DMTT2DocTypeMasterPage() {
   usePageHeader({
     title: "Transaction To Document Type Master",
     subtitle: "Map document types to a department and transaction type.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

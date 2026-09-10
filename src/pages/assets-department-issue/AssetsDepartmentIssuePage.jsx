@@ -14,18 +14,11 @@ import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
 import { exportRowsToCsv } from "../../utils/csvExport";
-import { ADI_CONFIG, ENTRY_FORM_LABEL, buildAdiListJsonPayload } from "./constants";
+import { ADI_CONFIG, ENTRY_FORM_LABEL, buildAdiListJsonPayload, buildAdiReportParams } from "./constants";
 import "./AssetsDepartmentIssuePage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAdiReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {
@@ -65,8 +58,6 @@ export default function AssetsDepartmentIssuePage() {
   usePageHeader({
     title: "Assets Department Issue",
     subtitle: "Issue assets and items to departments.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

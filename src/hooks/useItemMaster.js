@@ -23,7 +23,7 @@ function mapMainGroupOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.code) + " - " + String(r.maingroup ?? r.maingroupname ?? r.maingroupcode ?? r.code ?? r.name ?? ""),
+      label: String(r.maingroup ?? r.maingroupname ?? r.maingroupcode ?? r.code ?? r.name ?? ""),
     };
   }).filter(Boolean);
 }
@@ -34,7 +34,7 @@ function mapSubGroupOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.code) + " - " + String(r.submaingroup ?? r.subgroup),
+      label: String(r.submaingroup ?? r.subgroup ?? ""),
     };
   }).filter(Boolean);
 }
@@ -45,7 +45,7 @@ function mapTaxOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.code) + " - " + String(r.texabilityname ?? r.texability ?? r.code ?? r.taxname ?? r.name ?? ""),
+      label: String(r.texabilityname ?? r.texability ?? r.code ?? r.taxname ?? r.name ?? ""),
     };
   }).filter(Boolean);
 }
@@ -56,7 +56,7 @@ function mapUnitOptions(rows) {
     if (value == null || value === "") return null;
     return {
       value: String(Math.round(Number(value))),
-      label: String(r.code) + " - " + String(r.tranunit ?? r.baseunit ?? r.unitname ?? r.tranunitname ?? r.baseunitname ?? r.code ?? r.unitcode ?? r.name ?? ""),
+      label: String(r.tranunit ?? r.baseunit ?? r.unitname ?? r.tranunitname ?? r.baseunitname ?? r.code ?? r.unitcode ?? r.name ?? ""),
     };
   }).filter(Boolean);
 }

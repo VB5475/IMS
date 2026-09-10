@@ -1,6 +1,7 @@
 import { getUserSession } from "../../session/userSession";
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 
@@ -218,4 +219,10 @@ export function validateAstBusinessRules(headerValues = {}) {
   }
 
   return errors;
+}
+
+// AssetsStockTransfer.rpt takes no per-record filter — the listing page's
+// Print button (and the form's Save & Print) always run this company-wide report.
+export function buildAstReportParams() {
+  return [buildCompanyReportParam()];
 }

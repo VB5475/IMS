@@ -118,12 +118,17 @@
   align-items: stretch;
 }
 
+/* The row-render loop puts both "im-form-control" and this class on the
+   same wrapper for a checkbox field — row (not column) so the checkbox and
+   its Yes/No label sit side by side, centered on the row's cross-axis
+   instead of stretched full-width like a text input/dropdown. */
 .im-form-control--checkbox {
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
 }
 
-.im-form-control--checkbox-wrap,
-.im-form-row--checkbox .im-form-control {
+.im-form-control--checkbox-wrap {
   align-items: center;
 }
 

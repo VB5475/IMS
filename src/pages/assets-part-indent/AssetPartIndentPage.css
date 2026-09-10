@@ -10,6 +10,16 @@
   overflow-y: auto;
 }
 
+/* 2026-09-10 /pm — every grid on this page is a plain display table now
+ * (no sort/filter — see stripGridInteractivity in the page component, and
+ * hidePagination on every grid instance for the footer controls); the
+ * page-size "Show N entries" selector has no per-grid prop to hide it, so
+ * it's removed here instead — scoped to .apin-page only, not the shared
+ * component or any other list page in the app. */
+.apin-page .ng-pagesize-wrapper {
+  display: none;
+}
+
 .apin-filter-bar {
   display: flex;
   align-items: flex-end;
@@ -68,6 +78,32 @@
   cursor: not-allowed;
 }
 
+.apin-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.apin-export-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.apin-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .apin-error {
   padding: 10px 14px;
   border: 1px solid var(--danger, #e11d48);
@@ -77,9 +113,25 @@
   font-size: 13px;
 }
 
+/* 2026-09-09 /pm — horizontal layout: the three grids sit side by side
+ * (one beside another) instead of stacked, each taking an equal share of
+ * the row's width. `align-items: flex-start` (instead of flexbox's default
+ * "stretch") is the key change here — without it every section is forced
+ * to match the row's own height, and since the row itself was `flex: 1`
+ * (filling all remaining page height), a grid with only a few rows ended
+ * up as a tall, mostly-empty box. Sections now size to their own content
+ * (title bar + rows + pagination), and the ActionBar simply follows right
+ * after — no artificial stretch, no blank space. */
+.apin-grids-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .apin-grid-section {
-  flex: 1;
-  min-height: 320px;
+  flex: 1 1 0;
+  min-width: 320px;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -89,78 +141,97 @@
   overflow: hidden;
 }
 
-/* Select All / Clear Selection — operates on the full filtered dataset,
- * unlike the grid's own header checkbox (page-scoped by design, shared
- * across every list page in the app). */
-.apin-selection-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-muted, var(--surface));
-}
-
-.apin-selection-toolbar__count {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.apin-selection-toolbar__actions {
-  display: flex;
-  gap: 8px;
-}
-
-.apin-selection-toolbar__btn {
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.apin-selection-toolbar__btn:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.apin-selection-toolbar__btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.apin-selection-toolbar__btn--preview {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Preview Selection modal — each master item is a CollapsibleGrid panel
- * (shared component, same collapsible pattern used elsewhere in the app),
- * so the only page-specific styling needed is the gap between panels. */
-.apin-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Both grids here have very few, narrow data columns — under the shared
- * grid's auto table-layout (used whenever a selectable/action column is
- * present, for horizontal-scroll support elsewhere), the browser stretches
- * every column, checkbox included, to help fill the table's min-width:100%.
- * Forcing fixed layout just on these two tables makes column widths (incl.
- * the checkbox column's explicit 40px) authoritative again — scoped here so
- * it doesn't touch the shared component or any other list page. */
-.apin-grid-section .ng-table.ng-table--pinned-actions {
+/* Every grid here has very few, narrow data columns and no selection/action
+ * column — under the shared grid's auto table-layout, the browser stretches
+ * columns unevenly to help fill the table's min-width:100%. Forcing fixed
+ * layout makes column widths authoritative again — scoped here so it
+ * doesn't touch the shared component or any other list page. */
+.apin-grid-section .ng-table {
   table-layout: fixed;
   width: 100%;
   min-width: 0;
+}
+
+/* 2026-09-09 /pm — tab bar shared by both report tabs, sitting below the
+ * (also shared) filter bar. Plain button-based tablist, same pill idiom as
+ * this app's other toggle groups (e.g. User Wise Group Rights' select-all
+ * toggles) — no dedicated Tabs component exists yet in this codebase. */
+.apin-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.apin-tab {
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apin-tab:hover {
+  color: var(--text);
+}
+
+.apin-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Tab 2 is a single full-width grid, or a vertical stack of date-group
+ * cards — never a horizontal row, so it must NOT inherit .apin-grid-section's
+ * `flex: 1 1 0`. That's meant for .apin-grids-row's side-by-side layout,
+ * where the row itself has a definite height to grow/shrink from; reused
+ * inside a column stack with no defined parent height, flex-basis:0 has
+ * nothing to grow from and every card collapses to ~0px tall (confirmed
+ * live: text was genuinely in the DOM, just clipped to a 0-height box).
+ * `flex: none` makes each card size to its own natural content height. */
+.apin-grid-section--full {
+  width: 100%;
+  flex: none;
+}
+
+/* 2026-09-09 /pm — each tab now owns its own Export button (export is
+ * tab-wise: Tab 1 exports its 3 grids, Tab 2 exports its date groups — never
+ * the same data), so the button sits just above that tab's own content
+ * instead of the shared filter bar. */
+.apin-tab-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* QTY & Rate — one card per date group, stacked top to bottom, matching the
+ * reference the user shared. */
+.apin-dategroups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 2026-09-09 /pm — each card's title IS its date (per the reference,
+ * centered across the whole bar, not just left-aligned like every other
+ * grid's title). EnterpriseDataGrid's header is title-left/page-size-right
+ * (space-between); a 1fr/auto/1fr grid keeps the date visually centered
+ * regardless of the page-size control's own width, without touching the
+ * shared component or any other grid's header. Scoped to .apin-dategroups
+ * only. */
+.apin-dategroups .ng-card-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.apin-dategroups .ng-card-title {
+  grid-column: 2;
+  justify-content: center;
+}
+
+.apin-dategroups .ng-pagesize-wrapper {
+  grid-column: 3;
+  justify-self: end;
 }
 

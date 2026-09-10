@@ -61,7 +61,10 @@ import {
   DPC_FILTER_CASCADE_RESETS,
   PAGE_TITLE,
   PAGE_TITLE_NEW,
+  buildDpcReportParams,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import "./AssetsDepreciationPage.css";
 
 let _dpcTempId = -1;
@@ -157,6 +160,7 @@ export default function AssetsDepreciationForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord  = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrinting } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -271,7 +275,8 @@ export default function AssetsDepreciationForm() {
           ? recordLoadError
           : `Depreciation #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
-    backTo:   DPC_CONFIG.ROUTE_PATH,
+    backTo: DPC_CONFIG.ROUTE_PATH,
+    backLabel: "DPC",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -666,9 +671,18 @@ export default function AssetsDepreciationForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave({ skipPostSave: true });
     if (!saved) return;
-    window.print();
+    // AssetsDepreciation.rpt has no per-record filter (see constants.js) —
+    // this fires the same company-wide report the listing Print button does.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["assets-depreciation"],
+        jsonParameters: buildDpcReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
     completeSuccessfulSave();
-  }, [handleSave, completeSuccessfulSave]);
+  }, [handleSave, completeSuccessfulSave, printReport, notify]);
 
   const [discardOpen,    setDiscardOpen]    = useState(false);
   const [clearRowsOpen,  setClearRowsOpen]  = useState(false);
@@ -701,7 +715,7 @@ export default function AssetsDepreciationForm() {
   useEntryFormKeyboard({
     blocked:      itemModalOpen,
     isEditMode,
-    isSaving,
+    isSaving: isSaving || isPrinting,
     addDisabled:  filterBusy,
     onAdd:        enterEditModeWithFocus,
     onSave:       handleSave,
@@ -712,8 +726,8 @@ export default function AssetsDepreciationForm() {
 
   const extraButtons = useMemo(() => [
     {
-      key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
-      onClick: handleSaveAndPrint, disabled: isSaving,
+      key: "saveprint", label: isPrinting ? "Printing…" : "Save & Print", Icon: Printer, variant: "print",
+      onClick: handleSaveAndPrint, disabled: isSaving || isPrinting,
       title: FORM_SHORTCUT_TITLES.savePrint,
     },
     {
@@ -721,7 +735,7 @@ export default function AssetsDepreciationForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [handleSaveAndPrint, handleSave, isSaving, isPrinting]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError  = metaError || headerError;

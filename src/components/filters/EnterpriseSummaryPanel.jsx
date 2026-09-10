@@ -55,6 +55,7 @@
 //   const mstRow = { ...headerValues, ...summaryRef.current.getSummary() };
 
 import React, { useMemo, useState, useCallback, useImperativeHandle, forwardRef } from "react";
+import { formatNumber } from "../../utils/numberFormat";
 import "./EnterpriseSummaryPanel.css";
 
 function fmt(val) {
@@ -70,6 +71,11 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
   // present once the user has actually typed something for it — absence
   // means "keep tracking the live auto-calculated total."
   const [overrides, setOverrides] = useState({});
+  // Which editable field (by key) currently has focus — while focused, the
+  // field shows its raw editable value (no grouping) so typing isn't
+  // disrupted by commas; once blurred it displays Indian-grouped, same as
+  // every other (non-editable) field. Purely a display concern.
+  const [focusedKey, setFocusedKey] = useState(null);
 
   const autoTotals = useMemo(() => {
     const totals = {};
@@ -162,6 +168,7 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
   // Empty/invalid on blur reverts to the live auto value; a valid entry gets
   // reformatted to match the other fields' two-decimal display.
   const handleOverrideBlur = useCallback((k) => {
+    setFocusedKey(null);
     setOverrides((prev) => {
       const raw = prev[k];
       if (raw === undefined || raw === "" || isNaN(Number(raw))) {
@@ -188,7 +195,14 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
       {fields.map(({ detKey, mstKey, label, editable }) => {
         const k = mstKey || detKey;
         const hasOverride = overrides[k] !== undefined;
-        const displayValue = hasOverride ? overrides[k] : fmt(summary[k]);
+        // While the editable field is focused, show its raw value so typing
+        // isn't fought by comma insertion; otherwise (including every
+        // non-editable field, which is never focused) show it Indian-grouped
+        // — display only, getSummary() below still reads the plain numbers.
+        const displayValue =
+          editable && focusedKey === k
+            ? hasOverride ? overrides[k] : fmt(summary[k])
+            : formatNumber(hasOverride ? overrides[k] : summary[k], "IN", 2);
         return (
           <div key={k} className="enterprise-summary-panel__field">
             <span className="enterprise-summary-panel__label" title={label}>
@@ -201,6 +215,7 @@ const EnterpriseSummaryPanel = forwardRef(function EnterpriseSummaryPanel(
               className={`enterprise-summary-panel__input${editable ? " enterprise-summary-panel__input--editable" : ""}`}
               value={displayValue}
               onChange={editable ? (e) => handleOverrideChange(k, e.target.value) : undefined}
+              onFocus={editable ? () => setFocusedKey(k) : undefined}
               onBlur={editable ? () => handleOverrideBlur(k) : undefined}
               aria-label={label}
               title={label}

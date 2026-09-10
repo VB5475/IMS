@@ -63,8 +63,6 @@ export default function AccountGroupMasterPage() {
   usePageHeader({
     title: "Account Group Master",
     subtitle: "Browse account groups or create a new group record.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

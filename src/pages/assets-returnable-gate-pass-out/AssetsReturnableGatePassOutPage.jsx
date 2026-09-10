@@ -13,19 +13,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
-import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload } from "./constants";
+import { ARGO_CONFIG, ENTRY_FORM_LABEL, buildArgoListJsonPayload, buildGatePassReportParams } from "./constants";
 import "./AssetsReturnableGatePassOutPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildGatePassReportParams(selectedId) {
-  const params = [buildCompanyReportParam()];
-  
-  return params;
-}
 
 function buildListParams() {
   return {
@@ -65,8 +58,6 @@ export default function AssetsReturnableGatePassOutPage() {
   usePageHeader({
     title: "Assets Returnable Gate Pass Out",
     subtitle: "Issue assets for returnable gate pass out.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

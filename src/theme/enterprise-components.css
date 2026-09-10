@@ -324,3 +324,21 @@
 .modal-subtitle {
   color: var(--text-secondary) !important;
 }
+
+/* Same bug class as .modal-subtitle above, just never caught here: this
+   file forces every default-variant Modal's header to a light background,
+   but modal.css's .modal-close (and .modal-header-icon) still assume the
+   dark-gradient header this file overrides away — a white 85%-opacity
+   icon on a white 12%-opacity chip is effectively invisible on #f4f6f9.
+   Fixed at the source, matching .modal-dialog--enterprise's already-correct
+   close-button treatment, so it can't recur a third time. */
+.modal-close {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+.modal-close:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}

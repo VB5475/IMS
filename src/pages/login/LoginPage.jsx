@@ -369,7 +369,7 @@ export default function LoginPage() {
             </div>
             <div>
               <h1>IMS</h1>
-              <p className="login-brand__tagline">Asset Management System</p>
+              <p className="login-brand__tagline">Asset-360</p>
             </div>
           </div>
 
@@ -385,7 +385,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="login-footer">© 2026 IMS Group · All Rights Reserved</p>
+          <p className="login-footer">© 2026 <a href="https://imsplgroup.com/" target="new">IMS Group</a> · All Rights Reserved · Designed & Developed By: <a href="http://chattary.com/" target="new">CAIPL</a></p>
         </div>
       </section>
     </main>

@@ -41,15 +41,18 @@ function buildItemMasterReportParams(selectedId) {
 
 function buildListParams() {
   const today = formatTranDate(new Date(), { invalidValue: "" });
+  const session = getUserSession();
   return {
     ObjType: IM_CONFIG.LIST_OBJ_TYPE,
     ObjName: IM_CONFIG.SP_LIST,
     JSon: JSON.stringify([
       {
-        // prmcompanyid: DEFAULT_COMPANY_ID,
-        // prmdivisionid: IM_CONFIG.LIST_DIVISION_ID,
-        // prmfromdate: today,
-        // prmtodate: today,
+        prmcompanyid: session.companyId,
+        prmdivisionid: IM_CONFIG.LIST_DIVISION_ID,
+        prmyearid: session.yearId,
+        prmfromdate: today,
+        prmtodate: today,
+        prmloginid: session.loginId,
       },
     ]),
     p_ErrCode: -1,
@@ -206,8 +209,6 @@ export default function ItemMasterPage() {
   usePageHeader({
     title: "Item Master",
     subtitle: "Browse items or create a new inventory item.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

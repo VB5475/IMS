@@ -751,6 +751,28 @@ button.ent-sidebar__link {
   margin: 0 4px;
 }
 
+/* Auto-logout countdown — visible always so a session expiring never comes
+   as a surprise; switches to a warning color in the last 2 minutes. */
+.ent-autologout-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ent-autologout-timer--warning {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
 .ent-topbar__profile-menu {
   position: relative;
 }

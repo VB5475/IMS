@@ -395,8 +395,6 @@ export default function TxnEntryPage() {
   usePageHeader({
     title: "Sample Invoice",
     subtitle: "Fill in the header fields, then click Entry Form to add line items.",
-    showBack: true,
-    backTo: "/",
   });
 
   return (

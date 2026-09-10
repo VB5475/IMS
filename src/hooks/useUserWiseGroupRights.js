@@ -17,10 +17,13 @@ import {
 import { isErrorOnlyRow } from "../utils/apiResponse";
 import {
   UWGR_CONFIG as CFG,
+  UWGR_REPORT_RIGHT_COLUMNS,
   UWGR_REPORT_RIGHTS,
   UWGR_ROW_KEYS,
+  UWGR_TRANSACTION_RIGHT_COLUMNS,
   UWGR_TRANSACTION_RIGHTS,
   buildGridParams,
+  buildRightDefsFromRb,
 } from "../pages/user-wise-group-rights/constants";
 
 // Only RB-visible columns become header fields — a column present in
@@ -80,6 +83,11 @@ export function useUserWiseGroupRights() {
   const [typeOptions, setTypeOptions] = useState([]);
   const [headerFetching, setHeaderFetching] = useState(false);
   const [headerError, setHeaderError] = useState(null);
+  // RB-derived rights columns (key/label/order from GetDetailColData) — start
+  // as the static fallback so Search still works if Search is clicked before
+  // fetchHeaderMeta resolves, then upgrade in place once the RB responds.
+  const [transactionRightDefs, setTransactionRightDefs] = useState(UWGR_TRANSACTION_RIGHTS);
+  const [reportRightDefs, setReportRightDefs] = useState(UWGR_REPORT_RIGHTS);
 
   const fetchList = useCallback(
     async (objName, json = [{}]) => {
@@ -118,6 +126,15 @@ export function useUserWiseGroupRights() {
       const links = normalizeDetailColLinks(resolveDetailColLinks(colData));
 
       setHeaderColumns(getColumnDefsFor(links, CFG.HEADER_COLS));
+
+      // Real rights columns/order/labels, sourced from this RB's own
+      // metadata instead of the hardcoded fallback — see the note on
+      // UWGR_TRANSACTION_RIGHT_COLUMNS in constants.js for why "Allow Print"
+      // (also declared here) is deliberately excluded from both sets.
+      const rbTransactionDefs = buildRightDefsFromRb(links, UWGR_TRANSACTION_RIGHT_COLUMNS);
+      const rbReportDefs = buildRightDefsFromRb(links, UWGR_REPORT_RIGHT_COLUMNS);
+      setTransactionRightDefs(rbTransactionDefs.length > 0 ? rbTransactionDefs : UWGR_TRANSACTION_RIGHTS);
+      setReportRightDefs(rbReportDefs.length > 0 ? rbReportDefs : UWGR_REPORT_RIGHTS);
 
       const [groupRows, moduleRows, typeRows] = await Promise.all([
         fetchList(CFG.SP_GROUP_LIST),
@@ -166,11 +183,11 @@ export function useUserWiseGroupRights() {
       };
 
       return {
-        transaction: normalizeRightsRows(unwrap(functionRows), UWGR_TRANSACTION_RIGHTS),
-        report: normalizeRightsRows(unwrap(approvalRows), UWGR_REPORT_RIGHTS),
+        transaction: normalizeRightsRows(unwrap(functionRows), transactionRightDefs),
+        report: normalizeRightsRows(unwrap(approvalRows), reportRightDefs),
       };
     },
-    [get, moduleOptions]
+    [get, moduleOptions, transactionRightDefs, reportRightDefs]
   );
 
   return {
@@ -180,6 +197,8 @@ export function useUserWiseGroupRights() {
     typeOptions,
     headerFetching,
     headerError,
+    transactionRightDefs,
+    reportRightDefs,
     fetchHeaderMeta,
     fetchRightsGrids,
   };

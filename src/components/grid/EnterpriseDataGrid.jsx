@@ -157,6 +157,15 @@ function orderColumnsWithActionsFirst(columns, selectable = false) {
  * onSearchChange {(q) => void}     Required alongside searchQuery for controlled search
  * onSearchStats  {(stats) => void} Called with { matchCount, totalCount } on every filter
  *                                  pass, so an external search box can show the same counts
+ * showFilterBar  {boolean}         Opt-in (default false — every existing page is unaffected).
+ *                                  Consolidates every filterable column's filter into one
+ *                                  compact, always-visible chip row instead of the small
+ *                                  per-column header icon (which is hidden when this is on,
+ *                                  to avoid two entry points to the same filter). Clicking a
+ *                                  chip opens the exact same ColumnFilter popup, backed by the
+ *                                  same columnFilters state — this only changes where the
+ *                                  trigger lives, not how filtering works. 2026-09-01 /pm,
+ *                                  piloted on Item Master before any wider rollout.
  *
  * Column shape
  * ────────────
@@ -201,6 +210,7 @@ function EnterpriseDataGrid({
   variant = "",
   searchable = false,
   hideSearchBar = false,
+  showFilterBar = false,
   searchQuery: controlledSearchQuery,
   onSearchChange: controlledOnSearchChange,
   onSearchStats,
@@ -405,6 +415,20 @@ function EnterpriseDataGrid({
     });
     setCurrentPage(1);
   }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setColumnFilters({});
+    setCurrentPage(1);
+  }, []);
+
+  const filterableColumns = useMemo(
+    () => displayColumns.filter((col) => col.filterable && !isActionColumn(col) && !isSelectColumn(col)),
+    [displayColumns]
+  );
+  const activeFilterCount = useMemo(
+    () => Object.values(columnFilters).filter(isFilterActive).length,
+    [columnFilters]
+  );
 
   /* ── Global text search ───────────────────────────────────────────── */
   const textSearchedData = useMemo(() => {
@@ -771,6 +795,38 @@ function EnterpriseDataGrid({
         </div>
       )}
 
+      {/* ── filter bar: one compact chip per filterable column ── */}
+      {showFilterBar && filterableColumns.length > 0 && (
+        <div className="eg-filter-bar">
+          <span className="eg-filter-bar__label">Filters</span>
+          <div className="eg-filter-bar__chips">
+            {filterableColumns.map((col) => {
+              const active = isFilterActive(columnFilters[col.key]);
+              return (
+                <button
+                  key={col.key}
+                  type="button"
+                  ref={getFilterRef(col.key)}
+                  className={`eg-filter-chip${active ? " eg-filter-chip--active" : ""}`}
+                  onClick={() => toggleFilter(col.key)}
+                  aria-label={active ? `Filter applied on ${col.label}` : `Filter ${col.label}`}
+                  data-filter-active={active ? "true" : "false"}
+                >
+                  <Filter size={11} strokeWidth={active ? 2.5 : 2} />
+                  {col.label}
+                  {active && <span className="eg-filter-chip__dot" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+          {activeFilterCount > 0 && (
+            <button type="button" className="eg-filter-bar__clear" onClick={clearAllFilters}>
+              Clear all ({activeFilterCount})
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── body ── */}
       <div className="ng-card-content">
         {blockingLoad ? (
@@ -845,7 +901,7 @@ function EnterpriseDataGrid({
                                   </span>
                                 )}
                               </span>
-                              {col.filterable && (
+                              {col.filterable && !showFilterBar && (
                                 <span
                                   ref={filterRef}
                                   className={`ng-filter-icon${active ? " ng-filter-icon--active" : ""}`}
@@ -863,7 +919,7 @@ function EnterpriseDataGrid({
                                   }
                                   data-filter-active={active ? "true" : "false"}
                                 >
-                                  <Filter size={11} strokeWidth={active ? 2.5 : 2} />
+                                  <Filter size={13} strokeWidth={active ? 2.5 : 2} />
                                   {active && (
                                     <span className="ng-filter-dot" aria-hidden="true" />
                                   )}

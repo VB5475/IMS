@@ -1,6 +1,7 @@
 // constants.js — Company Act Depreciation (DPC) page config
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
 import { getMissingMandatoryHeaderLabels } from "../../utils/columnValidation";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE     = "Company Act Depreciation";
@@ -67,4 +68,10 @@ export const DPC_FILTER_CASCADE_RESETS = {
 /** Select Item gate — mandatory fields come only from GET_DETAIL_COL_DATA (IsMandatory + IsVisible). */
 export function getMissingItemPickerHeaderFields(headerValues, headerColumns = null) {
   return getMissingMandatoryHeaderLabels(headerValues, headerColumns);
+}
+
+// AssetsDepreciation.rpt takes no per-record filter — the listing page's
+// Print button (and the form's Save & Print) always run this company-wide report.
+export function buildDpcReportParams() {
+  return [buildCompanyReportParam()];
 }

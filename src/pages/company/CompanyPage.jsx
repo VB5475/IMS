@@ -69,8 +69,6 @@ export default function CompanyPage() {
   usePageHeader({
     title:    "Company",
     subtitle: "Browse and update company records.",
-    showBack: true,
-    backTo:   "/",
   });
 
   useEffect(() => { fetchHeaderMeta(); }, [fetchHeaderMeta]);

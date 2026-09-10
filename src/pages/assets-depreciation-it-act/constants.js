@@ -106,6 +106,7 @@
 //     purely from live column metadata.
 
 import { RB_CODES, rbRoutePath } from "../../constants/rbCodes";
+import { buildCompanyReportParam } from "../../utils/reportParams";
 
 export { ENTRY_FORM_LABEL } from "../../constants/uiStrings";
 export const PAGE_TITLE = "Calculate Depreciation IT Act";
@@ -165,3 +166,10 @@ export const DIT_SHORTCUT_CONFIG = {
   s: { label: "Save", title: "Save (Alt+S)" },
   n: { label: "Cancel", title: "Cancel (Alt+N)" },
 };
+
+// AssetsDepreciationITAct.rpt takes no per-record filter — the listing
+// page's Print button (and the form's Save & Print) always run this
+// company-wide report.
+export function buildDitReportParams() {
+  return [buildCompanyReportParam()];
+}

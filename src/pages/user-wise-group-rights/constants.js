@@ -101,18 +101,71 @@ export const UWGR_ROW_KEYS = Object.freeze({
   functionId: "funcidnumber",
 });
 
-/** Grid 1 columns — header select-all label ↔ per-row column label. */
+// 2026-09-09 /pm — View leads the column order and gates the other three:
+// a row's Insert/Update/Delete can't be granted (checkboxes disabled) until
+// its own View is checked, and unchecking View on a row clears whatever else
+// was granted there. See the "view gates the rest" handling in
+// UserWiseGroupRightsForm.jsx (makeToggleRow/makeToggleAll).
+//
+// 2026-09-09 /pm — these are now only the FALLBACK shown before the RB's own
+// column metadata has loaded (or if that fetch fails). The real columns/order
+// come from GetDetailColData for this RB (rbid 20205), same as every other
+// RB-driven form — see buildRightDefsFromRb below and its use in
+// useUserWiseGroupRights.js. That RB response also declares an "Allow Print"
+// column (colseqno 22, right after Approval), but the two grid-fetch SPs
+// (Functiongrid / Appovalgrid) do not return an `allowprint` field on their
+// rows at all (confirmed live, 2026-09-09) — so it's deliberately left out of
+// both COLUMN sets below. Wiring it up needs that on the backend first;
+// adding a checkbox for a field the row data never carries would just be a
+// checkbox that can never reflect or save a real value.
+/** Grid 1 columns — header select-all label ↔ per-row column label. Fallback
+ *  only; see the note above. */
 export const UWGR_TRANSACTION_RIGHTS = Object.freeze([
-  { key: "insert", column: "allowinsert", toggleLabel: "Add", columnLabel: "Allow Insert" },
-  { key: "update", column: "allowupdate", toggleLabel: "Edit", columnLabel: "Allow Update" },
-  { key: "delete", column: "allowdelete", toggleLabel: "Delete", columnLabel: "Allow Delete" },
   { key: "view", column: "allowview", toggleLabel: "View", columnLabel: "Allow View" },
+  { key: "insert", column: "allowinsert", toggleLabel: "Insert", columnLabel: "Allow Insert" },
+  { key: "update", column: "allowupdate", toggleLabel: "Update", columnLabel: "Allow Update" },
+  { key: "delete", column: "allowdelete", toggleLabel: "Delete", columnLabel: "Allow Delete" },
 ]);
 
-/** Grid 2 columns. */
+/** The right key that gates the others in a rights grid — present only on
+ *  Grid 1 (Report Rights' single Approval column has nothing to gate). */
+export const UWGR_VIEW_GATE_KEY = "view";
+
+/** Grid 2 columns. Fallback only; see the note above. */
 export const UWGR_REPORT_RIGHTS = Object.freeze([
   { key: "approval", column: "allowapproval", toggleLabel: "Approval", columnLabel: "Allow Approval" },
 ]);
+
+/** `colname`s each grid's fetch SP actually returns on its rows (confirmed
+ *  live, 2026-09-09) — the allowlist buildRightDefsFromRb filters the RB's
+ *  column metadata down to, per grid. Keep in sync with the SP row shape
+ *  note above, not with what GetDetailColData merely declares. */
+export const UWGR_TRANSACTION_RIGHT_COLUMNS = ["allowview", "allowinsert", "allowupdate", "allowdelete"];
+export const UWGR_REPORT_RIGHT_COLUMNS = ["allowapproval"];
+
+/**
+ * Turn this RB's real column metadata (GetDetailColData rows) into rights
+ * column defs for one grid — key/label/order genuinely sourced from the RB
+ * instead of hand-maintained, filtered to `allowedColumns` (what that grid's
+ * own fetch SP returns) and ordered by the RB's own colseqno.
+ */
+export function buildRightDefsFromRb(rbColumns, allowedColumns) {
+  const wanted = new Set(allowedColumns.map((c) => c.toLowerCase()));
+  return (rbColumns || [])
+    .filter((col) => wanted.has(String(col.colname ?? col.ColName ?? "").toLowerCase()))
+    .slice()
+    .sort((a, b) => (Number(a.colseqno ?? a.ColSeqNo) || 0) - (Number(b.colseqno ?? b.ColSeqNo) || 0))
+    .map((col) => {
+      const colname = String(col.colname ?? col.ColName ?? "").toLowerCase();
+      const label = String(col.displayname ?? col.DisplayName ?? "").trim() || colname;
+      return {
+        key: colname.replace(/^allow/, ""),
+        column: colname,
+        columnLabel: label,
+        toggleLabel: label.replace(/^Allow\s+/i, "").trim() || label,
+      };
+    });
+}
 
 /** Grid function parameters — shared by both grid calls (2026-08-25 /pm:
  *  the param key is "prmgroupcode" per the actual SP signature, but its

@@ -33,8 +33,11 @@ import "./ItemMasterPage.css";
 // Fields locked during edit mode (RB colnames — all lowercase)
 const LOCK_ON_EDIT = new Set(["itemcode"]);
 
-// Fields rendered as checkbox despite colctrltype=1 (store numeric 0/1)
-const CHECKBOX_OVERRIDES = new Set(["isqcreq"]);
+// Fields rendered as checkbox despite colctrltype=11 (Numeric Yes/No; store
+// numeric 0/1) — isdirectpoallow is isqcreq's sibling field (same
+// colctrltype/coldatatype, sequential objdetid) that never got this same
+// override added.
+const CHECKBOX_OVERRIDES = new Set(["isqcreq", "isdirectpoallow"]);
 
 const DISPLAY_OVERRIDES = {
   taxabilityid: "Taxability",
@@ -259,18 +262,29 @@ export default function ItemMasterForm({
       );
     }
 
-    // Checkbox override — stored as numeric 0/1 (never validated, see handleSave)
+    // Checkbox override — stored as numeric 0/1 (never validated, see handleSave).
+    // Rendered as a toggle switch (per /pm, to match account-group-master's
+    // style), reusing MasterFormField's shared master-form-toggle* classes —
+    // MasterFormField.css is already imported into this file. No extra
+    // wrapper div here beyond master-form-control--toggle itself: the
+    // row-render loop below already puts "im-form-control
+    // im-form-control--checkbox" on ITS wrapper around this control, which
+    // is the real flex container (see .im-form-control--checkbox in
+    // ItemMasterPage.css).
     if (CHECKBOX_OVERRIDES.has(key)) {
+      const on = !!formValues[key];
       return (
-        <div className="im-form-control--checkbox">
-          <input
-            type="checkbox"
-            className="im-form-checkbox"
-            checked={!!formValues[key]}
-            onChange={(e) => handleChange(key, e.target.checked ? 1 : 0)}
+        <div className="master-form-control--toggle">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label={getLabel(field)}
+            className={`master-form-toggle${on ? " master-form-toggle--on" : ""}`}
+            onClick={() => handleChange(key, on ? 0 : 1)}
             disabled={locked}
           />
-          <span className="im-form-checkbox-label">{formValues[key] ? "Yes" : "No"}</span>
+          <span className="master-form-toggle-label">{on ? "Yes" : "No"}</span>
         </div>
       );
     }

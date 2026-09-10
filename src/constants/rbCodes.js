@@ -35,6 +35,11 @@ export const RB_CODES = Object.freeze({
   // "Account") — flat master, explicitly named in the MRD's own RB Structure
   // Detail + header-panel notes (not a placeholder like some other MRDs).
   VOUCHER_TYPE_MASTER: "rb_vouchertypemst",
+  // New flat master (2026-09-07 /pm, Vinay/client) — confirmed registered
+  // on IMS_LIVE (RBID 20208). Only 3 real fields (Terms Type dropdown, Code,
+  // Description) — see terms-condition-master/constants.js for open items
+  // (description locked per RB flag, no delete proc, Save endpoint unknown).
+  TERMS_CONDITION_MASTER: "rb_termnconditionmst",
   TRANSPORTER_MASTER: "rb_transportermst",
   // MRD_Template4CountryMaster.docx / MRD_Template4CityMaster.docx (Aditya,
   // 17-Jun-2026) — flat masters, City cascades off Country (Country -> State).
@@ -93,7 +98,29 @@ export const RB_CODES = Object.freeze({
   PURCHASE_RATE_CONTRACT: "rb_purratecontmst",
   GOODS_RECEIVED_NOTE: "rb_purgrnmst",
   PURCHASE_VOUCHER: "rb_purpvmst",
+  /**
+   * Purchase Return — MRD_Template4PurchaseReturn.docx (Richa, 12-Aug-2026).
+   * Header shape mirrors Purchase Voucher (tax breakup, transporter/driver
+   * logistics fields) but with its own city→transporter→destination cascade
+   * chain (own SPs, no division param — see usePurchaseReturn.js) and a
+   * 2-way item picker: 1=PV Base, 2=Direct. NOTE — that numbering is the
+   * MRD's own explicit instruction ("Hardcode options(1-PV Base,2-Direct)")
+   * and deliberately breaks the "0=Direct" convention every sibling
+   * purchase module uses; kept verbatim per the MRD, flagged here for a
+   * DBA/QA sanity check rather than silently "corrected" to match the others.
+   */
+  PURCHASE_RETURN: "rb_purprmst",
   TXN_ENTRY: "rb_sampleinvmst",
+  // PO Short Close Qty — read-only browse page (2026-09-07 /pm). Confirmed
+  // registered on IMS_LIVE (RBID 20263) via fn_fetch_rbdetailbyrbcode,
+  // live-tested with this EXACT mixed case — kept as-given rather than
+  // lowercased to match this file's visual convention, since case-
+  // sensitivity of the backend lookup hasn't been verified either way.
+  PO_SHORT_CLOSE_QTY: "RB_POShortCloseQty",
+  // PO Excess Qty — sibling of PO Short Close Qty, same shape (2026-09-07
+  // /pm). Confirmed registered on IMS_LIVE (RBID 20264). Same mixed-case
+  // note as above applies.
+  PO_EXCESS_QTY: "RB_POExcessQty",
 
   // ── Assets ──────────────────────────────────────────────────────
   CWIP_TO_FA: "rb_astcwip2famst",
@@ -173,6 +200,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ACCOUNT_GROUP_MASTER]: "/admin/account-group-master",
   [RB_CODES.ACCOUNT_MASTER]: "/admin/account-master",
   [RB_CODES.VOUCHER_TYPE_MASTER]: "/admin/voucher-type-master",
+  [RB_CODES.TERMS_CONDITION_MASTER]: "/admin/master/terms-condition-master",
   // MRD's own routes are malformed ("/Admin/Master/Supplier – Transporter
   // Master" — literal en-dash, duplicated "Supplier") — using the sibling
   // Supplier/Customer Master route shape instead.
@@ -200,7 +228,13 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.PURCHASE_RATE_CONTRACT]: "/purchase-rate-contract",
   [RB_CODES.GOODS_RECEIVED_NOTE]: "/goods-received-note",
   [RB_CODES.PURCHASE_VOUCHER]: "/purchase-voucher",
+  // MRD's own routes are malformed ("/purchase- Purchase Return",
+  // "/purchase- Purchase Return /new") — using the sibling Purchase Voucher
+  // route shape instead, same fix applied to Transporter Master above.
+  [RB_CODES.PURCHASE_RETURN]: "/purchase-return",
   [RB_CODES.TXN_ENTRY]: "/txn-entry",
+  [RB_CODES.PO_SHORT_CLOSE_QTY]: "/po-short-close-qty",
+  [RB_CODES.PO_EXCESS_QTY]: "/po-excess-qty",
 
   [RB_CODES.CWIP_TO_FA]: "/cwip-to-fa",
   [RB_CODES.ASSETS_DEPRECIATION]: "/assets-depreciation",
@@ -235,6 +269,7 @@ export const RB_ROUTE_PATHS = Object.freeze({
   [RB_CODES.ASSET_PARTS_INDENT]: "/asset-parts-indent-detail",
 
   [RB_CODES.WORKFLOW_DASHBOARD]: "/workflow-dashboard",
+  [RB_CODES.DASHBOARD_AST_STOCK_DETAIL]: "/",
 });
 
 /** Absolute public base path for a module (e.g. `/purchase-indent`). */
@@ -269,6 +304,25 @@ export function findRbCodeKey(rbCode) {
   return Object.keys(RB_CODES).find((key) => RB_CODES[key] === value) ?? null;
 }
 
+/**
+ * Extra frontend paths that should carry an existing RB code's rights even
+ * though they are not that RB's own canonical route — RB_ROUTE_PATHS stays
+ * strictly 1:1 per RB code (rbRoutePath()/rbLeaf()/rbModule() all depend on
+ * that), so a second path for the same code can't just be added there.
+ *
+ * 2026-09-09 /pm — Asset Part Indent ("/assets-part-indent") has no RB code
+ * of its own (confirmed: no backend RB was ever given for it — see its own
+ * constants.js). User-requested: whoever has rights to the sibling "Asset
+ * Parts Indent Detail" module (rb_astindentmst, /asset-parts-indent-detail)
+ * should get this page too — same Maintenance-section pair, one shared
+ * permission. This is what both RequireModuleAccess (App.jsx) and the
+ * sidebar's visibleNavSections (AppShell.jsx) fall back to via
+ * findRbByPath for this path; App.jsx's route itself still carries no `id`.
+ */
+const RB_PATH_ALIASES = Object.freeze({
+  "/assets-part-indent": RB_CODES.ASSET_PARTS_INDENT,
+});
+
 /** Resolve RB code from a frontend pathname (longest prefix match). */
 export function findRbByPath(pathname) {
   const path = String(pathname || "").split("?")[0];
@@ -279,6 +333,14 @@ export function findRbByPath(pathname) {
       if (routePath.length > bestLen) {
         best = rbCode;
         bestLen = routePath.length;
+      }
+    }
+  }
+  for (const [aliasPath, rbCode] of Object.entries(RB_PATH_ALIASES)) {
+    if (path === aliasPath || path.startsWith(`${aliasPath}/`)) {
+      if (aliasPath.length > bestLen) {
+        best = rbCode;
+        bestLen = aliasPath.length;
       }
     }
   }

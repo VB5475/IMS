@@ -1,0 +1,1 @@
+import{r as e}from"./vendor-datepicker-CdCCRkxU.js";var t=e();function n(){return(0,t.jsx)(`span`,{className:`field-required-mark`,"aria-hidden":`true`,title:`Required`,children:`*`})}export{n as t};

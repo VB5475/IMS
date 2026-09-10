@@ -52,8 +52,6 @@ export default function BomMasterPage() {
   usePageHeader({
     title: "Assets BOM Master",
     subtitle: "Browse BOM records or create a new one.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

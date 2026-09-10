@@ -11,6 +11,8 @@ export default function UserWiseGroupRightsPage() {
     typeOptions,
     headerFetching,
     headerError,
+    transactionRightDefs,
+    reportRightDefs,
     fetchHeaderMeta,
     fetchRightsGrids,
   } = useUserWiseGroupRights();
@@ -19,8 +21,6 @@ export default function UserWiseGroupRightsPage() {
     title: "User Wise Group Rights",
     subtitle:
       "Pick a Group, Module and Type, click Search, then grant form rights and report approval rights for that group.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {
@@ -35,6 +35,8 @@ export default function UserWiseGroupRightsPage() {
       typeOptions={typeOptions}
       headerFetching={headerFetching}
       headerError={headerError}
+      transactionRightDefs={transactionRightDefs}
+      reportRightDefs={reportRightDefs}
       onSearch={fetchRightsGrids}
     />
   );

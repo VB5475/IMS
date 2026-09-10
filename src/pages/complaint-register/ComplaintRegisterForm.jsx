@@ -56,6 +56,8 @@ import {
   validateMcrBusinessRules,
   resolveMcrColKey,
 } from "./constants";
+import { useReportPrint } from "../../hooks/useReportPrint";
+import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
 import "./ComplaintRegisterPage.css";
 
 let _mcrTempId = -1;
@@ -126,6 +128,7 @@ export default function ComplaintRegisterForm() {
   const isEditRoute = !isNewRoute && recordId > 0;
   const listRecord = location.state?.record ?? null;
   const notify = useNotification();
+  const { printReport, printing: isPrinting } = useReportPrint();
   const [formErrors, setFormErrors] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailCellErrors, setDetailCellErrors] = useState(null);
@@ -290,6 +293,7 @@ export default function ComplaintRegisterForm() {
           : `Complaint #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: MCR_CONFIG.ROUTE_PATH,
+    backLabel: "MCR",
   });
 
   useEffect(() => {
@@ -760,8 +764,17 @@ export default function ComplaintRegisterForm() {
   const handleSaveAndPrint = useCallback(async () => {
     const saved = await handleSave();
     if (!saved) return;
-    window.print();
-  }, [handleSave]);
+    // ComplaintRegister.rpt has no per-record filter (see constants.js) —
+    // this fires the same company-wide report the listing Print button does.
+    try {
+      await printReport({
+        ...PRINT_REPORT_CONFIG["complaint-register"],
+        jsonParameters: buildComplaintRegisterReportParams(),
+      });
+    } catch (err) {
+      notify.error(err?.message || "Saved, but failed to generate the print report.");
+    }
+  }, [handleSave, printReport, notify]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -790,7 +803,7 @@ export default function ComplaintRegisterForm() {
   useEntryFormKeyboard({
     blocked: itemModalOpen,
     isEditMode,
-    isSaving,
+    isSaving: isSaving || isPrinting,
     addDisabled: filterBusy,
     onAdd: enterEditModeWithFocus,
     onSave: handleSave,
@@ -801,8 +814,8 @@ export default function ComplaintRegisterForm() {
 
   const extraButtons = useMemo(() => [
     {
-      key: "saveprint", label: "Save & Print", Icon: Printer, variant: "print",
-      onClick: handleSaveAndPrint, disabled: isSaving,
+      key: "saveprint", label: isPrinting ? "Printing…" : "Save & Print", Icon: Printer, variant: "print",
+      onClick: handleSaveAndPrint, disabled: isSaving || isPrinting,
       title: FORM_SHORTCUT_TITLES.savePrint,
     },
     {
@@ -810,7 +823,7 @@ export default function ComplaintRegisterForm() {
       onClick: handleSave, disabled: isSaving, loading: isSaving,
       accessKey: "s", title: FORM_SHORTCUT_TITLES.save,
     },
-  ], [handleSaveAndPrint, handleSave, isSaving]);
+  ], [handleSaveAndPrint, handleSave, isSaving, isPrinting]);
 
   const itemGridConfig = { columns, pagination: { pageSize: 10, pageSizeOptions: [5, 10, 25, 50] } };
   const combinedError = metaError || headerError;

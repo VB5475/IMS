@@ -12,7 +12,9 @@ function isIdNumberColumnKey(key) {
 // getRowState handling) rather than showing as a raw-number column.
 const ALWAYS_HIDDEN_COLUMN_KEYS = new Set(["appstatusid"]);
 
-function isAlwaysHiddenColumnKey(key) {
+/** Exported so other list-column builders (e.g. listColumns.js's buildListColumnsFromApi)
+ *  can respect the same project-wide hidden-key convention without duplicating the set. */
+export function isAlwaysHiddenColumnKey(key) {
   return ALWAYS_HIDDEN_COLUMN_KEYS.has(String(key).replace(/\s+/g, "").toLowerCase());
 }
 

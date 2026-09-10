@@ -38,8 +38,6 @@ export default function PreventiveMaintenanceInternalPage() {
   usePageHeader({
     title: "Preventive Maintenance Internal",
     subtitle: "Manage internal preventive maintenance contracts for asset items.",
-    showBack: true,
-    backTo: "/",
   });
 
   const columns = useMemo(

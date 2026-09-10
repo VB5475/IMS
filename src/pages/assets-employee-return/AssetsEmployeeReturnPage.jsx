@@ -18,19 +18,12 @@ import { resolveListRowId } from "../../utils/listColumns";
 import { resolveRowFieldValue } from "../../utils/gridUtils";
 import { parseApiErrMsg } from "../../utils/apiResponse";
 import { useApprovalRowStatus } from "../../hooks/useApprovalRowStatus";
-import { AER_CONFIG, ENTRY_FORM_LABEL, buildAerListJsonPayload } from "./constants";
+import { AER_CONFIG, ENTRY_FORM_LABEL, buildAerListJsonPayload, buildAerReportParams } from "./constants";
 import "./AssetsEmployeeReturnPage.css";
 import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE } from "../../constants/tableConfig";
-import { buildCompanyReportParam } from "../../utils/reportParams";
 import { exportRowsToCsv } from "../../utils/csvExport";
 import ListPanelHeader from "../../components/list/ListPanelHeader";
 import { PRINT_REPORT_CONFIG } from "../../constants/printReportConfig";
-
-function buildAerReportParams() {
-  return [
-    buildCompanyReportParam(),
-  ];
-}
 
 function buildListParams() {
   return {
@@ -71,8 +64,6 @@ export default function AssetsEmployeeReturnPage() {
   usePageHeader({
     title: "Assets Employee Return",
     subtitle: "Return assets and issued items from employees.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {

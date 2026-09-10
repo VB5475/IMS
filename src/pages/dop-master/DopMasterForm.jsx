@@ -213,6 +213,11 @@ export default function DopMasterForm() {
   // bandId -> employee row count, for each card's badge (the actual row DATA
   // lives uncontrolled inside that band's CollapsibleGrid, not in this state).
   const [employeeCounts, setEmployeeCounts] = useState({});
+  // bandId -> the band's employees loaded on edit, fed to that band's grid as
+  // its `rows`/initialRows so EntryGrid loads them in its own (lazy-mount-safe)
+  // mount effect. Replaces a post-mount imperative flush that raced the grid's
+  // lazy load and dropped the rows (grid showed empty despite a nonzero count).
+  const [employeesByBand, setEmployeesByBand] = useState({});
   // bandId -> search query, for each band's own Employee Detail search box
   // (rendered in the shared header row via CollapsibleGrid's headerActions,
   // fed into the grid as an externalSearchQuery so it still filters).
@@ -253,6 +258,7 @@ export default function DopMasterForm() {
           : `DOP #${recordId || routeId || "—"} — click Add (Alt+A) to edit.`,
     showBack: true,
     backTo: DOP_CONFIG.ROUTE_PATH,
+    backLabel: "DOP",
   });
 
   // ── Mount: load metadata ───────────────────────────────────────────────────
@@ -272,7 +278,7 @@ export default function DopMasterForm() {
 
   useEffect(() => {
     if (userAllColumns.length === 0 || userColumnsLoadedRef.current || isEditRoute) return;
-    fetchUserGridColumns(0).then((cols) => {
+    fetchUserGridColumns(headerValuesRef.current.divisionid).then((cols) => {
       if (cols?.length > 0) userColumnsLoadedRef.current = true;
     });
   }, [userAllColumns, fetchUserGridColumns, isEditRoute]);
@@ -291,6 +297,10 @@ export default function DopMasterForm() {
 
   // ── Edit flow ─────────────────────────────────────────────────────────────
   const loadEditRecord = useCallback(async () => {
+    // Load-once mutex — set before the first await so a concurrent effect
+    // re-run (e.g. a header dropdown resolving mid-load) can't start a second,
+    // overlapping edit load.
+    editRecordLoadedRef.current = true;
     setRecordLoading(true);
     setRecordLoadError(null);
     try {
@@ -299,11 +309,17 @@ export default function DopMasterForm() {
       if (!master || !headerValues) throw new Error("DOP Master record not found.");
 
       headerValuesRef.current = { ...headerValuesRef.current, ...headerValues };
-      editRecordLoadedRef.current = true;
 
       if (headerValues.tranid) {
-        const tranTypeCode = tranTypeOptions.find((o) => o.value === String(headerValues.tranid))?.code;
-        await fetchEntityOptions(tranTypeCode);
+        // ref_trantype is the tran-type CODE the Entity SP needs (e.g.
+        // "PUR_IND"), carried on the master row itself — use it directly so
+        // the Entity cascade no longer races the Tran Type dropdown load
+        // (fetchHeaderMeta sets tranTypeOptions AFTER headerColumns, so it can
+        // still be empty when this edit load runs). Was
+        // tranTypeOptions.find(...).code, which silently produced an empty
+        // Entity list whenever those options hadn't arrived yet.
+        const tranTypeCode = master.ref_trantype ?? headerValues.ref_trantype ?? "";
+        await fetchEntityOptions(tranTypeCode, headerValues.divisionid);
       }
       setIsAmountEnabled(Number(headerValues.dopisamountbased) === 1);
       setLoadedFilterValues(mapHeaderValuesToFilterValues(headerValues));
@@ -311,7 +327,7 @@ export default function DopMasterForm() {
 
       const [amountCols, userCols] = await Promise.all([
         fetchAmountGridColumns(0, { existingRecordEdit: true, masterRow: master, fetchUnlockedDropdowns: false }),
-        fetchUserGridColumns(0, { existingRecordEdit: true, masterRow: master, fetchUnlockedDropdowns: false }),
+        fetchUserGridColumns(headerValues.divisionid, { existingRecordEdit: true, masterRow: master, fetchUnlockedDropdowns: false }),
       ]);
       if (amountCols?.length > 0) amountColumnsLoadedRef.current = true;
       if (userCols?.length > 0) userColumnsLoadedRef.current = true;
@@ -325,22 +341,30 @@ export default function DopMasterForm() {
 
       queuedEmployeesByBandRef.current = {};
       const counts = {};
+      const nextEmployeesByBand = {};
       (amountDetails || []).forEach((band) => {
         const rows = employeesByAmountId[String(band.idnumber ?? band.id)] ?? [];
-        queuedEmployeesByBandRef.current[band.id] = rows;
+        // Seed via the grid's rows/initialRows prop (below), not a post-mount
+        // imperative flush — EntryGrid loads initialRows in its own mount
+        // effect, which can't miss the lazy-load window the ref flush did.
+        nextEmployeesByBand[band.id] = rows;
         counts[band.id] = rows.length;
       });
+      setEmployeesByBand(nextEmployeesByBand);
       setEmployeeCounts(counts);
       setAmountBands(amountDetails || []);
       apiBandIdsRef.current = new Set((amountDetails || []).map((b) => String(b.id)));
-      // registerEmployeeGridRef flushes queued rows as each band's grid mounts.
     } catch (err) {
       console.error("[DOP] Edit record load failed:", err);
       setRecordLoadError(err?.message || "Failed to load DOP Master record.");
     } finally {
       setRecordLoading(false);
     }
-  }, [recordId, listRecord, fetchEditRecord, fetchEntityOptions, fetchAmountGridColumns, fetchUserGridColumns, tranTypeOptions]);
+    // NB: no longer depends on tranTypeOptions — the Entity code now comes
+    // from the master row (ref_trantype), so loadEditRecord stays stable after
+    // mount and the edit effect fires exactly once instead of re-running (and
+    // re-fetching the whole record) when the Tran Type dropdown resolves.
+  }, [recordId, listRecord, fetchEditRecord, fetchEntityOptions, fetchAmountGridColumns, fetchUserGridColumns]);
 
   useEffect(() => {
     if (!isEditRoute || editRecordLoadedRef.current || headerColumns.length === 0) return;
@@ -350,7 +374,7 @@ export default function DopMasterForm() {
   useEffect(() => {
     if (!isEditRoute || !isEditMode) return;
     fetchAmountGridColumns(0, { existingRecordEdit: true, fetchUnlockedDropdowns: true });
-    fetchUserGridColumns(0, { existingRecordEdit: true, fetchUnlockedDropdowns: true });
+    fetchUserGridColumns(headerValuesRef.current.divisionid, { existingRecordEdit: true, fetchUnlockedDropdowns: true });
   }, [isEditRoute, isEditMode, fetchAmountGridColumns, fetchUserGridColumns]);
 
   // ── syncedFilters (fully dynamic from API, colseqno-sorted) ───────────────
@@ -412,7 +436,7 @@ export default function DopMasterForm() {
     if (userAllColumns.length === 0) return [];
     setIsGridLoading(true);
     try {
-      const activeCols = await fetchUserGridColumns(0);
+      const activeCols = await fetchUserGridColumns(headerValuesRef.current.divisionid);
       if (activeCols?.length > 0) userColumnsLoadedRef.current = true;
       return activeCols;
     } finally {
@@ -432,6 +456,7 @@ export default function DopMasterForm() {
     employeeGridRefsRef.current = {};
     queuedEmployeesByBandRef.current = {};
     apiBandIdsRef.current = new Set();
+    setEmployeesByBand({});
     setEmployeeCounts({});
     setEmployeeSearch({});
     setEmployeeMatchCounts({});
@@ -467,9 +492,21 @@ export default function DopMasterForm() {
       if (val && val !== "0") {
         // Entity fetch keys off the Tran Type's code (e.g. "PUR_IND"), not its id.
         const tranTypeCode = tranTypeOptions.find((o) => o.value === String(val))?.code;
-        await fetchEntityOptions(tranTypeCode);
+        await fetchEntityOptions(tranTypeCode, headerValuesRef.current.divisionid);
         focusFieldAfterCascade(filterPanelRef, "configurationid");
       }
+      return;
+    }
+
+    if (colName === "divisionid") {
+      // Employee Detail's User Name dropdown is division-scoped (@prmDivisionID),
+      // but its columns are fetched eagerly on mount — before Division has a
+      // real value — and then cached (userColumnsLoadedRef). Without this,
+      // ensureUserColumns() would keep serving that stale, divisionid=0
+      // fetch forever no matter what the user later picks here. Invalidating
+      // the cache on every Division change forces the next Add-Employee-time
+      // ensureUserColumns() call to actually refetch with the real value.
+      userColumnsLoadedRef.current = false;
       return;
     }
 
@@ -686,6 +723,7 @@ export default function DopMasterForm() {
     setIsGridLoading(false);
     setIsAmountEnabled(false);
     setAmountBands([]);
+    setEmployeesByBand({});
     setEmployeeCounts({});
     setEmployeeSearch({});
     setEmployeeMatchCounts({});
@@ -1062,7 +1100,7 @@ export default function DopMasterForm() {
                   recordLabel="employee"
                   defaultExpanded
                   columns={employeeCardColumns}
-                  rows={EMPTY_ROWS}
+                  rows={employeesByBand[band.id] ?? EMPTY_ROWS}
                   hidePagination
                   hideBottomPanel
                   searchable={false}

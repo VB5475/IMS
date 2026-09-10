@@ -28,8 +28,6 @@ export default function AssetDepreciationPercentagePage() {
   usePageHeader({
     title: PAGE_TITLE,
     subtitle: "Configure Company Act, Income Tax Act, and Management Act depreciation rates per account.",
-    showBack: true,
-    backTo: "/",
   });
 
   useEffect(() => {
